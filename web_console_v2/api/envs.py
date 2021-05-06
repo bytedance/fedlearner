@@ -23,3 +23,4 @@ class Envs(object):
     K8S_NAMESPACE = os.environ.get('K8S_NAMESPACE', 'default')
     K8S_CONFIG_PATH = os.environ.get('K8S_CONFIG_PATH', None)
     FEDLEARNER_WEBCONSOLE_LOG_DIR = os.environ.get('FEDLEARNER_WEBCONSOLE_LOG_DIR', '.')
+    FLASK_ENV = os.environ.get('FLASK_ENV', 'development')

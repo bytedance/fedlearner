@@ -16,7 +16,7 @@
 # pylint: disable=raise-missing-from
 import os
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 from flask import current_app, request
 from flask_restful import Resource, Api, reqparse
@@ -121,7 +121,8 @@ class BatchesApi(Resource):
 
         # Use current timestamp to fill when type is PSI
         event_time = datetime.fromtimestamp(event_time
-                                            or datetime.now().timestamp())
+                                            or datetime.utcnow().timestamp(),
+                                            tz=timezone.utc)
         batch_folder_name = event_time.strftime('%Y%m%d_%H%M%S')
         batch_path = f'{dataset.path}/batch/{batch_folder_name}'
         # Create batch

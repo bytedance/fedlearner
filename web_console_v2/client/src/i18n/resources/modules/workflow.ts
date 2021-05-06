@@ -46,6 +46,9 @@ const workflow: I18nMessageModule = {
   btn_add_var: { zh: '新增自定义变量' },
   btn_upload_tpl: { zh: '上传模板' },
   btn_go_create_new_tpl: { zh: '没有想要的模板？点击创建新模版' },
+  btn_preview_kibana: { zh: '预览' },
+  btn_preview_kibana_fullscreen: { zh: '在新窗口预览' },
+  btn_add_kibana_chart: { zh: '添加新的图表' },
 
   col_status: { zh: '任务状态' },
   col_project: { zh: ' 隶属项目' },
@@ -120,6 +123,8 @@ const workflow: I18nMessageModule = {
   label_metric_public: { zh: '公开Metric' },
   label_use_original_tpl: { zh: '保持原先模板' },
   label_choose_new_tpl: { zh: '选择其他模板' },
+  label_job_basics: { zh: '任务基础信息' },
+  label_job_kibana_metrics: { zh: 'Kibana 参数' },
 
   placeholder_name_searchbox: { zh: '根据工作流名称搜索' },
   placeholder_uuid_searchbox: { zh: '根据 UUID 搜索' },
@@ -136,6 +141,19 @@ const workflow: I18nMessageModule = {
   placeholder_default_val: { zh: '按需设置变量默认值' },
   placeholder_dataset: { zh: '请选择数据集' },
   placeholder_metric_not_public: { zh: '对侧未公开指标可见性，如需查看请联系对侧' },
+  placeholder_aggregator: { zh: '指定 Aggregator' },
+  placeholder_interval: { zh: 'Interval' },
+  placeholder_x_asix: { zh: '例: tag.event_time' },
+  placeholder_start_time: { zh: '开始时间' },
+  placeholder_end_time: { zh: '结束时间' },
+  placeholder_timers: { zh: 'Timers' },
+  placeholder_kibana_query: { zh: '自定义 query' },
+  placeholder_fill_kibana_form: {
+    zh: '填写参数后查看数据，Kibana加载时间可能稍长或出现长时间空白，请耐心等待',
+  },
+  placeholder_kibana_timer: {
+    zh: '输入多个 timer 名称',
+  },
 
   msg_sent_success: { zh: '工作流发送成功' },
   msg_template_required: { zh: '请选择一个模板！' },
@@ -194,6 +212,7 @@ const workflow: I18nMessageModule = {
   msg_loose_origin_vars_vals: { zh: '更换后原模板的配置值将丢失' },
   msg_resued_job_cannot_edit: { zh: '已继承结果的任务将无法更改变量' },
   msg_resued_job: { zh: '该任务直接复用了前次运行的结果' },
+  msg_no_available_kibana: { zh: '查询结果为空' },
 
   title_toggle_reusable: { zh: '切换至{{state}}状态' },
 

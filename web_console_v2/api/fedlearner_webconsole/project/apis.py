@@ -25,7 +25,6 @@ from flask_restful import Resource, Api, reqparse
 from google.protobuf.json_format import ParseDict
 
 from fedlearner_webconsole.db import db
-from fedlearner_webconsole.k8s_client import get_client
 from fedlearner_webconsole.project.models import Project
 from fedlearner_webconsole.proto.common_pb2 import Variable, StatusCode
 from fedlearner_webconsole.proto.project_pb2 \
@@ -36,6 +35,7 @@ from fedlearner_webconsole.project.add_on \
 from fedlearner_webconsole.exceptions \
     import InvalidArgumentException, NotFoundException
 from fedlearner_webconsole.rpc.client import RpcClient
+from fedlearner_webconsole.utils.k8s_client import k8s_client
 from fedlearner_webconsole.workflow.models import Workflow
 
 _CERTIFICATE_FILE_NAMES = [
@@ -276,7 +276,6 @@ def _create_add_on(participant, certificate, grpc_ssl_server_host=None):
                 details=ErrorMessage.PARAM_FORMAT_ERROR.value.format(
                     'certificates', '{} not existed'.format(file_name)))
     try:
-        k8s_client = get_client()
         create_add_on(k8s_client, participant.domain_name, participant.url,
                       certificate.certs, grpc_ssl_server_host)
     except RuntimeError as e:

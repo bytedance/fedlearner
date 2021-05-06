@@ -2,7 +2,7 @@ import React, { FC, useState } from 'react';
 import styled from 'styled-components';
 import { Table, Row, Col, DatePicker, Input, Button } from 'antd';
 import i18n from 'i18n';
-import { formatTimestamp } from 'shared/date';
+import { disableFuture, formatTimestamp } from 'shared/date';
 import { useTranslation } from 'react-i18next';
 import dayjs, { Dayjs } from 'dayjs';
 import { FileToImport } from 'typings/dataset';
@@ -149,9 +149,6 @@ const FileToImportList: FC<Props> = ({ value, onChange }) => {
       dateRange: [] as Dayjs[],
       name: '',
     });
-  }
-  function disableFuture(date: any) {
-    return dayjs(date).valueOf() > Date.now();
   }
   function filesFilter(item: FileToImport): boolean {
     const nameMatched = item.path.includes(query.name.trim());

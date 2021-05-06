@@ -195,7 +195,7 @@ const CanvasAndForm: FC = () => {
       nextValue.variables = _hydrate(nextValue.variables, values);
     }
 
-    if (currNode?.type === 'config') {
+    if (currNode?.type === 'edit') {
       // Hydrate values to target job
       const targetJob = nextValue.job_definitions.find((job) => job.name === currNode.id);
       if (targetJob) {

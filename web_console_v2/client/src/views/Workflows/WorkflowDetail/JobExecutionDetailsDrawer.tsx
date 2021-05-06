@@ -1,9 +1,9 @@
 import ErrorBoundary from 'antd/lib/alert/ErrorBoundary';
-import React, { ForwardRefRenderFunction } from 'react';
+import React, { ForwardRefRenderFunction, useState } from 'react';
 import styled from 'styled-components';
-import { Drawer, Row, Button, Tag } from 'antd';
+import { Drawer, Row, Button, Tag, Tabs } from 'antd';
 import { DrawerProps } from 'antd/lib/drawer';
-import { NodeData, ChartNodeStatus } from 'components/WorkflowJobsCanvas/types';
+import { NodeData, ChartNodeStatus, JobNodeRawData } from 'components/WorkflowJobsCanvas/types';
 import { useTranslation } from 'react-i18next';
 import { Close } from 'components/IconPark';
 import GridRow from 'components/_base/GridRow';
@@ -16,6 +16,7 @@ import { executionStatusText } from 'components/WorkflowJobsCanvas/JobNodes/shar
 import { convertExecutionStateToStatus } from 'components/WorkflowJobsCanvas/helpers';
 import { WorkflowExecutionDetails } from 'typings/workflow';
 import defaultTheme from 'styles/_theme';
+import JobKibanaMetrics from './JobKibanaMetrics/index.tsx';
 
 const Container = styled(Drawer)`
   top: 60px;
@@ -52,6 +53,13 @@ const ID = styled.small`
   margin-left: 10px;
   color: var(--textColorSecondary);
 `;
+const TabPanel = styled.div`
+  display: none;
+
+  &[data-visible='true'] {
+    display: block;
+  }
+`;
 
 interface Props extends DrawerProps {
   isPeerSide?: boolean;
@@ -61,6 +69,15 @@ interface Props extends DrawerProps {
 }
 
 export type JobExecutionDetailsExposedRef = {};
+export const JobExecutionDetailsContext = React.createContext({
+  job: (undefined as unknown) as JobNodeRawData,
+  workflow: undefined as WorkflowExecutionDetails | undefined,
+});
+
+enum JobDetailTabs {
+  Basic = 'basic',
+  Kibana = 'kibana',
+}
 
 const tagColors = {
   [ChartNodeStatus.Pending]: 'default',
@@ -73,11 +90,12 @@ const tagColors = {
 const JobExecutionDetailsDrawer: ForwardRefRenderFunction<JobExecutionDetailsExposedRef, Props> = ({
   jobData,
   workflow,
-  isPeerSide,
+  isPeerSide = false,
   toggleVisible,
   ...props
 }) => {
   const { t } = useTranslation();
+  const [currTab, setTab] = useState(JobDetailTabs.Basic);
 
   if (!jobData || !jobData.raw) {
     return null;
@@ -111,59 +129,84 @@ const JobExecutionDetailsDrawer: ForwardRefRenderFunction<JobExecutionDetailsExp
 
   return (
     <ErrorBoundary>
-      <Container
-        getContainer="#app-content"
-        mask={false}
-        width="880px"
-        onClose={closeDrawer}
-        headerStyle={{ display: 'none' }}
-        {...props}
-      >
-        <DrawerHeader align="middle" justify="space-between">
-          <Row align="middle">
-            <DrawerTitle>
-              {job.name}
-              <ID>ID: {job.id}</ID>
-            </DrawerTitle>
+      <JobExecutionDetailsContext.Provider value={{ job, workflow }}>
+        <Container
+          getContainer="#app-content"
+          mask={false}
+          width="980px"
+          onClose={closeDrawer}
+          headerStyle={{ display: 'none' }}
+          {...props}
+        >
+          <DrawerHeader align="middle" justify="space-between">
+            <Row align="middle">
+              <DrawerTitle>
+                {job.name}
+                <ID>ID: {job.id}</ID>
+              </DrawerTitle>
 
-            {isPeerSide ? (
-              <Tag color="orange">{t('workflow.peer_config')}</Tag>
-            ) : (
-              <Tag color="cyan">{t('workflow.our_config')}</Tag>
-            )}
+              {isPeerSide ? (
+                <Tag color="orange">{t('workflow.peer_config')}</Tag>
+              ) : (
+                <Tag color="cyan">{t('workflow.our_config')}</Tag>
+              )}
 
-            <Tag color={tagColors[jobStatus]}>{executionStatusText[jobStatus]}</Tag>
-          </Row>
-          <GridRow gap="10">
-            <Button size="small" icon={<Close />} onClick={closeDrawer} />
-          </GridRow>
-        </DrawerHeader>
+              <Tag color={tagColors[jobStatus]}>{executionStatusText[jobStatus]}</Tag>
+            </Row>
+            <GridRow gap="10">
+              <Button size="small" icon={<Close />} onClick={closeDrawer} />
+            </GridRow>
+          </DrawerHeader>
 
-        <CoverHeaderShadowIfNotSticky />
+          <CoverHeaderShadowIfNotSticky />
+          {!isPeerSide && (
+            <Tabs defaultActiveKey={currTab} onChange={onTabChange as any}>
+              <Tabs.TabPane tab={t('workflow.label_job_basics')} key={JobDetailTabs.Basic} />
+              <Tabs.TabPane
+                tab={t('workflow.label_job_kibana_metrics')}
+                key={JobDetailTabs.Kibana}
+              />
+            </Tabs>
+          )}
 
-        <PropertyList initialVisibleRows={3} cols={2} properties={displayedProps} labelWidth={90} />
+          <TabPanel data-visible={currTab === JobDetailTabs.Basic}>
+            <PropertyList
+              initialVisibleRows={3}
+              cols={2}
+              properties={displayedProps}
+              labelWidth={90}
+            />
 
-        <JobExecutionMetrics
-          job={job}
-          workflow={workflow}
-          isPeerSide={!!isPeerSide}
-          visible={props.visible}
-        />
+            <JobExecutionMetrics
+              job={job}
+              workflow={workflow}
+              isPeerSide={isPeerSide}
+              visible={props.visible}
+            />
 
-        <JobExecutionLogs
-          isPeerSide={!!isPeerSide}
-          job={job}
-          workflow={workflow}
-          enabled={Boolean(props.visible)}
-        />
+            <JobExecutionLogs
+              isPeerSide={isPeerSide}
+              job={job}
+              workflow={workflow}
+              enabled={Boolean(props.visible)}
+            />
 
-        <JobExecutionPods job={job} isPeerSide={!!isPeerSide} />
-      </Container>
+            <JobExecutionPods job={job} isPeerSide={isPeerSide} />
+          </TabPanel>
+
+          <TabPanel data-visible={currTab === JobDetailTabs.Kibana}>
+            <JobKibanaMetrics job={job} isPeerSide={isPeerSide} />
+          </TabPanel>
+        </Container>
+      </JobExecutionDetailsContext.Provider>
     </ErrorBoundary>
   );
 
   function closeDrawer() {
     toggleVisible && toggleVisible(false);
+  }
+  function onTabChange(activeTab: JobDetailTabs) {
+    setTab(activeTab);
   }
 };
 

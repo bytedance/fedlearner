@@ -13,7 +13,6 @@
 # limitations under the License.
 
 # coding: utf-8
-import enum
 import logging
 import threading
 import queue
@@ -23,24 +22,15 @@ from kubernetes import client, watch
 from envs import Envs
 from fedlearner_webconsole.utils.k8s_cache import k8s_cache, \
     Event, ObjectType
-
-class CrdKind(enum.Enum):
-    FLAPP = 'flapps'
-    SPARK_APPLICATION = 'sparkapplications'
-
-
-FEDLEARNER_CUSTOM_GROUP = 'fedlearner.k8s.io'
-FEDLEARNER_CUSTOM_VERSION = 'v1alpha1'
-
-
+from fedlearner_webconsole.utils.k8s_client import (
+    k8s_client, FEDLEARNER_CUSTOM_GROUP,
+    FEDLEARNER_CUSTOM_VERSION)
 
 
 class K8sWatcher(object):
     def __init__(self):
         self._lock = threading.Lock()
         self._running = False
-        self._api = None
-        self._crds = None
         self._flapp_watch = None
         self._pods_watch = None
         self._flapp_watch_thread = None
@@ -56,22 +46,18 @@ class K8sWatcher(object):
         self._cache = {}
         self._cache_lock = threading.Lock()
 
-    def initial(self):
-        self._api = client.CoreV1Api()
-        self._crds = client.CustomObjectsApi()
-        self._flapp_watch = watch.Watch()
-        self._pods_watch = watch.Watch()
-
     def start(self):
         with self._lock:
             if self._running:
                 logging.warning('K8s watcher has already started')
                 return
             self._running = True
+            self._flapp_watch = watch.Watch()
             self._flapp_watch_thread = threading.Thread(
                 target=self._k8s_flapp_watcher,
                 name='flapp_watcher',
                 daemon=True)
+            self._pods_watch = watch.Watch()
             self._pods_watch_thread = threading.Thread(
                 target=self._k8s_pods_watch,
                 name='pods_watcher',
@@ -101,8 +87,9 @@ class K8sWatcher(object):
         while True:
             if not self._running:
                 break
+
             stream = self._flapp_watch.stream(
-                self._crds.list_namespaced_custom_object,
+                k8s_client.crds.list_namespaced_custom_object,
                 group=FEDLEARNER_CUSTOM_GROUP,
                 version=FEDLEARNER_CUSTOM_VERSION,
                 namespace=Envs.K8S_NAMESPACE,
@@ -139,7 +126,7 @@ class K8sWatcher(object):
             if not self._running:
                 break
             stream = self._pods_watch.stream(
-                self._api.list_namespaced_pod,
+                k8s_client.core.list_namespaced_pod,
                 namespace=Envs.K8S_NAMESPACE,
                 label_selector='app-name',
                 resource_version=resource_version

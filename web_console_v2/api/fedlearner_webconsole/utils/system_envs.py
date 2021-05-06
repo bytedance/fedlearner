@@ -17,6 +17,11 @@ import json
 import os
 
 
+def _is_valid_env(env: dict) -> bool:
+    return env.get('valueFrom', None) is not None or \
+           env.get('value', None) is not None
+
+
 def get_system_envs():
     """Gets a JSON string to represent system envs."""
     # Most envs should be from pod's env
@@ -112,9 +117,10 @@ def get_system_envs():
         {
             'name': 'ETCD_BASE_DIR',
             'value': os.getenv('ETCD_BASE_DIR')
-        },
+        }
     ]
-    return ','.join([json.dumps(env) for env in envs])
+    return ','.join([json.dumps(env)
+                     for env in envs if _is_valid_env(env)])
 
 
 if __name__ == '__main__':

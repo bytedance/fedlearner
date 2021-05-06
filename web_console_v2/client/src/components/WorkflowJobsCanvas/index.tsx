@@ -32,6 +32,8 @@ import { ChartWorkflowConfig } from 'typings/workflow';
 import { cloneDeep } from 'lodash';
 import { useResizeObserver } from 'hooks';
 import { Side } from 'typings/app';
+import { WORKFLOW_JOB_NODE_CHANNELS } from './JobNodes/shared';
+import PubSub from 'pubsub-js';
 
 type Props = {
   workflowConfig: ChartWorkflowConfig;
@@ -216,6 +218,10 @@ const WorkflowJobsCanvas: ForwardRefRenderFunction<ChartExposedRef | undefined, 
 
     if (!target) return;
 
+    /**
+     * If a node choose reuse flag,
+     * all nodes it DEPEND on should be flagged as reused as well
+     */
     if (whetherInherit === true) {
       target.data.inherited = true;
 
@@ -226,12 +232,23 @@ const WorkflowJobsCanvas: ForwardRefRenderFunction<ChartExposedRef | undefined, 
         if (!isNode(item) || item.data.isGlobal) continue;
 
         if (itDependsOn.includes(item.id)) {
+          if (item.data.raw.is_federated) {
+            PubSub.publish(WORKFLOW_JOB_NODE_CHANNELS.change_inheritance, {
+              id: item.id,
+              data: item.data,
+              whetherInherit,
+            });
+          }
           item.data.inherited = true;
           itDependsOn.push(...item.data.raw.dependencies.map((item) => item.source));
         }
       }
     }
 
+    /**
+     * If a node choose non-reuse flag,
+     * all nodes DEPEND on it should be flagged as non-reuse too
+     */
     if (whetherInherit === false) {
       target.data.inherited = false;
 
@@ -248,6 +265,14 @@ const WorkflowJobsCanvas: ForwardRefRenderFunction<ChartExposedRef | undefined, 
         });
 
         if (hasAnyDependentOnPrevs) {
+          if (item.data.raw.is_federated) {
+            PubSub.publish(WORKFLOW_JOB_NODE_CHANNELS.change_inheritance, {
+              id: item.id,
+              data: item.data,
+              whetherInherit,
+            });
+          }
+
           item.data.inherited = false;
 
           depsChainCollected.push(item.id);
