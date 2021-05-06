@@ -23,7 +23,9 @@ import fedlearner.trainer as flt
 
 def input_fn(bridge, trainer_master):
     dataset = flt.data.DataBlockLoader(256, 'follower', bridge,
-                                       trainer_master).make_dataset()
+                                       trainer_master).make_dataset(
+        compression_type="GZIP"
+    )
     def parse_fn(example):
         feature_map = {
             "example_id": tf.FixedLenFeature([], tf.string),

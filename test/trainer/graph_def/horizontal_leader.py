@@ -23,7 +23,8 @@ import fedlearner.trainer as flt
 def input_fn(bridge, trainer_master):
     batch_size = 256
     dataset = flt.data.DataBlockLoader(batch_size, 'leader', bridge,
-                                       trainer_master).make_dataset()
+                                       trainer_master)\
+        .make_dataset(compression_type="GZIP")
     def parse_fn(example):
         feature_map = {
             "example_id": tf.FixedLenFeature([], tf.string),
@@ -39,9 +40,9 @@ def input_fn(bridge, trainer_master):
     feature, label = dataset0.make_one_shot_iterator().get_next()
 
     loader = flt.data.LocalDataBlockLoader(
-        'leader', bridge,
+        batch_size, 'leader', bridge,
         trainer_master)
-    dataset1 = loader.make_dataset(batch_size)
+    dataset1 = loader.make_dataset()
     dataset1 = dataset1.map(map_func=parse_fn,
                             num_parallel_calls=tf.data.experimental.AUTOTUNE)
     feature1, label1 = dataset1.make_one_shot_iterator().get_next()

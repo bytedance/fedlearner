@@ -70,7 +70,7 @@ class DataBlockLoader(object):
             block = self._block_queue.get()
         return block
 
-    def make_dataset(self):
+    def make_dataset(self, compression_type=None):
         def gen():
             while True:
                 block = self.get_next_block()
@@ -79,7 +79,8 @@ class DataBlockLoader(object):
                 yield block.data_path
 
         dataset = tf.data.Dataset.from_generator(gen, tf.string)
-        dataset = tf.data.TFRecordDataset(dataset)
+        dataset = tf.data.TFRecordDataset(dataset,
+                                          compression_type=compression_type)
         dataset = dataset.batch(self._batch_size, drop_remainder=True)
         dataset = dataset.prefetch(2)
         return dataset
@@ -89,7 +90,8 @@ class DataBlockLoader(object):
 
 
 class LocalDataBlockLoader(object):
-    def __init__(self, role, bridge, trainer_master):
+    def __init__(self, batch_size, role, bridge, trainer_master):
+        self._batch_size = batch_size
         self._role = role
         self._bridge = bridge
         self._trainer_master = trainer_master
@@ -99,7 +101,7 @@ class LocalDataBlockLoader(object):
         block = self._trainer_master.request_data_block(None, tm_pb.LOCAL)
         return block
 
-    def make_dataset(self, batch_size):
+    def make_dataset(self, compression_type="GZIP"):
         def gen():
             while True:
                 block = self.get_next_block()
@@ -108,8 +110,9 @@ class LocalDataBlockLoader(object):
                 yield block.data_path
 
         dataset = tf.data.Dataset.from_generator(gen, tf.string)
-        dataset = tf.data.TFRecordDataset(dataset, compression_type="GZIP")
-        dataset = dataset.batch(batch_size, drop_remainder=True)
+        dataset = tf.data.TFRecordDataset(dataset,
+                                          compression_type=compression_type)
+        dataset = dataset.batch(self._batch_size, drop_remainder=True)
         dataset = dataset.prefetch(2)
         return dataset
 

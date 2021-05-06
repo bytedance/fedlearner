@@ -56,6 +56,7 @@ verbosity=$(normalize_env_to_args "--verbosity" "$VERBOSITY")
 sparse_estimator=$(normalize_env_to_args "--sparse-estimator" "$SPARSE_ESTIMATOR")
 batch_size=$(normalize_env_to_args "--batch-size" "$BATCH_SIZE")
 learning_rate=$(normalize_env_to_args "--learning-rate" "$LEARNING_RATE")
+local_batch_size=$(normalize_env_to_args "--local-batch-size" "$LOCAL_BATCH_SIZE")
 
 if [ -n "$CLUSTER_SPEC" ]; then
   # get master address from clusteSpec["master"]
@@ -93,6 +94,6 @@ python main.py --worker \
     --local-addr="$POD_IP:50051" \
     --peer-addr="$PEER_ADDR" \
     --worker-rank="$WORKER_RANK" \
-    $mode $batch_size \
+    $mode $batch_size $local_batch_size \
     $sparse_estimator $learning_rate \
     $verbosity

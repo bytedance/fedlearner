@@ -242,7 +242,8 @@ class TestHorizontalNNTraining(unittest.TestCase):
                 common.data_source_data_block_dir(data_source),
                 data_source.data_source_meta.name,
                 partition_id, i,
-                dj_pb.WriterOptions(output_writer="TF_RECORD"), None
+                dj_pb.WriterOptions(output_writer="TF_RECORD",
+                                    compressed_type="GZIP"), None
             )
             builder.set_data_block_manager(dbm)
             for j in range(chunk_size):
