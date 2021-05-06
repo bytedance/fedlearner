@@ -62,7 +62,6 @@ class _DataVisitor(object):
 
         self._checkpoints_key = "checkpoints"
         self._epoch_key_prefix = "epoch-"
-        self._datablock_index_key = "datablock_index"
 
         if self._shuffle:
             random.shuffle(self._datablocks)
@@ -85,7 +84,6 @@ class _DataVisitor(object):
         with self._lock:
             data = {
                 self._checkpoints_key: {},
-                self._datablock_index_key: self._datablock_index
             }
             for epoch in self._allocated:
                 key = self._epoch_key_prefix + str(epoch)
@@ -111,7 +109,6 @@ class _DataVisitor(object):
                     logging.info("LeaderDataVisitor restore datablock, "
                                  "epoch: %d, block_id: %s", epoch, block_id)
                     self._allocated[epoch].add(block_id)
-            self._datablock_index = data[self._datablock_index_key]
             try:
                 self._next(peek=True)
             except Exception:
@@ -137,7 +134,6 @@ class _DataVisitor(object):
                 self._checkpoints_key: {
                     self._epoch_key_prefix + "-1": buff.split(",")
                 },
-                self._datablock_index_key: 0
             }
         except Exception:
             pass
