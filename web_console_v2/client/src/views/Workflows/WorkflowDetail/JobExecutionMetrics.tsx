@@ -82,7 +82,6 @@ const JobExecutionMetrics: FC<Props> = ({ job, workflow, visible, isPeerSide }) 
 
   const metricsQ = useQuery(['fetchMetrics', job.id, chartsVisible, isPeerSide], fetcher, {
     refetchOnWindowFocus: false,
-    staleTime: 60 * 60 * 1000, // 1 hours cache
     cacheTime: 60 * 60 * 1000,
     retry: 2,
     enabled: chartsVisible && visible && Boolean(mpld3),
@@ -126,7 +125,7 @@ const JobExecutionMetrics: FC<Props> = ({ job, workflow, visible, isPeerSide }) 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chartMetrics, mpld3]);
 
-  const isEmpty = !chartMetrics?.data || chartMetrics?.data.length === 0;
+  const isEmpty = chartMetrics?.data?.length === 0;
   const isPeerMetricsPublic = isPeerSide && workflow?.metric_is_public;
   const metricsVisible = isPeerMetricsPublic || !isPeerSide;
 
@@ -167,7 +166,7 @@ const JobExecutionMetrics: FC<Props> = ({ job, workflow, visible, isPeerSide }) 
           </Placeholder>
         )}
 
-        {chartMetrics?.data.map((_, index) => {
+        {chartMetrics?.data?.map((_, index) => {
           return <ChartContainer id={_targetChartId(index)} />;
         })}
       </Container>

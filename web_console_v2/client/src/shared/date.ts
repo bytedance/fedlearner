@@ -37,3 +37,7 @@ function _fillZero(input: string) {
 
   return '0' + input;
 }
+
+export function disableFuture(date: any) {
+  return dayjs(date).valueOf() > Date.now();
+}

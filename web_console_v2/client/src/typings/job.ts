@@ -38,18 +38,18 @@ export interface Job {
 export type JobDefinitionForm = Omit<Job, 'dependencies'>;
 
 export enum PodState {
-  RUNNING = 'running',
-  COMPLETED = 'succeeded',
-  FAILED = 'failed',
-  PENDING = 'pending',
-  UNKNOWN = 'Unknown',
-  FL_SUCCEED = 'Flapp_succeeded', // completed and has freed resources
-  FL_FAILED = 'Flapp_failed', // failed and freed has free resources
+  RUNNING = 'RUNNING',
+  SUCCEEDED = 'SUCCEEDED',
+  FAILED = 'FAILED',
+  PENDING = 'PENDING',
+  UNKNOWN = 'UNKNOWN',
+  SUCCEEDED_AND_FREED = 'SUCCEEDED_AND_FREED', // completed and has freed resources
+  FAILED_AND_FREED = 'FAILED_AND_FREED', // failed and freed has free resources
 }
 
 export interface Pod {
   name: string;
-  status: PodState;
+  state: PodState;
   pod_type: string;
   message?: string;
 }

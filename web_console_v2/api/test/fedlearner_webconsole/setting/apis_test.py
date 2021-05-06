@@ -51,8 +51,8 @@ class SettingsApiTest(BaseTestCase):
 
     @patch('fedlearner_webconsole.setting.apis._POD_NAMESPACE', 'testns')
     def test_get_settings(self):
-        with patch('fedlearner_webconsole.setting.apis.get_client',
-                   return_value=self._mock_k8s_client):
+        with patch('fedlearner_webconsole.setting.apis.k8s_client',
+                   self._mock_k8s_client):
             response_data = self.get_response_data(
                 self.get_helper('/api/v2/settings'))
             self.assertEqual(response_data, {
@@ -65,8 +65,8 @@ class SettingsApiTest(BaseTestCase):
 
     def test_update_image(self):
         self._mock_k8s_client.create_or_update_deployment = MagicMock()
-        with patch('fedlearner_webconsole.setting.apis.get_client',
-                   return_value=self._mock_k8s_client):
+        with patch('fedlearner_webconsole.setting.apis.k8s_client',
+                   self._mock_k8s_client):
             resp = self.patch_helper(
                 '/api/v2/settings',
                 data={

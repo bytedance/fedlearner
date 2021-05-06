@@ -19,8 +19,10 @@ import json
 from sqlalchemy.sql import func
 from sqlalchemy.sql.schema import Index
 from fedlearner_webconsole.db import db, to_dict_mixin
-from fedlearner_webconsole.k8s_client import get_client
+from fedlearner_webconsole.k8s.models import FlApp, Pod, FlAppState
 from fedlearner_webconsole.proto.workflow_definition_pb2 import JobDefinition
+from fedlearner_webconsole.utils.k8s_client import k8s_client
+
 
 class JobState(enum.Enum):
     INVALID = 0
@@ -99,7 +101,6 @@ class Job(db.Model):
     workflow = db.relationship('Workflow',
                                primaryjoin='Workflow.id == '
                                'foreign(Job.workflow_id)')
-    _k8s_client = get_client()
 
     def get_config(self):
         if self.config is not None:
@@ -119,7 +120,7 @@ class Job(db.Model):
             if isinstance(o, (datetime.date, datetime.datetime)):
                 return o.isoformat()
             return str(o)
-        flapp = self._k8s_client.get_flapp(self.name)
+        flapp = k8s_client.get_flapp(self.name)
         if flapp:
             self.flapp_snapshot = json.dumps(flapp, default=default)
         else:
@@ -127,7 +128,7 @@ class Job(db.Model):
 
     def get_flapp_details(self):
         if self.state == JobState.STARTED:
-            flapp = self._k8s_client.get_flapp(self.name)
+            flapp = k8s_client.get_flapp(self.name)
         elif self.flapp_snapshot is not None:
             flapp = json.loads(self.flapp_snapshot)
             # aims to support old job
@@ -139,62 +140,24 @@ class Job(db.Model):
             flapp = {'flapp': None, 'pods': {'items': []}}
         return flapp
 
-    def get_pods_for_frontend(self, filter_private_info=False):
-        result = []
+    def get_pods_for_frontend(self, include_private_info=True):
         flapp_details = self.get_flapp_details()
-        flapp = flapp_details['flapp']
-        if flapp is None:
-            return result
-        if 'status' in flapp \
-                and 'flReplicaStatus' in flapp['status']:
-            replicas = flapp['status']['flReplicaStatus']
-            if replicas:
-                for pod_type in replicas:
-                    for state in ['failed', 'succeeded']:
-                        for pod in replicas[pod_type][state]:
-                            result.append({
-                                'name': pod,
-                                'pod_type': pod_type,
-                                'status': 'Flapp_{}'.format(state),
-                                'message': '',
-                            })
-
-        # msg from pods
-        pods = flapp_details['pods']['items']
-        for pod in pods:
-            status = pod['status']['phase'].lower()
-            msgs = []
-            # some fields may be None when pod get bootstrap
-            if 'containerStatuses' in pod['status'] \
-                    and pod['status']['containerStatuses']:
-                state = pod['status']['containerStatuses'][0]['state']
-                for key, detail in state.items():
-                    if detail is None:
-                        continue
-                    if filter_private_info:
-                        if 'reason' in detail and detail['reason']:
-                            msgs.append(key + ':' + detail['reason'])
-                    elif 'message' in detail and detail['message']:
-                        msgs.append(key + ':' + detail['message'])
-
-            if 'conditions' in pod['status'] and pod['status']['conditions']:
-                for cond in pod['status']['conditions']:
-                    if filter_private_info:
-                        if 'reason' in cond and cond['reason']:
-                            msgs.append(cond['type'] + ':' + cond['reason'])
-                    elif 'message' in cond and cond['message']:
-                        msgs.append(cond['type'] + ':' + cond['message'])
-
-            result.append({
-                'name': pod['metadata']['name'],
-                'pod_type': pod['metadata']['labels']['fl-replica-type'],
-                'status': status,
-                'message': ', '.join(msgs)
-            })
+        flapp = FlApp.from_json(flapp_details.get('flapp', None))
+        pods_json = None
+        if 'pods' in flapp_details:
+            pods_json = flapp_details['pods'].get('items', None)
+        pods = []
+        if pods_json is not None:
+            pods = [Pod.from_json(p) for p in pods_json]
 
         # deduplication pods both in pods and flapp
-        result = list({pod['name']: pod for pod in result}.values())
-        return result
+        result = {}
+        for pod in flapp.pods:
+            result[pod.name] = pod
+        for pod in pods:
+            result[pod.name] = pod
+        return [pod.to_dict(include_private_info)
+                for pod in result.values()]
 
     def get_state_for_frontend(self):
         if self.state == JobState.STARTED:
@@ -209,35 +172,27 @@ class Job(db.Model):
         return self.state.name
 
     def is_failed(self):
-        flapp = self.get_flapp_details()['flapp']
-        if flapp is None \
-                or 'status' not in flapp \
-                or 'appState' not in flapp['status']:
-            return False
-        return flapp['status']['appState'] in [
-            'FLStateFailed', 'FLStateShutDown'
+        # TODO: make the getter more efficient
+        flapp = FlApp.from_json(self.get_flapp_details()['flapp'])
+        return flapp.state in [
+            FlAppState.FAILED,
+            FlAppState.SHUTDOWN
         ]
 
     def is_complete(self):
-        flapp = self.get_flapp_details()['flapp']
-        if flapp is None \
-                or 'status' not in flapp \
-                or 'appState' not in flapp['status']:
-            return False
-        return flapp['status']['appState'] == 'FLStateComplete'
+        # TODO: make the getter more efficient
+        flapp = FlApp.from_json(self.get_flapp_details()['flapp'])
+        return flapp.state == FlAppState.COMPLETED
 
     def get_complete_at(self):
-        flapp = self.get_flapp_details()['flapp']
-        if flapp is None \
-                or 'status' not in flapp \
-                or 'complete_at' not in flapp['status']:
-            return None
-        return flapp['status']['complete_at']
+        # TODO: make the getter more efficient
+        flapp = FlApp.from_json(self.get_flapp_details()['flapp'])
+        return flapp.completed_at
 
     def stop(self):
         if self.state == JobState.STARTED:
             self._set_snapshot_flapp()
-            self._k8s_client.delete_flapp(self.name)
+            k8s_client.delete_flapp(self.name)
         self.state = JobState.STOPPED
 
     def schedule(self):

@@ -20,7 +20,7 @@ import os
 import shutil
 import tempfile
 import unittest
-from datetime import datetime
+from datetime import datetime, timezone
 from http import HTTPStatus
 from pathlib import Path
 from unittest import mock
@@ -124,7 +124,7 @@ class DatasetApiTest(BaseTestCase):
     @patch('fedlearner_webconsole.dataset.apis.scheduler.wakeup')
     def test_post_batches(self, mock_wakeup):
         dataset_id = self.default_dataset1.id
-        event_time = int(datetime(2020, 6, 8, 6, 8, 8).timestamp())
+        event_time = int(datetime(2020, 6, 8, 6, 8, 8, tzinfo=timezone.utc).timestamp())
         files = ['/data/upload/1.csv', '/data/upload/2.csv']
         move = False
         comment = 'test post comment'

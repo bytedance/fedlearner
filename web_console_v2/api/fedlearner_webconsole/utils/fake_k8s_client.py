@@ -16,21 +16,15 @@
 # pylint: disable=logging-format-interpolation
 import logging
 from kubernetes import client
-from fedlearner_webconsole.utils.k8s_client import K8sClient, \
-    SPARKOPERATOR_NAMESPACE
 
 _RAISE_EXCEPTION_KEY = 'raise_exception'
 
 
-class FakeK8sClient(K8sClient):
+class FakeK8sClient(object):
     """A fake k8s client for development.
 
     With this client we can decouple the dependency of k8s cluster.
     """
-    def __init__(self):  # pylint: disable=super-init-not-called
-        # Do not call super constructor
-        pass
-
     def close(self):
         pass
 
@@ -205,7 +199,7 @@ class FakeK8sClient(K8sClient):
 
     def get_sparkapplication(self,
                              name: str,
-                             namespace: str = SPARKOPERATOR_NAMESPACE) -> dict:
+                             namespace: str = 'default') -> dict:
         logging.info('======================')
         logging.info(
             f'get spark application, name: {name}, namespace: {namespace}')
@@ -228,7 +222,7 @@ class FakeK8sClient(K8sClient):
     def create_sparkapplication(
             self,
             json_object: dict,
-            namespace: str = SPARKOPERATOR_NAMESPACE) -> dict:
+            namespace: str = 'default') -> dict:
         logging.info('======================')
         logging.info(f'create spark application, namespace: {namespace}, '
                      f'json: {json_object}')
@@ -252,7 +246,7 @@ class FakeK8sClient(K8sClient):
 
     def delete_sparkapplication(self,
                                 name: str,
-                                namespace: str = SPARKOPERATOR_NAMESPACE
+                                namespace: str = 'default'
                                 ) -> dict:
         logging.info('======================')
         logging.info(

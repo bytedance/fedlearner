@@ -1,3 +1,4 @@
+import { KibanaQueryParams } from './../typings/kibana';
 import request, { BASE_URL } from 'libs/request';
 import {
   WorkflowForkPayload,
@@ -165,4 +166,11 @@ export function fetchPeerJobMpld3Metrics(
       0 /** peerId, fix to 0 so far */
     }/jobs/${jobName}/metrics`,
   );
+}
+
+export function fetchJobEmbedKibanaSrc(
+  id: ID,
+  params: KibanaQueryParams,
+): Promise<{ data: any[] }> {
+  return request(`/v2/jobs/${id}/kibana_metrics`, { params });
 }

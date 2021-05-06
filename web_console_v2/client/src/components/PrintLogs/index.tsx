@@ -3,12 +3,12 @@ import { QueryKey, useQuery } from 'react-query';
 import styled from 'styled-components';
 import { Refresh, Expand, Pause, CaretRight, ArrowDown } from 'components/IconPark';
 import { convertToUnit } from 'shared/helpers';
-import { MixinFlexAlignCenter, MixinSquare } from 'styles/mixins';
 import { ScrollDown } from 'styles/animations';
 import { useToggle } from 'react-use';
 import { Tooltip } from 'antd';
 import { last, debounce } from 'lodash';
 import i18n from 'i18n';
+import { ControlButton } from 'styles/elements';
 
 const Container = styled.div`
   position: relative;
@@ -32,34 +32,10 @@ const ControlsContainer = styled.div`
   top: 15px;
   right: 20px;
 `;
-const Button = styled.div`
-  ${MixinFlexAlignCenter()}
-
-  display: flex;
-  background-color: #fff;
-  border-radius: 4px;
-  color: var(--textColor);
-  cursor: pointer;
-  box-shadow: 0 3px 10px -2px rgba(0, 0, 0, 0.7);
-  transform-origin: 50%;
-
-  &:hover {
-    color: var(--primaryColor);
-
-    > .anticon {
-      transform: scale(1.1);
-    }
-  }
-`;
-const ControlButton = styled(Button)`
-  ${MixinSquare(30)}
-
-  & + & {
-    margin-top: 8px;
-  }
-`;
-const ScrollButton = styled(Button)`
+const ScrollButton = styled(ControlButton)`
   position: absolute;
+  width: auto;
+  height: auto;
   bottom: 10px;
   left: 50%;
   padding: 5px 15px 5px 10px;

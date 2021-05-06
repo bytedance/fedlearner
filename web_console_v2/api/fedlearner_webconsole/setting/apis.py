@@ -16,8 +16,9 @@
 from pathlib import Path
 
 from flask_restful import Resource, reqparse
+
+from fedlearner_webconsole.utils.k8s_client import k8s_client
 from fedlearner_webconsole.utils.decorators import jwt_required
-from fedlearner_webconsole.k8s_client import get_client
 from fedlearner_webconsole.utils.decorators import admin_required
 
 
@@ -34,7 +35,6 @@ class SettingsApi(Resource):
     @jwt_required()
     @admin_required
     def get(self):
-        k8s_client = get_client()
         deployment = k8s_client.get_deployment(
             name='fedlearner-web-console-v2',
             namespace=_POD_NAMESPACE)
@@ -56,7 +56,6 @@ class SettingsApi(Resource):
 
         if data['webconsole_image']:
             new_image = data['webconsole_image']
-            k8s_client = get_client()
             deployment = k8s_client.get_deployment(
                 'fedlearner-web-console-v2',
                 _POD_NAMESPACE)

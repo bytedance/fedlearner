@@ -16,7 +16,8 @@
 import os
 import json
 from base64 import b64encode
-from fedlearner_webconsole.utils.k8s_client import K8sClient
+
+from fedlearner_webconsole.utils.k8s_client import k8s_client
 
 
 def create_image_pull_secret():
@@ -28,7 +29,6 @@ def create_image_pull_secret():
         image_hub_password is None:
         return
 
-    client = K8sClient()
     # using base64 to encode authorization information
     encoded_username_password = str(b64encode(
         '{}:{}'.format(image_hub_username, image_hub_password)
@@ -43,7 +43,7 @@ def create_image_pull_secret():
                 }
             }})), 'utf-8')
 
-    client.create_or_update_secret(
+    k8s_client.create_or_update_secret(
         data={
             '.dockerconfigjson': encoded_image_cert
         },
