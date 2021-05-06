@@ -15,11 +15,11 @@
 # coding: utf-8
 # pylint: disable=protected-access
 
-import logging
 import time
 
 import tensorflow.compat.v1 as tf
 from tensorflow_estimator.python.estimator import model_fn as model_fn_lib
+from fedlearner.trainer import logging
 
 
 class _BridgeRunHook(tf.train.SessionRunHook):

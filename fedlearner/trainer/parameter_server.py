@@ -15,24 +15,21 @@
 # coding: utf-8
 # pylint: disable=unused-import
 
-import logging
 import argparse
 import signal
 
 import tensorflow.compat.v1 as tf
+from fedlearner.trainer import logging
 from fedlearner.trainer.cluster_server import ClusterServer
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='FedLearner Parameter Server.')
     parser.add_argument('address', type=str,
                         help='Listen address of the parameter server, ' \
                              'with format [IP]:[PORT]')
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)-15s [%(filename)s:%(lineno)d] " \
-               "%(levelname)s : %(message)s")
-    args = parser.parse_args()
 
+    args = parser.parse_args()
     cluster_spec = tf.train.ClusterSpec({'ps': {0: args.address}})
     cluster_server = ClusterServer(cluster_spec, "ps")
 

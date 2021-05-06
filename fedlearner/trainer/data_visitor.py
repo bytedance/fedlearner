@@ -18,13 +18,14 @@
 import os
 import zlib
 import json
-import logging
 import threading
 import collections
 import random
 
 import tensorflow.compat.v1 as tf
+from fedlearner.trainer import logging
 from fedlearner.data_join.data_block_visitor import DataBlockVisitor
+
 
 kvstore_type = os.environ.get('KVSTORE_TYPE', 'etcd')
 kvstore_use_mock = os.environ.get('KVSTORE_USE_MOCK', "off") == "on"

@@ -23,3 +23,4 @@ from fedlearner.trainer import estimator
 from fedlearner.trainer import trainer_worker
 from fedlearner.trainer import operator
 from fedlearner.trainer import data_visitor
+from fedlearner.trainer import logging

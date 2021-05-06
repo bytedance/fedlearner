@@ -18,12 +18,12 @@
 import os
 import signal
 import time
-import logging
 from concurrent import futures
 import threading
 import grpc
 
 import tensorflow.compat.v1 as tf
+from fedlearner.trainer import logging
 from fedlearner.common import trainer_master_service_pb2 as tm_pb
 from fedlearner.common import trainer_master_service_pb2_grpc as tm_grpc
 from fedlearner.common import common_pb2 as common_pb
