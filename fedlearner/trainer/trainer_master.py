@@ -18,12 +18,12 @@
 import os
 import signal
 import time
-import logging
 from concurrent import futures
 import threading
 import grpc
 
 import tensorflow.compat.v1 as tf
+from fedlearner.common import logging
 from fedlearner.common import trainer_master_service_pb2 as tm_pb
 from fedlearner.common import trainer_master_service_pb2_grpc as tm_grpc
 from fedlearner.common import common_pb2 as common_pb
@@ -86,13 +86,13 @@ class _TriggerHook(tf.train.SessionRunHook):
         self._last_triggered_step = global_step
 
 
-class _CheckpointSaverHook(tf.train.CheckpointSaverHook):
-    def _save(self, session, step):
-        if self._timer.last_triggered_step() is None:
-            # skip save checkpoint
-            logging.info("skip save checkpoint")
-            return False
-        return super(_CheckpointSaverHook, self)._save(session, step)
+#class _CheckpointSaverHook(tf.train.CheckpointSaverHook):
+#    def _save(self, session, step):
+#        if self._timer.last_triggered_step() is None:
+#            # skip save checkpoint
+#            logging.info("skip save checkpoint")
+#            return False
+#        return super(_CheckpointSaverHook, self)._save(session, step)
 
 
 class _DataVisitorCheckpointHook(tf.train.SessionRunHook):
@@ -319,7 +319,7 @@ class _TrainerMaster(tm_grpc.TrainerMasterServiceServicer):
             if self._checkpoint_path and \
                 (self._save_checkpoint_secs or self._save_checkpoint_steps):
                 hooks.append(
-                    _CheckpointSaverHook(
+                    tf.train.CheckpointSaverHook(
                         checkpoint_dir=self._checkpoint_path,
                         save_secs=self._save_checkpoint_secs,
                         save_steps=self._save_checkpoint_steps,

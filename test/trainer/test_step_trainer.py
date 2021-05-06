@@ -240,7 +240,7 @@ class TestStepTrain(unittest.TestCase):
             "--peer-addr", self._follower_bridge_addr,
             "--data-path", self._current_dir, # noused
             "--ps-addrs", ",".join([leader_ps1.address]),
-            "--verbosity", "1",
+            "--loglevel", "debug",
             )
         if leader_checkpoint_path:
             leader_raw_args += \
@@ -263,7 +263,7 @@ class TestStepTrain(unittest.TestCase):
             "--peer-addr", self._leader_bridge_addr,
             "--data-path", self._current_dir, # noused
             "--ps-addrs", ",".join([follower_ps1.address]),
-            "--verbosity", "1",
+            "--loglevel", "debug",
             )
         if follower_checkpoint_path:
             follower_raw_args += \

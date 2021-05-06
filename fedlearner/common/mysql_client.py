@@ -16,12 +16,12 @@
 """MySQL client."""
 
 import os
-import logging
 from contextlib import contextmanager
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, scoped_session
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.ext.automap import automap_base
+from . import logging
 
 class MySQLClient(object):
     def __init__(self, database, addr, user, password, base_dir):

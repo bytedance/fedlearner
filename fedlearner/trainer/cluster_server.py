@@ -14,9 +14,9 @@
 
 # coding: utf-8
 
-import logging
-
 import tensorflow.compat.v1 as tf
+from fedlearner.common import logging
+
 
 class ClusterServer():
     def __init__(self,

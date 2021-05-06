@@ -52,7 +52,6 @@ fi
 cd ${ROLE}
 
 mode=$(normalize_env_to_args "--mode" "$MODE")
-verbosity=$(normalize_env_to_args "--verbosity" "$VERBOSITY")
 sparse_estimator=$(normalize_env_to_args "--sparse-estimator" "$SPARSE_ESTIMATOR")
 batch_size=$(normalize_env_to_args "--batch-size" "$BATCH_SIZE")
 learning_rate=$(normalize_env_to_args "--learning-rate" "$LEARNING_RATE")
@@ -94,5 +93,4 @@ python main.py --worker \
     --peer-addr="$PEER_ADDR" \
     --worker-rank="$WORKER_RANK" \
     $mode $batch_size \
-    $sparse_estimator $learning_rate \
-    $verbosity
+    $sparse_estimator $learning_rate

@@ -17,7 +17,6 @@
 import atexit
 import datetime
 import json
-import logging
 import os
 import threading
 import time
@@ -29,8 +28,9 @@ import pytz
 from elasticsearch import helpers as helpers7
 from elasticsearch6 import helpers as helpers6
 
-from fedlearner.common.common import Config, INDEX_NAME, INDEX_TYPE, \
-    get_es_template
+from .common import Config, INDEX_NAME, INDEX_TYPE, get_es_template
+
+from . import logging
 
 
 class Handler(object):

@@ -12,15 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# coding: utf-8
-
 import os
-import logging
 import argparse
 import json
 import threading
 
 import tensorflow.compat.v1 as tf
+from fedlearner.common import logging
 from fedlearner.common import metrics
 from fedlearner.trainer.bridge import Bridge
 from fedlearner.trainer.estimator import FLEstimator
@@ -34,7 +32,6 @@ from fedlearner.trainer.cluster_server import ClusterServer
 
 LEADER = "leader"
 FOLLOER = "follower"
-
 
 class StepMetricsHook(tf.train.SessionRunHook):
     def __init__(self, tensor_dict=None, every_n_iter=5, tags_dict=None):
@@ -154,7 +151,7 @@ def create_argument_parser():
                         help='filename with path to load model checkpoints')
     parser.add_argument('--save-checkpoint-steps',
                         type=int,
-                        default=200,
+                        default=1000,
                         help='Number of steps between checkpoints.')
     parser.add_argument('--save-checkpoint-secs',
                         type=int,
@@ -175,10 +172,11 @@ def create_argument_parser():
                         type=str,
                         default='train',
                         help='Train or eval.')
-    parser.add_argument('--verbosity',
-                        type=int,
-                        default=1,
-                        help='Logging level.')
+    parser.add_argument('--loglevel',
+                        type=str,
+                        default=None,
+                        help="Specify verbosity level. It can be one of "
+                             "'debug', 'info', 'warning', 'error', 'critical'")
 
     return parser
 
@@ -412,17 +410,10 @@ def train(role,
     role = role.lower()
     if role not in (LEADER, FOLLOER):
         raise ValueError("--role must set one of %s or %s"%(LEADER, FOLLOER))
-    def _verbosity_to_loglevel(verbosity):
-        if verbosity == 0:
-            return logging.WARNING
-        if verbosity == 1:
-            return logging.INFO
-        # other
-        return logging.DEBUG
-    logging.basicConfig(
-        level=_verbosity_to_loglevel(args.verbosity),
-        format="%(asctime)-15s [%(levelname)s]: %(message)s "
-               "(%(filename)s:%(lineno)d)")
+
+    if args.loglevel:
+        logging.set_level(args.loglevel)
+
     if export_model_hook is not None:
         if not isinstance(export_model_hook, ExportModelHook):
             raise ValueError("model_export_hook must be a "

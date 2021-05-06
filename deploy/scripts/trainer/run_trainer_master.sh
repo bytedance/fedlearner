@@ -29,7 +29,6 @@ epoch_num=$(normalize_env_to_args "--epoch-num" $EPOCH_NUM)
 start_date=$(normalize_env_to_args "--start-date" $START_DATE)
 end_date=$(normalize_env_to_args "--end-date" $END_DATE)
 shuffle=$(normalize_env_to_args "--shuffle" $SUFFLE_DATA_BLOCK)
-verbosity=$(normalize_env_to_args "--verbosity" "$VERBOSITY")
 
 if [ -n "$CHECKPOINT_PATH" ]; then
     checkpoint_path="$CHECKPOINT_PATH"
@@ -84,6 +83,4 @@ python main.py --master \
     $sparse_estimator \
     $save_checkpoint_steps $save_checkpoint_secs \
     $summary_save_steps $summary_save_secs \
-    $epoch_num $start_date $end_date $shuffle \
-    $verbosity
-
+    $epoch_num $start_date $end_date $shuffle

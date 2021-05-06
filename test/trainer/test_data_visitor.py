@@ -15,12 +15,12 @@
 # coding: utf-8
 
 import unittest
-from fedlearner.trainer.data_visitor import _DataVisitor, _RowDataBlock
+from fedlearner.trainer.data_visitor import _DataVisitor, _RawDataBlock
 
 class TestLeaderDataVisitor(unittest.TestCase):
     def setUp(self):
         self._datablocks = [
-            _RowDataBlock(
+            _RawDataBlock(
                 "id_"+str(i), "path/to/"+str(i)
             )
             for i in range(10)

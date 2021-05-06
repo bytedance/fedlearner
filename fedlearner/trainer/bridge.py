@@ -17,16 +17,17 @@
 
 import os
 import collections
-import logging
 import threading
 import time
 
 import tensorflow.compat.v1 as tf
 from google.protobuf import any_pb2 as any_pb
+from fedlearner.common import logging
 from fedlearner.channel import Channel
 from fedlearner.common import common_pb2 as common_pb
 from fedlearner.common import trainer_worker_service_pb2 as tws2_pb
 from fedlearner.common import trainer_worker_service_pb2_grpc as tws2_grpc
+
 
 class Bridge(object):
     class TrainerWorkerServicer(tws2_grpc.TrainerWorkerServiceServicer):
@@ -180,7 +181,7 @@ class Bridge(object):
             if self._terminated:
                 return
 
-            if self._is_iter_started():
+            if self._is_iter_started:
                 self.commit()
 
             self._terminated = True
@@ -330,17 +331,19 @@ class Bridge(object):
             status=common_pb.Status(code=common_pb.STATUS_INVALID_DATA_BLOCK)
         )
 
+    @property
+    def _is_iter_started(self):
+        return self._current_iter_id is not None
+
+    @property
+    def _is_iter_committed(self):
+        return self._current_iter_id is None
+
     def _assert_ready(self):
         if not self._connected:
             raise RuntimeError("[Bridge] not connected yet")
         if self._terminated:
             raise RuntimeError("[Bridge] has been terminated")
-
-    def _is_iter_started(self):
-        return self._current_iter_id is not None
-
-    def _is_iter_committed(self):
-        return self._current_iter_id is None
 
     def _assert_iter_started(self):
         self._assert_ready()

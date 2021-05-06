@@ -18,19 +18,20 @@
 import os
 import zlib
 import json
-import logging
 import threading
 import collections
 import random
 
 import tensorflow.compat.v1 as tf
+from fedlearner.common import logging
 from fedlearner.data_join.data_block_visitor import DataBlockVisitor
+
 
 kvstore_type = os.environ.get('KVSTORE_TYPE', 'etcd')
 kvstore_use_mock = os.environ.get('KVSTORE_USE_MOCK', "off") == "on"
 
 
-class _RowDataBlock(
+class _RawDataBlock(
     collections.namedtuple('RowDataBlock',
                            ['id', 'data_path'])):
     pass
@@ -187,7 +188,7 @@ class DataSourceVisitor(_DataVisitor):
         datablocks.sort(key=lambda x: x.start_time)
 
         super(DataSourceVisitor, self).__init__(
-            [_RowDataBlock(d.block_id, d.data_block_fpath) for d in datablocks],
+            [_RawDataBlock(d.block_id, d.data_block_fpath) for d in datablocks],
             epoch_num,
             shuffle)
 
@@ -210,7 +211,7 @@ class DataPathVisitor(_DataVisitor):
                     continue
                 subdirname = os.path.relpath(dirname, data_path)
                 block_id = os.path.join(subdirname, filename)
-                datablock = _RowDataBlock(block_id,
+                datablock = _RawDataBlock(block_id,
                                           os.path.join(dirname, filename))
                 datablocks.append(datablock)
         datablocks.sort()

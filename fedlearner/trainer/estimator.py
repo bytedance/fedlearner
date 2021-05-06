@@ -15,24 +15,11 @@
 # coding: utf-8
 # pylint: disable=protected-access
 
-import logging
 import time
 
 import tensorflow.compat.v1 as tf
 from tensorflow_estimator.python.estimator import model_fn as model_fn_lib
-
-
-class _BridgeRunHook(tf.train.SessionRunHook):
-    def __init__(self, bridge):
-        self._bridge = bridge
-    def begin(self):
-        self._bridge.connect()
-    def before_run(self, run_context):
-        self._bridge.start()
-    def after_run(self, run_context, run_values):
-        self._bridge.commit()
-    def end(self, session):
-        self._bridge.terminate()
+from fedlearner.common import logging
 
 
 class FLModel(object):
@@ -69,7 +56,8 @@ class FLModel(object):
             self._train_ops.append(op)
 
     def send(self, name, tensor, require_grad=False):
-        send_op = self._bridge.send_op(name, tensor)
+        with tf.control_dependencies([self._example_ids]):
+            send_op = self._bridge.send_op(name, tensor)
         self._sends.append((name, tensor, require_grad))
         if require_grad:
             with tf.control_dependencies([send_op]):
@@ -205,19 +193,22 @@ class FLEstimator(object):
 
             if spec.training_hooks:
                 hooks.extend(spec.training_hooks)
-            hooks.append(_BridgeRunHook(self._bridge))
 
             session_creator = tf.train.WorkerSessionCreator(
                 master=self._cluster_server.target,
                 config=self._cluster_server.cluster_config)
 
+            self._bridge.connect()
             with tf.train.MonitoredSession(
                 session_creator=session_creator, hooks=hooks) as sess:
                 while not sess.should_stop():
                     start_time = time.time()
+                    self._bridge.start()
                     sess.run(spec.train_op, feed_dict={})
+                    self._bridge.commit()
                     use_time = time.time() - start_time
                     logging.debug("after session run. time: %f sec", use_time)
+            self._bridge.terminate()
 
         return self
 
@@ -257,19 +248,22 @@ class FLEstimator(object):
                 all_hooks.extend(spec.evaluation_hooks)
             final_ops_hook = tf.train.FinalOpsHook(eval_dict)
             all_hooks.append(final_ops_hook)
-            all_hooks.append(_BridgeRunHook(self._bridge))
 
             session_creator = tf.train.WorkerSessionCreator(
                 master=self._cluster_server.target,
                 config=self._cluster_server.cluster_config)
             # Evaluate over dataset
+            self._bridge.connect()
             with tf.train.MonitoredSession(
                 session_creator=session_creator, hooks=all_hooks) as sess:
                 while not sess.should_stop():
                     start_time = time.time()
+                    self._bridge.start()
                     sess.run(eval_op)
+                    self._bridge.commit()
                     use_time = time.time() - start_time
                     logging.debug("after session run. time: %f sec", use_time)
+            self._bridge.terminate()
 
             # Print result
             logging.info('Metrics for evaluate: %s',

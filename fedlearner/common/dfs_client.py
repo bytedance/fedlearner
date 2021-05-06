@@ -15,7 +15,6 @@
 # coding: utf-8
 """DFS client."""
 
-import logging
 import os
 
 try:
@@ -25,6 +24,8 @@ except ImportError:
     import tensorflow as tf
     from tensorflow import gfile
 from tensorflow.python.lib.io import file_io
+
+from . import logging
 
 
 class DFSClient(object):

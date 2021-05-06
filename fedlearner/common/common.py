@@ -1,8 +1,9 @@
 import datetime
-import logging
 import os
 
 import pytz
+
+from . import logging
 
 
 class Config(object):

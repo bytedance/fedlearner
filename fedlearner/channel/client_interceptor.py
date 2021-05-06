@@ -17,10 +17,10 @@
 
 import collections
 import threading
-import logging
 import time
 import grpc
 
+from fedlearner.common import logging
 from fedlearner.channel import channel_pb2
 
 class _MethodDetail(

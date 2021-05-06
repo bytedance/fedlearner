@@ -14,16 +14,10 @@
 
 # coding: utf-8
 
-import logging
-try:
-    import queue
-except ImportError:
-    import Queue as queue
+import queue
+import tensorflow.compat.v1 as tf
+from fedlearner.common import logging
 
-try:
-    import tensorflow.compat.v1 as tf
-except ImportError:
-    import tensorflow as tf
 
 class DataBlockLoader(object):
     def __init__(self, batch_size, role, bridge, trainer_master):

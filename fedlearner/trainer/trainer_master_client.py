@@ -16,9 +16,9 @@
 
 import os
 import time
-import logging
 import grpc
 
+from fedlearner.common import logging
 from fedlearner.common import trainer_master_service_pb2 as tm_pb
 from fedlearner.common import trainer_master_service_pb2_grpc as tm_grpc
 from fedlearner.proxy.channel import make_insecure_channel, ChannelType

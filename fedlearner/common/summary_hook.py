@@ -16,11 +16,11 @@
 
 import os
 import datetime
-import logging
 try:
     import tensorflow.compat.v1 as tf
 except ImportError:
     import tensorflow as tf
+from . import logging
 
 
 class SummaryHook(object):
