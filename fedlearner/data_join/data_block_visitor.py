@@ -66,8 +66,9 @@ class DataBlockRep(object):
         meta_fpath = os.path.join(dirpath, meta_fname)
         if check_existed and (not gfile.Exists(meta_fpath) or \
                               gfile.IsDirectory(meta_fpath)):
-            raise ValueError("{} invalid. the corresponding meta file "\
-                             "is not existed".format(data_block_fname))
+            raise ValueError("{} invalid. the corresponding meta file {}"\
+                             "is not existed".format(
+                             data_block_fname, meta_fname))
         self._data_block_meta_fpath = meta_fpath
         self._data_block_meta = None
         self._data_block_fpath = os.path.join(dirpath, data_block_fname)
