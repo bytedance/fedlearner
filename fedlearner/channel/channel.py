@@ -113,7 +113,7 @@ class Channel():
         State.CLOSED_CONNECTED
     ])
 
-    _PEER_UNCONNECTED_STATE = set([
+    _PEER_UNCONNECTED_STATES = set([
         State.CONNECTING_UNCONNECTED,
         State.CONNECTED_UNCONNECTED,
     ])
@@ -177,8 +177,7 @@ class Channel():
             options=(
                 ('grpc.max_send_message_length', -1),
                 ('grpc.max_receive_message_length', -1),
-                ('grpc.max_reconnect_backoff_ms',
-                    int(self._retry_interval*1000))
+                ('grpc.max_reconnect_backoff_ms', 1000),
             ),
             compression=compression
         )
@@ -396,8 +395,9 @@ class Channel():
                 token=self._token,
                 identifier=self._identifier,
                 peer_identifier=self._peer_identifier)
-            res = self._channel_call.Call(
-                req, timeout=self._heartbeat_interval)
+            res = self._channel_call.Call(req,
+                                          timeout=self._heartbeat_interval,
+                                          wait_for_ready=True)
         except Exception as e: #pylint: disable=broad-except
             if isinstance(e, grpc.RpcError):
                 logging.warning("[Channel] grpc error, code: %s,"
@@ -471,7 +471,7 @@ class Channel():
                                    self._heartbeat_timeout_at-now)
 
             # check peer disconnected
-            if self._state not in Channel._PEER_UNCONNECTED_STATE:
+            if self._state not in Channel._PEER_UNCONNECTED_STATES:
                 if now >= self._peer_heartbeat_timeout_at:
                     self._emit_error(ChannelError(
                         "peer disconnected by heartbeat timeout: {}s".format(
@@ -494,7 +494,7 @@ class Channel():
                         self._emit_event(Channel.Event.CLOSED)
                         self._refresh_heartbeat_timeout()
                     else:
-                        self._next_retry_at = time.time() + self._retry_interval
+                        self._next_retry_at = 0 # fast retry
                     continue
                 if now >= self._next_heartbeat_at:
                     if self._call_locked(channel_pb2.CallType.HEARTBEAT):
@@ -520,6 +520,12 @@ class Channel():
         self._lock.release()
 
         self._channel.close()
+        time_wait = 2*self._retry_interval+self._peer_closed_at - time.time()
+        if time_wait > 0:
+            logging.info("[Channel] wait %0.2f sec "
+                         "for reducing peer close failed", time_wait)
+            time.sleep(time_wait)
+
         self._server.stop(10)
         self._server.wait_for_termination()
 
@@ -581,7 +587,7 @@ class Channel():
                     code=channel_pb2.Code.OK,
                     timestamp=self._peer_connected_at)
 
-            if self._state in Channel._PEER_UNCONNECTED_STATE:
+            if self._state in Channel._PEER_UNCONNECTED_STATES:
                 return channel_pb2.CallResponse(
                     code=channel_pb2.Code.UNCONNECTED)
 
