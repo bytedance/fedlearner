@@ -816,7 +816,7 @@ def make_workflow_template():
             ),
             JobDefinition(
                 name='train-job',
-                job_type=JobDefinition.NN_MODEL_TRANINING,
+                job_type=JobDefinition.NN_MODEL_TRAINING,
                 is_federated=True,
                 variables=[
                     Variable(

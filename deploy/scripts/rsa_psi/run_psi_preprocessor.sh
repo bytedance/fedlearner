@@ -79,3 +79,15 @@ python -m fedlearner.data_join.cmd.rsa_psi_preprocessor_cli \
     $raw_data_iter $compressed_type $read_ahead_size $read_batch_size \
     $output_builder $builder_compressed_type $preprocessor_offload_processor_number \
     $kvstore_type
+
+if [ "$FROLE" = "FOLLOWER" ]
+then
+  TCP_MSL=60
+  if [ -f "/proc/sys/net/ipv4/tcp_fin_timeout" ]
+  then
+    TCP_MSL=`cat /proc/sys/net/ipv4/tcp_fin_timeout`
+  fi
+  SLEEP_TM=$((TCP_MSL * 3))
+  echo "sleep 3msl($SLEEP_TM) to make sure tcp state at CLOSED"
+  sleep $SLEEP_TM
+fi
