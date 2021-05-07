@@ -99,6 +99,10 @@ if __name__ == "__main__":
                         help='optional stat fields used in joiner, separated '
                              'by comma between fields, e.g. "label,rit". '
                              'Each field will be stripped.')
+    parser.add_argument('--data_block_encode_by_leader_time', type=str_as_bool,
+                        default=False,
+                        help="encode the datablock id by leader or follower "
+                        "time")
     args = parser.parse_args()
     set_logger()
     optional_fields = list(
@@ -142,7 +146,8 @@ if __name__ == "__main__":
                 ),
             data_block_builder_options=dj_pb.WriterOptions(
                     output_writer=args.data_block_builder,
-                    compressed_type=args.data_block_compressed_type
+                    compressed_type=args.data_block_compressed_type,
+                    encode_by_leader_time=args.data_block_encode_by_leader_time
                 )
         )
     worker_srv = DataJoinWorkerService(args.listen_port, args.peer_addr,

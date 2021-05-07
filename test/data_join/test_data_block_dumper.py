@@ -56,6 +56,8 @@ class TestDataBlockDumper(unittest.TestCase):
         self.kvstore.delete_prefix(common.data_source_kvstore_base_dir(self.data_source_l.data_source_meta.name))
         self.manifest_manager = raw_data_manifest_manager.RawDataManifestManager(
             self.kvstore, self.data_source_l)
+        self.generate_follower_data_block()
+        self.generate_leader_raw_data()
 
     def generate_follower_data_block(self):
         dbm = data_block_manager.DataBlockManager(self.data_source_f, 0)
@@ -151,10 +153,8 @@ class TestDataBlockDumper(unittest.TestCase):
         for fpath in fpaths:
             if not fpath.endswith(common.DataBlockSuffix):
                 gfile.Remove(fpath)
-        
+
     def test_data_block_dumper(self):
-        self.generate_follower_data_block()
-        self.generate_leader_raw_data()
         dbd = data_block_dumper.DataBlockDumperManager(
                 self.kvstore, self.data_source_l, 0,
                 dj_pb.RawDataOptions(raw_data_iter='TF_RECORD', read_ahead_size=1<<20, read_batch_size=128),
@@ -230,6 +230,60 @@ class TestDataBlockDumper(unittest.TestCase):
                 self.assertEqual(feat['example_id'].bytes_list.value[0],
                                  meta.example_ids[iidx])
             self.assertEqual(len(meta.example_ids), iidx +1)
+
+    def test_data_block_dumper_by_leader_time(self):
+        dbd = data_block_dumper.DataBlockDumperManager(
+                self.kvstore, self.data_source_l, 0,
+                dj_pb.RawDataOptions(raw_data_iter='TF_RECORD', read_ahead_size=1<<20, read_batch_size=128),
+                dj_pb.WriterOptions(output_writer='TF_RECORD', encode_by_leader_time=True)
+            )
+        self.assertEqual(dbd.get_next_data_block_index(), 0)
+        for (idx, meta) in enumerate(self.dumped_metas):
+            success, next_index = dbd.add_synced_data_block_meta(meta)
+            self.assertTrue(success)
+            self.assertEqual(next_index, idx + 1)
+        self.assertTrue(dbd.need_dump())
+        self.assertEqual(dbd.get_next_data_block_index(), len(self.dumped_metas))
+        with dbd.make_data_block_dumper() as dumper:
+            dumper()
+        dbm_f = data_block_manager.DataBlockManager(self.data_source_f, 0)
+        dbm_l = data_block_manager.DataBlockManager(self.data_source_l, 0)
+        self.assertEqual(dbm_f.get_dumped_data_block_count(), len(self.dumped_metas))
+        self.assertEqual(dbm_f.get_dumped_data_block_count(),
+                            dbm_l.get_dumped_data_block_count())
+        data_path = []
+        for (idx, meta) in enumerate(self.dumped_metas):
+            self.assertEqual(meta.data_block_index, idx)
+            self.assertEqual(dbm_l.get_data_block_meta_by_index(idx), meta)
+            meta_fpth_l = os.path.join(
+                    common.data_source_data_block_dir(self.data_source_l),
+                    common.partition_repr(0),
+                    common.encode_data_block_meta_fname(
+                        self.data_source_l.data_source_meta.name,
+                        0, meta.data_block_index
+                    )
+                )
+            mitr = tf.io.tf_record_iterator(meta_fpth_l)
+            meta_l = text_format.Parse(next(mitr), dj_pb.DataBlockMeta())
+            self.assertEqual(meta_l, meta)
+            data_fpth_l = os.path.join(
+                    common.data_source_data_block_dir(self.data_source_l),
+                    common.partition_repr(0),
+                    common.encode_data_block_fname(
+                        self.data_source_l.data_source_meta.name,
+                        meta_l
+                    )
+                )
+            data_path.append(data_fpth_l)
+            for (iidx, record) in enumerate(tf.io.tf_record_iterator(data_fpth_l)):
+                example = tf.train.Example()
+                example.ParseFromString(record)
+                feat = example.features.feature
+                self.assertEqual(feat['example_id'].bytes_list.value[0],
+                                 meta.example_ids[iidx])
+            self.assertEqual(len(meta.example_ids), iidx + 1)
+        sorted_data_path = sorted(data_path)
+        self.assertEqual(data_path, sorted_data_path)
 
     def tearDown(self):
         if gfile.Exists(self.data_source_f.output_base_dir):
