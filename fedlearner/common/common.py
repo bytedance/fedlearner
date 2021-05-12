@@ -1,6 +1,7 @@
 import datetime
 import os
 import logging
+import time
 
 import pytz
 
@@ -269,3 +270,16 @@ def time_diff(minuend, sub):
     ts_minuend = convert_to_datetime(minuend, enable_tz=False).timestamp()
     ts_sub = convert_to_datetime(sub, enable_tz=False).timestamp()
     return ts_minuend - ts_sub
+
+
+class Timer:
+    def __init__(self, content):
+        self._content = content
+        self._start_time = 0
+
+    def __enter__(self):
+        self._start_time = time.time()
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        logging.info("%s takes %s second", self._content,
+                     time.time() - self._start_time)
