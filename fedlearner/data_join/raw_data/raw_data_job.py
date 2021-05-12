@@ -177,19 +177,20 @@ class RawDataJob:
                                                     spark_file_config,
                                                     self._spark_master_config,
                                                     self._spark_worker_config)
-
         try:
             # 1. delete spark app
             k8s_client.delete_sparkapplication(task_name)
+        except RuntimeError as error:
+            logging.info("Spark application %s not exist", task_name)
 
+        try:
             res = k8s_client.create_sparkapplication(task_config)
-            job_name = res["name"]
             logging.info(res)
-            res = k8s_client.get_sparkapplication(job_name)
+            res = k8s_client.get_sparkapplication(task_name)
             while res['status']['applicationState']['state'] == "RUNNING":
                 logging.info("Sleep 5s for waiting spark job done...")
                 time.sleep(5)
-                res = k8s_client.get_sparkapplication(job_name)
+                res = k8s_client.get_sparkapplication(task_name)
             logging.info("Spark job status: %s", res)
         except RuntimeError as error:
             logging.fatal("Spark application error %s", error)
