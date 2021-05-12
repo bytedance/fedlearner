@@ -14,7 +14,7 @@ jobs:
     - uses: robotology/gh-action-nightly-merge@v1.3.1
       name: Set nightly branch to master HEAD
       with:
-        table_branch: 'master'
+        stable_branch: 'master'
         development_branch: 'nightly'
         allow_ff: false
       env:
