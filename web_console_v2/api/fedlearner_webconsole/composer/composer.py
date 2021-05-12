@@ -106,7 +106,7 @@ class Composer(object):
                     self.thread_reaper.stop(True)
                     return
             try:
-                logging.info(f'[composer] checking at {datetime.now()}')
+                logging.debug(f'[composer] checking at {datetime.now()}')
                 self._check_items()
                 self._check_init_runners()
                 self._check_running_runners()

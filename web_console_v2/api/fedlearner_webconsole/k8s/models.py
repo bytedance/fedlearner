@@ -175,7 +175,9 @@ class Pod(object):
         master/v1.6.5-standalone/pod.json"""
         container_states: List[ContainerState] = []
         pod_conditions: List[PodCondition] = []
-        if 'containerStatuses' in p['status']:
+        if 'containerStatuses' in p['status'] and \
+                isinstance(p['status']['containerStatuses'], list) and \
+                len(p['status']['containerStatuses']) > 0:
             for state, detail in \
                     p['status']['containerStatuses'][0]['state'].items():
                 container_states.append(ContainerState(
@@ -183,7 +185,8 @@ class Pod(object):
                     message=detail.get('message'),
                     reason=detail.get('reason')
                 ))
-        if 'conditions' in p['status']:
+        if 'conditions' in p['status'] and \
+                isinstance(p['status']['conditions'], list):
             for cond in p['status']['conditions']:
                 pod_conditions.append(PodCondition(
                     cond_type=cond['type'],
@@ -243,7 +246,9 @@ class FlApp(object):
 
     @classmethod
     def from_json(cls, flapp: dict) -> 'FlApp':
-        if flapp is None or 'status' not in flapp:
+        if flapp is None \
+                or 'status' not in flapp \
+                or not isinstance(flapp['status'], dict):
             return cls()
 
         pods: List[Pod] = []

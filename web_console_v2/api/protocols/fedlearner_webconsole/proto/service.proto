@@ -101,16 +101,30 @@ message GetJobMetricsResponse {
     Status status = 1;
     string metrics = 2;
 }
+
 message GetJobEventsRequest {
     ProjAuthInfo auth_info = 1;
     string job_name = 2;
     int64 start_time = 3;
     int64 max_lines = 4;
 }
+
 message GetJobEventsResponse{
     Status status = 1;
     repeated string logs = 2;
 }
+
+message CheckJobReadyRequest {
+    ProjAuthInfo auth_info = 1;
+    string job_name = 2;
+}
+
+message CheckJobReadyResponse {
+    Status status = 1;
+    //is_ready is true when all dependence jobs are complete
+    bool is_ready = 2;
+}
+
 service WebConsoleV2Service {
     rpc CheckConnection (CheckConnectionRequest) returns (CheckConnectionResponse) {}
     rpc UpdateWorkflowState (UpdateWorkflowStateRequest) returns (UpdateWorkflowStateResponse) {}
@@ -118,4 +132,5 @@ service WebConsoleV2Service {
     rpc UpdateWorkflow(UpdateWorkflowRequest) returns (UpdateWorkflowResponse) {}
     rpc GetJobMetrics (GetJobMetricsRequest) returns (GetJobMetricsResponse) {}
     rpc GetJobEvents (GetJobEventsRequest) returns (GetJobEventsResponse) {}
+    rpc CheckJobReady (CheckJobReadyRequest) returns (CheckJobReadyResponse) {}
 }

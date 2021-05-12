@@ -1,7 +1,9 @@
-app.db
+*.db
+*.log
 
 # Generated proto python code
 fedlearner_webconsole/proto/*.py
+fedlearner_webconsole/proto/*.pyi
 
 # Coverage generated
 .coverage_html_report/

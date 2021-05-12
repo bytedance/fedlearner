@@ -13,23 +13,28 @@
 # limitations under the License.
 
 # coding: utf-8
+import enum
+
 from sqlalchemy.sql.schema import Index, UniqueConstraint
-from fedlearner_webconsole.db import db, to_dict_mixin
+from fedlearner_webconsole.db import db, to_dict_mixin, default_table_args
 from fedlearner_webconsole.proto import workflow_definition_pb2
+
+
+class WorkflowTemplateKind(enum.Enum):
+    DEFAULT = 0
+    PRESET_DATAJOIN = 1
 
 
 @to_dict_mixin(
     extras={
         'config': (lambda wt: wt.get_config()),
-        'editor_info': (lambda wt: wt.get_editor_info())})
+        'editor_info': (lambda wt: wt.get_editor_info())
+    })
 class WorkflowTemplate(db.Model):
     __tablename__ = 'template_v2'
     __table_args__ = (UniqueConstraint('name', name='uniq_name'),
-                      Index('idx_group_alias', 'group_alias'), {
-                          'comment': 'workflow template',
-                          'mysql_engine': 'innodb',
-                          'mysql_charset': 'utf8mb4',
-                      })
+                      Index('idx_group_alias', 'group_alias'),
+                      default_table_args('workflow template'))
     id = db.Column(db.Integer, primary_key=True, comment='id')
     name = db.Column(db.String(255), comment='name')
     comment = db.Column('cmt',
@@ -40,12 +45,15 @@ class WorkflowTemplate(db.Model):
                             nullable=False,
                             comment='group_alias')
     # max store 16777215 bytes (16 MB)
-    config = db.Column(db.LargeBinary(16777215), nullable=False,
+    config = db.Column(db.LargeBinary(16777215),
+                       nullable=False,
                        comment='config')
     is_left = db.Column(db.Boolean, comment='is_left')
     editor_info = db.Column(db.LargeBinary(16777215),
                             comment='editor_info',
                             default=b'')
+    kind = db.Column(db.Integer,
+                     comment='template kind')  # WorkflowTemplateKind enum
 
     def set_config(self, proto):
         self.config = proto.SerializeToString()

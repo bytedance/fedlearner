@@ -19,7 +19,7 @@ from http import HTTPStatus
 
 from fedlearner_webconsole.db import db
 from fedlearner_webconsole.proto.workflow_definition_pb2 import WorkflowDefinition
-from fedlearner_webconsole.workflow_template.models import WorkflowTemplate
+from fedlearner_webconsole.workflow_template.models import WorkflowTemplate, WorkflowTemplateKind
 from fedlearner_webconsole.workflow_template.apis import dict_to_workflow_definition
 from testing.common import BaseTestCase
 
@@ -36,19 +36,34 @@ class WorkflowTemplatesApiTest(BaseTestCase):
                                      comment='comment for t1',
                                      group_alias='g1',
                                      is_left=True)
-        template1.set_config(WorkflowDefinition(
-            group_alias='g1',
-            is_left=True,
-        ))
+        template1.set_config(
+            WorkflowDefinition(
+                group_alias='g1',
+                is_left=True,
+            ))
         template2 = WorkflowTemplate(name='t2',
                                      group_alias='g2',
                                      is_left=False)
-        template2.set_config(WorkflowDefinition(
-            group_alias='g2',
-            is_left=False,
-        ))
+        template2.set_config(
+            WorkflowDefinition(
+                group_alias='g2',
+                is_left=False,
+            ))
+
+        template3 = WorkflowTemplate(
+            name='t3',
+            group_alias='g3',
+            is_left=True,
+            kind=WorkflowTemplateKind.PRESET_DATAJOIN.value)
+        template3.set_config(
+            WorkflowDefinition(
+                group_alias='g3',
+                is_left=False,
+            ))
+
         db.session.add(template1)
         db.session.add(template2)
+        db.session.add(template3)
         db.session.commit()
 
     def test_get_with_group_alias(self):
@@ -59,12 +74,14 @@ class WorkflowTemplatesApiTest(BaseTestCase):
         self.assertEqual(data[0]['name'], 't1')
 
     def test_get_with_group_alias_with_is_left(self):
-        response = self.get_helper('/api/v2/workflow_templates?group_alias=g1&is_left=1')
+        response = self.get_helper(
+            '/api/v2/workflow_templates?group_alias=g1&is_left=1')
         self.assertEqual(response.status_code, HTTPStatus.OK)
         data = json.loads(response.data).get('data')
         self.assertEqual(len(data), 1)
         self.assertEqual(data[0]['name'], 't1')
-        response = self.get_helper('/api/v2/workflow_templates?group_alias=g1&is_left=0')
+        response = self.get_helper(
+            '/api/v2/workflow_templates?group_alias=g1&is_left=0')
         self.assertEqual(response.status_code, HTTPStatus.OK)
         data = json.loads(response.data).get('data')
         self.assertEqual(len(data), 0)
@@ -73,41 +90,40 @@ class WorkflowTemplatesApiTest(BaseTestCase):
         response = self.get_helper('/api/v2/workflow_templates')
         self.assertEqual(response.status_code, HTTPStatus.OK)
         data = json.loads(response.data).get('data')
-        self.assertEqual(len(data), 2)
+        self.assertEqual(len(data), 3)
 
     def test_post_without_required_arguments(self):
-        response = self.post_helper(
-            '/api/v2/workflow_templates',
-            data={})
+        response = self.post_helper('/api/v2/workflow_templates', data={})
         self.assertEqual(response.status_code, HTTPStatus.BAD_REQUEST)
-        self.assertEqual(json.loads(response.data).get('details'),
-                         {'name': 'name is empty'})
+        self.assertEqual(
+            json.loads(response.data).get('details'),
+            {'name': 'name is empty'})
 
-        response = self.post_helper(
-            '/api/v2/workflow_templates',
-            data={
-                'name': 'test',
-                'comment': 'test-comment',
-                'config': {
-                    'is_left': True
-                }
-            })
+        response = self.post_helper('/api/v2/workflow_templates',
+                                    data={
+                                        'name': 'test',
+                                        'comment': 'test-comment',
+                                        'config': {
+                                            'is_left': True
+                                        }
+                                    })
         self.assertEqual(response.status_code, HTTPStatus.BAD_REQUEST)
-        self.assertEqual(json.loads(response.data).get('details'),
-                         {'config.group_alias': 'config.group_alias is required'})
+        self.assertEqual(
+            json.loads(response.data).get('details'),
+            {'config.group_alias': 'config.group_alias is required'})
 
-        response = self.post_helper(
-            '/api/v2/workflow_templates',
-            data={
-                'name': 'test',
-                'comment': 'test-comment',
-                'config': {
-                    'group_alias': 'g222',
-                }
-            })
+        response = self.post_helper('/api/v2/workflow_templates',
+                                    data={
+                                        'name': 'test',
+                                        'comment': 'test-comment',
+                                        'config': {
+                                            'group_alias': 'g222',
+                                        }
+                                    })
         self.assertEqual(response.status_code, HTTPStatus.BAD_REQUEST)
-        self.assertEqual(json.loads(response.data).get('details'),
-                         {'config.is_left': 'config.is_left is required'})
+        self.assertEqual(
+            json.loads(response.data).get('details'),
+            {'config.is_left': 'config.is_left is required'})
 
     def test_post_successfully(self):
         template_name = 'test-nb-template'
@@ -115,16 +131,16 @@ class WorkflowTemplatesApiTest(BaseTestCase):
             name=template_name).first()
         self.assertIsNone(expected_template)
 
-        response = self.post_helper(
-            '/api/v2/workflow_templates',
-            data={
-                'name': template_name,
-                'comment': 'test-comment',
-                'config': {
-                    'group_alias': 'g222',
-                    'is_left': True
-                }
-            })
+        response = self.post_helper('/api/v2/workflow_templates',
+                                    data={
+                                        'name': template_name,
+                                        'comment': 'test-comment',
+                                        'config': {
+                                            'group_alias': 'g222',
+                                            'is_left': True
+                                        },
+                                        'kind': 1,
+                                    })
         self.assertEqual(response.status_code, HTTPStatus.CREATED)
         data = json.loads(response.data).get('data')
         # Checks DB
@@ -132,20 +148,27 @@ class WorkflowTemplatesApiTest(BaseTestCase):
             name=template_name).first()
         self.assertEqual(expected_template.name, template_name)
         self.assertEqual(expected_template.comment, 'test-comment')
-        self.assertEqual(expected_template.config, WorkflowDefinition(
-            group_alias='g222',
-            is_left=True
-        ).SerializeToString())
-        expected_template_dict = {'comment': 'test-comment',
-                                  'config': {'group_alias': 'g222',
-                                             'is_left': True,
-                                             'job_definitions': [],
-                                             'variables': []},
-                                  'editor_info': {'yaml_editor_infos': {}},
-                                  'group_alias': 'g222',
-                                  'id': 3,
-                                  'is_left': True,
-                                  'name': 'test-nb-template'}
+        self.assertEqual(
+            expected_template.config,
+            WorkflowDefinition(group_alias='g222',
+                               is_left=True).SerializeToString())
+        expected_template_dict = {
+            'comment': 'test-comment',
+            'config': {
+                'group_alias': 'g222',
+                'is_left': True,
+                'job_definitions': [],
+                'variables': []
+            },
+            'editor_info': {
+                'yaml_editor_infos': {}
+            },
+            'group_alias': 'g222',
+            'is_left': True,
+            'name': 'test-nb-template',
+            'id': 4,
+            'kind': 1,
+        }
         self.assertEqual(data, expected_template_dict)
 
     def test_get_workflow_template(self):
@@ -168,34 +191,50 @@ class WorkflowTemplatesApiTest(BaseTestCase):
                 'is_left': True
             }
         }
-        response = self.put_helper('/api/v2/workflow_templates/1',
-                                   data=data
-                                   )
+        response = self.put_helper('/api/v2/workflow_templates/1', data=data)
         self.assertEqual(response.status_code, HTTPStatus.OK)
-        expected_template = WorkflowTemplate.query.filter_by(
-            id=1).first()
+        expected_template = WorkflowTemplate.query.filter_by(id=1).first()
         self.assertEqual(expected_template.name, data['name'])
         self.assertEqual(expected_template.comment, data['comment'])
-        self.assertEqual(expected_template.group_alias, data['config']['group_alias'])
+        self.assertEqual(expected_template.group_alias,
+                         data['config']['group_alias'])
         self.assertEqual(expected_template.is_left, data['config']['is_left'])
 
     def test_dict_to_workflow_definition(self):
-        config = {'variables': [{'name': 'code',
-                                 'value': '{"asdf.py": "asdf"}',
-                                 'value_type': 'CODE'}]}
+        config = {
+            'variables': [{
+                'name': 'code',
+                'value': '{"asdf.py": "asdf"}',
+                'value_type': 'CODE'
+            }]
+        }
         proto = dict_to_workflow_definition(config)
         self.assertTrue(isinstance(proto.variables[0].value, str))
 
     def test_get_code(self):
-        response = self.get_helper('/api/v2/codes?code_path=test/fedlearner_webconsole/test_data/code.tar.gz')
+        response = self.get_helper(
+            '/api/v2/codes?code_path=test/fedlearner_webconsole/test_data/code.tar.gz'
+        )
         self.assertEqual(response.status_code, HTTPStatus.OK)
         data = json.loads(response.data)
-        self.assertEqual({'test/a.py': 'awefawefawefawefwaef',
-                          'test1/b.py': 'asdfasd',
-                          'c.py': '',
-                          'test/d.py': 'asdf'}, data['data'])
-        response = self.get_helper('/api/v2/codes?code_path=../test_data/code.tar.g1')
+        self.assertEqual(
+            {
+                'test/a.py': 'awefawefawefawefwaef',
+                'test1/b.py': 'asdfasd',
+                'c.py': '',
+                'test/d.py': 'asdf'
+            }, data['data'])
+        response = self.get_helper(
+            '/api/v2/codes?code_path=../test_data/code.tar.g1')
         self.assertEqual(response.status_code, HTTPStatus.BAD_REQUEST)
+
+    def test_get_with_kind(self):
+        response = self.get_helper(
+            '/api/v2/workflow_templates?from=preset_datajoin')
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+        data = json.loads(response.data).get('data')
+        self.assertEqual(len(data), 1)
+        self.assertEqual(data[0]['name'], 't3')
 
 
 if __name__ == '__main__':

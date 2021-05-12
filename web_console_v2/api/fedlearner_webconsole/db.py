@@ -16,13 +16,17 @@
 from contextlib import contextmanager
 from enum import Enum
 from datetime import datetime, timezone
-from typing import List, Dict, Callable
+import os
+from typing import Generator, List, Dict, Callable
 
 from flask_sqlalchemy import SQLAlchemy
 from google.protobuf.message import Message
 from google.protobuf.json_format import MessageToDict
-from sqlalchemy.engine import Engine
+from sqlalchemy.engine import Engine, create_engine
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm.session import Session
+
+BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '../'))
 
 # Explicitly set autocommit and autoflush
 # Disables autocommit to make developers to commit manually
@@ -33,7 +37,8 @@ SESSION_OPTIONS = {
     'autoflush': True,
     'expire_on_commit': True
 }
-db = SQLAlchemy(session_options=SESSION_OPTIONS)
+ENGINE_OPTIONS = {}
+db = SQLAlchemy(session_options=SESSION_OPTIONS, engine_options=ENGINE_OPTIONS)
 
 
 def to_dict_mixin(ignores: List[str] = None,
@@ -64,10 +69,10 @@ def to_dict_mixin(ignores: List[str] = None,
                     # UTC datetime,otherwise it will be calculated
                     # as local time when converting to timestamp.
                     # Context: all datetime in db is UTC datetime,
-                    # see details in config.py#turn_db_timezone_to_utc
+                    # see details in db.py#turn_db_timezone_to_utc
                     if value.tzinfo is None:
-                        dic[key] = int(value.replace(
-                            tzinfo=timezone.utc).timestamp())
+                        dic[key] = int(
+                            value.replace(tzinfo=timezone.utc).timestamp())
                     else:
                         dic[key] = int(value.timestamp())
                 elif isinstance(value, Message):
@@ -93,8 +98,81 @@ def default_table_args(comment: str) -> dict:
     }
 
 
+def _turn_db_timezone_to_utc(original_uri: str) -> str:
+    """ string operator that make any db into utc timezone
+
+    Args:
+        original_uri (str): original uri without set timezone
+
+    Returns:
+        str: uri with explicittly set utc timezone
+    """
+    # Do set use `init_command` for sqlite, since it doesn't support yet
+    if original_uri.startswith('sqlite'):
+        return original_uri
+
+    _set_timezone_args = 'init_command=SET SESSION time_zone=\'%2B00:00\''
+    parsed_uri = original_uri.split('?')
+
+    if len(parsed_uri) == 1:
+        return f'{parsed_uri[0]}?{_set_timezone_args}'
+    assert len(parsed_uri) == 2, \
+        f'failed to parse uri [{original_uri}], since it has more than one ?'
+
+    base_uri, args = parsed_uri
+    args = args.split('&&')
+    # remove if there's init_command already
+    args_list = [_set_timezone_args]
+    for a in args:
+        if a.startswith('init_command'):
+            command = a.split('=')[1]
+            # ignore other set time_zone args
+            if command.startswith('SET SESSION time_zone'):
+                continue
+            args_list[0] = f'{args_list[0]};{command}'
+        else:
+            args_list.append(a)
+
+    args = '&&'.join(args_list)
+    return f'{base_uri}?{args}'
+
+
+def get_database_uri() -> str:
+    """Get database uri for whole system.
+
+    - Get database uri:
+        - environmental variables
+        - default uri that uses sqlite at local file system
+    - Process with database uri
+        - add a fixed time_zone utc
+        - ...
+
+
+    Returns:
+        str: database uri with utc timezone
+    """
+    uri = ''
+    if 'SQLALCHEMY_DATABASE_URI' in os.environ:
+        uri = os.getenv('SQLALCHEMY_DATABASE_URI')
+    else:
+        uri = 'sqlite:///{}'.format(os.path.join(BASE_DIR, 'app.db'))
+    return _turn_db_timezone_to_utc(uri)
+
+
+def get_engine(database_uri: str) -> Engine:
+    """get engine according to database uri
+
+    Args:
+        database_uri (str): database uri used for create engine
+
+    Returns:
+        Engine: engine used for managing connections
+    """
+    return create_engine(database_uri, **ENGINE_OPTIONS)
+
+
 @contextmanager
-def get_session(db_engine: Engine):
+def get_session(db_engine: Engine) -> Generator[Session, None, None]:
     """Get session from database engine.
 
     Example:
@@ -110,3 +188,36 @@ def get_session(db_engine: Engine):
         yield session
     finally:
         session.close()
+
+
+def make_session_context() -> Callable[[], Generator[Session, None, None]]:
+    """A functional closure that will store engine
+        Call it n times if you want to n connection pools
+
+    Returns:
+        Callable[[], Generator[Session, None, None]]:
+            a function that yield a context
+
+    Yields:
+        Generator[Session, None, None]: a session context
+
+    Examples:
+        # First initialize a connection pool,
+        # when you want to a new connetion pool
+        session_context = make_session_context()
+        ...
+        # You use it multiple times as follows.
+        with session_context() as session:
+            session.query(SomeMapperClass).filter_by(id=1).one()
+    """
+    engine = None
+
+    @contextmanager
+    def wrapper_get_session():
+        nonlocal engine
+        if engine is None:
+            engine = get_engine(get_database_uri())
+        with get_session(engine) as session:
+            yield session
+
+    return wrapper_get_session
