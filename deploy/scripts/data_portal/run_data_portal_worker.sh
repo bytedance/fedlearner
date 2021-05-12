@@ -38,7 +38,7 @@ optional_fields=$(normalize_env_to_args '--optional_fields' $OPTIONAL_FIELDS)
 input_data_validation_ratio=$(normalize_env_to_args '--input_data_validation_ratio' $INPUT_DATA_VALIDATION_RATIO)
 
 
-python -m fedlearner.data_join.cmd.data_portal_worker_cli \
+echo python -m fedlearner.data_join.cmd.data_portal_worker_cli \
   --rank_id=$INDEX \
   --master_addr=$MASTER_POD_NAMES \
   $input_data_file_iter $compressed_type $read_ahead_size $read_batch_size \
@@ -46,3 +46,8 @@ python -m fedlearner.data_join.cmd.data_portal_worker_cli \
   $batch_size $kvstore_type $memory_limit_ratio \
   $optional_fields $input_data_validation_ratio
 
+
+while true; do
+  echo dummy worker, sleep infinitly...
+  sleep 86400;
+done
