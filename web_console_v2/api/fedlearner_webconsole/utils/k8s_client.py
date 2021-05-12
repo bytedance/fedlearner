@@ -23,6 +23,7 @@ import requests
 from kubernetes import client
 from kubernetes.client.exceptions import ApiException
 
+from fedlearner_webconsole.utils.decorators import retry_fn
 from fedlearner_webconsole.utils.fake_k8s_client import FakeK8sClient
 from fedlearner_webconsole.utils.k8s_cache import k8s_cache
 from envs import Envs
@@ -224,6 +225,7 @@ class K8sClient(object):
         except ApiException as e:
             self._raise_runtime_error(e)
 
+    @retry_fn(retry_times=3)
     def delete_flapp(self, flapp_name):
         try:
             self.crds.delete_namespaced_custom_object(
@@ -232,10 +234,12 @@ class K8sClient(object):
                 namespace=Envs.K8S_NAMESPACE,
                 plural=CrdKind.FLAPP.value,
                 name=flapp_name)
-        except client.exceptions.ApiException as e:
+        except ApiException as e:
+            # If the flapp has been deleted then the exception gets ignored
             if e.status != HTTPStatus.NOT_FOUND:
-                raise RuntimeError(str(e))
+                self._raise_runtime_error(e)
 
+    @retry_fn(retry_times=3)
     def create_flapp(self, flapp_yaml):
         try:
             self.crds.create_namespaced_custom_object(
@@ -244,8 +248,12 @@ class K8sClient(object):
                 namespace=Envs.K8S_NAMESPACE,
                 plural=CrdKind.FLAPP.value,
                 body=flapp_yaml)
-        except Exception as e:
-            raise RuntimeError(str(e))
+        except ApiException as e:
+            # If the flapp exists then we delete it
+            if e.status == HTTPStatus.CONFLICT:
+                self.delete_flapp(flapp_yaml['metadata']['name'])
+            # Raise to make it retry
+            raise
 
     def get_flapp(self, flapp_name):
         return k8s_cache.get_cache(flapp_name)

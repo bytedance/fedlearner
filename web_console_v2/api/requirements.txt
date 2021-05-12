@@ -29,3 +29,5 @@ pyspark==3.1.1
 # Lint
 pylint==2.4.4
 pylint-quotes==0.2.1
+setproctitle==1.2.2
+mypy-protobuf==2.4

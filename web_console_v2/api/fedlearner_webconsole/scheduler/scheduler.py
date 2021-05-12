@@ -24,8 +24,10 @@ from fedlearner_webconsole.db import db
 from fedlearner_webconsole.dataset.import_handler import ImportHandler
 from fedlearner_webconsole.utils.k8s_client import k8s_client
 from fedlearner_webconsole.workflow.models import Workflow, WorkflowState
-from fedlearner_webconsole.job.models import Job, JobState, JobDependency
+from fedlearner_webconsole.job.models import Job, JobState
 from fedlearner_webconsole.scheduler.transaction import TransactionManager
+from fedlearner_webconsole.db import get_session
+from fedlearner_webconsole.job.service import JobService
 
 
 class Scheduler(object):
@@ -36,7 +38,9 @@ class Scheduler(object):
         self._thread = None
         self._pending_workflows = []
         self._pending_jobs = []
+        #TODO: remove app
         self._app = None
+        self._db_engine = None
         self._import_handler = ImportHandler()
 
     def start(self, app, force=False):
@@ -46,6 +50,8 @@ class Scheduler(object):
             self.stop()
 
         self._app = app
+        with self._app.app_context():
+            self._db_engine = db.get_engine()
 
         with self._condition:
             self._running = True
@@ -69,8 +75,8 @@ class Scheduler(object):
         logging.info('Scheduler stopped')
 
     def wakeup(self, workflow_ids=None,
-                     job_ids=None,
-                     data_batch_ids=None):
+               job_ids=None,
+               data_batch_ids=None):
         with self._condition:
             if workflow_ids:
                 if isinstance(workflow_ids, int):
@@ -105,10 +111,7 @@ class Scheduler(object):
 
                     job_ids = self._pending_jobs
                     self._pending_jobs = []
-                    job_ids.extend([
-                        jid for jid, in db.session.query(Job.id) \
-                            .filter(Job.state == JobState.WAITING) \
-                            .filter(Job.workflow_id in workflow_ids)])
+                    job_ids.extend(_get_waiting_jobs())
                     self._poll_jobs(job_ids)
 
                     self._import_handler.handle(pull=False)
@@ -118,56 +121,55 @@ class Scheduler(object):
                     Workflow.target_state != WorkflowState.INVALID).all()
                 self._poll_workflows([wid for wid, in workflows])
 
-                jobs = db.session.query(Job.id).filter(
-                    Job.state == JobState.WAITING).all()
-                self._poll_jobs([jid for jid, in jobs])
+                self._poll_jobs(_get_waiting_jobs())
 
                 self._import_handler.handle(pull=True)
 
     def _poll_workflows(self, workflow_ids):
-        logging.info('Scheduler polling %d workflows...', len(workflow_ids))
+        logging.info(f'Scheduler polling {len(workflow_ids)} workflows...')
         for workflow_id in workflow_ids:
             try:
                 self._schedule_workflow(workflow_id)
             except Exception as e:
                 logging.warning(
-                    'Error while scheduling workflow %d:\n%s',
-                    workflow_id, traceback.format_exc())
+                    'Error while scheduling workflow '
+                    f'{workflow_id}:\n{traceback.format_exc()}')
 
     def _poll_jobs(self, job_ids):
-        logging.info('Scheduler polling %d jobs...', len(job_ids))
+        logging.info(f'Scheduler polling {len(job_ids)} jobs...')
         for job_id in job_ids:
             try:
                 self._schedule_job(job_id)
             except Exception as e:
                 logging.warning(
-                    'Error while scheduling job %d:\n%s',
-                    job_id, traceback.format_exc())
+                    'Error while scheduling job '
+                    f'{job_id}:\n{traceback.format_exc()}')
 
     def _schedule_workflow(self, workflow_id):
-        logging.debug('Scheduling workflow %d', workflow_id)
+        logging.debug(f'Scheduling workflow {workflow_id}')
         tm = TransactionManager(workflow_id)
         return tm.process()
 
     def _schedule_job(self, job_id):
         job = Job.query.get(job_id)
-        assert job is not None, 'Job %d not found'%job_id
+        assert job is not None, f'Job {job_id} not found'
         if job.state != JobState.WAITING:
             return job.state
-        deps = JobDependency.query.filter(
-            JobDependency.dst_job_id == job.id).all()
-        for dep in deps:
-            src_job = Job.query.get(dep.src_job_id)
-            assert src_job is not None, 'Job %d not found'%dep.src_job_id
-            if not src_job.is_complete():
+
+        with get_session(self._db_engine) as session:
+            job_service = JobService(session)
+            if not job_service.is_ready(job):
                 return job.state
+            config = job.get_config()
+            if config.is_federated:
+                if not job_service.is_peer_ready(job):
+                    return job.state
 
         try:
             yaml = generate_job_run_yaml(job)
             k8s_client.create_flapp(yaml)
         except Exception as e:
-            logging.error('Start job %d has error msg: %s'
-                          , job_id, e.args)
+            logging.error(f'Start job {job_id} has error msg: {e.args}')
             job.error_message = str(e)
             db.session.commit()
             return job.state
@@ -176,6 +178,11 @@ class Scheduler(object):
         db.session.commit()
 
         return job.state
+
+
+def _get_waiting_jobs():
+    return [jid for jid, in db.session.query(
+        Job.id).filter(Job.state == JobState.WAITING)]
 
 
 scheduler = Scheduler()

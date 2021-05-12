@@ -31,8 +31,6 @@ class K8sWatcher(object):
     def __init__(self):
         self._lock = threading.Lock()
         self._running = False
-        self._flapp_watch = None
-        self._pods_watch = None
         self._flapp_watch_thread = None
         self._pods_watch_thread = None
         self._event_consumer_thread = None
@@ -52,12 +50,10 @@ class K8sWatcher(object):
                 logging.warning('K8s watcher has already started')
                 return
             self._running = True
-            self._flapp_watch = watch.Watch()
             self._flapp_watch_thread = threading.Thread(
                 target=self._k8s_flapp_watcher,
                 name='flapp_watcher',
                 daemon=True)
-            self._pods_watch = watch.Watch()
             self._pods_watch_thread = threading.Thread(
                 target=self._k8s_pods_watch,
                 name='pods_watcher',
@@ -82,19 +78,25 @@ class K8sWatcher(object):
                               f'traceback:{traceback.format_exc()}')
 
     def _k8s_flapp_watcher(self):
-        # init cache for flapp
         resource_version = '0'
+        watcher = watch.Watch()
         while True:
             if not self._running:
+                watcher.stop()
                 break
-
-            stream = self._flapp_watch.stream(
+            # resource_version '0' means getting a recent resource without
+            # consistency guarantee, this is to reduce the load of etcd.
+            # Ref: https://kubernetes.io/docs/reference/using-api
+            # /api-concepts/ #the-resourceversion-parameter
+            stream = watcher.stream(
                 k8s_client.crds.list_namespaced_custom_object,
                 group=FEDLEARNER_CUSTOM_GROUP,
                 version=FEDLEARNER_CUSTOM_VERSION,
                 namespace=Envs.K8S_NAMESPACE,
                 plural='flapps',
-                resource_version=resource_version
+                resource_version=resource_version,
+                timeout_seconds=1800,  # Sometimes watch gets stuck
+                _request_timeout=1800,  # Sometimes HTTP GET gets stuck
             )
             try:
                 for event in stream:
@@ -105,12 +107,11 @@ class K8sWatcher(object):
                     if metadata['resourceVersion'] is not None:
                         resource_version = metadata['resourceVersion']
                         logging.debug(
-                            'resource_version now: {0}'.format(
-                                resource_version))
+                            f'resource_version now: {resource_version}')
             except client.exceptions.ApiException as e:
                 logging.error(f'watcher:{str(e)}')
                 if e.status == HTTPStatus.GONE:
-                    # resource_version has been too old, cache should be relist
+                    # It has been too old, resources should be relisted
                     resource_version = '0'
             except Exception as e:  # pylint: disable=broad-except
                 logging.error(f'K8s watcher gets event error: {str(e)}',
@@ -120,16 +121,23 @@ class K8sWatcher(object):
         self._queue.put(Event.from_json(event, obj_type))
 
     def _k8s_pods_watch(self):
-        # init cache for flapp
         resource_version = '0'
+        watcher = watch.Watch()
         while True:
             if not self._running:
+                watcher.stop()
                 break
-            stream = self._pods_watch.stream(
+            # resource_version '0' means getting a recent resource without
+            # consistency guarantee, this is to reduce the load of etcd.
+            # Ref: https://kubernetes.io/docs/reference/using-api
+            # /api-concepts/ #the-resourceversion-parameter
+            stream = watcher.stream(
                 k8s_client.core.list_namespaced_pod,
                 namespace=Envs.K8S_NAMESPACE,
                 label_selector='app-name',
-                resource_version=resource_version
+                resource_version=resource_version,
+                timeout_seconds=1800,  # Sometimes watch gets stuck
+                _request_timeout=1800,  # Sometimes HTTP GET gets stuck
             )
 
             try:
@@ -139,11 +147,11 @@ class K8sWatcher(object):
                     if metadata.resource_version is not None:
                         resource_version = metadata.resource_version
                         logging.debug(
-                            'resource_version now: {0}'.format(
-                                resource_version))
+                            f'resource_version now: {resource_version}')
             except client.exceptions.ApiException as e:
                 logging.error(f'watcher:{str(e)}')
                 if e.status == HTTPStatus.GONE:
+                    # It has been too old, resources should be relisted
                     resource_version = '0'
             except Exception as e:  # pylint: disable=broad-except
                 logging.error(f'K8s watcher gets event error: {str(e)}',
