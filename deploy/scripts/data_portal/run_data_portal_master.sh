@@ -36,7 +36,7 @@ spark_worker_cores=$(normalize_env_to_args '--spark_worker_cores' $SPARK_WORKER_
 spark_worker_memory=$(normalize_env_to_args '--spark_worker_memory' $SPARK_WORKER_MEMORY)
 spark_worker_instances=$(normalize_env_to_args '--spark_worker_instances' $SPARK_WORKER_INSTANCES)
 
-echo python -m fedlearner.data_join.cmd.raw_data_cli \
+python -m fedlearner.data_join.cmd.raw_data_cli \
     --data_portal_name=$DATA_PORTAL_NAME \
     --data_portal_type=$DATA_PORTAL_TYPE \
     --output_partition_num=$OUTPUT_PARTITION_NUM \
@@ -45,7 +45,7 @@ echo python -m fedlearner.data_join.cmd.raw_data_cli \
     --raw_data_publish_dir=$RAW_DATA_PUBLISH_DIR \
     --upload_dir=$UPLOAD_DIR \
     $input_file_wildcard $LONG_RUNNING $CHECK_SUCCESS_TAG \
-    $kvstore_type $SINGLE_SUBFOLDER $files_per_job_limit $output_type \
+    $SINGLE_SUBFOLDER $files_per_job_limit $output_type \
     $data_source_name $data_block_dump_threshold \
     $spark_master_cores $spark_master_memory \
     $spark_worker_cores $spark_worker_memory $spark_worker_instances

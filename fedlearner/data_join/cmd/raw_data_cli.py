@@ -33,6 +33,8 @@ if __name__ == "__main__":
                         help='the base dir of input directory')
     parser.add_argument('--output_base_dir', type=str, required=True,
                         help='the base dir of output directory')
+    parser.add_argument('--output_partition_num', type=int, required=True,
+                        help='the output partition number of data portal')
     parser.add_argument('--raw_data_publish_dir', type=str, required=True,
                         help='the raw data publish dir in mysql')
     parser.add_argument('--upload_dir', type=str, required=True,
@@ -53,6 +55,8 @@ if __name__ == "__main__":
                         help='data source name to output')
     parser.add_argument("--data_block_dump_threshold", type=int, default=0,
                         help='Dumped threshold for data block')
+    parser.add_argument('--long_running', action='store_true',
+                        help='make the data portal long running')
     parser.add_argument("--spark_master_cores", type=int, default=0,
                         help='Number of cores of spark master')
     parser.add_argument("--spark_master_memory", type=str, default='',
@@ -78,6 +82,7 @@ if __name__ == "__main__":
                      job_type=args.data_portal_type,
                      wildcard=args.input_file_wildcard,
                      output_type=args.output_type,
+                     output_partition_num=args.output_partition_num,
                      data_source_name=args.data_source_name,
                      data_block_threshold=args.data_block_dump_threshold,
                      check_success_tag=args.check_success_tag,
