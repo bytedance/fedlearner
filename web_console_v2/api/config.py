@@ -15,56 +15,15 @@
 # coding: utf-8
 
 import os
-import logging
 import secrets
+
+from fedlearner_webconsole.db import get_database_uri
 
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 
 
-def turn_db_timezone_to_utc(original_uri: str) -> str:
-    """ string operator that make any db into utc timezone
-
-    Args:
-        original_uri (str): original uri without set timezone
-
-    Returns:
-        str: uri with explicittly set utc timezone
-    """
-    # Do set use `init_command` for sqlite, since it doesn't support yet
-    if original_uri.startswith('sqlite'):
-        return original_uri
-
-    _set_timezone_args = 'init_command=SET SESSION time_zone=\'%2B00:00\''
-    parsed_uri = original_uri.split('?')
-
-    if len(parsed_uri) == 1:
-        return f'{parsed_uri[0]}?{_set_timezone_args}'
-    assert len(
-        parsed_uri
-    ) == 2, f'failed to parse uri [{original_uri}], since it has more than one ?'
-
-    base_uri, args = parsed_uri
-    args = args.split('&&')
-    # remove if there's init_command already
-    args_list = [_set_timezone_args]
-    for a in args:
-        if a.startswith('init_command'):
-            command = a.split('=')[1]
-            # ignore other set time_zone args
-            if command.startswith('SET SESSION time_zone'):
-                continue
-            args_list[0] = f'{args_list[0]};{command}'
-        else:
-            args_list.append(a)
-
-    args = '&&'.join(args_list)
-    return f'{base_uri}?{args}'
-
-
 class Config(object):
-    SQLALCHEMY_DATABASE_URI = turn_db_timezone_to_utc(
-        os.getenv('SQLALCHEMY_DATABASE_URI',
-                  'sqlite:///' + os.path.join(BASE_DIR, 'app.db')))
+    SQLALCHEMY_DATABASE_URI = get_database_uri()
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     MYSQL_CHARSET = 'utf8mb4'
     # For unicode strings

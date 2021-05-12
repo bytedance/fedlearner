@@ -9,6 +9,7 @@ protobuf:
 	python -m grpc_tools.protoc -I protocols \
 		--python_out=. \
 		--grpc_python_out=. \
+		--mypy_out=. \
 		protocols/fedlearner_webconsole/proto/*.proto
 
 UNIT_TEST_SCRIPTS := $(shell find test -type f -name "*_test.py")
@@ -23,3 +24,6 @@ cli-test:
 	FLASK_APP=command:app flask routes
 
 test: unit-test cli-test
+	
+clean:
+	find ./ -type f \( -name "*.db" -o -name "*.log" \) -exec rm -f {} \;

@@ -18,13 +18,14 @@ import time
 import unittest
 from google.protobuf.json_format import ParseDict
 from unittest.mock import patch
-from testing.common import BaseTestCase, TestAppProcess
+from testing.common import BaseTestCase
 from fedlearner_webconsole.db import db
 from fedlearner_webconsole.job.models import JobState
 from fedlearner_webconsole.project.models import Project
 from fedlearner_webconsole.workflow.models import Workflow, WorkflowState
 from fedlearner_webconsole.scheduler.transaction import TransactionState
-from fedlearner_webconsole.scheduler.scheduler import scheduler
+from fedlearner_webconsole.scheduler.scheduler import \
+    scheduler
 from fedlearner_webconsole.proto import project_pb2
 from workflow_template_test import make_workflow_template
 
