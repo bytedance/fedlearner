@@ -101,8 +101,7 @@ class SparkTaskConfig(object):
                 "sparkVersion": "3.0.0",
                 "restartPolicy": {"type": "Never"},
                 "dynamicAllocation": {"enabled": False},
-                "volumes": {
-                    [{
+                "volumes": [{
                         "name": "spark-deploy",
                         "hostPath": {"path": "/opt/tiger/spark_deploy",
                                      "type": "Directory"}
@@ -110,8 +109,8 @@ class SparkTaskConfig(object):
                         "name": "yarn-deploy",
                         "hostPath": {"path": "/opt/tiger/yarn_deploy",
                                      "type": "Directory"}
-                    }]
-                },
+                    }
+                ],
                 "driver": {
                     "cores": master_config.cores,
                     "coreLimit": "{}m".format(master_config.cores * 1000),

@@ -32,7 +32,7 @@ start_date=$(normalize_env_to_args '--start_date' $START_DATE)
 end_date=$(normalize_env_to_args '--end_date' $END_DATE)
 output_type=$(normalize_env_to_args '--output_type' $OUTPUT_TYPE)
 
-echo python -m fedlearner.data_join.cmd.raw_data_cli \
+python -m fedlearner.data_join.cmd.raw_data_cli \
     --data_portal_name=$DATA_PORTAL_NAME \
     --data_portal_type=$DATA_PORTAL_TYPE \
     --output_partition_num=$OUTPUT_PARTITION_NUM \
@@ -41,5 +41,7 @@ echo python -m fedlearner.data_join.cmd.raw_data_cli \
     --raw_data_publish_dir=$RAW_DATA_PUBLISH_DIR \
     --upload_dir=$UPLOAD_DIR \
     $input_file_wildcard $LONG_RUNNING $CHECK_SUCCESS_TAG \
-    $kvstore_type $SINGLE_SUBFOLDER $files_per_job_limit \
-    $start_date $end_date
+    $SINGLE_SUBFOLDER $files_per_job_limit $output_type \
+    $data_source_name $data_block_dump_threshold \
+    $spark_master_cores $spark_master_memory \
+    $spark_worker_cores $spark_worker_memory $spark_worker_instances
