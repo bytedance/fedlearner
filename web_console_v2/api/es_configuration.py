@@ -1,5 +1,5 @@
 import requests
-from elasticsearch import Elasticsearch
+from elasticsearch import Elasticsearch, exceptions
 
 from envs import Envs
 from fedlearner_webconsole.utils.es_misc import get_es_template, ALIAS_NAME
@@ -77,6 +77,15 @@ if __name__ == '__main__':
             _configure_kibana_index_patterns(
                 Envs.KIBANA_SERVICE_HOST_PORT, index_type
             )
-        put_ilm(es, 'filebeat-7.0.1', hot_age='1d')
-        # filebeat template should be set during filebeat deployment
-        _configure_index_alias(es, 'filebeat-7.0.1')
+        # Filebeat's built-in ilm does not contain delete phase. Below will
+        #   add a delete phase to the existing policy.
+        # NOTE: Due to compatibility, should put policy only when policy exists,
+        #   but no method to check existence. So use try-except to do the trick.
+        for filebeat_name in ('filebeat-7.7.1', 'filebeat-7.0.1'):
+            try:
+                es.ilm.get_lifecycle(policy=filebeat_name)
+            except exceptions.NotFoundError:
+                pass
+            else:
+                put_ilm(es, filebeat_name, hot_age='1d')
+        # Filebeat template and indices should be deployed during deployment.

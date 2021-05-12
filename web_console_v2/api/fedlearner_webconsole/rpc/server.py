@@ -28,7 +28,7 @@ from fedlearner_webconsole.proto import (
     common_pb2, workflow_definition_pb2
 )
 from fedlearner_webconsole.utils.es import es
-from fedlearner_webconsole.db import db
+from fedlearner_webconsole.db import db, get_session
 from fedlearner_webconsole.project.models import Project
 from fedlearner_webconsole.workflow.models import (
     Workflow, WorkflowState, TransactionState,
@@ -36,6 +36,7 @@ from fedlearner_webconsole.workflow.models import (
 )
 
 from fedlearner_webconsole.job.models import Job
+from fedlearner_webconsole.job.service import JobService
 from fedlearner_webconsole.job.metrics import JobMetricsBuilder
 from fedlearner_webconsole.exceptions import (
     UnauthorizedException
@@ -99,6 +100,11 @@ class RPCServerServicer(service_pb2_grpc.WebConsoleV2ServiceServicer):
             self._server.get_job_events, request, context,
             service_pb2.GetJobEventsResponse)
 
+    def CheckJobReady(self, request, context):
+        return self._try_handle_request(
+            self._server.check_job_ready, request, context,
+            service_pb2.CheckJobReadyResponse)
+
 
 class RpcServer(object):
     def __init__(self):
@@ -113,7 +119,7 @@ class RpcServer(object):
         listen_port = app.config.get('GRPC_LISTEN_PORT', 1999)
         with self._lock:
             self._server = grpc.server(
-                futures.ThreadPoolExecutor(max_workers=10))
+                futures.ThreadPoolExecutor(max_workers=20))
             service_pb2_grpc.add_WebConsoleV2ServiceServicer_to_server(
                 RPCServerServicer(self), self._server)
             self._server.add_insecure_port('[::]:%d' % listen_port)
@@ -332,6 +338,21 @@ class RpcServer(object):
                 status=common_pb2.Status(
                     code=common_pb2.STATUS_SUCCESS),
                 logs=result)
+
+    def check_job_ready(self, request, context):
+        with self._app.app_context():
+            project, _ = self.check_auth_info(request.auth_info, context)
+            job = db.session.query(Job).filter_by(name=request.job_name,
+                                                  project_id=project.id).first()
+            assert job is not None, \
+                f'Job {request.job_name} not found'
+
+            with get_session(db.get_engine()) as session:
+                is_ready = JobService(session).is_ready(job)
+            return service_pb2.CheckJobReadyResponse(
+                status=common_pb2.Status(
+                    code=common_pb2.STATUS_SUCCESS),
+                is_ready=is_ready)
 
 
 rpc_server = RpcServer()

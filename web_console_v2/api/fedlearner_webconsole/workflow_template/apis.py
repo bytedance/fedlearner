@@ -23,12 +23,13 @@ import tarfile
 from flask import send_file
 from flask_restful import Resource, reqparse, request
 from google.protobuf.json_format import ParseDict, ParseError
-from fedlearner_webconsole.workflow_template.models import WorkflowTemplate
+from fedlearner_webconsole.workflow_template.models import WorkflowTemplate, \
+    WorkflowTemplateKind
 from fedlearner_webconsole.proto import workflow_definition_pb2
 from fedlearner_webconsole.db import db
-from fedlearner_webconsole.exceptions import (
-    NotFoundException, InvalidArgumentException,
-    ResourceConflictException)
+from fedlearner_webconsole.exceptions import (NotFoundException,
+                                              InvalidArgumentException,
+                                              ResourceConflictException)
 from fedlearner_webconsole.workflow_template.slots_formatter import \
     generate_yaml_template
 from fedlearner_webconsole.workflow_template.template_validaor\
@@ -46,8 +47,8 @@ def _classify_variable(variable):
 
 def dict_to_workflow_definition(config):
     try:
-        template_proto = ParseDict(config,
-                                   workflow_definition_pb2.WorkflowDefinition())
+        template_proto = ParseDict(
+            config, workflow_definition_pb2.WorkflowDefinition())
         for variable in template_proto.variables:
             _classify_variable(variable)
         for job in template_proto.job_definitions:
@@ -61,11 +62,9 @@ def dict_to_workflow_definition(config):
 def dict_to_editor_info(editor_info):
     try:
         editor_info_proto = ParseDict(
-            editor_info,
-            workflow_definition_pb2.WorkflowTemplateEditorInfo())
+            editor_info, workflow_definition_pb2.WorkflowTemplateEditorInfo())
     except ParseError as e:
-        raise InvalidArgumentException(details={
-            'editor_info': str(e)})
+        raise InvalidArgumentException(details={'editor_info': str(e)})
     return editor_info_proto
 
 
@@ -78,6 +77,7 @@ def _dic_without_key(d, keys):
 
 class WorkflowTemplatesApi(Resource):
     def get(self):
+        preset_datajoin = request.args.get('from', '') == 'preset_datajoin'
         templates = WorkflowTemplate.query
         if 'group_alias' in request.args:
             templates = templates.filter_by(
@@ -87,23 +87,33 @@ class WorkflowTemplatesApi(Resource):
             if is_left is None:
                 raise InvalidArgumentException('is_left must be 0 or 1')
             templates = templates.filter_by(is_left=is_left)
+        if preset_datajoin:
+            templates = templates.filter_by(
+                kind=WorkflowTemplateKind.PRESET_DATAJOIN.value)
         # remove config from dicts to reduce the size of the list
-        return {'data': [_dic_without_key(t.to_dict(), ['config',
-                                                        'editor_info'])
-                         for t in templates.all()]}, HTTPStatus.OK
+        return {
+            'data': [
+                _dic_without_key(t.to_dict(), ['config', 'editor_info'])
+                for t in templates.all()
+            ]
+        }, HTTPStatus.OK
 
     def post(self):
         parser = reqparse.RequestParser()
         parser.add_argument('name', required=True, help='name is empty')
         parser.add_argument('comment')
-        parser.add_argument('config', type=dict, required=True,
+        parser.add_argument('config',
+                            type=dict,
+                            required=True,
                             help='config is empty')
         parser.add_argument('editor_info', type=dict, default={})
+        parser.add_argument('kind', type=int, default=0)
         data = parser.parse_args()
         name = data['name']
         comment = data['comment']
         config = data['config']
         editor_info = data['editor_info']
+        kind = data['kind']
         if WorkflowTemplate.query.filter_by(name=name).first() is not None:
             raise ResourceConflictException(
                 'Workflow template {} already exists'.format(name))
@@ -114,7 +124,8 @@ class WorkflowTemplatesApi(Resource):
         template = WorkflowTemplate(name=name,
                                     comment=comment,
                                     group_alias=template_proto.group_alias,
-                                    is_left=template_proto.is_left)
+                                    is_left=template_proto.is_left,
+                                    kind=kind)
         template.set_config(template_proto)
         template.set_editor_info(editor_info_proto)
         db.session.add(template)
@@ -156,14 +167,18 @@ class WorkflowTemplateApi(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument('name', required=True, help='name is empty')
         parser.add_argument('comment')
-        parser.add_argument('config', type=dict, required=True,
+        parser.add_argument('config',
+                            type=dict,
+                            required=True,
                             help='config is empty')
         parser.add_argument('editor_info', type=dict, default={})
+        parser.add_argument('kind', type=int, default=0)
         data = parser.parse_args()
         name = data['name']
         comment = data['comment']
         config = data['config']
         editor_info = data['editor_info']
+        kind = data['kind']
         tmp = WorkflowTemplate.query.filter_by(name=name).first()
         if tmp is not None and tmp.id != template_id:
             raise ResourceConflictException(
@@ -181,6 +196,7 @@ class WorkflowTemplateApi(Resource):
         template.comment = comment
         template.group_alias = template_proto.group_alias
         template.is_left = template_proto.is_left
+        template.kind = kind
         db.session.commit()
         result = template.to_dict()
         return {'data': result}, HTTPStatus.OK
@@ -195,22 +211,21 @@ def _format_template_with_yaml_editor(template_proto, editor_info_proto):
             yaml_editor_info = yaml_editor_infos[job_def.name]
             if yaml_editor_info.is_used:
                 job_def.yaml_template = generate_yaml_template(
-                    yaml_editor_info.meta_yaml,
-                    yaml_editor_info.slots)
+                    yaml_editor_info.meta_yaml, yaml_editor_info.slots)
                 job_def.variables.CopyFrom(yaml_editor_info.variables)
     try:
         check_workflow_definition(template_proto)
     except ValueError as e:
-        raise InvalidArgumentException(details={
-            'config.yaml_template': str(e)})
+        raise InvalidArgumentException(
+            details={'config.yaml_template': str(e)})
     return template_proto
 
 
 def _check_config_and_editor_info(config, editor_info):
     # TODO: needs tests
     if 'group_alias' not in config:
-        raise InvalidArgumentException(details={
-            'config.group_alias': 'config.group_alias is required'})
+        raise InvalidArgumentException(
+            details={'config.group_alias': 'config.group_alias is required'})
     if 'is_left' not in config:
         raise InvalidArgumentException(
             details={'config.is_left': 'config.is_left is required'})
@@ -225,23 +240,27 @@ def _check_config_and_editor_info(config, editor_info):
         #  job name must be no more than 24
         if len(job_def.name) > 24:
             raise InvalidArgumentException(
-                details=
-                {f'config.job_definitions[{index}].job_name'
-                 : 'job_name must be no more than 24 characters'})
+                details={
+                    f'config.job_definitions[{index}].job_name':
+                    'job_name must be no more than 24 characters'
+                })
         # limit from k8s
         if not re.match('[a-z0-9-]*', job_def.name):
             raise InvalidArgumentException(
-                details=
-                {f'config.job_definitions[{index}].job_name'
-                 : 'Only letters(a-z), numbers(0-9) '
-                   'and dashes(-) are supported.'})
+                details={
+                    f'config.job_definitions[{index}].job_name':
+                    'Only letters(a-z), numbers(0-9) '
+                    'and dashes(-) are supported.'
+                })
     return template_proto, editor_info_proto
 
 
 class CodeApi(Resource):
     def get(self):
         parser = reqparse.RequestParser()
-        parser.add_argument('code_path', type=str, location='args',
+        parser.add_argument('code_path',
+                            type=str,
+                            location='args',
                             required=True,
                             help='code_path is required')
         data = parser.parse_args()
@@ -253,11 +272,10 @@ class CodeApi(Resource):
                     if tar.extractfile(file) is not None:
                         if '._' not in file.name and file.isfile():
                             code_dict[file.name] = str(
-                                tar.extractfile(file).read(),
-                                encoding='utf-8')
+                                tar.extractfile(file).read(), encoding='utf-8')
                 return {'data': code_dict}, HTTPStatus.OK
         except Exception as e:
-            logging.error('Get code: %s', repr(e))
+            logging.error(f'Get code, code_path: {code_path}, exception: {e}')
             raise InvalidArgumentException(details={'code_path': 'wrong path'})
 
 

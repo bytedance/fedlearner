@@ -20,8 +20,8 @@ from sqlalchemy.sql import func
 from sqlalchemy.sql.schema import Index
 from fedlearner_webconsole.db import db, to_dict_mixin
 from fedlearner_webconsole.k8s.models import FlApp, Pod, FlAppState
-from fedlearner_webconsole.proto.workflow_definition_pb2 import JobDefinition
 from fedlearner_webconsole.utils.k8s_client import k8s_client
+from fedlearner_webconsole.proto.workflow_definition_pb2 import JobDefinition
 
 
 class JobState(enum.Enum):

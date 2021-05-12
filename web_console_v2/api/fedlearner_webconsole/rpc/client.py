@@ -24,6 +24,7 @@ import grpc
 from fedlearner_webconsole.proto import (service_pb2, service_pb2_grpc,
                                          common_pb2)
 from fedlearner_webconsole.utils.decorators import retry_fn
+from envs import Envs
 
 
 def _build_channel(url, authority):
@@ -85,8 +86,10 @@ class RpcClient(object):
     @retry_fn(retry_times=3, needed_exceptions=[grpc.RpcError])
     def check_connection(self):
         msg = service_pb2.CheckConnectionRequest(auth_info=self._auth_info)
-        response = self._client.CheckConnection(request=msg,
-                                                metadata=self._get_metadata())
+        response = self._client.CheckConnection(
+            request=msg,
+            metadata=self._get_metadata(),
+            timeout=Envs.GRPC_CLIENT_TIMEOUT)
         if response.status.code != common_pb2.STATUS_SUCCESS:
             logging.debug('check_connection request error: %s',
                           response.status.msg)
@@ -105,7 +108,8 @@ class RpcClient(object):
             uuid=uuid,
             forked_from_uuid=forked_from_uuid)
         response = self._client.UpdateWorkflowState(
-            request=msg, metadata=self._get_metadata())
+            request=msg, metadata=self._get_metadata(),
+            timeout=Envs.GRPC_CLIENT_TIMEOUT)
         if response.status.code != common_pb2.STATUS_SUCCESS:
             logging.debug('update_workflow_state request error: %s',
                           response.status.msg)
@@ -117,7 +121,8 @@ class RpcClient(object):
         msg = service_pb2.GetWorkflowRequest(auth_info=self._auth_info,
                                              workflow_name=name)
         response = self._client.GetWorkflow(request=msg,
-                                            metadata=self._get_metadata())
+                                            metadata=self._get_metadata(),
+                                            timeout=Envs.GRPC_CLIENT_TIMEOUT)
 
         if response.status.code != common_pb2.STATUS_SUCCESS:
             logging.debug('get_workflow request error: %s',
@@ -131,7 +136,8 @@ class RpcClient(object):
                                                 workflow_name=name,
                                                 config=config)
         response = self._client.UpdateWorkflow(request=msg,
-                                               metadata=self._get_metadata())
+                                               metadata=self._get_metadata(),
+                                               timeout=Envs.GRPC_CLIENT_TIMEOUT)
 
         if response.status.code != common_pb2.STATUS_SUCCESS:
             logging.debug('update_workflow request error: %s',
@@ -144,7 +150,8 @@ class RpcClient(object):
         msg = service_pb2.GetJobMetricsRequest(auth_info=self._auth_info,
                                                job_name=job_name)
         response = self._client.GetJobMetrics(request=msg,
-                                              metadata=self._get_metadata())
+                                              metadata=self._get_metadata(),
+                                              timeout=Envs.GRPC_CLIENT_TIMEOUT)
 
         if response.status.code != common_pb2.STATUS_SUCCESS:
             logging.debug('get_job_metrics request error: %s',
@@ -159,9 +166,25 @@ class RpcClient(object):
                                               start_time=start_time,
                                               max_lines=max_lines)
         response = self._client.GetJobEvents(request=msg,
-                                             metadata=self._get_metadata())
+                                             metadata=self._get_metadata(),
+                                             timeout=Envs.GRPC_CLIENT_TIMEOUT)
 
         if response.status.code != common_pb2.STATUS_SUCCESS:
             logging.debug('get_job_events request error: %s',
+                          response.status.msg)
+        return response
+
+    @catch_and_fallback(resp_class=service_pb2.CheckJobReadyResponse)
+    @retry_fn(retry_times=3, needed_exceptions=[grpc.RpcError])
+    def check_job_ready(self, job_name: str) \
+            -> service_pb2.CheckJobReadyResponse:
+        msg = service_pb2.CheckJobReadyRequest(auth_info=self._auth_info,
+                                               job_name=job_name)
+        response = self._client.CheckJobReady(request=msg,
+                                              timeout=Envs.GRPC_CLIENT_TIMEOUT,
+                                              metadata=self._get_metadata())
+
+        if response.status.code != common_pb2.STATUS_SUCCESS:
+            logging.debug('check_job_ready request error: %s',
                           response.status.msg)
         return response
