@@ -18,8 +18,8 @@ import argparse
 
 from fedlearner.common.common import set_logger
 from fedlearner.data_join.raw_data.raw_data_job import RawDataJob
-from fedlearner.data_join.raw_data.raw_data_config import SparkMasterConfig, \
-    SparkWorkerConfig
+from fedlearner.data_join.raw_data.raw_data_config import SparkDriverConfig, \
+    SparkExecutorConfig
 
 
 if __name__ == "__main__":
@@ -71,11 +71,11 @@ if __name__ == "__main__":
                         help='Number of instances of spark worker')
     args = parser.parse_args()
     set_logger()
-    spark_master_config = SparkMasterConfig(args.spark_master_cores,
+    spark_driver_config = SparkDriverConfig(args.spark_master_cores,
                                             args.spark_master_memory)
-    spark_worker_config = SparkWorkerConfig(args.spark_worker_cores,
-                                            args.spark_worker_memory,
-                                            args.spark_worker_instances)
+    spark_executor_config = SparkExecutorConfig(args.spark_worker_cores,
+                                                args.spark_worker_memory,
+                                                args.spark_worker_instances)
 
     job = RawDataJob(args.data_portal_name,
                      args.output_base_dir,
@@ -90,6 +90,6 @@ if __name__ == "__main__":
                      files_per_job_limit=args.files_per_job_limit,
                      raw_data_publish_dir=args.raw_data_publish_dir,
                      upload_dir=args.upload_dir,
-                     spark_master_config=spark_master_config,
-                     spark_worker_config=spark_worker_config)
+                     spark_driver_config=spark_driver_config,
+                     spark_executor_config=spark_executor_config)
     job.run(args.input_base_dir)
