@@ -56,16 +56,16 @@ class RawDataJobConfig(object):
 SparkFileConfig = namedtuple('SparkFileConfig',
                              ['entry_file', 'config_file', 'dep_file'])
 
-SparkMasterConfig = namedtuple('SparkMasterConfig',
+SparkDriverConfig = namedtuple('SparkMasterConfig',
                                ['cores', 'memory'])
-SparkWorkerConfig = namedtuple('SparkWorkerConfig',
-                               ['cores', 'memory', 'instances'])
+SparkExecutorConfig = namedtuple('SparkWorkerConfig',
+                                 ['cores', 'memory', 'instances'])
 
 
 class SparkTaskConfig(object):
     @staticmethod
     def task_json(task_name, file_config,
-                  master_config, worker_config):
+                  driver_config, executor_config):
         volume_mounts = [{
             "name": "spark-deploy",
             "hostPath": {"path": "/opt/tiger/spark_deploy",
@@ -112,17 +112,17 @@ class SparkTaskConfig(object):
                     }
                 ],
                 "driver": {
-                    "cores": master_config.cores,
-                    "coreLimit": "{}m".format(master_config.cores * 1000),
-                    "memory": master_config.memory,
+                    "cores": driver_config.cores,
+                    "coreLimit": "{}m".format(driver_config.cores * 1000),
+                    "memory": driver_config.memory,
                     "labels": {"version": "3.0.0"},
                     "serviceAccount": "spark",
                     "volumeMounts": volume_mounts
                 },
                 "executor": {
-                    "cores": worker_config.cores,
-                    "memory": worker_config.memory,
-                    "instances": worker_config.instances,
+                    "cores": executor_config.cores,
+                    "memory": executor_config.memory,
+                    "instances": executor_config.instances,
                     "labels": {"version": "3.0.0"},
                     "volumeMounts": volume_mounts
                 }
