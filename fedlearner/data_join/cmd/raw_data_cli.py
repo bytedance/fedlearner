@@ -57,25 +57,25 @@ if __name__ == "__main__":
                         help='Dumped threshold for data block')
     parser.add_argument('--long_running', action='store_true',
                         help='make the data portal long running')
-    parser.add_argument("--spark_master_cores", type=int, default=0,
-                        help='Number of cores of spark master')
-    parser.add_argument("--spark_master_memory", type=str, default='',
-                        help='Number of memory of spark master(same format '
+    parser.add_argument("--spark_driver_cores", type=int, default=0,
+                        help='Number of cores of spark driver')
+    parser.add_argument("--spark_driver_memory", type=str, default='',
+                        help='Number of memory of spark driver(same format '
                              'with spark config, e.g. 5g)')
-    parser.add_argument("--spark_worker_cores", type=int, default=0,
-                        help='Number of cores of spark worker')
-    parser.add_argument("--spark_worker_memory", type=str, default='',
-                        help='Number of memory of spark worker(same format '
+    parser.add_argument("--spark_executor_cores", type=int, default=0,
+                        help='Number of cores of spark executor')
+    parser.add_argument("--spark_executor_memory", type=str, default='',
+                        help='Number of memory of spark executor(same format '
                              'with spark config, e.g. 5g)')
-    parser.add_argument("--spark_worker_instances", type=int, default=0,
-                        help='Number of instances of spark worker')
+    parser.add_argument("--spark_executor_instances", type=int, default=0,
+                        help='Number of instances of spark executor')
     args = parser.parse_args()
     set_logger()
-    spark_driver_config = SparkDriverConfig(args.spark_master_cores,
-                                            args.spark_master_memory)
-    spark_executor_config = SparkExecutorConfig(args.spark_worker_cores,
-                                                args.spark_worker_memory,
-                                                args.spark_worker_instances)
+    spark_driver_config = SparkDriverConfig(args.spark_driver_cores,
+                                            args.spark_driver_memory)
+    spark_executor_config = SparkExecutorConfig(args.spark_executor_cores,
+                                                args.spark_executor_memory,
+                                                args.spark_executor_instances)
 
     job = RawDataJob(args.data_portal_name,
                      args.output_base_dir,

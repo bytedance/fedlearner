@@ -16,18 +16,15 @@
 import enum
 import logging
 import os
-from http import HTTPStatus
 from typing import Optional
 import subprocess
 
 import kubernetes
-import requests
 from kubernetes import client
 from kubernetes.client.exceptions import ApiException
 
 
 class CrdKind(enum.Enum):
-    FLAPP = 'flapps'
     SPARK_APPLICATION = 'sparkapplications'
 
 
@@ -84,7 +81,7 @@ class K8SClient(object):
 
     def create_sparkapplication(
             self,
-            json_object: dict,
+            body,
             namespace: str = SPARKOPERATOR_NAMESPACE) -> dict:
         try:
             return self.crds.create_namespaced_custom_object(
@@ -92,7 +89,7 @@ class K8SClient(object):
                 version=SPARKOPERATOR_CUSTOM_VERSION,
                 namespace=namespace,
                 plural=CrdKind.SPARK_APPLICATION.value,
-                body=json_object)
+                body=body)
         except ApiException as e:
             self._raise_runtime_error(e)
 
@@ -155,7 +152,7 @@ class FakeK8SClient(object):
 
     def create_sparkapplication(
         self,
-        json_object: dict,
+        body,
         namespace: str = SPARKOPERATOR_NAMESPACE) -> dict:
 
         cmd = ['python', self._cmd] + self._args
