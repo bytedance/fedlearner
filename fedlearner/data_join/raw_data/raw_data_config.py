@@ -1,6 +1,11 @@
 import json
+import logging
+import yaml
 import os
 from collections import namedtuple
+from string import Template
+
+import flatten_dict
 
 from tensorflow.compat.v1 import gfile
 from fedlearner.data_join.raw_data.raw_data import Constants
@@ -53,79 +58,138 @@ class RawDataJobConfig(object):
             f.write(json.dumps(config_dict))
 
 
-SparkFileConfig = namedtuple('SparkFileConfig',
-                             ['entry_file', 'config_file', 'dep_file'])
+class _DictConfig(object):
+    def __init__(self, attr):
+        self._attr = attr
 
-SparkDriverConfig = namedtuple('SparkMasterConfig',
-                               ['cores', 'memory'])
-SparkExecutorConfig = namedtuple('SparkWorkerConfig',
-                                 ['cores', 'memory', 'instances'])
+    def as_dict(self):
+        return self._attr
+
+
+class SparkFileConfig(_DictConfig):
+    def __init__(self, entry_file, config_file, dep_file=None):
+        attr = dict()
+        attr["entry_file"] = entry_file
+        attr["config_file"] = config_file
+        attr["dep_file"] = dep_file
+        super(SparkFileConfig, self).__init__(attr)
+
+
+class SparkDriverConfig(_DictConfig):
+    def __init__(self, cores, memory):
+        attr = dict()
+        attr["cores"] = cores
+        attr["memory"] = memory
+        super(SparkDriverConfig, self).__init__(attr)
+
+
+class SparkExecutorConfig(_DictConfig):
+    def __init__(self, cores, memory, instances):
+        attr = dict()
+        attr["cores"] = cores
+        attr["memory"] = memory
+        attr["instances"] = instances
+        super(SparkExecutorConfig, self).__init__(attr)
+
+
+class _YamlTemplate(Template):
+    delimiter = '$'
+    # Which placeholders in the template should be interpreted
+    idpattern = r'[a-zA-Z_\-\[0-9\]]+(\.[a-zA-Z_\-\[0-9\]]+)*'
+
+
+def format_yaml(yaml, **kwargs):
+    """Formats a yaml template.
+
+    Example usage:
+        format_yaml('{"abc": ${x.y}}', x={'y': 123})
+    output should be  '{"abc": 123}'
+    """
+    template = _YamlTemplate(yaml)
+    print(kwargs)
+    try:
+        return template.substitute(flatten_dict.flatten(kwargs or {},
+                                                        reducer='dot'))
+    except KeyError as e:
+        raise RuntimeError(
+            'Unknown placeholder: {}'.format(e.args[0])) from e
 
 
 class SparkTaskConfig(object):
     @staticmethod
     def task_json(task_name, file_config,
                   driver_config, executor_config):
-        volume_mounts = [{
-            "name": "spark-deploy",
-            "hostPath": {"path": "/opt/tiger/spark_deploy",
-                         "type": "Directory"},
-            "readOnly": True
-        }, {
-            "name": "yarn-deploy",
-            "hostPath": {"path": "/opt/tiger/yarn_deploy",
-                         "type": "Directory"},
-            "readOnly": True
-        }]
-
-        config_dict = {
-            "apiVersion": "sparkoperator.k8s.io/v1beta2",
-            "kind": "SparkApplication",
-            "metadata": {
-                "name": task_name,
-                "namespace": "fedlearner",
-                "labels": {
-                    "psm": "data.aml.fl",
-                    "owner": "zhaopeng.1991",
-                }
-            },
-            "spec": {
-                "type": "Python",
-                "pythonVersion": "3",
-                "mode": "cluster",
-                "image": "hub.byted.org/fedlearner/fedlearner_dataflow:3b71e5d25fe826dc702e7ef46b17e2b1",  # pylint:
-                "imagePullPolicy": "Always",
-                "mainApplicationFile": file_config.entry_file,
-                "arguments": ["--config", file_config.config_file],
-                "deps": {"pyFiles": file_config.dep_file},
-                "sparkVersion": "3.0.0",
-                "restartPolicy": {"type": "Never"},
-                "dynamicAllocation": {"enabled": False},
-                "volumes": [{
-                        "name": "spark-deploy",
-                        "hostPath": {"path": "/opt/tiger/spark_deploy",
-                                     "type": "Directory"}
-                    }, {
-                        "name": "yarn-deploy",
-                        "hostPath": {"path": "/opt/tiger/yarn_deploy",
-                                     "type": "Directory"}
-                    }
-                ],
-                "driver": {
-                    "cores": driver_config.cores,
-                    "coreLimit": "{}m".format(driver_config.cores * 1000),
-                    "memory": driver_config.memory,
-                    "labels": {"version": "3.0.0"},
-                    "serviceAccount": "spark",
-                    "volumeMounts": volume_mounts
-                },
-                "executor": {
-                    "cores": executor_config.cores,
-                    "memory": executor_config.memory,
-                    "instances": executor_config.instances,
-                    "labels": {"version": "3.0.0"},
-                    "volumeMounts": volume_mounts
-                }
-            },
-        }
-        return json.dumps(config_dict)
+        yaml_template = """
+apiVersion: "sparkoperator.k8s.io/v1beta2"
+kind: SparkApplication
+metadata:
+  name: ${task_name}
+  namespace: fedlearner
+  labels:
+    psm: data.aml.fl
+    owner: zhaopeng.1991
+spec:
+  type: Python
+  pythonVersion: "3"
+  mode: cluster
+  image: hub.byted.org/fedlearner/fedlearner_dataflow:334b53906c2be09becd98c5489ba3c9e
+  imagePullPolicy: Always
+  mainApplicationFile: ${file_config.entry_file}
+  arguments:
+    - --config
+    - ${file_config.config_file}
+  deps:
+    pyFiles: [${file_config.dep_file}]
+  sparkVersion: "3.0.0"
+  restartPolicy:
+    type: Never
+  dynamicAllocation:
+    enabled: false
+  volumes:
+    - name: "spark-deploy"
+      hostPath:
+        path: "/opt/tiger/spark_deploy"
+        type: Directory
+    - name: "yarn-deploy"
+      hostPath:
+        path: "/opt/tiger/yarn_deploy"
+        type: Directory
+  driver:
+    cores: ${driver_config.cores}
+    memory: "${driver_config.memory}"
+    labels:
+      version: 3.0.0
+    serviceAccount: spark
+    volumeMounts:
+      - name: "spark-deploy"
+        mountPath: "/opt/tiger/spark_deploy"
+        readOnly: true
+      - name: "yarn-deploy"
+        mountPath: "/opt/tiger/yarn_deploy"
+        readOnly: true
+  executor:
+    cores: ${executor_config.cores}
+    instances: ${executor_config.instances}
+    memory: "${executor_config.memory}"
+    labels:
+      version: 3.0.0
+    volumeMounts:
+      - name: "spark-deploy"
+        mountPath: "/opt/tiger/spark_deploy"
+        readOnly: true
+      - name: "yarn-deploy"
+        mountPath: "/opt/tiger/yarn_deploy"
+        readOnly: true
+        """
+        yaml_config = format_yaml(yaml_template,
+                                  task_name=task_name,
+                                  file_config=file_config.as_dict(),
+                                  driver_config=driver_config.as_dict(),
+                                  executor_config=executor_config.as_dict())
+        print(yaml_config)
+        try:
+            config = yaml.safe_load(yaml_config)
+            return config
+        except Exception as e:  # pylint: disable=broad-except
+            logging.error("Invalid spark config, %s", str(e))
+            exit(-1)
