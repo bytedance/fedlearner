@@ -22,6 +22,7 @@ source /app/deploy/scripts/pre_start_hook.sh || true
 source /app/deploy/scripts/env_to_args.sh
 
 UPLOAD_DIR=$OUTPUT_BASE_DIR/upload
+${HADOOP_HOME}/bin/hadoop fs -mkdir -p $UPLOAD_DIR
 spark_entry_script="fedlearner/data_join/raw_data/raw_data.py"
 ${HADOOP_HOME}/bin/hadoop fs -put -f $spark_entry_script $UPLOAD_DIR
 

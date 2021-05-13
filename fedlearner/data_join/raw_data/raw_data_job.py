@@ -39,8 +39,8 @@ class RawDataJob:
                  single_subfolder=False,
                  files_per_job_limit=0,
                  upload_dir="",
-                 spark_master_config=None,
-                 spark_worker_config=None,
+                 spark_driver_config=None,
+                 spark_executor_config=None,
                  use_fake_k8s=False):
         self._job_name = job_name
         self._root_path = root_path
@@ -52,8 +52,8 @@ class RawDataJob:
         self._data_source_name = data_source_name
         self._output_type = output_type
         self._upload_dir = upload_dir
-        self._spark_master_config = spark_master_config
-        self._spark_worker_config = spark_worker_config
+        self._spark_driver_config = spark_driver_config
+        self._spark_executor_config = spark_executor_config
 
         if self._output_type == OutputType.DataBlock:
             # if output data block, run folder one by one
@@ -175,8 +175,8 @@ class RawDataJob:
             spark_file_config = self._encode_spark_file_config(config_path)
             task_config = SparkTaskConfig.task_json(task_name,
                                                     spark_file_config,
-                                                    self._spark_master_config,
-                                                    self._spark_worker_config)
+                                                    self._spark_driver_config,
+                                                    self._spark_executor_config)
         try:
             # 1. delete spark app
             k8s_client.delete_sparkapplication(task_name)

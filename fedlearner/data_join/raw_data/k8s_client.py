@@ -66,8 +66,8 @@ class K8SClient(object):
         self._networking.api_client.close()
 
     def _raise_runtime_error(self, exception: ApiException):
-        raise RuntimeError('[{}] {}'.format(exception.status,
-                                            exception.reason))
+        raise RuntimeError('Body {}, [{}] {}'.format(
+            exception.body, exception.status, exception.reason))
 
     def get_sparkapplication(self,
                              name: str,
