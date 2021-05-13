@@ -207,7 +207,7 @@ class RawDataJob:
             DataBlockSuffix)
 
     def _encode_spark_task_name(self, job_id):
-        return "raw_data_{}_{}".format(self._job_name, job_id)
+        return "raw-data-{}-{}".format(self._job_name, job_id)
 
     def _encode_spark_file_config(self, config_path):
         return SparkFileConfig(
