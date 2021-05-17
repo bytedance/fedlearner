@@ -25,8 +25,8 @@ UPLOAD_DIR=$OUTPUT_BASE_DIR/upload
 ${HADOOP_HOME}/bin/hadoop fs -mkdir -p $UPLOAD_DIR
 spark_entry_script="fedlearner/data_join/raw_data/raw_data.py"
 ${HADOOP_HOME}/bin/hadoop fs -put -f $spark_entry_script $UPLOAD_DIR
-DEP_FILE=deps.tar
-tar cvf ${DEP_FILE} fedlearner/data_join/raw_data/common.py
+DEP_FILE=deps.zip
+python /app/deploy/scripts/zip.py -c ${DEP_FILE} fedlearner/data_join/raw_data/common.py
 ${HADOOP_HOME}/bin/hadoop fs -put -f ${DEP_FILE} $UPLOAD_DIR
 
 input_file_wildcard=$(normalize_env_to_args "--input_file_wildcard" $FILE_WILDCARD)
