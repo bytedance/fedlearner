@@ -11,9 +11,9 @@ import tensorflow.compat.v1 as tf
 from tensorflow.compat.v1 import gfile
 
 from fedlearner.common.common import set_logger
-from fedlearner.data_join.common import data_source_data_block_dir, \
-    partition_repr, DataBlockSuffix
-from fedlearner.data_join.raw_data.raw_data import RawData, DataKeyword, \
+from fedlearner.data_join.common import partition_repr, DataBlockSuffix
+from fedlearner.data_join.raw_data.raw_data import RawData
+from fedlearner.data_join.raw_data.common import DataKeyword, \
     JobType, OutputType
 from fedlearner.data_join.raw_data.raw_data_job import RawDataJob
 
@@ -128,9 +128,9 @@ class RawDataTests(unittest.TestCase):
                 self._input_dir, self._num_partition,
                 self._num_item_per_partition)
 
-    # def tearDown(self) -> None:
-    #     if gfile.Exists(self._job_path):
-    #         gfile.DeleteRecursively(self._job_path)
+    def tearDown(self) -> None:
+        if gfile.Exists(self._job_path):
+            gfile.DeleteRecursively(self._job_path)
 
     @staticmethod
     def _parse_example(record_str):
@@ -199,7 +199,7 @@ class RawDataTests(unittest.TestCase):
             "compression_type": "GZIP",
             "output_path": "%s",
             "output_partition_num": %d
-        }""" % (JobType.streaming, ','.join(self._input_files),
+        }""" % (JobType.Streaming, ','.join(self._input_files),
                 schema_file_path, output_path, output_partition_num)
         config = json.loads(json_str)
         processor = RawData(
@@ -224,6 +224,8 @@ class RawDataTests(unittest.TestCase):
         raw_data_publish_dir = os.path.join("portal_publish_dir",
                                             self._job_name)
         upload_dir = os.path.join(output_path, "upload")
+        if not gfile.Exists(upload_dir):
+            gfile.MakeDirs(upload_dir)
         job = RawDataJob(self._job_name, output_path,
                          job_type=JobType.Streaming,
                          output_partition_num=output_partition_num,
@@ -321,6 +323,8 @@ class RawDataTests(unittest.TestCase):
         os.environ['STORAGE_ROOT_PATH'] = self._job_path
         output_path = os.path.join(self._job_path, "raw_data", self._job_name)
         upload_dir = os.path.join(output_path, "upload")
+        if not gfile.Exists(upload_dir):
+            gfile.MakeDirs(upload_dir)
         job = RawDataJob(self._job_name, output_path,
                          output_type=OutputType.DataBlock,
                          data_source_name=data_source_name,

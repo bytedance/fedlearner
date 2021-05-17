@@ -97,7 +97,7 @@ class InputDataManager(object):
             by_folder[folder].append(fname)
 
         logging.info(
-            'Listing %s: found %d dirs, %d files, %d tmp files ignored '
+            'Listing %s: found %d dirs, %d files, %d tmp files ignored, '
             '%d files matching wildcard, %d new files to process.',
             root, len(by_folder), len(all_files), num_ignored,
             num_target_files, num_new_files)
