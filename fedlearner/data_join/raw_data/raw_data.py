@@ -10,6 +10,8 @@ from tensorflow.compat.v1 import gfile
 
 from cityhash import CityHash32
 
+from fedlearner.data_join.raw_data.common import *
+
 
 def set_logger():
     logging.getLogger().setLevel(logging.INFO)
@@ -53,33 +55,6 @@ def get_config(config_filename):
     else:
         config_dict = None
     return config_dict
-
-
-class Constants:
-    input_files_key = "input_files"
-    schema_path_key = "schema_path"
-    job_type_key = "job_type"
-    output_partition_num_key = "output_partition_num"
-    output_type_key = "output_type"
-    output_path_key = "output_path"
-    data_block_threshold_key = "data_block_threshold"
-    compression_type_key = "compression_type"
-
-
-class JobType:
-    Streaming = "Streaming"
-    PSI = "PSI"
-
-
-class DataKeyword:
-    event_time = "event_time"
-    example_id = "example_id"
-    raw_id = "raw_id"
-
-
-class OutputType:
-    RawData = "raw_data"
-    DataBlock = "data_block"
 
 
 class RawData:
@@ -134,7 +109,7 @@ class RawData:
             "recordType": "Example",
             "maxRecordsPerFile": 1 << 20,
         }
-        if compression_type.upper() == "GZIP":
+        if compression_type and compression_type.upper() == "GZIP":
             write_options["codec"] = 'org.apache.hadoop.io.compress.GzipCodec'
         output_df.write \
             .mode("overwrite") \
@@ -150,7 +125,7 @@ class RawData:
         data_block_threshold = config[Constants.data_block_threshold_key]
         compression_type = config[Constants.compression_type_key]
         write_options = None
-        if compression_type.upper() == "GZIP":
+        if compression_type and compression_type.upper() == "GZIP":
             write_options = {
                 "mapred.output.compress": "true",
                 "mapred.output.compression.codec":

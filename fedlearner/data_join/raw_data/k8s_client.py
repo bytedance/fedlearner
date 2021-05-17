@@ -36,6 +36,14 @@ SPARKOPERATOR_CUSTOM_VERSION = 'v1beta2'
 SPARKOPERATOR_NAMESPACE = 'default'
 
 
+class K8SAPPStatus(enum.Enum):
+    SUBMITTED = "SUBMITTED"
+    PENDING = "PENDING"
+    RUNNING = "RUNNING"
+    COMPLETED = "COMPLETED"
+    FAILED = "FAILED"
+
+
 class K8SClient(object):
     def __init__(self):
         self.core = None
@@ -68,14 +76,19 @@ class K8SClient(object):
 
     def get_sparkapplication(self,
                              name: str,
-                             namespace: str = SPARKOPERATOR_NAMESPACE) -> dict:
+                             namespace: str = SPARKOPERATOR_NAMESPACE) \
+            -> K8SAPPStatus:
         try:
-            return self.crds.get_namespaced_custom_object(
+            resp = self.crds.get_namespaced_custom_object(
                 group=SPARKOPERATOR_CUSTOM_GROUP,
                 version=SPARKOPERATOR_CUSTOM_VERSION,
                 namespace=namespace,
                 plural=CrdKind.SPARK_APPLICATION.value,
                 name=name)
+            if 'status' in resp:
+                return K8SAPPStatus[resp['status']['applicationState']['state']]
+            else:
+                return K8SAPPStatus.PENDING
         except ApiException as e:
             self._raise_runtime_error(e)
 
@@ -124,31 +137,19 @@ class FakeK8SClient(object):
 
     def get_sparkapplication(self,
                              name: str,
-                             namespace: str = SPARKOPERATOR_NAMESPACE) -> dict:
+                             namespace: str = SPARKOPERATOR_NAMESPACE)\
+            -> K8SAPPStatus:
         stdout_data, stderr_data = self._process.communicate()
         logging.info(stdout_data.decode('utf-8'))
-        res = {
-            'apiVersion': 'sparkoperator.k8s.io/v1beta2',
-            'kind': 'SparkApplication',
-            'metadata': {
-                'creationTimestamp': '2021-04-15T10:43:15Z',
-                'generation': 1,
-                'name': name,
-                'namespace': namespace,
-            },
-            'status': {
-                'applicationState': {
-                    'state': ''
-                },
-            }
-        }
-        if self._process.returncode is None:
-            res['status']['applicationState']['state'] = "RUNNING"
+        if not self._process:
+            self._raise_runtime_error(
+                ApiException("Task {} not exist".format(name)))
+        elif self._process.returncode is None:
+            return K8SAPPStatus.RUNNING
         elif self._process.returncode == 0:
-            res['status']['applicationState']['state'] = "COMPLETED"
+            return K8SAPPStatus.COMPLETED
         else:
-            res['status']['applicationState']['state'] = "FAILED"
-        return res
+            return K8SAPPStatus.FAILED
 
     def create_sparkapplication(
         self,
@@ -164,21 +165,24 @@ class FakeK8SClient(object):
             preexec_fn=os.setsid,
         )
         return {
-            "name": "fake_spark_app"
+            'apiVersion': 'sparkoperator.k8s.io/v1beta2',
+            'kind': 'SparkApplication',
+            'metadata': {
+                'creationTimestamp': '2021-05-13T08:41:48Z',
+                'generation': 1,
+                'name': '',
+                'namespace': namespace,
+                'resourceVersion': '2894990020',
+                'selfLink': '/apis/sparkoperator.k8s.io/v1beta2/namespaces',
+                'uid': "123-ds3"
+            }
         }
 
     def delete_sparkapplication(self,
                                 name: str,
                                 namespace: str = SPARKOPERATOR_NAMESPACE
                                 ) -> dict:
-        try:
-            return self.crds.delete_namespaced_custom_object(
-                group=SPARKOPERATOR_CUSTOM_GROUP,
-                version=SPARKOPERATOR_CUSTOM_VERSION,
-                namespace=namespace,
-                plural=CrdKind.SPARK_APPLICATION.value,
-                name=name,
-                body=client.V1DeleteOptions())
-        except ApiException as e:
-            self._raise_runtime_error(e)
+        logging.info("Delete spark application %s in namespace %s", name,
+                     namespace)
+        return None
 

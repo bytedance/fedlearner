@@ -9,7 +9,6 @@ from fedlearner.common.common import Timer
 from fedlearner.common.db_client import DBClient
 from fedlearner.common import common_pb2 as common_pb
 from fedlearner.common import data_join_service_pb2 as dj_pb
-from fedlearner.common.common import set_logger
 
 
 from fedlearner.data_join.common import commit_data_source, partition_repr,\
@@ -20,8 +19,9 @@ from fedlearner.data_join.raw_data.input_data_manager import InputDataManager
 from fedlearner.data_join.raw_data.raw_data_meta import RawDataMeta, \
     raw_data_meta_path
 from fedlearner.data_join.raw_data.raw_data_config import *
-from fedlearner.data_join.raw_data.raw_data import OutputType, JobType
-from fedlearner.data_join.raw_data.k8s_client import FakeK8SClient, K8SClient
+from fedlearner.data_join.raw_data.common import OutputType, JobType
+from fedlearner.data_join.raw_data.k8s_client import FakeK8SClient, K8SClient,\
+    K8SAPPStatus
 from fedlearner.data_join.raw_data_publisher import RawDataPublisher
 
 
@@ -178,20 +178,30 @@ class RawDataJob:
                                                     self._spark_driver_config,
                                                     self._spark_executor_config)
         try:
-            # 1. delete spark app
             k8s_client.delete_sparkapplication(task_name)
         except RuntimeError as error:
-            logging.info("Spark application %s not exist", task_name)
+            logging.info("Spark application %s not exist",
+                         task_name)
 
         try:
-            res = k8s_client.create_sparkapplication(task_config)
-            logging.info(res)
-            res = k8s_client.get_sparkapplication(task_name)
-            while res['status']['applicationState']['state'] == "RUNNING":
-                logging.info("Sleep 5s for waiting spark job done...")
-                time.sleep(5)
-                res = k8s_client.get_sparkapplication(task_name)
-            logging.info("Spark job status: %s", res)
+            k8s_client.create_sparkapplication(task_config)
+        except RuntimeError as error:
+            logging.fatal("Spark application error %s", error)
+            exit(-1)
+
+        try:
+            while True:
+                status = k8s_client.get_sparkapplication(task_name)
+                if status == K8SAPPStatus.COMPLETED:
+                    logging.info("Spark job %s completed", task_name)
+                    break
+                elif status == K8SAPPStatus.FAILED:
+                    logging.error("Spark job %s failed", task_name)
+                    exit(-1)
+                else:
+                    logging.info("Sleep 5s for waiting spark job done...")
+                    time.sleep(5)
+            k8s_client.delete_sparkapplication(task_name)
         except RuntimeError as error:
             logging.fatal("Spark application error %s", error)
             exit(-1)
@@ -212,7 +222,8 @@ class RawDataJob:
     def _encode_spark_file_config(self, config_path):
         return SparkFileConfig(
             os.path.join(self._upload_dir, "raw_data.py"),
-            config_path, "")
+            config_path,
+            os.path.join(self._upload_dir, "deps.tar"))
 
     @staticmethod
     def _decode_partition_id(filename):
