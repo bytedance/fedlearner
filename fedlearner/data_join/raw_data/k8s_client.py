@@ -79,7 +79,7 @@ class K8SClient(object):
                              namespace: str = SPARKOPERATOR_NAMESPACE) \
             -> K8SAPPStatus:
         try:
-            resp = self.crds.get_namespaced_custom_object(
+            resp = self.crds.get_namespaced_custom_object_status(
                 group=SPARKOPERATOR_CUSTOM_GROUP,
                 version=SPARKOPERATOR_CUSTOM_VERSION,
                 namespace=namespace,
