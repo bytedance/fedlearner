@@ -1,5 +1,3 @@
-import argparse
-import logging
 import time
 from datetime import datetime, timedelta
 
@@ -223,7 +221,7 @@ class RawDataJob:
         return SparkFileConfig(
             os.path.join(self._upload_dir, "raw_data.py"),
             config_path,
-            os.path.join(self._upload_dir, "deps.tar"))
+            os.path.join(self._upload_dir, "deps.zip"))
 
     @staticmethod
     def _decode_partition_id(filename):
