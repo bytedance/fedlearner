@@ -2,13 +2,12 @@ import json
 import logging
 import yaml
 import os
-from collections import namedtuple
 from string import Template
 
 import flatten_dict
 
 from tensorflow.compat.v1 import gfile
-from fedlearner.data_join.raw_data.raw_data import Constants
+from fedlearner.data_join.raw_data.common import Constants
 
 
 class RawDataJobConfig(object):
