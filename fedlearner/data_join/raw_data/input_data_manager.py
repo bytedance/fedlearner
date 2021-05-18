@@ -7,12 +7,10 @@ from tensorflow.compat.v1 import gfile
 
 class InputDataManager(object):
     def __init__(self, wildcard, check_success_tag,
-                 processed_fpath,
                  single_subfolder=False,
                  files_per_job_limit=None):
         self._wildcard = wildcard
         self._check_success_tag = check_success_tag
-        self._processed_fpath = processed_fpath
         self._single_subfolder = single_subfolder
         self._files_per_job_limit = files_per_job_limit
 
@@ -50,7 +48,7 @@ class InputDataManager(object):
                 res.append(fname)
         return res
 
-    def list_input_dir(self, root):
+    def list_input_dir(self, root, processed_fpath):
         logging.info("List input directory, it will take some time...")
 
         if root.startswith('oss://'):
@@ -87,7 +85,7 @@ class InputDataManager(object):
                 if succ_fname not in all_files:
                     continue
 
-            if fname in self._processed_fpath:
+            if fname in processed_fpath:
                 continue
             num_new_files += 1
 
@@ -103,8 +101,8 @@ class InputDataManager(object):
             num_target_files, num_new_files)
         return by_folder
 
-    def input_iter(self, input_path):
-        files_by_folder = self.list_input_dir(input_path)
+    def iterator(self, input_path, processed_fpath):
+        files_by_folder = self.list_input_dir(input_path, processed_fpath)
         while files_by_folder:
             rest_fpaths = []
             if self._single_subfolder:
