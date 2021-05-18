@@ -56,7 +56,7 @@ class K8SClient(object):
 
     def init(self, config_path: Optional[str] = None):
         # Sets config
-        if config_path is None:
+        if config_path:
             kubernetes.config.load_incluster_config()
         else:
             kubernetes.config.load_kube_config(config_path)

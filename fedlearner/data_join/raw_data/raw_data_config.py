@@ -138,7 +138,7 @@ spec:
     - --config
     - ${file_config.config_file}
   deps:
-    pyFiles: [${file_config.dep_file}]
+    pyFiles: ["${file_config.dep_file}"]
   sparkVersion: "3.0.0"
   restartPolicy:
     type: Never

@@ -37,6 +37,9 @@ class RawDataJob:
                  single_subfolder=False,
                  files_per_job_limit=0,
                  upload_dir="",
+                 spark_k8s_config_path='',
+                 spark_k8s_namespace='',
+                 spark_dependent_package='',
                  spark_driver_config=None,
                  spark_executor_config=None,
                  use_fake_k8s=False):
@@ -50,8 +53,12 @@ class RawDataJob:
         self._data_source_name = data_source_name
         self._output_type = output_type
         self._upload_dir = upload_dir
+        self._spark_k8s_config_path = spark_k8s_config_path
+        self._spark_k8s_namespace = spark_k8s_namespace
+        self._spark_dependent_package = spark_dependent_package
         self._spark_driver_config = spark_driver_config
         self._spark_executor_config = spark_executor_config
+        self._spark_entry_script_name = 'raw_data.py'
 
         if self._output_type == OutputType.DataBlock:
             # if output data block, run folder one by one
@@ -165,31 +172,34 @@ class RawDataJob:
                     "org.tensorflow/spark-tensorflow-connector_2.12:1.15.0")
             ]
             cur_path = os.path.dirname(os.path.realpath(__file__))
-            entry_script = os.path.join(cur_path, "raw_data.py")
+            entry_script = os.path.join(cur_path, self._spark_entry_script_name)
             k8s_client = FakeK8SClient(entry_script, script_args)
         else:
             k8s_client = K8SClient()
-            k8s_client.init()
+            k8s_client.init(self._spark_k8s_config_path)
             spark_file_config = self._encode_spark_file_config(config_path)
             task_config = SparkTaskConfig.task_json(task_name,
                                                     spark_file_config,
                                                     self._spark_driver_config,
                                                     self._spark_executor_config)
         try:
-            k8s_client.delete_sparkapplication(task_name)
+            k8s_client.delete_sparkapplication(
+                task_name, namespace=self._spark_k8s_namespace)
         except RuntimeError as error:
             logging.info("Spark application %s not exist",
                          task_name)
 
         try:
-            k8s_client.create_sparkapplication(task_config)
+            k8s_client.create_sparkapplication(
+                task_config, namespace=self._spark_k8s_namespace)
         except RuntimeError as error:
             logging.fatal("Spark application error %s", error)
             exit(-1)
 
         try:
             while True:
-                status = k8s_client.get_sparkapplication(task_name)
+                status = k8s_client.get_sparkapplication(
+                    task_name, namespace=self._spark_k8s_namespace)
                 if status == K8SAPPStatus.COMPLETED:
                     logging.info("Spark job %s completed", task_name)
                     break
@@ -197,9 +207,10 @@ class RawDataJob:
                     logging.error("Spark job %s failed", task_name)
                     exit(-1)
                 else:
-                    logging.info("Sleep 5s for waiting spark job done...")
+                    logging.info("Sleep 5s to wait spark job done...")
                     time.sleep(5)
-            k8s_client.delete_sparkapplication(task_name)
+            k8s_client.delete_sparkapplication(
+                task_name, namespace=self._spark_k8s_namespace)
         except RuntimeError as error:
             logging.fatal("Spark application error %s", error)
             exit(-1)
@@ -219,9 +230,9 @@ class RawDataJob:
 
     def _encode_spark_file_config(self, config_path):
         return SparkFileConfig(
-            os.path.join(self._upload_dir, "raw_data.py"),
+            os.path.join(self._upload_dir, self._spark_entry_script_name),
             config_path,
-            os.path.join(self._upload_dir, "deps.zip"))
+            self._spark_dependent_package)
 
     @staticmethod
     def _decode_partition_id(filename):
