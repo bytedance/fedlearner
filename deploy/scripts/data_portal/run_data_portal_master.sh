@@ -42,6 +42,7 @@ cd $CUR_DIR
 rm -rf $TMP_DIR
 # write k8s config
 K8S_CONFIG_PATH="k8s.config"
+rm -rf $K8S_CONFIG_PATH
 ${HADOOP_HOME}/bin/hadoop fs -get $SPARK_K8S_CONFIG_PATH $K8S_CONFIG_PATH
 
 input_file_wildcard=$(normalize_env_to_args "--input_file_wildcard" $FILE_WILDCARD)
