@@ -45,16 +45,19 @@ class Sender:
         self._client = None
         # The meta is used in ACK.
         self._meta = self._get_meta(file_paths, root_path or '')
-        self._send_file_idx = self._meta['file_index']
-        self._send_row_idx = self._meta['row_index']
         self._synced = False
         self._started = False
-        self._finished = False
+        self._finished = self._meta['finished']
         self._stopped = False
         self._request_queue = queue.Queue(pending_len)
         self._condition = threading.Condition()
         self._put_thread = threading.Thread(target=self._put_requests)
         self._send_thread = threading.Thread(target=self._send)
+
+    @property
+    def finished(self):
+        with self._condition:
+            return self._finished
 
     def _get_meta(self,
                   file_paths: list,
@@ -67,7 +70,8 @@ class Sender:
                 'file_index': 0,
                 'row_index': 0,
                 'root': root_path,
-                'files': file_paths
+                'files': file_paths,
+                'finished': False
             }
             file_io.atomic_write_string_to_file(self._meta_path,
                                                 json.dumps(meta))
@@ -84,10 +88,16 @@ class Sender:
             if self._meta['file_index'] > resp.file_index:
                 self._send_file_idx = resp.file_index
                 self._send_row_idx = resp.row_index
-            elif self._meta['file_index'] == resp.file_index:
-                self._send_row_idx = min(self._meta['row_index'],
-                                         resp.row_index)
-            # else sender has staler file, so use the sender's state
+                self._finished = False
+            elif self._meta['file_index'] == resp.file_index and \
+                    self._meta['row_index'] > resp.row_index:
+                self._send_file_idx = self._meta['file_index']
+                self._send_row_idx = resp.row_index
+                self._finished = False
+            # else sender has staler state, so use the sender's state
+            else:
+                self._send_file_idx = self._meta['file_index']
+                self._send_row_idx = resp.row_index
             self._synced = True
 
     def _send(self):
@@ -97,33 +107,32 @@ class Sender:
             if self._stopped:
                 break
             with self._condition:
-                preceded, duplicated = _check_order(resp,
-                                                    self._meta['file_index'],
-                                                    self._meta['row_index'])
-                forward = self._resp_process(resp, preceded, duplicated)
+                # Channel will return response in the original order, without
+                # any duplicates, so no need to check preceded & duplicated
+                forward = self._resp_process(resp)
                 if resp.status.code == common_pb.STATUS_INVALID_REQUEST:
                     # TODO(zhangzihui): error handling
                     logging.warning(
                         '[Transmit]: STATUS_INVALID_REQUEST returned: %s', resp)
                     continue
                 elif resp.status.code == common_pb.STATUS_SUCCESS:
-                    if not preceded or duplicated:
-                        self._meta['file_index'] = resp.file_index
-                        self._meta['row_index'] = resp.row_index
+                    self._meta['file_index'] = resp.file_index
+                    self._meta['row_index'] = resp.row_index
                 elif resp.status.code == common_pb.STATUS_FILE_FINISHED:
                     self._meta['file_index'] = resp.file_index + 1
                     self._meta['row_index'] = 0
                 elif resp.status.code == common_pb.STATUS_DATA_FINISHED:
                     self._meta['file_index'] = resp.file_index + 1
                     self._meta['row_index'] = 0
-                    self._finished = True
                     self._meta['finished'] = True
+                    self._finished = True
+                    self._condition.notify_all()
 
                 if forward:
                     file_io.atomic_write_string_to_file(self._meta_path,
                                                         json.dumps(self._meta))
 
-    def run(self):
+    def start(self):
         with self._condition:
             assert self._client
             if not self._started:
@@ -132,12 +141,19 @@ class Sender:
                 self._send_thread.start()
                 self._started = True
 
+    def wait_for_finish(self):
+        if not self.finished:
+            with self._condition:
+                while not self.finished:
+                    self._condition.wait()
+
     def stop(self):
         with self._condition:
             if not self._stopped:
                 self._stopped = True
                 self._put_thread.join()
                 self._send_thread.join()
+                self._condition.notify_all()
 
     def _put_requests(self):
         assert self._synced
@@ -148,14 +164,12 @@ class Sender:
                 break
             file_finished = False
             while not file_finished and not self._stopped:
-                req, file_finished = self._send_process(
+                payload, row_num, file_finished = self._send_process(
                     os.path.join(root_path, file),
                     row_index=self._send_row_idx,
                     row_num=self._send_row_num
                 )
-                req.file_index = self._send_file_idx + index
-                req.row_index = self._send_row_idx
-                self._send_row_idx += req.row_num
+
                 if file_finished:
                     if len(to_be_sent) == index - 1:
                         status = common_pb.Status(
@@ -165,7 +179,12 @@ class Sender:
                             code=common_pb.STATUS_FILE_FINISHED)
                 else:
                     status = common_pb.Status(code=common_pb.STATUS_SUCCESS)
-                req.status.CopyFrom(status)
+                req = st_pb.Request(status=status,
+                                    file_index=self._send_file_idx + index,
+                                    row_index=self._send_row_idx,
+                                    row_num=row_num,
+                                    payload=payload)
+                self._send_row_idx += row_num
                 # Queue will block this thread if no slot available.
                 self._request_queue.put(req)
             self._send_row_idx = 0
@@ -182,7 +201,7 @@ class Sender:
     def _send_process(self,
                       file_path: str,
                       row_index: int,
-                      row_num: int) -> (st_pb.Request, bool):
+                      row_num: int) -> (bytes, int, bool):
         """
         This method handles file reading and build a base request. The request
             it returns should fill `payload` and `row_num` field.
@@ -193,24 +212,22 @@ class Sender:
                 returned request can be different to this arg.
 
         Returns:
-            a st_pb.Request containing `payload` and `row_num` field.
+            a payload bytes,
+            a int indicating how many rows are read,
             a bool indicating whether this file finishes.
         """
         raise NotImplementedError('_send_process not implemented.')
 
     def _resp_process(self,
-                      resp: st_pb.Response,
-                      preceded: bool,
-                      duplicated: bool) -> bool:
+                      resp: st_pb.Response) -> bool:
         """
         This method handles the response returned by server. Return True if
             nothing is needed to do.
         Args:
             resp: a st_pb.Response to handle.
-            preceded: if this response precedes what we expected next. i.e.,
-                this response should be later than a former response that has
-                not arrived.
-            duplicated: if this response duplicates.
+
+        NOTE: Channel will return response in the original order of send
+            sequence, so no need for preceded & duplicated checks.
 
         Returns:
             whether to save the state. Return True if nothing is needed to do.
@@ -223,18 +240,24 @@ class Receiver:
                  meta_dir: str,
                  output_path: str):
         self._meta_path = _encode_meta_path(meta_dir, 'recv')
-        self._output_path = output_path
-        self._meta = self._get_meta()
+        self._meta = self._get_meta(output_path)
+        self._output_path = self._meta['output_path']
         self._finished = self._meta['finished']
         self._condition = threading.Condition()
         self._stopped = False
 
-    def _get_meta(self):
+    @property
+    def finished(self):
+        with self._condition:
+            return self._finished
+
+    def _get_meta(self, output_path: str):
         if gfile.Exists(self._meta_path):
             with gfile.GFile(self._meta_path) as mf:
                 meta = json.load(mf)
         else:
             meta = {
+                'output_path': output_path,
                 'file_index': 0,
                 'row_index': 0,
                 'finished': False
@@ -243,8 +266,17 @@ class Receiver:
                                                 json.dumps(meta))
         return meta
 
+    def wait_for_finish(self):
+        if not self.finished:
+            with self._condition:
+                while not self.finished:
+                    self._condition.wait()
+
     def stop(self):
-        self._stopped = True
+        if self.finished:
+            with self._condition:
+                self._stopped = True
+                self._condition.notify_all()
 
     def sync_state(self):
         with self._condition:
@@ -255,6 +287,8 @@ class Receiver:
         for r in request_iterator:
             if self._stopped:
                 break
+            if self.finished:
+                raise RuntimeError('The stream has already finished.')
             with self._condition:
                 # Channel assures us there is a subsequence of requests that
                 #   constitutes the original requests sequence, including order,
@@ -263,12 +297,16 @@ class Receiver:
                                                     self._meta['file_index'],
                                                     self._meta['row_index'])
                 yield self._process_request(r, preceded, duplicated)
+        else:
+            with self._condition:
+                self._meta['finished'] = True
+                self._finished = True
 
     def _process_request(self,
                          req: st_pb.Request,
                          preceded: bool,
                          duplicated: bool):
-        with self._condition:  # the underlying lock is an RLock.
+        with self._condition:
             try:
                 payload, forward = self._process(
                     req,
@@ -288,8 +326,7 @@ class Receiver:
             elif req.status.code == common_pb.STATUS_DATA_FINISHED:
                 self._meta['file_index'] = req.file_index + 1
                 self._meta['row_index'] = 0
-                self._meta['finished'] = True
-                self._finished = True
+                # should not finish as there may be some duplicates to process.
                 status = common_pb.Status(code=common_pb.STATUS_DATA_FINISHED)
             else:
                 self._meta['row_index'] = req.row_index + req.row_num
@@ -371,6 +408,9 @@ class StreamTransmit:
         else:
             self._client = None
             self._sender = None
+        self._condition = threading.Condition()
+        self._connected = False
+        self._terminated = False
 
     def _channel_callback(self, channel, event):
         if event == Channel.Event.PEER_CLOSED:
@@ -382,3 +422,30 @@ class StreamTransmit:
             logging.fatal('[Bridge] suicide as channel exception: %s, '
                           'maybe caused by peer restart', repr(err))
             exit(138)  # Tell Scheduler to restart myself
+
+    def connect(self):
+        with self._condition:
+            if self._connected:
+                return
+            self._connected = True
+            self._server.connect()
+            if self._sender:
+                self._sender.start()
+
+    def wait_for_finish(self):
+        self._receiver.wait_for_finish()
+        if self._sender:
+            self._sender.wait_for_finish()
+
+    def terminate(self):
+        with self._condition:
+            if not self._connected:
+                return
+            if self._terminated:
+                return
+            self._terminated = True
+            self._condition.notify_all()
+            self._receiver.stop()
+            if self._sender:
+                self._sender.stop()
+            self._server.close()
