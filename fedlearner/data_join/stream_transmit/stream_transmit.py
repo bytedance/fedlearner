@@ -16,7 +16,7 @@ from fedlearner.channel.channel import Channel
 
 def _encode_meta_path(meta_dir, mode):
     assert mode in ('send', 'recv')
-    return os.path.join(meta_dir, '{}.meta'.format(mode))
+    return os.path.join(meta_dir, '{}.json'.format(mode))
 
 
 def _check_order(r: [st_pb.Request, st_pb.Response], file_index, row_index):
@@ -30,6 +30,10 @@ def _check_order(r: [st_pb.Request, st_pb.Response], file_index, row_index):
 
 
 class RecvProcessException(Exception):
+    pass
+
+
+class EndSentinel:
     pass
 
 
@@ -158,7 +162,7 @@ class Sender:
     def _put_requests(self):
         assert self._synced
         root_path = self._meta['root']
-        to_be_sent = self._meta['file'][self._send_file_idx:]
+        to_be_sent = self._meta['files'][self._send_file_idx:]
         for index, file in enumerate(to_be_sent):
             if self._stopped:
                 break
@@ -171,7 +175,7 @@ class Sender:
                 )
 
                 if file_finished:
-                    if len(to_be_sent) == index - 1:
+                    if len(to_be_sent) - 1 == index:
                         status = common_pb.Status(
                             code=common_pb.STATUS_DATA_FINISHED)
                     else:
@@ -188,13 +192,19 @@ class Sender:
                 # Queue will block this thread if no slot available.
                 self._request_queue.put(req)
             self._send_row_idx = 0
+        else:
+            # put a sentinel to tell iterator to stop
+            self._request_queue.put(EndSentinel())
 
     def _request_iterator(self):
         while not self._finished and not self._stopped:
             # use timeout to check condition rather than blocking continuously.
             # Queue object is thread-safe, no need to use Lock.
             try:
-                yield self._request_queue.get(timeout=5)
+                req = self._request_queue.get(timeout=5)
+                if isinstance(req, EndSentinel):
+                    break
+                yield req
             except queue.Empty:
                 pass
 
@@ -301,6 +311,9 @@ class Receiver:
             with self._condition:
                 self._meta['finished'] = True
                 self._finished = True
+                self._condition.notify_all()
+                file_io.atomic_write_string_to_file(self._meta_path,
+                                                    json.dumps(self._meta))
 
     def _process_request(self,
                          req: st_pb.Request,
@@ -356,7 +369,7 @@ class Receiver:
             preceded: whether this request is behind the expected next request.
                 i.e., a latter request arrive before a former request.
             duplicated: whether this request is duplicated.
-
+        # TODO: add NOTE for force forward after finished.
         Returns:
             A payload bytes string, and a bool indicating whether the meta
                 should be dumped(saved). The bool should be True when a file or
@@ -371,10 +384,10 @@ class _StreamTransmitServicer(st_grpc.StreamTransmitServiceServicer):
         self._receiver = receiver
 
     def SyncState(self, request, context):
-        self._receiver.sync_state()
+        return self._receiver.sync_state()
 
     def Transmit(self, request_iterator, context):
-        self._receiver.transmit(request_iterator)
+        return self._receiver.transmit(request_iterator)
 
 
 class StreamTransmit:
