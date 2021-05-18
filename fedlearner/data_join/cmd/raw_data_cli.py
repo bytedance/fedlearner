@@ -57,6 +57,12 @@ if __name__ == "__main__":
                         help='Dumped threshold for data block')
     parser.add_argument('--long_running', action='store_true',
                         help='make the data portal long running')
+    parser.add_argument("--spark_k8s_config_path", type=str, default='',
+                        help='k8s config path for spark')
+    parser.add_argument("--spark_k8s_namespace", type=str, default='default',
+                        help='k8s namespace for spark')
+    parser.add_argument("--spark_dependent_package", type=str, default='',
+                        help='Dependency package of spark')
     parser.add_argument("--spark_driver_cores", type=int, default=0,
                         help='Number of cores of spark driver')
     parser.add_argument("--spark_driver_memory", type=str, default='',
@@ -90,6 +96,7 @@ if __name__ == "__main__":
                      files_per_job_limit=args.files_per_job_limit,
                      raw_data_publish_dir=args.raw_data_publish_dir,
                      upload_dir=args.upload_dir,
+                     spark_dependent_package=args.spark_dependent_package,
                      spark_driver_config=spark_driver_config,
                      spark_executor_config=spark_executor_config)
     job.run(args.input_base_dir)

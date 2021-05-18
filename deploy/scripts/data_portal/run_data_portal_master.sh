@@ -24,9 +24,24 @@ UPLOAD_DIR=$OUTPUT_BASE_DIR/upload
 ${HADOOP_HOME}/bin/hadoop fs -mkdir -p $UPLOAD_DIR
 spark_entry_script="fedlearner/data_join/raw_data/raw_data.py"
 ${HADOOP_HOME}/bin/hadoop fs -put -f $spark_entry_script $UPLOAD_DIR
+# create deps folder structure
 DEP_FILE=deps.zip
-python /app/deploy/scripts/zip.py -c ${DEP_FILE} fedlearner/data_join/raw_data/common.py
+CUR_DIR=`pwd`
+TMP_DIR=`mktemp -d`
+TMP_FEDLEARNER_DIR=${TMP_DIR}/fedlearner/data_join/raw_data
+mkdir -p $TMP_FEDLEARNER_DIR
+cp fedlearner/data_join/raw_data/common.py $TMP_FEDLEARNER_DIR
+cd $TMP_DIR
+touch fedlearner/__init__.py
+touch fedlearner/data_join/__init__.py
+touch fedlearner/data_join/raw_data/__init__.py
+python /app/deploy/scripts/zip.py -c ${DEP_FILE} fedlearner
 ${HADOOP_HOME}/bin/hadoop fs -put -f ${DEP_FILE} $UPLOAD_DIR
+cd $CUR_DIR
+rm -rf $TMP_DIR
+# write k8s config
+k8s_config_filename="k8s.config"
+echo $SPARK_K8S_CONFIG > $k8s_config_filename
 
 input_file_wildcard=$(normalize_env_to_args "--input_file_wildcard" $FILE_WILDCARD)
 kvstore_type=$(normalize_env_to_args '--kvstore_type' $KVSTORE_TYPE)
@@ -48,6 +63,7 @@ python -m fedlearner.data_join.cmd.raw_data_cli \
     --output_base_dir=$OUTPUT_BASE_DIR \
     --raw_data_publish_dir=$RAW_DATA_PUBLISH_DIR \
     --upload_dir=$UPLOAD_DIR \
+    --spark_dependent_package=$UPLOAD_DIR/${DEP_FILE} \
     $input_file_wildcard $LONG_RUNNING $CHECK_SUCCESS_TAG \
     $SINGLE_SUBFOLDER $files_per_job_limit $output_type \
     $data_source_name $data_block_dump_threshold \
