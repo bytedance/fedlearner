@@ -29,6 +29,7 @@ from fedlearner.model.tree.loss import LogisticLoss, MSELoss
 from fedlearner.model.crypto import paillier, fixed_point_number
 from fedlearner.common import tree_model_pb2 as tree_pb2
 from fedlearner.common import common_pb2
+from fedlearner.common.metrics import emit_store
 
 
 BST_TYPE = np.float32
@@ -1283,6 +1284,10 @@ class BoostingTreeEnsamble(object):
         fout.write(','.join([str(i) for i in pred]) + '\n')
         fout.close()
 
+    def iter_metrics_handler(self, metrics, mode):
+        for name, value in metrics.items():
+            emit_store(name=name, value=value, tags={'iteration': len(self._trees), 'mode': mode})
+
     def fit(self,
             features,
             labels=None,
@@ -1371,14 +1376,15 @@ class BoostingTreeEnsamble(object):
                 self.save_checkpoint(checkpoint_path, num_iter)
 
             # save output
+            pred = self._loss.predict(sum_prediction)
+            if labels is not None:
+                metrics = self._loss.metrics(pred, labels)
+            else:
+                metrics = {}
             if output_path is not None:
-                pred = self._loss.predict(sum_prediction)
-                if labels is not None:
-                    metrics = self._loss.metrics(pred, labels)
-                else:
-                    metrics = {}
                 self._write_training_log(
                     output_path, 'train_%d'%num_iter, metrics, pred)
+            self.iter_metrics_handler(metrics, mode='train')
 
             # validation
             if validation_features is not None:
@@ -1387,6 +1393,8 @@ class BoostingTreeEnsamble(object):
                     example_ids=validation_example_ids,
                     cat_features=validation_cat_features)
                 metrics = self._compute_metrics(val_pred, validation_labels)
+                self.iter_metrics_handler(metrics, mode='eval')
+
                 logging.info(
                     "Validation metrics for iter %d: %s", num_iter, metrics)
                 if output_path is not None:
