@@ -37,6 +37,7 @@ class RawDataJob:
                  single_subfolder=False,
                  files_per_job_limit=0,
                  upload_dir="",
+                 long_running=False,
                  spark_k8s_config_path='',
                  spark_k8s_namespace='',
                  spark_dependent_package='',
@@ -53,6 +54,7 @@ class RawDataJob:
         self._data_source_name = data_source_name
         self._output_type = output_type
         self._upload_dir = upload_dir
+        self._long_running = long_running
         self._spark_k8s_config_path = spark_k8s_config_path
         self._spark_k8s_namespace = spark_k8s_namespace
         self._spark_dependent_package = spark_dependent_package
@@ -72,7 +74,6 @@ class RawDataJob:
         self._input_data_manager = InputDataManager(
             wildcard,
             check_success_tag,
-            self._meta.processed_fpath,
             single_subfolder,
             files_per_job_limit)
 
@@ -84,10 +85,18 @@ class RawDataJob:
 
     def run(self, input_path):
         job_id = self._next_job_id
-        for rest_fpaths in self._input_data_manager.input_iter(input_path):
-            with Timer("RawData Job {}".format(job_id)):
-                self._run(job_id, rest_fpaths)
-            job_id += 1
+        while True:
+            prev_job_id = job_id
+            for rest_fpaths in self._input_data_manager.iterator(
+                    input_path, self._meta.processed_fpath):
+                with Timer("RawData Job {}".format(job_id)):
+                    self._run(job_id, rest_fpaths)
+                job_id += 1
+            if not self._long_running:
+                break
+            elif job_id == prev_job_id:
+                logging.info("No new file to process, Wait 60s...")
+                time.sleep(60)
 
     def _run(self, job_id, input_files):
         logging.info("Processing %s in job %d", input_files, job_id)

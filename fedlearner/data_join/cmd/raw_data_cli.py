@@ -96,6 +96,7 @@ if __name__ == "__main__":
                      files_per_job_limit=args.files_per_job_limit,
                      raw_data_publish_dir=args.raw_data_publish_dir,
                      upload_dir=args.upload_dir,
+                     long_running=args.long_running,
                      spark_k8s_config_path=args.spark_k8s_config_path,
                      spark_k8s_namespace=args.spark_k8s_namespace,
                      spark_dependent_package=args.spark_dependent_package,
