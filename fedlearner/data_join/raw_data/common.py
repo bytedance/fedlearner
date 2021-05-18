@@ -1,5 +1,3 @@
-
-
 class Constants:
     input_files_key = "input_files"
     schema_path_key = "schema_path"
