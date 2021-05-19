@@ -3,14 +3,15 @@ import logging
 import json
 import os
 
+from tensorflow.compat.v1 import gfile
 from pyspark import SparkFiles
 from pyspark.sql import SparkSession
-from pyspark.sql.types import *
-from tensorflow.compat.v1 import gfile
+from pyspark.sql.types import StructType
 
-from cityhash import CityHash32
+from cityhash import CityHash32  # pylint: disable=no-name-in-module
 
-from fedlearner.data_join.raw_data.common import *
+from fedlearner.data_join.raw_data.common import Constants, DataKeyword, \
+    JobType, OutputType
 
 
 def set_logger():
@@ -166,7 +167,7 @@ class RawData:
                 saved_schema = json.load(f)
             schema = StructType.fromJson(saved_schema)
             return schema
-        except Exception:
+        except Exception:  # pylint: disable=broad-except
             logging.info("Schema file %s not exists, infer from %s",
                          schema_file_path, sample_file)
             # infer schema from one file

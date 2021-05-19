@@ -77,7 +77,7 @@ class K8SClient(object):
     def get_sparkapplication(self,
                              name: str,
                              namespace: str = SPARKOPERATOR_NAMESPACE) \
-            -> K8SAPPStatus:
+            -> (K8SAPPStatus, str):
         try:
             resp = self.crds.get_namespaced_custom_object_status(
                 group=SPARKOPERATOR_CUSTOM_GROUP,
@@ -86,9 +86,10 @@ class K8SClient(object):
                 plural=CrdKind.SPARK_APPLICATION.value,
                 name=name)
             if 'status' in resp:
-                return K8SAPPStatus[resp['status']['applicationState']['state']]
-            else:
-                return K8SAPPStatus.PENDING
+                return (
+                    K8SAPPStatus[resp['status']['applicationState']['state']],
+                    resp)
+            return K8SAPPStatus.PENDING, ''
         except ApiException as e:
             self._raise_runtime_error(e)
 
@@ -123,10 +124,20 @@ class K8SClient(object):
 
 
 class FakeK8SClient(object):
-    def __init__(self, cmd: str, args: list = None):
-        self._cmd = cmd
-        self._args = args
+    def __init__(self):
         self._process = None
+
+    @staticmethod
+    def name_key():
+        return "name"
+
+    @staticmethod
+    def entry_key():
+        return "entry"
+
+    @staticmethod
+    def arg_key():
+        return "args"
 
     def close(self):
         pass
@@ -138,39 +149,38 @@ class FakeK8SClient(object):
     def get_sparkapplication(self,
                              name: str,
                              namespace: str = SPARKOPERATOR_NAMESPACE)\
-            -> K8SAPPStatus:
+            -> (K8SAPPStatus, str):
         stdout_data, stderr_data = self._process.communicate()
         logging.info(stdout_data.decode('utf-8'))
         if not self._process:
             self._raise_runtime_error(
                 ApiException("Task {} not exist".format(name)))
         elif self._process.returncode is None:
-            return K8SAPPStatus.RUNNING
+            return K8SAPPStatus.RUNNING, ''
         elif self._process.returncode == 0:
-            return K8SAPPStatus.COMPLETED
-        else:
-            return K8SAPPStatus.FAILED
+            return K8SAPPStatus.COMPLETED, ''
+        return K8SAPPStatus.FAILED, 'Failed'
 
     def create_sparkapplication(
         self,
         body,
         namespace: str = SPARKOPERATOR_NAMESPACE) -> dict:
 
-        cmd = ['python', self._cmd] + self._args
+        entry_script = body[self.entry_key()]
+        args = body[self.arg_key()]
+        cmd = ['python', entry_script] + args
         logging.info(cmd)
         self._process = subprocess.Popen(
             cmd,
             stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            preexec_fn=os.setsid,
-        )
+            stderr=subprocess.STDOUT)
         return {
             'apiVersion': 'sparkoperator.k8s.io/v1beta2',
             'kind': 'SparkApplication',
             'metadata': {
                 'creationTimestamp': '2021-05-13T08:41:48Z',
                 'generation': 1,
-                'name': '',
+                'name': body[self.name_key()],
                 'namespace': namespace,
                 'resourceVersion': '2894990020',
                 'selfLink': '/apis/sparkoperator.k8s.io/v1beta2/namespaces',
@@ -184,5 +194,4 @@ class FakeK8SClient(object):
                                 ) -> dict:
         logging.info("Delete spark application %s in namespace %s", name,
                      namespace)
-        return None
-
+        return {}
