@@ -18,7 +18,7 @@ import argparse
 
 from fedlearner.common.common import set_logger
 from fedlearner.data_join.raw_data.raw_data_job import RawDataJob
-from fedlearner.data_join.raw_data.raw_data_config import SparkDriverConfig, \
+from fedlearner.data_join.raw_data.spark_application import SparkDriverConfig, \
     SparkExecutorConfig
 
 

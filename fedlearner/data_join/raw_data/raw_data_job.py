@@ -1,7 +1,11 @@
+import logging
+import os
+import sys
 import time
 from datetime import datetime, timedelta
 
 from google.protobuf import text_format
+from tensorflow.compat.v1 import gfile
 
 from fedlearner.common.common import Timer
 from fedlearner.common.db_client import DBClient
@@ -16,10 +20,10 @@ from fedlearner.data_join.common import commit_data_source, partition_repr,\
 from fedlearner.data_join.raw_data.input_data_manager import InputDataManager
 from fedlearner.data_join.raw_data.raw_data_meta import RawDataMeta, \
     raw_data_meta_path
-from fedlearner.data_join.raw_data.raw_data_config import *
+from fedlearner.data_join.raw_data.raw_data_config import RawDataJobConfig
 from fedlearner.data_join.raw_data.common import OutputType, JobType
-from fedlearner.data_join.raw_data.k8s_client import FakeK8SClient, K8SClient,\
-    K8SAPPStatus
+from fedlearner.data_join.raw_data.spark_application import SparkFileConfig, \
+    SparkApplication
 from fedlearner.data_join.raw_data_publisher import RawDataPublisher
 
 
@@ -46,7 +50,7 @@ class RawDataJob:
                  use_fake_k8s=False):
         self._job_name = job_name
         self._root_path = root_path
-        self._job_type = job_type,
+        self._job_type = job_type
         self._output_partition_num = output_partition_num
         self._raw_data_publish_dir = raw_data_publish_dir
         self._data_block_threshold = data_block_threshold
@@ -94,7 +98,7 @@ class RawDataJob:
                 job_id += 1
             if not self._long_running:
                 break
-            elif job_id == prev_job_id:
+            if job_id == prev_job_id:
                 logging.info("No new file to process, Wait 60s...")
                 time.sleep(60)
 
@@ -133,7 +137,7 @@ class RawDataJob:
         if not gfile.Exists(success_tag):
             logging.fatal("There is no _SUCCESS file in output path %s",
                           output_path)
-            exit(-1)
+            sys.exit(-1)
 
         # 3. publish
         self._publish_raw_data(job_id, output_path)
@@ -145,10 +149,7 @@ class RawDataJob:
         if gfile.Exists(temp_output_path):
             gfile.DeleteRecursively(temp_output_path)
         # 1. write config
-        upload_path = os.path.join(self._root_path, "upload")
-        if not gfile.Exists(upload_path):
-            gfile.MakeDirs(upload_path)
-        job_config = RawDataJobConfig(upload_path, job_id)
+        job_config = RawDataJobConfig(self._upload_dir, job_id)
         job_config.data_block_config(
             input_files, temp_output_path,
             OutputType.DataBlock, self._compression_type,
@@ -161,7 +162,7 @@ class RawDataJob:
         if not gfile.Exists(success_tag):
             logging.fatal("There is no _SUCCESS file in output path %s",
                           temp_output_path)
-            exit(-1)
+            sys.exit(-1)
 
         # 3. publish data block
         self._publish_data_block(job_id, data_source, temp_output_path,
@@ -172,57 +173,15 @@ class RawDataJob:
         return filename.startswith(('_', '.'))
 
     def _launch_spark_job(self, task_name, config_path):
-        task_config = {}
-        if self._use_fake_k8s:
-            script_args = [
-                "--config={}".format(config_path),
-                "--packages={}".format(
-                    "org.tensorflow:tensorflow-hadoop:1.15.0,"
-                    "org.tensorflow/spark-tensorflow-connector_2.12:1.15.0")
-            ]
-            cur_path = os.path.dirname(os.path.realpath(__file__))
-            entry_script = os.path.join(cur_path, self._spark_entry_script_name)
-            k8s_client = FakeK8SClient(entry_script, script_args)
-        else:
-            k8s_client = K8SClient()
-            k8s_client.init(self._spark_k8s_config_path)
-            spark_file_config = self._encode_spark_file_config(config_path)
-            task_config = SparkTaskConfig.task_json(task_name,
-                                                    spark_file_config,
-                                                    self._spark_driver_config,
-                                                    self._spark_executor_config)
-        try:
-            k8s_client.delete_sparkapplication(
-                task_name, namespace=self._spark_k8s_namespace)
-        except RuntimeError as error:
-            logging.info("Spark application %s not exist",
-                         task_name)
-
-        try:
-            k8s_client.create_sparkapplication(
-                task_config, namespace=self._spark_k8s_namespace)
-        except RuntimeError as error:
-            logging.fatal("Spark application error %s", error)
-            exit(-1)
-
-        try:
-            while True:
-                status = k8s_client.get_sparkapplication(
-                    task_name, namespace=self._spark_k8s_namespace)
-                if status == K8SAPPStatus.COMPLETED:
-                    logging.info("Spark job %s completed", task_name)
-                    break
-                elif status == K8SAPPStatus.FAILED:
-                    logging.error("Spark job %s failed", task_name)
-                    exit(-1)
-                else:
-                    logging.info("Sleep 5s to wait spark job done...")
-                    time.sleep(5)
-            k8s_client.delete_sparkapplication(
-                task_name, namespace=self._spark_k8s_namespace)
-        except RuntimeError as error:
-            logging.fatal("Spark application error %s", error)
-            exit(-1)
+        file_config = self._encode_spark_file_config(config_path)
+        spark_app = SparkApplication(
+            task_name, file_config,
+            self._spark_driver_config,
+            self._spark_executor_config,
+            k8s_config_path=self._spark_k8s_config_path,
+            use_fake_k8s=self._use_fake_k8s)
+        spark_app.launch(self._spark_k8s_namespace)
+        spark_app.join(self._spark_k8s_namespace)
 
     def _encode_data_block_filename(self,
                                     partition_id, block_id,
@@ -280,8 +239,8 @@ class RawDataJob:
                                                   seconds=59)) \
                 .strftime("%Y%m%d%H%M%S")
         except ValueError as e:
-            logging.error("Input data's folder format is %s, want %Y%m%d",
-                          folder_name)
+            logging.error("Input data's folder format is %s, want %s",
+                          folder_name, "%Y%m%d")
             start_time_str = '0'
             end_time_str = '0'
         # 3. rename output files
