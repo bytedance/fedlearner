@@ -58,5 +58,3 @@ class RawDataMeta:
     def persist(self):
         data = json.dumps(self._metas)
         file_io.atomic_write_string_to_file(self._meta_file, data)
-
-

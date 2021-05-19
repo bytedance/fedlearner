@@ -253,7 +253,7 @@ def convert_time_string_to_datetime(value):
 
 
 def set_logger():
-    verbosity = os.environ.get('VERBOSITY', 1)
+    verbosity = int(os.environ.get('VERBOSITY', 1))
     if verbosity == 0:
         logging.getLogger().setLevel(logging.WARNING)
     elif verbosity == 1:
