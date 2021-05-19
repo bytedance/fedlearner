@@ -52,6 +52,7 @@ class RawDataMeta:
             MetaKeys.job_id: job_id,
             MetaKeys.fpath: paths,
         }
+        self._processed_fpath.update(paths)
         self._job_id = max(self._job_id, job_id)
         self._metas.append(record)
 
