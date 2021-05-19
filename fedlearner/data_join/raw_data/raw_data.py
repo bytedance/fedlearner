@@ -3,12 +3,11 @@ import logging
 import json
 import os
 
+from cityhash import CityHash32  # pylint: disable=no-name-in-module
 from tensorflow.compat.v1 import gfile
 from pyspark import SparkFiles
 from pyspark.sql import SparkSession
 from pyspark.sql.types import StructType
-
-from cityhash import CityHash32  # pylint: disable=no-name-in-module
 
 from fedlearner.data_join.raw_data.common import Constants, DataKeyword, \
     JobType, OutputType
