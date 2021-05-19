@@ -45,11 +45,24 @@ export enum PodState {
   UNKNOWN = 'UNKNOWN',
   SUCCEEDED_AND_FREED = 'SUCCEEDED_AND_FREED', // completed and has freed resources
   FAILED_AND_FREED = 'FAILED_AND_FREED', // failed and freed has free resources
+
+  /**
+   * Deprecated state values
+   */
+  RUNNING__deprecated = 'running',
+  SUCCEEDED__deprecated = 'succeeded',
+  FAILED__deprecated = 'failed',
+  PENDING__deprecated = 'pending',
+  UNKNOWN__deprecated = 'Unknown',
+  SUCCEEDED_AND_FREED__deprecated = 'Flapp_succeeded',
+  FAILED_AND_FREED__deprecated = 'Flapp_failed',
 }
 
 export interface Pod {
   name: string;
   state: PodState;
+  /** @deprecated */
+  status?: PodState;
   pod_type: string;
   message?: string;
 }

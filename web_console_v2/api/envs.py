@@ -10,10 +10,15 @@ class Envs(object):
     ES_PORT = os.environ.get('ES_PORT', 9200)
     ES_USERNAME = os.environ.get('ES_USERNAME', 'elastic')
     ES_PASSWORD = os.environ.get('ES_PASSWORD', 'Fedlearner123')
-    KIBANA_SERVICE_HOST_PORT = os.environ.get(
-        'KIBANA_SERVICE_HOST_PORT', 'http://fedlearner-stack-kibana:443'
+    # addr to Kibana in pod/cluster
+    KIBANA_SERVICE_ADDRESS = os.environ.get(
+        'KIBANA_SERVICE_ADDRESS', 'http://fedlearner-stack-kibana:443'
     )
+    # addr to Kibana outside cluster, typically comply with port-forward
     KIBANA_ADDRESS = os.environ.get('KIBANA_ADDRESS', 'localhost:1993')
+    # What fields are allowed in peer query.
+    KIBANA_ALLOWED_FIELDS = set(
+        f for f in os.environ.get('KIBANA_ALLOWED_FIELDS', '*').split(',') if f)
     OPERATOR_LOG_MATCH_PHRASE = os.environ.get(
         'OPERATOR_LOG_MATCH_PHRASE', None)
     # Whether to use the real jwt_required decorator or fake one

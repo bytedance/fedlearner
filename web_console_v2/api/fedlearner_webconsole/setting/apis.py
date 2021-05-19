@@ -21,7 +21,6 @@ from fedlearner_webconsole.utils.k8s_client import k8s_client
 from fedlearner_webconsole.utils.decorators import jwt_required
 from fedlearner_webconsole.utils.decorators import admin_required
 
-
 _POD_NAMESPACE = 'default'
 # Ref: https://stackoverflow.com/questions/46046110/
 #      how-to-get-the-current-namespace-in-a-pod
@@ -36,13 +35,12 @@ class SettingsApi(Resource):
     @admin_required
     def get(self):
         deployment = k8s_client.get_deployment(
-            name='fedlearner-web-console-v2',
-            namespace=_POD_NAMESPACE)
+            name='fedlearner-web-console-v2', namespace=_POD_NAMESPACE)
 
         return {
             'data': {
                 'webconsole_image':
-                    deployment.spec.template.spec.containers[0].image
+                deployment.spec.template.spec.containers[0].image
             }
         }
 
@@ -50,15 +48,17 @@ class SettingsApi(Resource):
     @admin_required
     def patch(self):
         parser = reqparse.RequestParser()
-        parser.add_argument('webconsole_image', type=str, required=False,
-                            default=None, help='image for webconsole')
+        parser.add_argument('webconsole_image',
+                            type=str,
+                            required=False,
+                            default=None,
+                            help='image for webconsole')
         data = parser.parse_args()
 
         if data['webconsole_image']:
             new_image = data['webconsole_image']
-            deployment = k8s_client.get_deployment(
-                'fedlearner-web-console-v2',
-                _POD_NAMESPACE)
+            deployment = k8s_client.get_deployment('fedlearner-web-console-v2',
+                                                   _POD_NAMESPACE)
             spec = deployment.spec
             spec.template.spec.containers[0].image = new_image
             metadata = deployment.metadata
@@ -71,5 +71,41 @@ class SettingsApi(Resource):
         return {'data': {}}
 
 
+class SystemPodLogsApi(Resource):
+    @jwt_required()
+    @admin_required
+    def get(self, pod_name):
+        parser = reqparse.RequestParser()
+        parser.add_argument('tail_lines',
+                            type=int,
+                            location='args',
+                            required=True,
+                            help='tail lines is required')
+        data = parser.parse_args()
+        tail_lines = data['tail_lines']
+        return {
+            'data':
+            k8s_client.get_pod_log(name=pod_name,
+                                   namespace=_POD_NAMESPACE,
+                                   tail_lines=tail_lines).split('\n')
+        }
+
+
+class SystemPodsApi(Resource):
+    @jwt_required()
+    @admin_required
+    def get(self):
+        webconsole_v2_pod_list = list(
+            map(
+                lambda pod: pod.metadata.name,
+                k8s_client.get_pods(
+                    _POD_NAMESPACE,
+                    'app.kubernetes.io/instance=fedlearner-web-console-v2').
+                items))
+        return {'data': webconsole_v2_pod_list}
+
+
 def initialize_setting_apis(api):
     api.add_resource(SettingsApi, '/settings')
+    api.add_resource(SystemPodLogsApi, '/system_pods/<string:pod_name>/logs')
+    api.add_resource(SystemPodsApi, '/system_pods/name')

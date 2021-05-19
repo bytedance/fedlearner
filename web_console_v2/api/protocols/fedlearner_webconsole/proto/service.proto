@@ -125,6 +125,19 @@ message CheckJobReadyResponse {
     bool is_ready = 2;
 }
 
+message GetJobKibanaRequest {
+    ProjAuthInfo auth_info = 1;
+    string job_name = 2;
+    string json_args = 3;
+}
+
+message GetJobKibanaResponse {
+    Status status = 1;
+    // metrics is a json-ify list of 2-element lists,
+    // each 2-element list is of [x, y] shape representing a data point.
+    string metrics = 2;
+}
+
 service WebConsoleV2Service {
     rpc CheckConnection (CheckConnectionRequest) returns (CheckConnectionResponse) {}
     rpc UpdateWorkflowState (UpdateWorkflowStateRequest) returns (UpdateWorkflowStateResponse) {}
@@ -133,4 +146,5 @@ service WebConsoleV2Service {
     rpc GetJobMetrics (GetJobMetricsRequest) returns (GetJobMetricsResponse) {}
     rpc GetJobEvents (GetJobEventsRequest) returns (GetJobEventsResponse) {}
     rpc CheckJobReady (CheckJobReadyRequest) returns (CheckJobReadyResponse) {}
+    rpc GetJobKibana (GetJobKibanaRequest) returns (GetJobKibanaResponse) {}
 }

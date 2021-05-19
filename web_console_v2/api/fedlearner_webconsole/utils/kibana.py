@@ -15,12 +15,17 @@
 # coding: utf-8
 # pylint: disable=invalid-string-quote
 import hashlib
+import os
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import prison
 import pytz
+import requests
+
 from envs import Envs
+from fedlearner_webconsole.exceptions import UnauthorizedException, \
+    InvalidArgumentException, InternalException
 from fedlearner_webconsole.job.models import JobType
 
 
@@ -30,7 +35,6 @@ class Kibana(object):
         This class is deeply coupled with
         fedlearner_webconsole.job.apis.KibanaMetricsApi
     """
-    KIBANA_ADDRESS = Envs.KIBANA_ADDRESS
     TSVB = ('Rate', 'Ratio', 'Numeric')
     TIMELION = ('Time', 'Timer')
     RISON_REPLACEMENT = {' ': '%20',
@@ -43,6 +47,7 @@ class Kibana(object):
                          '=': '%3D'}
     TIMELION_QUERY_REPLACEMENT = {' and ': ' AND ',
                                   ' or ': ' OR '}
+    LOGICAL_PATTERN = re.compile(' and | or ', re.IGNORECASE)
     TSVB_AGG_TYPE = {'Average': 'avg',
                      'Sum': 'sum',
                      'Max': 'max',
@@ -60,11 +65,83 @@ class Kibana(object):
     JOB_INDEX = {JobType.RAW_DATA: 'raw_data',
                  JobType.DATA_JOIN: 'data_join',
                  JobType.PSI_DATA_JOIN: 'data_join'}
-    BASIC_URL = "{kbn_addr}/app/kibana#/visualize/create" \
-                "?type={type}&_g=(refreshInterval:(pause:!t,value:0)," \
-                "time:(from:'{start_time}',to:'{end_time}'))&" \
-                "_a=(filters:!(),linked:!f,query:(language:kuery,query:'')," \
-                "uiState:(),vis:{vis_state})"
+    BASIC_QUERY = "app/kibana#/visualize/create" \
+                  "?type={type}&_g=(refreshInterval:(pause:!t,value:0)," \
+                  "time:(from:'{start_time}',to:'{end_time}'))&" \
+                  "_a=(filters:!(),linked:!f,query:(language:kuery,query:'')," \
+                  "uiState:(),vis:{vis_state})"
+
+    @staticmethod
+    def remote_query(job, args):
+        Kibana._check_remote_args(args)
+        if args['type'] == 'Ratio':
+            panel = Kibana._create_ratio_visualization(job, args)['params']
+        else:
+            assert args['type'] == 'Numeric'
+            panel = Kibana._create_numeric_visualization(job, args)['params']
+
+        if 'query' in args and args['query']:
+            panel['filter']['query'] += ' and ({})'.format(args['query'])
+        st, et = Kibana._parse_start_end_time(args, use_now=False)
+        req = {
+            'timerange': {
+                'timezone': Envs.TZ.zone,
+                'min': st,
+                'max': et
+            },
+            'panels': [panel]
+        }
+        res = requests.post(
+            os.path.join(Envs.KIBANA_SERVICE_ADDRESS, 'api/metrics/vis/data'),
+            json=req, headers={'kbn-xsrf': 'true'})
+
+        try:
+            res.raise_for_status()
+            res = res.json()
+            data = res['undefined']['series'][0]['data']
+            data = list(map(lambda x: [x[0], x[1] or 0], data))
+            return data
+        except Exception as e:  # pylint: disable=broad-except
+            raise InternalException(repr(e))
+
+    @staticmethod
+    def _check_remote_args(args):
+        for arg in ('type', 'interval', 'x_axis_field',
+                    'start_time', 'end_time'):
+            Kibana._check_present(args, arg)
+
+        Kibana._check_authorization(args.get('query'))
+        Kibana._check_authorization(args['x_axis_field'],
+                                    extra_allowed={'tags.event_time',
+                                                   'tags.process_time'})
+
+        if args['type'] == 'Ratio':
+            for arg in ('numerator', 'denominator'):
+                Kibana._check_present(args, arg)
+                Kibana._check_authorization(args[arg])
+        else:
+            assert args['type'] == 'Numeric'
+            for arg in ('aggregator', 'value_field'):
+                Kibana._check_present(args, arg)
+            Kibana._check_authorization(args['value_field'])
+
+    @staticmethod
+    def _check_present(args, arg_name):
+        if arg_name not in args or args[arg_name] is None:
+            raise InvalidArgumentException(
+                'Missing required argument [{}].'.format(arg_name))
+
+    @staticmethod
+    def _check_authorization(arg, extra_allowed: set = None):
+        if not arg:
+            return
+        allowed_fields = Envs.KIBANA_ALLOWED_FIELDS | (extra_allowed or set())
+        for query in Kibana.LOGICAL_PATTERN.split(arg):
+            if not query:
+                continue
+            if query.split(':')[0] not in allowed_fields:
+                raise UnauthorizedException(
+                    'Query [{}] is not authorized.'.format(query))
 
     @staticmethod
     def create_tsvb(job, args):
@@ -73,10 +150,14 @@ class Kibana(object):
 
         """
         assert args['type'] in Kibana.TSVB
-        vis_state = getattr(
-            Kibana,
-            '_create_{}_visualization'.format(args['type'].lower())
-        )(job, args)
+        if args['type'] == 'Rate':
+            vis_state = Kibana._create_rate_visualization(job, args)
+        elif args['type'] == 'Ratio':
+            vis_state = Kibana._create_ratio_visualization(job, args)
+        else:
+            assert args['type'] == 'Numeric'
+            vis_state = Kibana._create_numeric_visualization(job, args)
+
         # additional global filter on data if provided.
         if 'query' in args and args['query']:
             vis_state['params']['filter']['query'] += \
@@ -88,11 +169,11 @@ class Kibana(object):
         start_time, end_time = Kibana._parse_start_end_time(args)
         # a single-item list
         return [
-            Kibana.BASIC_URL.format(type='metrics',
-                                    kbn_addr=Kibana.KIBANA_ADDRESS,
-                                    start_time=start_time,
-                                    end_time=end_time,
-                                    vis_state=vis_state)
+            os.path.join(Envs.KIBANA_ADDRESS,
+                         Kibana.BASIC_QUERY.format(type='metrics',
+                                                   start_time=start_time,
+                                                   end_time=end_time,
+                                                   vis_state=vis_state))
         ]
 
     @staticmethod
@@ -102,33 +183,50 @@ class Kibana(object):
 
         """
         assert args['type'] in Kibana.TIMELION
-        vis_states, durations = getattr(
-            Kibana,
-            '_create_{}_visualization'.format(args['type'].lower())
-        )(job, args)
+        if args['type'] == 'Time':
+            vis_states, times = Kibana._create_time_visualization(job, args)
+        else:
+            assert args['type'] == 'Timer'
+            vis_states, times = Kibana._create_timer_visualization(job, args)
+
         # a generator, rison-ify and replace
         vis_states = (
             Kibana._regex_process(vs, Kibana.RISON_REPLACEMENT)
             for vs in map(prison.dumps, vis_states)
         )
         return [
-            Kibana.BASIC_URL.format(type='timelion',
-                                    kbn_addr=Kibana.KIBANA_ADDRESS,
-                                    start_time=start,
-                                    end_time=end,
-                                    vis_state=vis_state)
-            for (start, end), vis_state in zip(durations, vis_states)
+            os.path.join(Envs.KIBANA_ADDRESS,
+                         Kibana.BASIC_QUERY.format(type='timelion',
+                                                   start_time=start,
+                                                   end_time=end,
+                                                   vis_state=vis_state))
+            for (start, end), vis_state in zip(times, vis_states)
         ]
 
     @staticmethod
-    def _parse_start_end_time(args):
-        st = 'now-5y' if args['start_time'] < 0 \
-            else datetime.fromtimestamp(args['start_time'], tz=pytz.utc) \
-                     .isoformat(timespec='seconds')[:-6] + 'Z'
-        et = 'now' if args['end_time'] < 0 \
-            else datetime.fromtimestamp(args['end_time'], tz=pytz.utc) \
-                     .isoformat(timespec='seconds')[:-6] + 'Z'
+    def _parse_start_end_time(args, use_now=True):
+        if args['start_time'] < 0:
+            st = 'now-5y' if use_now \
+                else Kibana._normalize_datetime(
+                    datetime.now(tz=pytz.utc) - timedelta(days=365 * 5))
+        else:
+            st = Kibana._normalize_datetime(
+                datetime.fromtimestamp(args['start_time'], tz=pytz.utc))
+
+        if args['end_time'] < 0:
+            et = 'now' if use_now \
+                else Kibana._normalize_datetime(datetime.now(tz=pytz.utc))
+        else:
+            et = Kibana._normalize_datetime(
+                datetime.fromtimestamp(args['end_time'], tz=pytz.utc))
         return st, et
+
+    @staticmethod
+    def _normalize_datetime(dt: datetime):
+        # Normalizes datetime to UTC timezone in iso format,
+        # e.g. 2021-01-01T12:00:00Z
+        assert dt.tzinfo
+        return dt.isoformat(timespec='seconds')[:-6] + 'Z'
 
     @staticmethod
     def _regex_process(string, replacement):
