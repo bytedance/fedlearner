@@ -75,7 +75,7 @@ if __name__ == '__main__':
             _configure_index_alias(es, alias_name)
             # Kibana index-patterns initialization
             _configure_kibana_index_patterns(
-                Envs.KIBANA_SERVICE_HOST_PORT, index_type
+                Envs.KIBANA_SERVICE_ADDRESS, index_type
             )
         # Filebeat's built-in ilm does not contain delete phase. Below will
         #   add a delete phase to the existing policy.

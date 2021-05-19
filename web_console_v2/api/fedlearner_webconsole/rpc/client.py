@@ -16,15 +16,18 @@
 # pylint: disable=broad-except
 
 import logging
-
 from functools import wraps
 
 import grpc
 
-from fedlearner_webconsole.proto import (service_pb2, service_pb2_grpc,
-                                         common_pb2)
-from fedlearner_webconsole.utils.decorators import retry_fn
 from envs import Envs
+from fedlearner_webconsole.exceptions import (
+    UnauthorizedException, InvalidArgumentException
+)
+from fedlearner_webconsole.proto import (
+    service_pb2, service_pb2_grpc, common_pb2
+)
+from fedlearner_webconsole.utils.decorators import retry_fn
 
 
 def _build_channel(url, authority):
@@ -155,6 +158,25 @@ class RpcClient(object):
 
         if response.status.code != common_pb2.STATUS_SUCCESS:
             logging.debug('get_job_metrics request error: %s',
+                          response.status.msg)
+        return response
+
+    @catch_and_fallback(resp_class=service_pb2.GetJobMetricsResponse)
+    @retry_fn(retry_times=3, needed_exceptions=[grpc.RpcError])
+    def get_job_kibana(self, job_name, json_args):
+        msg = service_pb2.GetJobKibanaRequest(auth_info=self._auth_info,
+                                              job_name=job_name,
+                                              json_args=json_args)
+        response = self._client.GetJobKibana(request=msg,
+                                             metadata=self._get_metadata(),
+                                             timeout=Envs.GRPC_CLIENT_TIMEOUT)
+        status = response.status
+        if status.code != common_pb2.STATUS_SUCCESS:
+            if status.code == common_pb2.STATUS_UNAUTHORIZED:
+                raise UnauthorizedException(status.msg)
+            if status.code == common_pb2.STATUS_INVALID_ARGUMENT:
+                raise InvalidArgumentException(status.msg)
+            logging.debug('get_job_kibana request error: %s',
                           response.status.msg)
         return response
 

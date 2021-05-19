@@ -15,8 +15,9 @@ import LOCAL_STORAGE_KEYS from 'shared/localStorageKeys';
 import { useResetRecoilState } from 'recoil';
 import { ErrorCodes } from 'typings/app';
 import i18n from 'i18n';
-import { FedUserInfo } from 'typings/auth';
+import { FedUserInfo, FedRoles } from 'typings/auth';
 import UserRoleBadge from 'components/UserRoleBadge';
+import Log from 'components/IconPark/icons/Log';
 
 const Container = styled.div`
   ${MixinCommonTransition()}
@@ -76,27 +77,38 @@ export const ACCOUNT_CHANNELS = {
   click_settings: 'click_settings',
 };
 
-const AccountPopover: FC = () => {
+const AccountPopover: FC<{ userInfo: FedUserInfo }> = ({ userInfo }) => {
   const history = useHistory();
   const { t } = useTranslation();
   const resetUserInfo = useResetRecoilState(userInfoQuery);
 
+  let systemLogs = undefined;
+
+  if (userInfo.role === FedRoles.Admin) {
+    systemLogs = (
+      <ButtonRow gap="5" onClick={onSystemLogClick}>
+        <Log />
+        {t('settings.system_log')}
+      </ButtonRow>
+    );
+  }
   return (
     <div>
       {/*
-        <LanguageRow justify="space-between" align="middle">
-          <GridRow gap="5">
-            <Public />
-            {t('app.switch_lng')}
-          </GridRow>
-          <LanguageSwitch />
-        </LanguageRow>
-       */}
+    <LanguageRow justify="space-between" align="middle">
+      <GridRow gap="5">
+        <Public />
+        {t('app.switch_lng')}
+      </GridRow>
+      <LanguageSwitch />
+    </LanguageRow>
+   */}
 
       <ButtonRow gap="5" onClick={onSettingClick}>
         <Settings />
-        系统配置
+        {t('settings.system_setting')}
       </ButtonRow>
+      {systemLogs}
       <LogoutButton size="large" onClick={onLogoutClick}>
         {t('app.logout')}
       </LogoutButton>
@@ -117,6 +129,10 @@ const AccountPopover: FC = () => {
 
   function onSettingClick() {
     history.push('/settings');
+  }
+
+  function onSystemLogClick() {
+    window.open('/v2/logs/system', '_blank noopener');
   }
 };
 const Username: FC<{ userInfo: FedUserInfo }> = ({ userInfo }) => {
@@ -146,7 +162,7 @@ function HeaderAccount() {
 
   return (
     <Popover
-      content={<AccountPopover />}
+      content={<AccountPopover userInfo={userInfo} />}
       title={<Username userInfo={userInfo} />}
       placement="bottomLeft"
     >
