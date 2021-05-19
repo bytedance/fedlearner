@@ -29,6 +29,7 @@ from fedlearner_webconsole.proto import (
 )
 from fedlearner_webconsole.utils.es import es
 from fedlearner_webconsole.db import db, get_session
+from fedlearner_webconsole.utils.kibana import Kibana
 from fedlearner_webconsole.project.models import Project
 from fedlearner_webconsole.workflow.models import (
     Workflow, WorkflowState, TransactionState,
@@ -39,7 +40,7 @@ from fedlearner_webconsole.job.models import Job
 from fedlearner_webconsole.job.service import JobService
 from fedlearner_webconsole.job.metrics import JobMetricsBuilder
 from fedlearner_webconsole.exceptions import (
-    UnauthorizedException
+    UnauthorizedException, InvalidArgumentException
 )
 from envs import Envs
 
@@ -94,6 +95,12 @@ class RPCServerServicer(service_pb2_grpc.WebConsoleV2ServiceServicer):
         return self._try_handle_request(
             self._server.get_job_metrics, request, context,
             service_pb2.GetJobMetricsResponse)
+
+    def GetJobKibana(self, request, context):
+        return self._try_handle_request(
+            self._server.get_job_kibana, request, context,
+            service_pb2.GetJobKibanaResponse
+        )
 
     def GetJobEvents(self, request, context):
         return self._try_handle_request(
@@ -304,17 +311,42 @@ class RpcServer(object):
                 workflow_name=request.workflow_name,
                 config=config)
 
+    def _check_metrics_public(self, request, context):
+        project, party = self.check_auth_info(request.auth_info, context)
+        job = db.session.query(Job).filter_by(name=request.job_name,
+                                              project_id=project.id).first()
+        assert job is not None, f'job {request.job_name} not found'
+        workflow = job.workflow
+        if not workflow.metric_is_public:
+            raise UnauthorizedException('Metric is private!')
+        return job
+
     def get_job_metrics(self, request, context):
         with self._app.app_context():
-            project, party = self.check_auth_info(request.auth_info, context)
-            job = Job.query.filter_by(name=request.job_name,
-                                      project_id=project.id).first()
-            assert job is not None, f'Job {request.job_name} not found'
-            workflow = job.workflow
-            if not workflow.metric_is_public:
-                raise UnauthorizedException('Metric is private!')
+            job = self._check_metrics_public(request, context)
             metrics = JobMetricsBuilder(job).plot_metrics()
             return service_pb2.GetJobMetricsResponse(
+                status=common_pb2.Status(
+                    code=common_pb2.STATUS_SUCCESS),
+                metrics=json.dumps(metrics))
+
+    def get_job_kibana(self, request, context):
+        with self._app.app_context():
+            job = self._check_metrics_public(request, context)
+            try:
+                metrics = Kibana.remote_query(job,
+                                              json.loads(request.json_args))
+            except UnauthorizedException as ua_e:
+                return service_pb2.GetJobKibanaResponse(
+                    status=common_pb2.Status(
+                        code=common_pb2.STATUS_UNAUTHORIZED,
+                        msg=ua_e.message))
+            except InvalidArgumentException as ia_e:
+                return service_pb2.GetJobKibanaResponse(
+                    status=common_pb2.Status(
+                        code=common_pb2.STATUS_INVALID_ARGUMENT,
+                        msg=ia_e.message))
+            return service_pb2.GetJobKibanaResponse(
                 status=common_pb2.Status(
                     code=common_pb2.STATUS_SUCCESS),
                 metrics=json.dumps(metrics))

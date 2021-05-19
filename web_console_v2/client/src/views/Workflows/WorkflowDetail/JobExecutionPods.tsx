@@ -21,6 +21,14 @@ const stateType: { [key: string]: StateTypes } = {
   [PodState.UNKNOWN]: 'default',
   [PodState.FAILED_AND_FREED]: 'warning',
   [PodState.SUCCEEDED_AND_FREED]: 'success',
+  // Deprecated state values
+  [PodState.SUCCEEDED__deprecated]: 'success',
+  [PodState.RUNNING__deprecated]: 'processing',
+  [PodState.FAILED__deprecated]: 'error',
+  [PodState.PENDING__deprecated]: 'warning',
+  [PodState.UNKNOWN__deprecated]: 'default',
+  [PodState.SUCCEEDED_AND_FREED__deprecated]: 'warning',
+  [PodState.FAILED_AND_FREED__deprecated]: 'success',
 };
 const stateText: { [key: string]: string } = {
   [PodState.SUCCEEDED]: i18n.t('workflow.job_node_success'),
@@ -30,6 +38,14 @@ const stateText: { [key: string]: string } = {
   [PodState.UNKNOWN]: i18n.t('workflow.pod_unknown'),
   [PodState.FAILED_AND_FREED]: i18n.t('workflow.pod_failed_cleared'),
   [PodState.SUCCEEDED_AND_FREED]: i18n.t('workflow.pod_success_cleared'),
+  // Deprecated state values
+  [PodState.SUCCEEDED__deprecated]: i18n.t('workflow.job_node_success'),
+  [PodState.RUNNING__deprecated]: i18n.t('workflow.job_node_running'),
+  [PodState.FAILED__deprecated]: i18n.t('workflow.job_node_failed'),
+  [PodState.PENDING__deprecated]: i18n.t('workflow.job_node_waiting'),
+  [PodState.UNKNOWN__deprecated]: i18n.t('workflow.pod_unknown'),
+  [PodState.SUCCEEDED_AND_FREED__deprecated]: i18n.t('workflow.pod_failed_cleared'),
+  [PodState.FAILED_AND_FREED__deprecated]: i18n.t('workflow.pod_success_cleared'),
 };
 
 type Props = {
@@ -60,7 +76,9 @@ const JobExecutionPods: FC<Props> = ({ job, isPeerSide }) => {
       title: i18n.t('workflow.col_worker_status'),
       dataIndex: 'state',
       key: 'state',
-      render: (val: PodState, record: Pod) => {
+      render: (_: PodState, record: Pod) => {
+        const val = record.state ?? record.status;
+
         let tip: string = '';
         if ([PodState.FAILED, PodState.PENDING].includes(record.state)) {
           tip = record.message || '';

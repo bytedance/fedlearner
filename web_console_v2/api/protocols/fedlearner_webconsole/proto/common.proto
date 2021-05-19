@@ -22,6 +22,7 @@ enum StatusCode {
   STATUS_UNKNOWN_ERROR = 1;
   STATUS_UNAUTHORIZED = 2;
   STATUS_NOT_FOUND = 3;
+  STATUS_INVALID_ARGUMENT = 4;
 }
 
 message Status {

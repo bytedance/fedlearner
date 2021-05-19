@@ -13,6 +13,8 @@ const settings = {
   },
 
   placeholder_image: { zh: '请选择镜像版本' },
+  system_log: { zh: '系统日志', en: 'system log' },
+  system_setting: { zh: '系统配置', en: 'system setting' },
 };
 
 export default separateLng(settings);

@@ -81,6 +81,7 @@ class K8sWatcher(object):
         resource_version = '0'
         watcher = watch.Watch()
         while True:
+            logging.info(f'new stream of flapps watch rv:{resource_version}')
             if not self._running:
                 watcher.stop()
                 break
@@ -95,8 +96,7 @@ class K8sWatcher(object):
                 namespace=Envs.K8S_NAMESPACE,
                 plural='flapps',
                 resource_version=resource_version,
-                timeout_seconds=1800,  # Sometimes watch gets stuck
-                _request_timeout=1800,  # Sometimes HTTP GET gets stuck
+                _request_timeout=900,  # Sometimes watch gets stuck
             )
             try:
                 for event in stream:
@@ -105,7 +105,8 @@ class K8sWatcher(object):
 
                     metadata = event['object'].get('metadata')
                     if metadata['resourceVersion'] is not None:
-                        resource_version = metadata['resourceVersion']
+                        resource_version = max(metadata['resourceVersion'],
+                                               resource_version)
                         logging.debug(
                             f'resource_version now: {resource_version}')
             except client.exceptions.ApiException as e:
@@ -124,6 +125,7 @@ class K8sWatcher(object):
         resource_version = '0'
         watcher = watch.Watch()
         while True:
+            logging.info(f'new stream of pods watch rv: {resource_version}')
             if not self._running:
                 watcher.stop()
                 break
@@ -136,8 +138,7 @@ class K8sWatcher(object):
                 namespace=Envs.K8S_NAMESPACE,
                 label_selector='app-name',
                 resource_version=resource_version,
-                timeout_seconds=1800,  # Sometimes watch gets stuck
-                _request_timeout=1800,  # Sometimes HTTP GET gets stuck
+                _request_timeout=900,  # Sometimes watch gets stuck
             )
 
             try:
@@ -145,7 +146,8 @@ class K8sWatcher(object):
                     self._produce_event(event, ObjectType.POD)
                     metadata = event['object'].metadata
                     if metadata.resource_version is not None:
-                        resource_version = metadata.resource_version
+                        resource_version = max(metadata.resource_version,
+                                               resource_version)
                         logging.debug(
                             f'resource_version now: {resource_version}')
             except client.exceptions.ApiException as e:
