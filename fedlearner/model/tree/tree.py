@@ -1286,7 +1286,8 @@ class BoostingTreeEnsamble(object):
 
     def iter_metrics_handler(self, metrics, mode):
         for name, value in metrics.items():
-            emit_store(name=name, value=value, tags={'iteration': len(self._trees), 'mode': mode})
+            emit_store(name=name, value=value,
+                       tags={'iteration': len(self._trees), 'mode': mode})
 
     def fit(self,
             features,
