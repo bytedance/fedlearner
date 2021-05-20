@@ -4,51 +4,49 @@ import os
 import queue
 import threading
 import typing
+from collections import namedtuple
 
 from tensorflow import gfile
-from tensorflow.python.lib.io import file_io
 
 import fedlearner.common.common_pb2 as common_pb
 import fedlearner.common.stream_transmit_pb2 as st_pb
 import fedlearner.common.stream_transmit_pb2_grpc as st_grpc
 from fedlearner.channel.channel import Channel
+from fedlearner.common.db_client import DBClient
+
+# NOTE: it is convenient to compare between two different IDXes
+IDX = namedtuple('IDX', ['file_idx', 'row_idx'])
 
 
-def _encode_meta_path(meta_dir, mode):
-    assert mode in ('send', 'recv')
-    return os.path.join(meta_dir, '{}.json'.format(mode))
-
-
-def _check_order(r: [st_pb.Request, st_pb.Response], file_index, row_index):
-    preceded = r.file_index > file_index \
-               or (r.file_index == file_index
-                   and r.row_index > row_index)
-    duplicated = r.file_index < file_index \
-                 or (r.file_index == file_index
-                     and r.row_index < row_index)
-    return preceded, duplicated
+def _assign_idx_to_meta(meta: dict,
+                        idx: IDX) -> None:
+    meta['file_idx'] = idx.file_idx
+    meta['row_idx'] = idx.row_idx
 
 
 class RecvProcessException(Exception):
     pass
 
 
-class EndSentinel:
+class _EndSentinel:
+    """a sentinel for Sender's request queue"""
     pass
 
 
 class Sender:
     def __init__(self,
-                 meta_dir: str,
+                 meta_path: str,
                  send_row_num: int,
                  file_paths: typing.List[str],
                  root_path: str = None,
                  pending_len: int = 10):
-        self._meta_path = _encode_meta_path(meta_dir, 'send')
+        self._db_client = DBClient('dfs')
+        self._meta_path = os.path.join(meta_path, 'send')
         self._send_row_num = send_row_num
         self._client = None
         # The meta is used in ACK.
         self._meta = self._get_meta(file_paths, root_path or '')
+        self._file_len = len(self._meta['files'])
         self._synced = False
         self._started = False
         self._finished = self._meta['finished']
@@ -66,19 +64,18 @@ class Sender:
     def _get_meta(self,
                   file_paths: list,
                   root_path: str):
-        if gfile.Exists(self._meta_path):
-            with gfile.GFile(self._meta_path) as mf:
-                meta = json.load(mf)
+        meta = self._db_client.get_data(self._meta_path)
+        if meta:
+            meta = json.loads(meta)
         else:
             meta = {
-                'file_index': 0,
-                'row_index': 0,
+                'file_idx': 0,
+                'row_idx': 0,
                 'root': root_path,
                 'files': file_paths,
                 'finished': False
             }
-            file_io.atomic_write_string_to_file(self._meta_path,
-                                                json.dumps(meta))
+            self._db_client.set_data(self._meta_path, json.dumps(meta).encode())
         return meta
 
     def add_client(self, client: st_grpc.StreamTransmitServiceStub):
@@ -89,19 +86,19 @@ class Sender:
     def _sync(self):
         resp = self._client.SyncState(st_pb.SyncRequest())
         with self._condition:
-            if self._meta['file_index'] > resp.file_index:
-                self._send_file_idx = resp.file_index
-                self._send_row_idx = resp.row_index
+            if self._meta['file_idx'] > resp.file_idx:
+                self._send_idx = IDX(resp.file_idx,
+                                     resp.row_idx)
                 self._finished = False
-            elif self._meta['file_index'] == resp.file_index and \
-                    self._meta['row_index'] > resp.row_index:
-                self._send_file_idx = self._meta['file_index']
-                self._send_row_idx = resp.row_index
+            elif self._meta['file_idx'] == resp.file_idx \
+                    and self._meta['row_idx'] > resp.row_idx:
+                self._send_idx = IDX(self._meta['file_idx'],
+                                     resp.row_idx)
                 self._finished = False
             # else sender has staler state, so use the sender's state
             else:
-                self._send_file_idx = self._meta['file_index']
-                self._send_row_idx = resp.row_index
+                self._send_idx = IDX(self._meta['file_idx'],
+                                     self._meta['row_idx'])
             self._synced = True
 
     def _send(self):
@@ -111,30 +108,32 @@ class Sender:
             if self._stopped:
                 break
             with self._condition:
-                # Channel will return response in the original order, without
-                # any duplicates, so no need to check preceded & duplicated
-                forward = self._resp_process(resp)
+                current_idx = IDX(self._meta['file_idx'],
+                                  self._meta['row_idx'])
+                resp_idx = IDX(resp.end_file_idx, resp.end_row_idx)
+                forward_idx = self._resp_process(resp, current_idx)
+                if resp_idx > current_idx:
+                    self._meta['file_idx'] = resp_idx.file_idx
+                    self._meta['row_idx'] = resp_idx.row_idx
+
                 if resp.status.code == common_pb.STATUS_INVALID_REQUEST:
                     # TODO(zhangzihui): error handling
                     logging.warning(
                         '[Transmit]: STATUS_INVALID_REQUEST returned: %s', resp)
                     continue
-                elif resp.status.code == common_pb.STATUS_SUCCESS:
-                    self._meta['file_index'] = resp.file_index
-                    self._meta['row_index'] = resp.row_index
-                elif resp.status.code == common_pb.STATUS_FILE_FINISHED:
-                    self._meta['file_index'] = resp.file_index + 1
-                    self._meta['row_index'] = 0
                 elif resp.status.code == common_pb.STATUS_DATA_FINISHED:
-                    self._meta['file_index'] = resp.file_index + 1
-                    self._meta['row_index'] = 0
                     self._meta['finished'] = True
                     self._finished = True
                     self._condition.notify_all()
 
-                if forward:
-                    file_io.atomic_write_string_to_file(self._meta_path,
-                                                        json.dumps(self._meta))
+                if forward_idx:
+                    # if need to save state, load the state wished to save
+                    current_idx = IDX(self._meta['file_idx'],
+                                      self._meta['row_idx'])
+                    _assign_idx_to_meta(self._meta, forward_idx)
+                    self._db_client.set_data(self._meta_path,
+                                             json.dumps(self._meta).encode())
+                    _assign_idx_to_meta(self._meta, current_idx)
 
     def start(self):
         with self._condition:
@@ -162,39 +161,32 @@ class Sender:
     def _put_requests(self):
         assert self._synced
         root_path = self._meta['root']
-        to_be_sent = self._meta['files'][self._send_file_idx:]
-        for index, file in enumerate(to_be_sent):
+        files = self._meta['files']
+        file_finished = False
+        # while it's not the last file, or it's the last file but not finished
+        while self._send_idx.file_idx < self._file_len - 1 or not file_finished:
             if self._stopped:
                 break
-            file_finished = False
-            while not file_finished and not self._stopped:
-                payload, row_num, file_finished = self._send_process(
-                    os.path.join(root_path, file),
-                    row_index=self._send_row_idx,
-                    row_num=self._send_row_num
-                )
+            payload, end_idx, file_finished = self._send_process(
+                root_path, files, self._send_idx, self._send_row_num)
 
-                if file_finished:
-                    if len(to_be_sent) - 1 == index:
-                        status = common_pb.Status(
-                            code=common_pb.STATUS_DATA_FINISHED)
-                    else:
-                        status = common_pb.Status(
-                            code=common_pb.STATUS_FILE_FINISHED)
-                else:
-                    status = common_pb.Status(code=common_pb.STATUS_SUCCESS)
-                req = st_pb.Request(status=status,
-                                    file_index=self._send_file_idx + index,
-                                    row_index=self._send_row_idx,
-                                    row_num=row_num,
-                                    payload=payload)
-                self._send_row_idx += row_num
-                # Queue will block this thread if no slot available.
-                self._request_queue.put(req)
-            self._send_row_idx = 0
+            if end_idx.file_idx == self._file_len - 1 and file_finished:
+                status = common_pb.Status(code=common_pb.STATUS_DATA_FINISHED)
+            else:
+                status = common_pb.Status(code=common_pb.STATUS_SUCCESS)
+            req = st_pb.Request(status=status,
+                                start_file_idx=self._send_idx.file_idx,
+                                start_row_idx=self._send_idx.row_idx,
+                                end_file_idx=end_idx.file_idx,
+                                end_row_idx=end_idx.row_idx,
+                                payload=payload)
+            self._send_idx = end_idx
+
+            # Queue will block this thread if no slot available.
+            self._request_queue.put(req)
         else:
             # put a sentinel to tell iterator to stop
-            self._request_queue.put(EndSentinel())
+            self._request_queue.put(_EndSentinel())
 
     def _request_iterator(self):
         while not self._finished and not self._stopped:
@@ -202,54 +194,62 @@ class Sender:
             # Queue object is thread-safe, no need to use Lock.
             try:
                 req = self._request_queue.get(timeout=5)
-                if isinstance(req, EndSentinel):
+                if isinstance(req, _EndSentinel):
                     break
                 yield req
             except queue.Empty:
                 pass
 
     def _send_process(self,
-                      file_path: str,
-                      row_index: int,
-                      row_num: int) -> (bytes, int, bool):
+                      root_path: str,
+                      files: typing.List[str],
+                      start_idx: IDX,
+                      row_num: int) -> (bytes, IDX, bool):
         """
-        This method handles file reading and build a base request. The request
-            it returns should fill `payload` and `row_num` field.
+        This method handles file reading and returns the payload.
         Args:
-            file_path: the file to read.
-            row_index: from which line to read.
-            row_num: suggested num of lines to read. `row_num` field in the
-                returned request can be different to this arg.
+            root_path: the root path of files.
+            files: all files to be sent.
+            start_idx: an IDX indicating from where the request should start.
+            row_num: suggested num of lines to read.
 
         Returns:
             a payload bytes,
-            a int indicating how many rows are read,
-            a bool indicating whether this file finishes.
+            an IDX indicating the start of next request, i.e., next to the end
+                row of this request. Be aware of file finished,
+            a bool indicating whether the last file in this request finishes.
         """
         raise NotImplementedError('_send_process not implemented.')
 
     def _resp_process(self,
-                      resp: st_pb.Response) -> bool:
+                      resp: st_pb.Response,
+                      current_idx: IDX) -> IDX:
         """
         This method handles the response returned by server. Return True if
             nothing is needed to do.
         Args:
             resp: a st_pb.Response to handle.
+            current_idx: a IDX indicating the progress of transmit.
 
         NOTE: Channel will return response in the original order of send
-            sequence, so no need for preceded & duplicated checks.
+            sequence, but peer might start from a former index(after restart),
+            so it is possible to have duplicate response.
 
         Returns:
-            whether to save the state. Return True if nothing is needed to do.
+            an IDX indicating where the state on disk should be updated to.
+                Return None if no need to save a new state. Note that this IDX
+                may be staler than meta's, meaning that some part of this resp
+                is fully processed and the remaining part is still processing.
         """
         raise NotImplementedError('_resp_process not implemented.')
 
 
 class Receiver:
     def __init__(self,
-                 meta_dir: str,
+                 meta_path: str,
                  output_path: str):
-        self._meta_path = _encode_meta_path(meta_dir, 'recv')
+        self._db_client = DBClient('dfs')
+        self._meta_path = os.path.join(meta_path, 'recv')
         self._meta = self._get_meta(output_path)
         self._output_path = self._meta['output_path']
         self._finished = self._meta['finished']
@@ -257,23 +257,22 @@ class Receiver:
         self._stopped = False
 
     @property
-    def finished(self):
+    def finished(self) -> bool:
         with self._condition:
             return self._finished
 
-    def _get_meta(self, output_path: str):
-        if gfile.Exists(self._meta_path):
-            with gfile.GFile(self._meta_path) as mf:
-                meta = json.load(mf)
+    def _get_meta(self, output_path: str) -> dict:
+        meta = self._db_client.get_data(self._meta_path)
+        if meta:
+            meta = json.loads(meta)
         else:
             meta = {
                 'output_path': output_path,
-                'file_index': 0,
-                'row_index': 0,
+                'file_idx': 0,
+                'row_idx': 0,
                 'finished': False
             }
-            file_io.atomic_write_string_to_file(self._meta_path,
-                                                json.dumps(meta))
+            self._db_client.set_data(self._meta_path, json.dumps(meta).encode())
         return meta
 
     def wait_for_finish(self):
@@ -290,8 +289,8 @@ class Receiver:
 
     def sync_state(self):
         with self._condition:
-            return st_pb.SyncResponse(file_index=self._meta['file_index'],
-                                      row_index=self._meta['row_index'])
+            return st_pb.SyncResponse(file_idx=self._meta['file_idx'],
+                                      row_idx=self._meta['row_idx'])
 
     def transmit(self, request_iterator: typing.Iterable):
         for r in request_iterator:
@@ -303,62 +302,53 @@ class Receiver:
                 # Channel assures us there is a subsequence of requests that
                 #   constitutes the original requests sequence, including order,
                 #   so we need to deal with preceded and duplicated requests.
-                preceded, duplicated = _check_order(r,
-                                                    self._meta['file_index'],
-                                                    self._meta['row_index'])
-                yield self._process_request(r, preceded, duplicated)
+                yield self._process_request(r)
         else:
+            # only finish when all requests have been processed, as sender may
+            #   miss some responses and send some duplicates
             with self._condition:
                 self._meta['finished'] = True
                 self._finished = True
                 self._condition.notify_all()
-                file_io.atomic_write_string_to_file(self._meta_path,
-                                                    json.dumps(self._meta))
+                self._db_client.set_data(self._meta_path,
+                                         json.dumps(self._meta))
 
     def _process_request(self,
-                         req: st_pb.Request,
-                         preceded: bool,
-                         duplicated: bool):
+                         req: st_pb.Request):
         with self._condition:
             try:
-                payload, forward = self._process(
-                    req,
-                    preceded=preceded,
-                    duplicated=duplicated
-                )
+                current_idx = IDX(self._meta['file_idx'], self._meta['row_idx'])
+                end_idx = IDX(req.end_file_idx, req.end_row_idx)
+                payload, forward_idx = self._recv_process(req, current_idx)
             except RecvProcessException as e:
-                return st_pb.Response(status=common_pb.Status(
-                    code=common_pb.STATUS_INVALID_REQUEST,
-                    error_message=repr(e)
-                ))
+                return st_pb.Response(
+                    status=common_pb.Status(
+                        code=common_pb.STATUS_INVALID_REQUEST,
+                        error_message=repr(e)))
+            # status is good from here as bad status has been returned
+            if current_idx < end_idx:
+                # if newer, update meta
+                _assign_idx_to_meta(self._meta, end_idx)
+            if forward_idx:
+                current_idx = IDX(self._meta['file_idx'],
+                                  self._meta['row_idx'])
+                _assign_idx_to_meta(self._meta, forward_idx)
+                self._db_client.set_data(self._meta_path,
+                                         json.dumps(self._meta).encode())
+                _assign_idx_to_meta(self._meta, current_idx)
 
-            if req.status.code == common_pb.STATUS_FILE_FINISHED:
-                self._meta['file_index'] = req.file_index + 1
-                self._meta['row_index'] = 0
-                status = common_pb.Status(code=common_pb.STATUS_FILE_FINISHED)
-            elif req.status.code == common_pb.STATUS_DATA_FINISHED:
-                self._meta['file_index'] = req.file_index + 1
-                self._meta['row_index'] = 0
-                # should not finish as there may be some duplicates to process.
-                status = common_pb.Status(code=common_pb.STATUS_DATA_FINISHED)
-            else:
-                self._meta['row_index'] = req.row_index + req.row_num
-                status = common_pb.Status(code=common_pb.STATUS_SUCCESS)
-
-            if forward:
-                file_io.atomic_write_string_to_file(self._meta_path,
-                                                    json.dumps(self._meta))
-
+            status = common_pb.Status()
+            status.MergeFrom(req.status)
             return st_pb.Response(status=status,
-                                  file_index=req.file_index,
-                                  row_index=req.row_index,
-                                  row_num=req.row_num,
+                                  start_file_idx=req.start_file_idx,
+                                  start_row_idx=req.start_row_idx,
+                                  end_file_idx=req.end_file_idx,
+                                  end_row_idx=req.end_row_idx,
                                   payload=payload)
 
-    def _process(self,
-                 req: st_pb.Request,
-                 preceded: bool,
-                 duplicated: bool) -> (bytes, bool):
+    def _recv_process(self,
+                      req: st_pb.Request,
+                      current_idx: IDX) -> (bytes, IDX):
         """
         This method should handle preceded and duplicated requests properly,
             and NOTE THAT SENDER MAY SEND DUPLICATED REQUESTS EVEN WHEN THE
@@ -366,14 +356,16 @@ class Receiver:
 
         Args:
             req: a request pb
-            preceded: whether this request is behind the expected next request.
-                i.e., a latter request arrive before a former request.
-            duplicated: whether this request is duplicated.
-        # TODO: add NOTE for force forward after finished.
+            current_idx: an IDX indicating the current transmit progress.
+
         Returns:
-            A payload bytes string, and a bool indicating whether the meta
-                should be dumped(saved). The bool should be True when a file or
-                a dumper finishes and the state needs to be recorded.
+            a payload bytes string.
+            an IDX indicating where the meta should be updated to and saved.
+                Return None if no need to save state.
+
+        NOTE:
+            after transmit finishes, meta will be automatically saved regardless
+                of the IDX returned here.
         """
         raise NotImplementedError('_receive_process not implemented.')
 
