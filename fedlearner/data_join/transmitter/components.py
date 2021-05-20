@@ -4,33 +4,13 @@ import os
 import queue
 import threading
 import typing
-from collections import namedtuple
-
-from tensorflow import gfile
 
 import fedlearner.common.common_pb2 as common_pb
-import fedlearner.common.stream_transmit_pb2 as st_pb
-import fedlearner.common.stream_transmit_pb2_grpc as st_grpc
-from fedlearner.channel.channel import Channel
+import fedlearner.common.transmitter_service_pb2 as transmitter_pb
+import fedlearner.common.transmitter_service_pb2_grpc as transmitter_grpc
 from fedlearner.common.db_client import DBClient
-
-# NOTE: it is convenient to compare between two different IDXes
-IDX = namedtuple('IDX', ['file_idx', 'row_idx'])
-
-
-def _assign_idx_to_meta(meta: dict,
-                        idx: IDX) -> None:
-    meta['file_idx'] = idx.file_idx
-    meta['row_idx'] = idx.row_idx
-
-
-class RecvProcessException(Exception):
-    pass
-
-
-class _EndSentinel:
-    """a sentinel for Sender's request queue"""
-    pass
+from fedlearner.data_join.transmitter.utils import IDX, _EndSentinel, \
+    RecvProcessException, _assign_idx_to_meta
 
 
 class Sender:
@@ -78,13 +58,13 @@ class Sender:
             self._db_client.set_data(self._meta_path, json.dumps(meta).encode())
         return meta
 
-    def add_client(self, client: st_grpc.StreamTransmitServiceStub):
+    def add_client(self, client: transmitter_grpc.TransmitterServiceStub):
         with self._condition:
             if not self._client:
                 self._client = client
 
     def _sync(self):
-        resp = self._client.SyncState(st_pb.SyncRequest())
+        resp = self._client.SyncState(transmitter_pb.SyncRequest())
         with self._condition:
             if self._meta['file_idx'] > resp.file_idx:
                 self._send_idx = IDX(resp.file_idx,
@@ -174,12 +154,12 @@ class Sender:
                 status = common_pb.Status(code=common_pb.STATUS_DATA_FINISHED)
             else:
                 status = common_pb.Status(code=common_pb.STATUS_SUCCESS)
-            req = st_pb.Request(status=status,
-                                start_file_idx=self._send_idx.file_idx,
-                                start_row_idx=self._send_idx.row_idx,
-                                end_file_idx=end_idx.file_idx,
-                                end_row_idx=end_idx.row_idx,
-                                payload=payload)
+            req = transmitter_pb.Request(status=status,
+                                         start_file_idx=self._send_idx.file_idx,
+                                         start_row_idx=self._send_idx.row_idx,
+                                         end_file_idx=end_idx.file_idx,
+                                         end_row_idx=end_idx.row_idx,
+                                         payload=payload)
             self._send_idx = end_idx
 
             # Queue will block this thread if no slot available.
@@ -222,7 +202,7 @@ class Sender:
         raise NotImplementedError('_send_process not implemented.')
 
     def _resp_process(self,
-                      resp: st_pb.Response,
+                      resp: transmitter_pb.Response,
                       current_idx: IDX) -> IDX:
         """
         This method handles the response returned by server. Return True if
@@ -289,8 +269,8 @@ class Receiver:
 
     def sync_state(self):
         with self._condition:
-            return st_pb.SyncResponse(file_idx=self._meta['file_idx'],
-                                      row_idx=self._meta['row_idx'])
+            return transmitter_pb.SyncResponse(file_idx=self._meta['file_idx'],
+                                               row_idx=self._meta['row_idx'])
 
     def transmit(self, request_iterator: typing.Iterable):
         for r in request_iterator:
@@ -314,14 +294,14 @@ class Receiver:
                                          json.dumps(self._meta))
 
     def _process_request(self,
-                         req: st_pb.Request):
+                         req: transmitter_pb.Request):
         with self._condition:
             try:
                 current_idx = IDX(self._meta['file_idx'], self._meta['row_idx'])
                 end_idx = IDX(req.end_file_idx, req.end_row_idx)
                 payload, forward_idx = self._recv_process(req, current_idx)
             except RecvProcessException as e:
-                return st_pb.Response(
+                return transmitter_pb.Response(
                     status=common_pb.Status(
                         code=common_pb.STATUS_INVALID_REQUEST,
                         error_message=repr(e)))
@@ -339,15 +319,15 @@ class Receiver:
 
             status = common_pb.Status()
             status.MergeFrom(req.status)
-            return st_pb.Response(status=status,
-                                  start_file_idx=req.start_file_idx,
-                                  start_row_idx=req.start_row_idx,
-                                  end_file_idx=req.end_file_idx,
-                                  end_row_idx=req.end_row_idx,
-                                  payload=payload)
+            return transmitter_pb.Response(status=status,
+                                           start_file_idx=req.start_file_idx,
+                                           start_row_idx=req.start_row_idx,
+                                           end_file_idx=req.end_file_idx,
+                                           end_row_idx=req.end_row_idx,
+                                           payload=payload)
 
     def _recv_process(self,
-                      req: st_pb.Request,
+                      req: transmitter_pb.Request,
                       current_idx: IDX) -> (bytes, IDX):
         """
         This method should handle preceded and duplicated requests properly,
@@ -368,89 +348,3 @@ class Receiver:
                 of the IDX returned here.
         """
         raise NotImplementedError('_receive_process not implemented.')
-
-
-class _StreamTransmitServicer(st_grpc.StreamTransmitServiceServicer):
-    def __init__(self,
-                 receiver: Receiver):
-        self._receiver = receiver
-
-    def SyncState(self, request, context):
-        return self._receiver.sync_state()
-
-    def Transmit(self, request_iterator, context):
-        return self._receiver.transmit(request_iterator)
-
-
-class StreamTransmit:
-    def __init__(self,
-                 listen_port: [str, int],
-                 remote_address: str,
-                 receiver: Receiver,
-                 sender: Sender = None):
-        """
-        Class for transmitting data with fail-safe.
-        Args:
-            listen_port: port to listen gRPC request.
-            remote_address: remote StreamTransmit address.
-            receiver: Receiver object to handle received requests and Channel
-                requests. This is needed even when it is only a client.
-            sender: Sender object to send requests.
-        """
-
-        self._receiver = receiver
-        self._listen_address = "[::]:{}".format(listen_port)
-        self._remote_address = remote_address
-        self._server = Channel(self._listen_address, self._remote_address)
-        self._server.subscribe(self._channel_callback)
-        st_grpc.add_StreamTransmitServiceServicer_to_server(
-            _StreamTransmitServicer(self._receiver),
-            self._server)
-        if sender:
-            self._sender = sender
-            self._client = st_grpc.StreamTransmitServiceStub(self._server)
-            self._sender.add_client(self._client)
-        else:
-            self._client = None
-            self._sender = None
-        self._condition = threading.Condition()
-        self._connected = False
-        self._terminated = False
-
-    def _channel_callback(self, channel, event):
-        if event == Channel.Event.PEER_CLOSED:
-            self._receiver.stop()
-            if self._sender:
-                self._sender.stop()
-        if event == Channel.Event.ERROR:
-            err = channel.error()
-            logging.fatal('[Bridge] suicide as channel exception: %s, '
-                          'maybe caused by peer restart', repr(err))
-            exit(138)  # Tell Scheduler to restart myself
-
-    def connect(self):
-        with self._condition:
-            if self._connected:
-                return
-            self._connected = True
-            self._server.connect()
-            if self._sender:
-                self._sender.start()
-
-    def wait_for_finish(self):
-        self._receiver.wait_for_finish()
-        if self._sender:
-            self._sender.wait_for_finish()
-
-    def terminate(self):
-        with self._condition:
-            if not self._connected:
-                return
-            if self._terminated:
-                return
-            self._terminated = True
-            self._condition.notify_all()
-            self._receiver.stop()
-            if self._sender:
-                self._sender.stop()
-            self._server.close()

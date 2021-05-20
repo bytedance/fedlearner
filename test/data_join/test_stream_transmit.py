@@ -7,10 +7,11 @@ import unittest
 
 from tensorflow import gfile
 
-import fedlearner.common.stream_transmit_pb2 as st_pb
+import fedlearner.common.transmitter_service_pb2 as transmitter_pb
 from fedlearner.common.db_client import DBClient
-from fedlearner.data_join.stream_transmit.stream_transmit import Sender, \
-    Receiver, StreamTransmit, IDX
+from fedlearner.data_join.transmitter.components import Sender, Receiver
+from fedlearner.data_join.transmitter.transmitter import Transmitter
+from fedlearner.data_join.transmitter.utils import IDX
 
 FILE_NUM = 500
 FILE_LEN = 100
@@ -75,11 +76,10 @@ class TestSender(Sender):
         send_ = os.path.join(self._output_path, 'send.txt')
         with gfile.GFile(send_, 'a') as f:
             f.write(payload)
-        return bytes(payload, encoding='utf-8'), \
-               end_idx, end_idx.row_idx == FILE_LEN
+        return payload.encode(), end_idx, end_idx.row_idx == FILE_LEN
 
     def _resp_process(self,
-                      resp: st_pb.Response,
+                      resp: transmitter_pb.Response,
                       current_idx: IDX) -> IDX:
         start_idx = IDX(resp.start_file_idx, resp.start_row_idx)
         end_idx = IDX(resp.end_file_idx, resp.end_row_idx)
@@ -96,7 +96,7 @@ class TestSender(Sender):
 
 class TestReceiver(Receiver):
     def _recv_process(self,
-                      req: st_pb.Request,
+                      req: transmitter_pb.Request,
                       current_idx: IDX) -> (bytes, IDX):
         start_idx = IDX(req.start_file_idx, req.start_row_idx)
         end_idx = IDX(req.end_file_idx, req.end_row_idx)
@@ -125,7 +125,7 @@ class TestStreamTransmit(unittest.TestCase):
         gfile.MakeDirs(self._mgr2_path)
 
     def _transmit(self):
-        self._manager1 = StreamTransmit(
+        self._manager1 = Transmitter(
             listen_port=10086,
             remote_address='localhost:10010',
             receiver=TestReceiver(meta_path='1',
@@ -136,7 +136,7 @@ class TestStreamTransmit(unittest.TestCase):
                               file_paths=self.file_paths,
                               root_path=self._test_root)
         )
-        self._manager2 = StreamTransmit(
+        self._manager2 = Transmitter(
             listen_port=10010,
             remote_address='localhost:10086',
             receiver=TestReceiver(meta_path='2',
