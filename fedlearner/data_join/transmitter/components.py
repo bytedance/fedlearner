@@ -142,15 +142,15 @@ class Sender:
         assert self._synced
         root_path = self._meta['root']
         files = self._meta['files']
-        file_finished = False
+        data_finished = False
         # while it's not the last file, or it's the last file but not finished
-        while self._send_idx.file_idx < self._file_len - 1 or not file_finished:
+        while self._send_idx.file_idx < self._file_len and not data_finished:
             if self._stopped:
                 break
-            payload, end_idx, file_finished = self._send_process(
+            payload, end_idx, data_finished = self._send_process(
                 root_path, files, self._send_idx, self._send_row_num)
 
-            if end_idx.file_idx == self._file_len - 1 and file_finished:
+            if end_idx.file_idx == self._file_len - 1 and data_finished:
                 status = common_pb.Status(code=common_pb.STATUS_DATA_FINISHED)
             else:
                 status = common_pb.Status(code=common_pb.STATUS_SUCCESS)
