@@ -51,6 +51,9 @@ if __name__ == "__main__":
     parser.add_argument("--output_type", type=str, default='raw_data',
                         choices=['raw_data', 'data_block'],
                         help='output type of data')
+    parser.add_argument("--compressed_type", type=str, default='',
+                        choices=['', 'GZIP'],
+                        help='the compressed type of output data block')
     parser.add_argument("--data_source_name", type=str, default="",
                         help='data source name to output')
     parser.add_argument("--data_block_dump_threshold", type=int, default=0,
@@ -89,6 +92,7 @@ if __name__ == "__main__":
                      wildcard=args.input_file_wildcard,
                      output_type=args.output_type,
                      output_partition_num=args.output_partition_num,
+                     compression_type=args.compressed_type,
                      data_source_name=args.data_source_name,
                      data_block_threshold=args.data_block_dump_threshold,
                      check_success_tag=args.check_success_tag,

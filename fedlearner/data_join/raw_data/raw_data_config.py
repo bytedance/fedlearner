@@ -36,8 +36,7 @@ class RawDataJobConfig(object):
                         job_type,
                         output_type,
                         output_partition_num,
-                        output_path,
-                        compression_type):
+                        output_path):
         config_dict = {
             Constants.job_type_key: job_type,
             Constants.input_files_key: ",".join(input_files),
@@ -45,7 +44,6 @@ class RawDataJobConfig(object):
             Constants.output_type_key: output_type,
             Constants.output_partition_num_key: output_partition_num,
             Constants.output_path_key: output_path,
-            Constants.compression_type_key: compression_type,
         }
         with gfile.Open(self._config_path, 'w') as f:
             f.write(json.dumps(config_dict))
