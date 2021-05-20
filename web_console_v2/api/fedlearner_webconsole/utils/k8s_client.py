@@ -316,6 +316,21 @@ class K8sClient(object):
         except ApiException as e:
             self._raise_runtime_error(e)
 
+    def get_pod_log(self, name: str, namespace: str, tail_lines: int):
+        try:
+            return self.core.read_namespaced_pod_log(name=name,
+                                                     namespace=namespace,
+                                                     tail_lines=tail_lines)
+        except ApiException as e:
+            self._raise_runtime_error(e)
+
+    def get_pods(self, namespace, label_selector):
+        try:
+            return self.core.list_namespaced_pod(namespace=namespace,
+                                                 label_selector=label_selector)
+        except ApiException as e:
+            self._raise_runtime_error(e)
+
 
 k8s_client = FakeK8sClient()
 if Envs.FLASK_ENV == 'production' or \

@@ -13,12 +13,13 @@
 # limitations under the License.
 # coding: utf-8
 import json
-import time
 import logging
+import time
 
 from flask_restful import Resource, reqparse, abort
 from google.protobuf.json_format import MessageToDict
 
+from envs import Envs
 from fedlearner_webconsole.exceptions import (
     NotFoundException, InternalException
 )
@@ -29,7 +30,6 @@ from fedlearner_webconsole.rpc.client import RpcClient
 from fedlearner_webconsole.utils.es import es
 from fedlearner_webconsole.utils.kibana import Kibana
 from fedlearner_webconsole.workflow.models import Workflow
-from envs import Envs
 
 
 def _get_job(job_id):
@@ -249,6 +249,66 @@ class KibanaMetricsApi(Resource):
             abort(400, message=repr(e))
 
 
+class PeerKibanaMetricsApi(Resource):
+    def get(self, workflow_uuid, participant_id, job_name):
+        parser = reqparse.RequestParser()
+        parser.add_argument('type', type=str, location='args',
+                            required=True,
+                            choices=('Ratio', 'Numeric'),
+                            help='Visualization type is required. Choices: '
+                                 'Rate, Ratio, Numeric, Time, Timer')
+        parser.add_argument('interval', type=str, location='args',
+                            default='',
+                            help='Time bucket interval length, '
+                                 'defaults to be automated by Kibana.')
+        parser.add_argument('x_axis_field', type=str, location='args',
+                            default='tags.event_time',
+                            help='Time field (X axis) is required.')
+        parser.add_argument('query', type=str, location='args',
+                            help='Additional query string to the graph.')
+        parser.add_argument('start_time', type=int, location='args',
+                            default=-1,
+                            help='Earliest <x_axis_field> time of data.'
+                                 'Unix timestamp in secs.')
+        parser.add_argument('end_time', type=int, location='args',
+                            default=-1,
+                            help='Latest <x_axis_field> time of data.'
+                                 'Unix timestamp in secs.')
+        # Ratio visualization
+        parser.add_argument('numerator', type=str, location='args',
+                            help='Numerator is required in Ratio '
+                                 'visualization. '
+                                 'A query string similar to args::query.')
+        parser.add_argument('denominator', type=str, location='args',
+                            help='Denominator is required in Ratio '
+                                 'visualization. '
+                                 'A query string similar to args::query.')
+        # Numeric visualization
+        parser.add_argument('aggregator', type=str, location='args',
+                            default='Average',
+                            choices=('Average', 'Sum', 'Max', 'Min', 'Variance',
+                                     'Std. Deviation', 'Sum of Squares'),
+                            help='Aggregator type is required in Numeric and '
+                                 'Timer visualization.')
+        parser.add_argument('value_field', type=str, location='args',
+                            help='The field to be aggregated on is required '
+                                 'in Numeric visualization.')
+        args = parser.parse_args()
+        workflow = Workflow.query.filter_by(uuid=workflow_uuid).first()
+        if workflow is None:
+            raise NotFoundException()
+        project_config = workflow.project.get_config()
+        party = project_config.participants[participant_id]
+        client = RpcClient(project_config, party)
+        resp = client.get_job_kibana(job_name, json.dumps(args))
+        if resp.status.code != common_pb2.STATUS_SUCCESS:
+            raise InternalException(resp.status.msg)
+        metrics = json.loads(resp.metrics)
+        # metrics is a list of 2-element lists,
+        #   each 2-element list is a [x, y] pair.
+        return {'data': metrics}
+
+
 def initialize_job_apis(api):
     api.add_resource(JobApi, '/jobs/<int:job_id>')
     api.add_resource(PodLogApi,
@@ -262,6 +322,10 @@ def initialize_job_apis(api):
     api.add_resource(PeerJobMetricsApi,
                      '/workflows/<string:workflow_uuid>/peer_workflows'
                      '/<int:participant_id>/jobs/<string:job_name>/metrics')
+    api.add_resource(PeerKibanaMetricsApi,
+                     '/workflows/<string:workflow_uuid>/peer_workflows'
+                     '/<int:participant_id>/jobs/<string:job_name>'
+                     '/kibana_metrics')
     api.add_resource(JobEventApi, '/jobs/<int:job_id>/events')
     api.add_resource(PeerJobEventsApi,
                      '/workflows/<string:workflow_uuid>/peer_workflows'

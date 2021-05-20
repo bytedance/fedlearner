@@ -15,6 +15,7 @@
 # coding: utf-8
 # pylint: disable=logging-format-interpolation
 import logging
+import datetime
 from kubernetes import client
 
 _RAISE_EXCEPTION_KEY = 'raise_exception'
@@ -129,7 +130,6 @@ class FakeK8sClient(object):
                                            args=['test'])
                     ]))))
 
-
     def delete_flapp(self, flapp_name):
         pass
 
@@ -144,18 +144,15 @@ class FakeK8sClient(object):
                     'resourceVersion': '780480990'
                 }
             },
-            'items': [
-                {
-                    'metadata': {
-                        'name': '{}-0'.format(flapp_name)
-                    }
-                },
-                {
-                    'metadata': {
-                        'name': '{}-1'.format(flapp_name)
-                    }
+            'items': [{
+                'metadata': {
+                    'name': '{}-0'.format(flapp_name)
                 }
-            ]
+            }, {
+                'metadata': {
+                    'name': '{}-1'.format(flapp_name)
+                }
+            }]
         }
         flapp = {
             'kind': 'FLAPP',
@@ -172,7 +169,6 @@ class FakeK8sClient(object):
                             '-master-0-717b53c4-'
                             'fef7-4d65-a309-63cf62494286': {}
                         }
-
                     },
                     'Worker': {
                         'active': {
@@ -183,9 +179,7 @@ class FakeK8sClient(object):
                             '-worker-1-accef16a-'
                             '317f-440f-8f3f-7dd5b3552d25': {}
                         }
-
                     }
-
                 }
             }
         }
@@ -219,10 +213,9 @@ class FakeK8sClient(object):
             }
         }
 
-    def create_sparkapplication(
-            self,
-            json_object: dict,
-            namespace: str = 'default') -> dict:
+    def create_sparkapplication(self,
+                                json_object: dict,
+                                namespace: str = 'default') -> dict:
         logging.info('======================')
         logging.info(f'create spark application, namespace: {namespace}, '
                      f'json: {json_object}')
@@ -246,8 +239,7 @@ class FakeK8sClient(object):
 
     def delete_sparkapplication(self,
                                 name: str,
-                                namespace: str = 'default'
-                                ) -> dict:
+                                namespace: str = 'default') -> dict:
         logging.info('======================')
         logging.info(
             f'delete spark application, name: {name}, namespace: {namespace}')
@@ -263,3 +255,9 @@ class FakeK8sClient(object):
                 'uid': '790603b6-9dd6-11eb-9282-b8599fb51ea8'
             }
         }
+
+    def get_pod_log(self, name: str, namespace: str, tail_lines: int):
+        return [str(datetime.datetime.now())]
+
+    def get_pods(self, namespace, label_selector):
+        return ['fake_fedlearner_web_console_v2']

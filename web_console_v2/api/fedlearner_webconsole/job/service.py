@@ -45,7 +45,7 @@ class JobService:
             resp = client.check_job_ready(job.name)
             if resp.status.code != common_pb2.STATUS_SUCCESS:
                 emit_counter('check_peer_ready_failed', 1)
-                return False
+                return True
             if not resp.is_ready:
                 return False
         return True
