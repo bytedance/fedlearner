@@ -160,9 +160,9 @@ class RawDataTests(unittest.TestCase):
                 self._input_dir, self._num_partition,
                 self._num_item_per_partition)
 
-    def tearDown(self) -> None:
-        if gfile.Exists(self._job_path):
-            gfile.DeleteRecursively(self._job_path)
+    # def tearDown(self) -> None:
+    #     if gfile.Exists(self._job_path):
+    #         gfile.DeleteRecursively(self._job_path)
 
     def _check_raw_data(self, file_paths, wanted_cnt):
         total_cnt = 0
@@ -195,7 +195,6 @@ class RawDataTests(unittest.TestCase):
             "input_files": "%s",
             "schema_path": "%s",
             "output_type": "raw_data",
-            "compression_type": "GZIP",
             "output_path": "%s",
             "output_partition_num": %d
         }""" % (JobType.Streaming, ','.join(self._input_files),
@@ -234,7 +233,6 @@ class RawDataTests(unittest.TestCase):
                          output_partition_num=output_partition_num,
                          raw_data_publish_dir=raw_data_publish_dir,
                          output_type=OutputType.RawData,
-                         compression_type="GZIP",
                          check_success_tag=True,
                          single_subfolder=True,
                          upload_dir=upload_dir,

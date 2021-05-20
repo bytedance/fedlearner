@@ -87,7 +87,6 @@ class RawData:
         output_path = config[Constants.output_path_key]
         partition_num = config[Constants.output_partition_num_key]
         schema_file_path = config[Constants.schema_path_key]
-        compression_type = config[Constants.compression_type_key]
 
         logging.info("Deal with new files %s", input_files)
 
@@ -108,9 +107,8 @@ class RawData:
         write_options = {
             "recordType": "Example",
             "maxRecordsPerFile": 1 << 20,
+            "codec": 'org.apache.hadoop.io.compress.GzipCodec',
         }
-        if compression_type and compression_type.upper() == "GZIP":
-            write_options["codec"] = 'org.apache.hadoop.io.compress.GzipCodec'
         output_df.write \
             .mode("overwrite") \
             .format("tfrecords") \

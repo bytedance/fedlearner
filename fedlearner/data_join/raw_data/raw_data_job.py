@@ -126,8 +126,7 @@ class RawDataJob:
             input_files, schema_file_path, self._job_type,
             OutputType.RawData,
             output_partition_num=self._output_partition_num,
-            output_path=output_path,
-            compression_type=self._compression_type)
+            output_path=output_path)
 
         task_name = self._encode_spark_task_name(job_id)
         self._launch_spark_job(task_name, job_config.config_path)
