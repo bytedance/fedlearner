@@ -1,4 +1,5 @@
 import logging
+import os
 import sys
 import time
 from string import Template
@@ -202,12 +203,11 @@ spec:
 
     @staticmethod
     def _local_task_config(name, file_config):
+        local_jars = os.environ.get("SPARK_JARS", "")
         return {
             FakeK8SClient.name_key(): name,
             FakeK8SClient.entry_key(): file_config.entry_file(),
             FakeK8SClient.arg_key(): [
                 "--config={}".format(file_config.config_file()),
-                "--packages={}".format(
-                    "org.tensorflow:tensorflow-hadoop:1.15.0,"
-                    "org.tensorflow/spark-tensorflow-connector_2.12:1.15.0")]
+                "--packages={}".format(local_jars)]
         }

@@ -30,6 +30,12 @@ class RawDataTests(unittest.TestCase):
             generator.generate_input_data(
                 self._input_dir, self._num_partition,
                 self._num_item_per_partition)
+        cur_dir = os.path.dirname(os.path.realpath(__file__))
+        jar_path = os.path.join(cur_dir, 'jars')
+        self._jars = []
+        for filename in gfile.ListDirectory(jar_path):
+            self._jars.append(os.path.join(jar_path, filename))
+        os.environ['SPARK_JARS'] = ','.join(self._jars)
 
     def tearDown(self) -> None:
         if gfile.Exists(self._job_path):
@@ -81,9 +87,7 @@ class RawDataTests(unittest.TestCase):
         }""" % (','.join(self._input_files),
                 data_block_threshold, output_path)
         config = json.loads(json_str)
-        processor = RawData(
-            None,
-            ["org.tensorflow:tensorflow-hadoop:1.15.0"])
+        processor = RawData(None, self._jars)
         processor.run(config)
         processor.stop()
 
