@@ -42,6 +42,7 @@ class RawDataJob:
                  files_per_job_limit=0,
                  upload_dir="",
                  long_running=False,
+                 spark_image='',
                  spark_k8s_config_path='',
                  spark_k8s_namespace='',
                  spark_dependent_package='',
@@ -59,6 +60,7 @@ class RawDataJob:
         self._output_type = output_type
         self._upload_dir = upload_dir
         self._long_running = long_running
+        self._spark_image = spark_image
         self._spark_k8s_config_path = spark_k8s_config_path
         self._spark_k8s_namespace = spark_k8s_namespace
         self._spark_dependent_package = spark_dependent_package
@@ -197,6 +199,7 @@ class RawDataJob:
 
     def _encode_spark_file_config(self, config_path):
         return SparkFileConfig(
+            self._spark_image,
             os.path.join(self._upload_dir, self._spark_entry_script_name),
             config_path,
             self._spark_dependent_package)

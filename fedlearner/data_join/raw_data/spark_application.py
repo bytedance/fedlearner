@@ -20,8 +20,9 @@ class _DictConfig(object):
 
 
 class SparkFileConfig(_DictConfig):
-    def __init__(self, entry_file, config_file, dep_file=None):
+    def __init__(self, image, entry_file, config_file, dep_file=None):
         attr = dict()
+        attr["image"] = image
         attr["entry_file"] = entry_file
         attr["config_file"] = config_file
         attr["dep_file"] = dep_file
@@ -139,7 +140,7 @@ spec:
   type: Python
   pythonVersion: "3"
   mode: cluster
-  image: hub.byted.org/fedlearner/fedlearner_dataflow:334b53906c2be09becd98c5489ba3c9e
+  image: ${file_config.image}
   imagePullPolicy: Always
   mainApplicationFile: ${file_config.entry_file}
   arguments:
