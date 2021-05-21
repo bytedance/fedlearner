@@ -88,6 +88,12 @@ class Sender:
             if self._stopped:
                 break
             with self._condition:
+                if resp.status.code == common_pb.STATUS_INVALID_REQUEST:
+                    # TODO(zhangzihui): error handling
+                    logging.warning(
+                        '[Transmit]: STATUS_INVALID_REQUEST returned: %s', resp)
+                    continue
+
                 current_idx = IDX(self._meta['file_idx'],
                                   self._meta['row_idx'])
                 resp_idx = IDX(resp.end_file_idx, resp.end_row_idx)
@@ -95,13 +101,7 @@ class Sender:
                 if resp_idx > current_idx:
                     self._meta['file_idx'] = resp_idx.file_idx
                     self._meta['row_idx'] = resp_idx.row_idx
-
-                if resp.status.code == common_pb.STATUS_INVALID_REQUEST:
-                    # TODO(zhangzihui): error handling
-                    logging.warning(
-                        '[Transmit]: STATUS_INVALID_REQUEST returned: %s', resp)
-                    continue
-                elif resp.status.code == common_pb.STATUS_DATA_FINISHED:
+                if resp.status.code == common_pb.STATUS_DATA_FINISHED:
                     self._meta['finished'] = True
                     self._finished = True
                     self._condition.notify_all()
@@ -114,6 +114,49 @@ class Sender:
                     self._db_client.set_data(self._meta_path,
                                              json.dumps(self._meta).encode())
                     _assign_idx_to_meta(self._meta, current_idx)
+
+    def _put_requests(self):
+        assert self._synced
+        root_path = self._meta['root']
+        files = self._meta['files']
+        data_finished = False
+        # while not data finished
+        while self._send_idx.file_idx < self._file_len and not data_finished:
+            if self._stopped:
+                break
+            # the payload to send, the IDX next to the end idx of payload,
+            # and if no more data to send
+            payload, end_idx, data_finished = self._send_process(
+                root_path, files, self._send_idx, self._send_row_num)
+            if data_finished:
+                status = common_pb.Status(code=common_pb.STATUS_DATA_FINISHED)
+            else:
+                status = common_pb.Status(code=common_pb.STATUS_SUCCESS)
+            req = transmitter_pb.Request(status=status,
+                                         start_file_idx=self._send_idx.file_idx,
+                                         start_row_idx=self._send_idx.row_idx,
+                                         end_file_idx=end_idx.file_idx,
+                                         end_row_idx=end_idx.row_idx,
+                                         payload=payload)
+
+            self._send_idx = end_idx
+            # Queue will block this thread if no slot available.
+            self._request_queue.put(req)
+        else:
+            # put a sentinel to tell iterator to stop
+            self._request_queue.put(_EndSentinel())
+
+    def _request_iterator(self):
+        while not self._finished and not self._stopped:
+            # use timeout to check condition rather than blocking continuously.
+            # Queue object is thread-safe, no need to use Lock.
+            try:
+                req = self._request_queue.get(timeout=5)
+                if isinstance(req, _EndSentinel):
+                    break
+                yield req
+            except queue.Empty:
+                pass
 
     def start(self):
         with self._condition:
@@ -138,48 +181,6 @@ class Sender:
                 self._send_thread.join()
                 self._condition.notify_all()
 
-    def _put_requests(self):
-        assert self._synced
-        root_path = self._meta['root']
-        files = self._meta['files']
-        data_finished = False
-        # while it's not the last file, or it's the last file but not finished
-        while self._send_idx.file_idx < self._file_len and not data_finished:
-            if self._stopped:
-                break
-            payload, end_idx, data_finished = self._send_process(
-                root_path, files, self._send_idx, self._send_row_num)
-
-            if end_idx.file_idx == self._file_len - 1 and data_finished:
-                status = common_pb.Status(code=common_pb.STATUS_DATA_FINISHED)
-            else:
-                status = common_pb.Status(code=common_pb.STATUS_SUCCESS)
-            req = transmitter_pb.Request(status=status,
-                                         start_file_idx=self._send_idx.file_idx,
-                                         start_row_idx=self._send_idx.row_idx,
-                                         end_file_idx=end_idx.file_idx,
-                                         end_row_idx=end_idx.row_idx,
-                                         payload=payload)
-            self._send_idx = end_idx
-
-            # Queue will block this thread if no slot available.
-            self._request_queue.put(req)
-        else:
-            # put a sentinel to tell iterator to stop
-            self._request_queue.put(_EndSentinel())
-
-    def _request_iterator(self):
-        while not self._finished and not self._stopped:
-            # use timeout to check condition rather than blocking continuously.
-            # Queue object is thread-safe, no need to use Lock.
-            try:
-                req = self._request_queue.get(timeout=5)
-                if isinstance(req, _EndSentinel):
-                    break
-                yield req
-            except queue.Empty:
-                pass
-
     def _send_process(self,
                       root_path: str,
                       files: typing.List[str],
@@ -197,7 +198,7 @@ class Sender:
             a payload bytes,
             an IDX indicating the start of next request, i.e., next to the end
                 row of this request. Be aware of file finished,
-            a bool indicating whether the last file in this request finishes.
+            a bool indicating whether all of the data have been read.
         """
         raise NotImplementedError('_send_process not implemented.')
 
