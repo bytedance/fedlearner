@@ -53,6 +53,7 @@ end_date=$(normalize_env_to_args '--end_date' $END_DATE)
 output_type=$(normalize_env_to_args '--output_type' $OUTPUT_TYPE)
 data_source_name=$(normalize_env_to_args '--data_source_name' $DATA_SOURCE_NAME)
 data_block_dump_threshold=$(normalize_env_to_args '--data_block_dump_threshold' $DATA_BLOCK_DUMP_THRESHOLD)
+spark_image=$(normalize_env_to_args '--spark_image' $SPARK_IMAGE)
 spark_driver_cores=$(normalize_env_to_args '--spark_driver_cores' $SPARK_DRIVER_CORES)
 spark_driver_memory=$(normalize_env_to_args '--spark_driver_memory' $SPARK_DRIVER_MEMORY)
 spark_executor_cores=$(normalize_env_to_args '--spark_executor_cores' $SPARK_EXECUTOR_CORES)
@@ -73,5 +74,5 @@ python -m fedlearner.data_join.cmd.raw_data_cli \
     $input_file_wildcard $LONG_RUNNING $CHECK_SUCCESS_TAG \
     $SINGLE_SUBFOLDER $files_per_job_limit $output_type \
     $data_source_name $data_block_dump_threshold \
-    $spark_driver_cores $spark_driver_memory \
+    $spark_image $spark_driver_cores $spark_driver_memory \
     $spark_executor_cores $spark_executor_memory $spark_executor_instances
