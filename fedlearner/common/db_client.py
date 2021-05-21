@@ -21,6 +21,7 @@ from fedlearner.common.dfs_client import DFSClient
 from fedlearner.common.mysql_client import MySQLClient
 from fedlearner.common.leveldb import LevelDB
 
+
 def get_kvstore_config(kvstore_type):
     if kvstore_type == 'mysql':
         database = os.environ.get('DB_DATABASE', 'fedlearner')
