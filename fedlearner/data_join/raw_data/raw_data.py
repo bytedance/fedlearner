@@ -30,7 +30,7 @@ def start_spark(app_name='my_spark_app',
     # create Spark JAR packages string
     if jar_packages:
         spark_jars_packages = ','.join(list(jar_packages))
-        spark_builder.config('spark.jars.packages', spark_jars_packages)
+        spark_builder.config('spark.jars', spark_jars_packages)
 
     if files:
         spark_files = ','.join(list(files))
