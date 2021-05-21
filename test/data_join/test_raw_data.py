@@ -159,10 +159,16 @@ class RawDataTests(unittest.TestCase):
             generator.generate_input_data(
                 self._input_dir, self._num_partition,
                 self._num_item_per_partition)
+        cur_dir = os.path.dirname(os.path.realpath(__file__))
+        jar_path = os.path.join(cur_dir, 'jars')
+        self._jars = []
+        for filename in gfile.ListDirectory(jar_path):
+            self._jars.append(os.path.join(jar_path, filename))
+        os.environ['SPARK_JARS'] = ','.join(self._jars)
 
-    # def tearDown(self) -> None:
-    #     if gfile.Exists(self._job_path):
-    #         gfile.DeleteRecursively(self._job_path)
+    def tearDown(self) -> None:
+        if gfile.Exists(self._job_path):
+            gfile.DeleteRecursively(self._job_path)
 
     def _check_raw_data(self, file_paths, wanted_cnt):
         total_cnt = 0
@@ -200,9 +206,7 @@ class RawDataTests(unittest.TestCase):
         }""" % (JobType.Streaming, ','.join(self._input_files),
                 schema_file_path, output_path, output_partition_num)
         config = json.loads(json_str)
-        processor = RawData(
-            None,
-            ["org.tensorflow/spark-tensorflow-connector_2.12:1.15.0"])
+        processor = RawData(None, self._jars)
         processor.run(config)
         processor.stop()
 
