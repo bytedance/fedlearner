@@ -24,6 +24,7 @@ try:
 except ImportError:
     import tensorflow as tf
     from tensorflow import gfile
+from tensorflow.python.lib.io import file_io
 
 
 class DFSClient(object):
@@ -52,8 +53,7 @@ class DFSClient(object):
                 logging.warning("create directory %s failed,"
                                 " reason: %s", base_dir, str(e))
                 return False
-        with gfile.Open(key_path, 'wb') as file:
-            file.write(data)
+        file_io.atomic_write_string_to_file(key_path, data)
         return True
 
     def delete(self, key):
