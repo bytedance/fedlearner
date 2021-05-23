@@ -122,10 +122,9 @@ class RawDataJob:
             gfile.DeleteRecursively(output_path)
 
         # 1. write config
-        schema_file_path = os.path.join(self._root_path, "data.schema.json")
         job_config = RawDataJobConfig(self._upload_dir, job_id)
         job_config.raw_data_config(
-            input_files, schema_file_path, self._job_type,
+            input_files, self._job_type,
             OutputType.RawData,
             output_partition_num=self._output_partition_num,
             output_path=output_path)

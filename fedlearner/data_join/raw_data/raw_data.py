@@ -4,10 +4,8 @@ import json
 import os
 
 from cityhash import CityHash32  # pylint: disable=no-name-in-module
-from tensorflow.compat.v1 import gfile
 from pyspark import SparkFiles
 from pyspark.sql import SparkSession
-from pyspark.sql.types import StructType
 
 from fedlearner.data_join.raw_data.common import Constants, DataKeyword, \
     JobType, OutputType
@@ -86,17 +84,12 @@ class RawData:
         input_files = config[Constants.input_files_key].split(",")
         output_path = config[Constants.output_path_key]
         partition_num = config[Constants.output_partition_num_key]
-        schema_file_path = config[Constants.schema_path_key]
 
         logging.info("Deal with new files %s", input_files)
-
-        # get data schema
-        data_schema = self._get_data_schema(schema_file_path, input_files[0])
 
         # read input data
         data_df = self._spark.read \
             .format("tfrecords") \
-            .schema(data_schema) \
             .option("recordType", "Example") \
             .load(",".join(input_files))
 
@@ -157,25 +150,6 @@ class RawData:
             conf=write_options)
 
         logging.info("Export data to %s finished", output_path)
-
-    def _get_data_schema(self, schema_file_path, sample_file):
-        try:
-            with gfile.Open(schema_file_path, 'r') as f:
-                saved_schema = json.load(f)
-            schema = StructType.fromJson(saved_schema)
-            return schema
-        except Exception:  # pylint: disable=broad-except
-            logging.info("Schema file %s not exists, infer from %s",
-                         schema_file_path, sample_file)
-            # infer schema from one file
-            data_df = self._spark.read \
-                .format("tfrecords") \
-                .option("recordType", "Example") \
-                .load(sample_file)
-            gfile.MakeDirs(os.path.dirname(schema_file_path))
-            with gfile.Open(schema_file_path, 'w') as f:
-                json.dump(data_df.schema.jsonValue(), f)
-            return data_df.schema
 
     def _partition_and_sort(self, data_df, job_type, partition_num):
         partition_field = self._get_partition_field(job_type)
