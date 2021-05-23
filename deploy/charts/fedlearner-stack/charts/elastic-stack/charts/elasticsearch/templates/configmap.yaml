@@ -72,6 +72,14 @@ data:
       zen:
         ping.unicast.hosts: ${DISCOVERY_SERVICE:}
         minimum_master_nodes: ${MINIMUM_MASTER_NODES:2}
+{{- else if hasPrefix "7." .Values.appVersion }}
+    # see https://github.com/kubernetes/kubernetes/issues/3595
+    bootstrap.memory_lock: ${BOOTSTRAP_MEMORY_LOCK:false}
+
+    discovery:
+      zen:
+        ping.unicast.hosts: ${DISCOVERY_SERVICE:}
+        minimum_master_nodes: ${MINIMUM_MASTER_NODES:2}
 
 {{- if and ( .Values.cluster.xpackEnable ) ( gt $minorAppVersion 6.3 )  }}
     # see https://www.elastic.co/guide/en/x-pack/current/xpack-settings.html
