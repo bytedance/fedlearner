@@ -1,6 +1,5 @@
 class Constants:
     input_files_key = "input_files"
-    schema_path_key = "schema_path"
     job_type_key = "job_type"
     output_partition_num_key = "output_partition_num"
     output_type_key = "output_type"
