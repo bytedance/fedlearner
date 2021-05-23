@@ -87,7 +87,8 @@ class ElasticSearchHandler(Handler):
                 ):
                     self._create_template_and_index(index_type)
         # suppress ES logger
-        logging.getLogger('elasticsearch').setLevel(logging.CRITICAL)
+        import logging as _logging
+        _logging.getLogger('elasticsearch').setLevel(_logging.CRITICAL)
         self._emit_batch = []
         self._batch_size = Config.ES_BATCH_SIZE
         self._lock = threading.RLock()
