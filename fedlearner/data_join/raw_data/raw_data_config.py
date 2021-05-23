@@ -32,7 +32,6 @@ class RawDataJobConfig(object):
 
     def raw_data_config(self,
                         input_files,
-                        schema_file_path,
                         job_type,
                         output_type,
                         output_partition_num,
@@ -40,7 +39,6 @@ class RawDataJobConfig(object):
         config_dict = {
             Constants.job_type_key: job_type,
             Constants.input_files_key: ",".join(input_files),
-            Constants.schema_path_key: schema_file_path,
             Constants.output_type_key: output_type,
             Constants.output_partition_num_key: output_partition_num,
             Constants.output_path_key: output_path,
