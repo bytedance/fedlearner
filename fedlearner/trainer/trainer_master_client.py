@@ -18,7 +18,7 @@ import os
 import time
 import grpc
 
-from fedlearner.common import logging
+from fedlearner.common import fl_logging
 from fedlearner.common import trainer_master_service_pb2 as tm_pb
 from fedlearner.common import trainer_master_service_pb2_grpc as tm_grpc
 from fedlearner.proxy.channel import make_insecure_channel, ChannelType
@@ -37,15 +37,15 @@ class _TrainerMasterClient(object):
         response = _grpc_with_retry(
             lambda: self._client.RequestDataBlock(request))
         if response.status.code == common_pb.StatusCode.STATUS_SUCCESS:
-            logging.debug("succeeded to get datablock, id:%s, data_path: %s",
+            fl_logging.debug("succeeded to get datablock, id:%s, data_path: %s",
                           response.block_id, response.data_path)
             return response
         if response.status.code == \
             common_pb.StatusCode.STATUS_INVALID_DATA_BLOCK:
-            logging.error("invalid data block id: %s", request.block_id)
+            fl_logging.error("invalid data block id: %s", request.block_id)
             return None
         if response.status.code == common_pb.StatusCode.STATUS_DATA_FINISHED:
-            logging.info("data block finished")
+            fl_logging.info("data block finished")
             return None
         raise RuntimeError("RequestDataBlock error, code: %s, msg: %s"% \
             (common_pb.StatusCode.Name(response.status.code),
@@ -63,12 +63,12 @@ class _TrainerMasterClient(object):
                 return True
             if response.status.code == \
                 common_pb.StatusCode.STATUS_WAIT_FOR_SYNCING_CHECKPOINT:
-                logging.info("waiting master ready...")
+                fl_logging.info("waiting master ready...")
                 time.sleep(1)
                 continue
             if response.status.code == \
                 common_pb.StatusCode.STATUS_DATA_FINISHED:
-                logging.info("master completed, ignore worker register")
+                fl_logging.info("master completed, ignore worker register")
                 return False
             raise RuntimeError("WorkerRegister error, code: %s, msg: %s"% \
                 (common_pb.StatusCode.Name(response.status.code),
@@ -91,9 +91,9 @@ class _TrainerMasterClient(object):
             response = _grpc_with_retry(
                 lambda: self._client.IsCompleted(request))
             if response.completed:
-                logging.info("master completed")
+                fl_logging.info("master completed")
                 return
-            logging.info("waiting master complete...")
+            fl_logging.info("waiting master complete...")
             time.sleep(2)
 
 
@@ -196,7 +196,7 @@ def _grpc_with_retry(call, interval=1):
         try:
             return call()
         except grpc.RpcError as e:
-            logging.warning("TrainerMasterClient error, status: %s"
-                ", details: %s, wait %ds for retry",
-                e.code(), e.details(), interval)
+            fl_logging.warning("TrainerMasterClient error, status: %s"
+                               ", details: %s, wait %ds for retry",
+                               e.code(), e.details(), interval)
             time.sleep(interval)

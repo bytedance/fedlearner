@@ -15,7 +15,7 @@
 # coding: utf-8
 
 import tensorflow.compat.v1 as tf
-from fedlearner.common import logging
+from fedlearner.common import fl_logging
 
 
 class ClusterServer():
@@ -74,8 +74,8 @@ class ClusterServer():
         self._tf_config.cluster_def.CopyFrom(
             self._tf_cluster_spec.as_cluster_def())
 
-        logging.info("cluster server target: %s\nconfig: \n%s",
-            self._tf_target, self._tf_config)
+        fl_logging.info("cluster server target: %s\nconfig: \n%s",
+                        self._tf_target, self._tf_config)
 
     @property
     def target(self):

@@ -23,7 +23,7 @@ import threading
 import grpc
 
 import tensorflow.compat.v1 as tf
-from fedlearner.common import logging
+from fedlearner.common import fl_logging
 from fedlearner.common import trainer_master_service_pb2 as tm_pb
 from fedlearner.common import trainer_master_service_pb2_grpc as tm_grpc
 from fedlearner.common import common_pb2 as common_pb
@@ -90,7 +90,7 @@ class _TriggerHook(tf.train.SessionRunHook):
 #    def _save(self, session, step):
 #        if self._timer.last_triggered_step() is None:
 #            # skip save checkpoint
-#            logging.info("skip save checkpoint")
+#            fl_logging.info("skip save checkpoint")
 #            return False
 #        return super(_CheckpointSaverHook, self)._save(session, step)
 
@@ -110,8 +110,8 @@ class _DataVisitorCheckpointHook(tf.train.SessionRunHook):
 
     def before_checkpoint_save(self, session, global_step_value):
         data = self._visitor.dump()
-        logging.info("DataVisitor save checkpoint for global step %d, size: %d",
-            global_step_value, len(data))
+        fl_logging.info("DataVisitor save checkpoint for global step %d, "
+                        "size: %d", global_step_value, len(data))
         session.run(
             self._save_op,
             {self._ckpt_plhd: data},
@@ -141,7 +141,7 @@ class DataBlockCheckpointSaverListener(tf.train.CheckpointSaverListener):
             self._save_op,
             {self._ckpt: self._visitor.dump()}
         )
-        #logging.info("data checkpoint saved result: %s", res)
+        #fl_logging.info("data checkpoint saved result: %s", res)
 
 
 class _FakeBridge():
@@ -223,7 +223,7 @@ class _TrainerMaster(tm_grpc.TrainerMasterServiceServicer):
             self, self._grpc_server)
         self._grpc_server.add_insecure_port(address)
         self._grpc_server.start()
-        logging.info('Trainer Master Server start on address: %s', address)
+        fl_logging.info('Trainer Master Server start on address: %s', address)
 
     def _transfer_status(self, frm, to):
         if self._status != frm:
@@ -235,9 +235,9 @@ class _TrainerMaster(tm_grpc.TrainerMasterServiceServicer):
                              tm_pb.MasterStatus.Name(self._status))
                 )
         self._status = to
-        logging.info("Trainer Master status transfer, from %s to %s",
-                    tm_pb.MasterStatus.Name(frm),
-                    tm_pb.MasterStatus.Name(to))
+        fl_logging.info("Trainer Master status transfer, from %s to %s",
+                        tm_pb.MasterStatus.Name(frm),
+                        tm_pb.MasterStatus.Name(to))
 
     def run_forever(self, listen_port=None):
         with self._lock:
@@ -251,19 +251,20 @@ class _TrainerMaster(tm_grpc.TrainerMasterServiceServicer):
             # waiting receive cluster_def from worker0
             with self._lock:
                 if self._worker0_cluster_def:
-                    logging.info("received worker_0 cluster_def: %s",
-                                  self._worker0_cluster_def)
+                    fl_logging.info("received worker_0 cluster_def: %s",
+                                    self._worker0_cluster_def)
                     self._cluster_server = ClusterServer(
                         tf.train.ClusterSpec(self._worker0_cluster_def),
                         "master")
                     break
-            logging.info("still waiting receive cluster_def from worker_0")
+            fl_logging.info("still waiting receive cluster_def from worker_0")
             time.sleep(2)
 
         self._run()
 
         sig = signal.sigwait([signal.SIGHUP, signal.SIGINT, signal.SIGTERM])
-        logging.info("Server shutdown by signal: %s", signal.Signals(sig).name)
+        fl_logging.info("Server shutdown by signal: %s",
+                        signal.Signals(sig).name)
 
     def _add_checkpoint_listener(self, listener):
         with self._lock:
@@ -284,14 +285,14 @@ class _TrainerMaster(tm_grpc.TrainerMasterServiceServicer):
             model_fn=self._model_fn)
 
     def _run(self):
-        logging.info("create estimator")
+        fl_logging.info("create estimator")
         estimator = self._create_estimator()
-        logging.info("start session_run")
+        fl_logging.info("start session_run")
         self._session_run(estimator)
-        logging.info("session_run done")
-        logging.info("start export_model")
+        fl_logging.info("session_run done")
+        fl_logging.info("start export_model")
         self._export_model(estimator)
-        logging.info("export_model done")
+        fl_logging.info("export_model done")
         self._transfer_status(tm_pb.MasterStatus.WORKER_COMPLETED,
                               tm_pb.MasterStatus.COMPLETED)
 
@@ -424,11 +425,11 @@ class _TrainerMaster(tm_grpc.TrainerMasterServiceServicer):
                     ))
 
             if request.worker_rank in self._running_workers:
-                logging.warning("worker_%d:%s repeat registration",
-                    request.worker_rank, request.hostname)
+                fl_logging.warning("worker_%d:%s repeat registration",
+                                   request.worker_rank, request.hostname)
             else:
-                logging.info("worker_%d:%s registration",
-                    request.worker_rank, request.hostname)
+                fl_logging.info("worker_%d:%s registration",
+                                request.worker_rank, request.hostname)
 
             self._running_workers.add(request.worker_rank)
             if request.worker_rank in self._completed_workers:
@@ -446,7 +447,7 @@ class _TrainerMaster(tm_grpc.TrainerMasterServiceServicer):
                         code=common_pb.StatusCode.STATUS_INVALID_REQUEST,
                         error_message="unregistered worker")
                     )
-            logging.info("worker_%d completed", request.worker_rank)
+            fl_logging.info("worker_%d completed", request.worker_rank)
             self._completed_workers.add(request.worker_rank)
             if request.worker_rank == 0:
                 self._worker0_terminated_at = request.timestamp
@@ -526,14 +527,14 @@ class LeaderTrainerMaster(_TrainerMaster):
             total_epoch, total_data_size = \
                 self._data_visitor.epoch_num, \
                     self._data_visitor.datablock_size
-            logging.info("global_step: %d, speed: %0.2f step/sec, "
-                "epoch: %d/%d, datablock allocated: %d/%d, "
-                "worker: %d/%d(running/completed)",
-                global_step, speed,
-                epoch, total_epoch,
-                data_index, total_data_size,
-                len(self._running_workers),
-                len(self._completed_workers))
+            fl_logging.info("global_step: %d, speed: %0.2f step/sec, "
+                            "epoch: %d/%d, datablock allocated: %d/%d, "
+                            "worker: %d/%d(running/completed)",
+                            global_step, speed,
+                            epoch, total_epoch,
+                            data_index, total_data_size,
+                            len(self._running_workers),
+                            len(self._completed_workers))
         self._last_trigger_time = now
         self._last_global_step = global_step
 
@@ -545,9 +546,9 @@ class LeaderTrainerMaster(_TrainerMaster):
 
         response = tm_pb.DataBlockResponse()
         if data_block:
-            logging.info("allocated worker_%d with block: %s",
-                          request.worker_rank,
-                          data_block.id)
+            fl_logging.info("allocated worker_%d with block: %s",
+                            request.worker_rank,
+                            data_block.id)
             response = tm_pb.DataBlockResponse(
                 status=common_pb.Status(
                     code=common_pb.StatusCode.STATUS_SUCCESS),
@@ -614,22 +615,22 @@ class FollowerTrainerMaster(_TrainerMaster):
             speed = (global_step-self._last_global_step) \
                 / (now-self._last_trigger_time)
             total_data_size = self._data_visitor.datablock_size
-            logging.info("global_step: %d, speed: %0.2f step/sec, "
-                "datablock size: %d, "
-                "worker: %d/%d(running/completed)",
-                global_step, speed,
-                total_data_size,
-                len(self._running_workers),
-                len(self._completed_workers))
+            fl_logging.info("global_step: %d, speed: %0.2f step/sec, "
+                            "datablock size: %d, "
+                            "worker: %d/%d(running/completed)",
+                            global_step, speed,
+                            total_data_size,
+                            len(self._running_workers),
+                            len(self._completed_workers))
         self._last_trigger_time = now
         self._last_global_step = global_step
 
     def _request_data_block(self, request):
         data_block = self._data_visitor.get_datablock_by_id(request.block_id)
         if data_block:
-            logging.info("allocated worker_%d with block: %s",
-                          request.worker_rank,
-                          data_block.id)
+            fl_logging.info("allocated worker_%d with block: %s",
+                            request.worker_rank,
+                            data_block.id)
             response = tm_pb.DataBlockResponse(
                 status=common_pb.Status(
                     code=common_pb.StatusCode.STATUS_SUCCESS),
@@ -637,7 +638,7 @@ class FollowerTrainerMaster(_TrainerMaster):
                 data_path=data_block.data_path,
             )
         else:
-            logging.error("invalid data block id: %s", request.block_id)
+            fl_logging.error("invalid data block id: %s", request.block_id)
             response = tm_pb.DataBlockResponse(
                 status=common_pb.Status(
                     code=common_pb.StatusCode.STATUS_INVALID_DATA_BLOCK,

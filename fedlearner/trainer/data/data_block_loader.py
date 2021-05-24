@@ -16,7 +16,7 @@
 
 import queue
 import tensorflow.compat.v1 as tf
-from fedlearner.common import logging
+from fedlearner.common import fl_logging
 
 
 class DataBlockLoader(object):
@@ -33,7 +33,7 @@ class DataBlockLoader(object):
             self._bridge.register_data_block_handler(self._data_block_handler)
 
     def _data_block_handler(self, msg):
-        logging.info('DataBlock: recv "%s" at %d', msg.block_id, msg.count)
+        fl_logging.info('DataBlock: recv "%s" at %d', msg.block_id, msg.count)
         assert self._count == msg.count
         if not msg.block_id:
             block = None

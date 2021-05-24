@@ -3,7 +3,7 @@ import os
 
 import pytz
 
-from . import logging
+from . import fl_logging
 
 
 class Config(object):
@@ -225,7 +225,7 @@ def convert_to_datetime(value, enable_tz=False):
             date_time = datetime.datetime.fromtimestamp(float(value))
         except ValueError:  # might be a non-number str
             # 3. default to 0
-            logging.warning('Unable to parse time %s to iso format, '
+            fl_logging.warning('Unable to parse time %s to iso format, '
                             'defaults to 0.', value)
             date_time = datetime.datetime.fromtimestamp(0)
     if enable_tz:
@@ -253,12 +253,12 @@ def convert_time_string_to_datetime(value):
 def set_logger():
     verbosity = int(os.environ.get('VERBOSITY', 1))
     if verbosity == 0:
-        logging.getLogger().setLevel(logging.WARNING)
+        fl_logging.getLogger().setLevel(fl_logging.WARNING)
     elif verbosity == 1:
-        logging.getLogger().setLevel(logging.INFO)
+        fl_logging.getLogger().setLevel(fl_logging.INFO)
     elif verbosity > 1:
-        logging.getLogger().setLevel(logging.DEBUG)
-    logging.basicConfig(format="%(asctime)s %(filename)s "
+        fl_logging.getLogger().setLevel(fl_logging.DEBUG)
+    fl_logging.basicConfig(format="%(asctime)s %(filename)s "
                                "%(lineno)s %(levelname)s - %(message)s")
 
 

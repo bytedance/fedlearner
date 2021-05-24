@@ -23,7 +23,7 @@ import collections
 import random
 
 import tensorflow.compat.v1 as tf
-from fedlearner.common import logging
+from fedlearner.common import fl_logging
 from fedlearner.data_join.data_block_visitor import DataBlockVisitor
 
 
@@ -48,8 +48,8 @@ class _DataVisitor(object):
         self._datablocks = list(datablocks)
         self._datablock_dict = {}
         for datablock in datablocks:
-            logging.info("load datablock, id: %s, data_path: %s",
-                         datablock.id, datablock.data_path)
+            fl_logging.info("load datablock, id: %s, data_path: %s",
+                            datablock.id, datablock.data_path)
             self._datablock_dict[datablock.id] = datablock
         self._epoch_num = epoch_num if epoch_num > 0 else 1
         self._shuffle = shuffle
@@ -101,8 +101,8 @@ class _DataVisitor(object):
                 if epoch not in self._allocated:
                     self._allocated[epoch] = set()
                 for block_id in data["checkpoints"][key]:
-                    logging.info("LeaderDataVisitor restore datablock, "
-                                 "epoch: %d, block_id: %s", epoch, block_id)
+                    fl_logging.info("LeaderDataVisitor restore datablock, "
+                                    "epoch: %d, block_id: %s", epoch, block_id)
                     self._allocated[epoch].add(block_id)
             try:
                 self._next(peek=True)
@@ -178,7 +178,7 @@ class DataSourceVisitor(_DataVisitor):
                  end_date=None,
                  epoch_num=1,
                  shuffle=False):
-        logging.info("create DataVisitor by data_source: %s", data_source)
+        fl_logging.info("create DataVisitor by data_source: %s", data_source)
         self._data_block_visitor = DataBlockVisitor(
             data_source, kvstore_type, kvstore_use_mock)
         datablocks = []
@@ -199,7 +199,7 @@ class DataPathVisitor(_DataVisitor):
                  ext=".tfrecord",
                  epoch_num=1,
                  shuffle=False):
-        logging.info("create DataVisitor by data_path: %s", data_path)
+        fl_logging.info("create DataVisitor by data_path: %s", data_path)
         if not tf.io.gfile.exists(data_path):
             raise ValueError("data_path not found: %s"%data_path)
 

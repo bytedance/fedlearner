@@ -19,7 +19,7 @@ import time
 
 import tensorflow.compat.v1 as tf
 from tensorflow_estimator.python.estimator import model_fn as model_fn_lib
-from fedlearner.common import logging
+from fedlearner.common import fl_logging
 
 
 class FLModel(object):
@@ -73,7 +73,7 @@ class FLModel(object):
         if shape:
             receive_op = tf.ensure_shape(receive_op, shape)
         else:
-            logging.warning(
+            fl_logging.warning(
                 'Receiving tensor %s without checking shape. '
                 'Consider setting shape at model.recv(shape=(...)). '
                 'shape can have None dimensions '
@@ -207,7 +207,8 @@ class FLEstimator(object):
                     sess.run(spec.train_op, feed_dict={})
                     self._bridge.commit()
                     use_time = time.time() - start_time
-                    logging.debug("after session run. time: %f sec", use_time)
+                    fl_logging.debug("after session run. time: %f sec",
+                                     use_time)
             self._bridge.terminate()
 
         return self
@@ -262,11 +263,12 @@ class FLEstimator(object):
                     sess.run(eval_op)
                     self._bridge.commit()
                     use_time = time.time() - start_time
-                    logging.debug("after session run. time: %f sec", use_time)
+                    fl_logging.debug("after session run. time: %f sec",
+                                     use_time)
             self._bridge.terminate()
 
             # Print result
-            logging.info('Metrics for evaluate: %s',
+            fl_logging.info('Metrics for evaluate: %s',
                 _dict_to_str(final_ops_hook.final_ops_values))
 
             return self

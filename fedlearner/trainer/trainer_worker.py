@@ -18,7 +18,7 @@ import json
 import threading
 
 import tensorflow.compat.v1 as tf
-from fedlearner.common import logging
+from fedlearner.common import fl_logging
 from fedlearner.common import metrics
 from fedlearner.trainer.bridge import Bridge
 from fedlearner.trainer.estimator import FLEstimator
@@ -412,7 +412,7 @@ def train(role,
         raise ValueError("--role must set one of %s or %s"%(LEADER, FOLLOER))
 
     if args.loglevel:
-        logging.set_level(args.loglevel)
+        fl_logging.set_level(args.loglevel)
 
     if export_model_hook is not None:
         if not isinstance(export_model_hook, ExportModelHook):
@@ -420,21 +420,21 @@ def train(role,
                              "ExportModelHook, but get %r"%export_model_hook)
 
     if not (args.master or args.worker):
-        logging.info("************ Run as local mode ************")
+        fl_logging.info("************ Run as local mode ************")
         _run_local(role, args,
                    input_fn,
                    model_fn,
                    serving_input_receiver_fn,
                    export_model_hook=export_model_hook)
     elif args.master:
-        logging.info("************ Run as master mode ************")
+        fl_logging.info("************ Run as master mode ************")
         _run_master(role, args,
                     input_fn,
                     model_fn,
                     serving_input_receiver_fn,
                     export_model_hook=export_model_hook)
     elif args.worker: # args.worker
-        logging.info("************ Run as worker mode ************")
+        fl_logging.info("************ Run as worker mode ************")
         _run_worker(role, args, input_fn, model_fn)
     else:
         raise ValueError("duplication specify --master and --worker")

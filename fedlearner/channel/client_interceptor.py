@@ -20,7 +20,7 @@ import threading
 import time
 import grpc
 
-from fedlearner.common import logging
+from fedlearner.common import fl_logging
 from fedlearner.channel import channel_pb2
 
 class _MethodDetail(
@@ -183,7 +183,7 @@ class ClientInterceptor(grpc.UnaryUnaryClientInterceptor,
                     return
                 except grpc.RpcError as e:
                     if _grpc_error_need_recover(e):
-                        logging.warning("[Channel] grpc error, status: %s, "
+                        fl_logging.warning("[Channel] grpc error, status: %s, "
                             "details: %s, wait %ds for retry",
                             e.code(), e.details(), self._retry_interval)
                         time.sleep(self._retry_interval)
@@ -316,7 +316,7 @@ def _grpc_with_retry(call, interval=1):
             return result
         except grpc.RpcError as e:
             if _grpc_error_need_recover(e):
-                logging.warning("[Channel] grpc error, status: %s, "
+                fl_logging.warning("[Channel] grpc error, status: %s, "
                     "details: %s, wait %ds for retry",
                     e.code(), e.details(), interval)
                 time.sleep(interval)
@@ -344,7 +344,7 @@ def _grpc_error_get_http_status(details):
             if len(fields) == 2:
                 return int(details.split(":")[1])
     except Exception as e:
-        logging.warning(
+        fl_logging.warning(
             "[Channel] grpc_error_get_http_status except: %s, details: %s",
             repr(e), details)
     return None

@@ -20,6 +20,7 @@ import json
 import os
 import threading
 import time
+import logging
 from functools import wraps
 
 import elasticsearch as es7
@@ -30,7 +31,7 @@ from elasticsearch6 import helpers as helpers6
 
 from .common import Config, INDEX_NAME, INDEX_TYPE, get_es_template
 
-from . import logging
+from . import fl_logging
 
 
 class Handler(object):
@@ -59,7 +60,7 @@ class LoggingHandler(Handler):
         super(LoggingHandler, self).__init__('logging')
 
     def emit(self, name, value, tags=None, index_type='metrics'):
-        logging.debug('[metrics] name[%s] value[%s] tags[%s]',
+        fl_logging.debug('[metrics] name[%s] value[%s] tags[%s]',
                       name, value, str(tags))
 
 
@@ -87,8 +88,7 @@ class ElasticSearchHandler(Handler):
                 ):
                     self._create_template_and_index(index_type)
         # suppress ES logger
-        import logging as _logging
-        _logging.getLogger('elasticsearch').setLevel(_logging.CRITICAL)
+        logging.getLogger('elasticsearch').setLevel(logging.CRITICAL)
         self._emit_batch = []
         self._batch_size = Config.ES_BATCH_SIZE
         self._lock = threading.RLock()
@@ -122,7 +122,7 @@ class ElasticSearchHandler(Handler):
                 emit_batch = self._emit_batch
                 self._emit_batch = []
         if emit_batch:
-            logging.info('Emitting %d documents to ES', len(emit_batch))
+            fl_logging.info('Emitting %d documents to ES', len(emit_batch))
             self._helpers.bulk(self._es, emit_batch)
 
     @staticmethod
@@ -206,14 +206,14 @@ class Metrics(object):
     def emit(self, name, value, tags=None, index_type='metrics'):
         self.init_handlers()
         if not self.handlers or len(self.handlers) == 0:
-            logging.info('No handlers. Not emitting.')
+            fl_logging.info('No handlers. Not emitting.')
             return
 
         for hdlr in self.handlers:
             try:
                 hdlr.emit(name, value, tags, index_type)
             except Exception as e:  # pylint: disable=broad-except
-                logging.warning('Handler [%s] emit failed. Error repr: [%s]',
+                fl_logging.warning('Handler [%s] emit failed. Error repr: [%s]',
                                 hdlr.get_name(), repr(e))
 
     def flush_handler(self):
@@ -221,9 +221,10 @@ class Metrics(object):
             try:
                 hdlr.flush()
             except Exception as e:  # pylint: disable=broad-except
-                logging.warning('Handler [%s] flush failed. Some metrics might '
-                                'not be emitted. Error repr: %s',
-                                hdlr.get_name(), repr(e))
+                fl_logging.warning('Handler [%s] flush failed. '
+                                   'Some metrics might not be emitted. '
+                                   'Error repr: %s',
+                                   hdlr.get_name(), repr(e))
 
 
 _metrics_client = Metrics()

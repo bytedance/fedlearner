@@ -20,7 +20,7 @@ try:
     import tensorflow.compat.v1 as tf
 except ImportError:
     import tensorflow as tf
-from . import logging
+from . import fl_logging
 
 
 class SummaryHook(object):
@@ -32,13 +32,13 @@ class SummaryHook(object):
     @classmethod
     def get_hook(cls):
         if not cls.summary_path:
-            logging.info('Tensorboard is not started')
+            fl_logging.info('Tensorboard is not started')
             return None
         tf.io.gfile.makedirs(cls.summary_path)
         datetime_str = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
         dir_name = '{}-{}-{}'.format(datetime_str, cls.role, cls.worker_rank)
         output_dir = os.path.join(cls.summary_path, dir_name)
-        logging.info('Summary output directory is %s', output_dir)
+        fl_logging.info('Summary output directory is %s', output_dir)
         scaffold = tf.train.Scaffold(summary_op=tf.summary.merge_all())
         hook = tf.train.SummarySaverHook(save_steps=int(cls.save_steps),
                                          output_dir=output_dir,

@@ -22,7 +22,7 @@ import enum
 from concurrent import futures
 
 import grpc
-from fedlearner.common import logging
+from fedlearner.common import fl_logging
 from fedlearner.channel import channel_pb2, channel_pb2_grpc
 from fedlearner.proxy.channel import make_insecure_channel, ChannelType
 from fedlearner.channel.client_interceptor import ClientInterceptor
@@ -306,13 +306,14 @@ class Channel():
         with self._lock:
             next_state = self._next_state(self._state, event)
             if self._state != next_state:
-                logging.info("[Channel] state changed from %s to %s, event: %s",
-                    self._state.name, next_state.name, event.name)
+                fl_logging.info("[Channel] state changed from %s to %s, "
+                                "event: %s", self._state.name,
+                                next_state.name, event.name)
                 self._state = next_state
                 if self._state == Channel.State.ERROR:
                     assert error is not None
                     self._error_event.set()
-                    logging.error("[Channel] occur error: %s", str(error))
+                    fl_logging.error("[Channel] occur error: %s", str(error))
                     self._error = error
                 elif self._state == Channel.State.READY:
                     self._ready_event.set()
@@ -403,12 +404,12 @@ class Channel():
                                           wait_for_ready=True)
         except Exception as e:
             if isinstance(e, grpc.RpcError):
-                logging.warning("[Channel] grpc error, code: %s, "
+                fl_logging.warning("[Channel] grpc error, code: %s, "
                     "details: %s.(call type: %s)",
                     e.code(), e.details(),
                     channel_pb2.CallType.Name(call_type))
             else:
-                logging.error("[Channel] call error: %s.(call type: %s",
+                fl_logging.error("[Channel] call error: %s.(call type: %s",
                     e, channel_pb2.CallType.Name(call_type))
             self._lock.acquire()
             return False
@@ -428,7 +429,7 @@ class Channel():
             self._emit_event(Channel.Event.ERROR, ChannelError("unauthorized"))
         elif res.code == channel_pb2.Code.UNIDENTIFIED:
             if not self._peer_identifier:
-                logging.warning("[Channel] unidentified by peer, "
+                fl_logging.warning("[Channel] unidentified by peer, "
                     "but channel is clean. wait next retry")
             else:
                 self._emit_error(ChannelError("unidentified"))
@@ -449,7 +450,7 @@ class Channel():
         self._peer_heartbeat_timeout_at = now + self._heartbeat_timeout
 
     def _state_fn(self):
-        logging.debug("[Channel] thread _state_fn start")
+        fl_logging.debug("[Channel] thread _state_fn start")
 
         self._server.start()
         #self._channel.subscribe(self._channel_callback)
@@ -501,10 +502,10 @@ class Channel():
                     continue
                 if now >= self._next_heartbeat_at:
                     if self._call_locked(channel_pb2.CallType.HEARTBEAT):
-                        logging.debug("[Channel] call heartbeat OK")
+                        fl_logging.debug("[Channel] call heartbeat OK")
                         self._refresh_heartbeat_timeout()
                     else:
-                        logging.warning("[Channel] call heartbeat failed")
+                        fl_logging.warning("[Channel] call heartbeat failed")
                         interval = min(self._heartbeat_interval,
                             self._retry_interval)
                         self._next_retry_at = time.time() + interval
@@ -525,7 +526,7 @@ class Channel():
         self._channel.close()
         time_wait = 2*self._retry_interval+self._peer_closed_at - time.time()
         if time_wait > 0:
-            logging.info("[Channel] wait %0.2f sec "
+            fl_logging.info("[Channel] wait %0.2f sec "
                          "for reducing peer close failed", time_wait)
             time.sleep(time_wait)
 
@@ -535,11 +536,11 @@ class Channel():
         self._ready_event.set()
         self._closed_event.set()
 
-        logging.debug("[Channel] thread _state_fn stop")
+        fl_logging.debug("[Channel] thread _state_fn stop")
 
     def _check_token(self, token):
         if self._token != token:
-            logging.debug("[Channel] peer unauthorized, got token: '%s', "
+            fl_logging.debug("[Channel] peer unauthorized, got token: '%s', "
                 "want: '%s'", token, self._token)
             return False
         return True
