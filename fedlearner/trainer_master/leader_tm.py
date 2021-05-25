@@ -44,6 +44,7 @@ class LeaderTrainerMaster(object):
 
         kvstore_use_mock = os.environ.get('KVSTORE_USE_MOCK', "off") == "on"
         self._data_block_queue = DataBlockQueue()
+        self._data_source_name = data_source
         self._data_block_visitor = DataBlockVisitor(
             data_source, kvstore_type, kvstore_use_mock)
         self._start_time = start_time
@@ -194,11 +195,33 @@ class LeaderTrainerMaster(object):
         checkpoint = self._get_checkpoint()
         # pylint: disable=line-too-long
         logging.info("load_data, checkpoint: %s", checkpoint)
-        data_block_reps = [
-            dbr for dbr in self._data_block_visitor.LoadDataBlockRepByTimeFrame(
-                self._start_time, self._end_time).values()
-            if dbr.block_id not in checkpoint and
-               dbr.block_id not in self._visited_data_blocks]
+
+        import os
+        if os.environ.get("OVERRIDE_DATASOURCE", None):
+            import tensorflow as tf
+            from fedlearner.data_join.data_block_visitor import DataBlockRep, decode_block_id
+            root = os.environ.get("OVERRIDE_DATASOURCE", None)
+            logging.info('root %s', root)
+            # root = os.path.normpath(root)
+            dsname = os.path.basename(root)
+            block_root = os.path.join(root, 'data_block')
+            data_block_reps = []
+            logging.info('block_root %s, dsname %s', block_root, dsname)
+            for dirname, _, files in tf.io.gfile.walk(block_root):
+                logging.info('files:%s:%s', dirname, files)
+                for fname in files:
+                    
+                    if not fname.endswith('.data'):
+                        continue
+                    block = DataBlockRep(self._data_source_name, fname, decode_block_id(fname[:-5])['partition_id'], dirname)
+                    logging.info('block id %s', block.block_id)
+                    data_block_reps.append(block)
+        else:
+            data_block_reps = [
+                dbr for dbr in self._data_block_visitor.LoadDataBlockRepByTimeFrame(
+                    self._start_time, self._end_time).values()
+                if dbr.block_id not in checkpoint and
+                dbr.block_id not in self._visited_data_blocks]
 
         self._visited_data_blocks.update([i.block_id for i in data_block_reps])
 
