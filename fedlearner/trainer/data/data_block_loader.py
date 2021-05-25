@@ -14,16 +14,10 @@
 
 # coding: utf-8
 
-import logging
-try:
-    import queue
-except ImportError:
-    import Queue as queue
+import queue
+import tensorflow.compat.v1 as tf
+from fedlearner.common import fl_logging
 
-try:
-    import tensorflow.compat.v1 as tf
-except ImportError:
-    import tensorflow as tf
 
 class DataBlockLoader(object):
     def __init__(self, batch_size, role, bridge, trainer_master):
@@ -39,7 +33,7 @@ class DataBlockLoader(object):
             self._bridge.register_data_block_handler(self._data_block_handler)
 
     def _data_block_handler(self, msg):
-        logging.info('DataBlock: recv "%s" at %d', msg.block_id, msg.count)
+        fl_logging.info('DataBlock: recv "%s" at %d', msg.block_id, msg.count)
         assert self._count == msg.count
         if not msg.block_id:
             block = None
@@ -54,7 +48,7 @@ class DataBlockLoader(object):
     def get_next_block(self):
         if self._role == 'leader':
             while True:
-                block = self._trainer_master.request_data_block()
+                block = self._trainer_master.request_data_block(None)
                 if block is not None:
                     if not self._bridge.load_data_block(
                             self._count, block.block_id):
@@ -78,7 +72,7 @@ class DataBlockLoader(object):
         dataset = tf.data.Dataset.from_generator(gen, tf.string)
         dataset = tf.data.TFRecordDataset(dataset)
         dataset = dataset.batch(self._batch_size, drop_remainder=True)
-        dataset = dataset.prefetch(2)
+        dataset = dataset.prefetch(1)
         return dataset
 
     def make_batch_iterator(self):

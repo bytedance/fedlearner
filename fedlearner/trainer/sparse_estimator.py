@@ -14,12 +14,7 @@
 # coding: utf-8
 # pylint: disable=protected-access
 
-try:
-    import tensorflow.compat.v1 as tf
-    from tensorflow.compat.v1.estimator import ModeKeys
-except ImportError:
-    import tensorflow as tf
-    from tensorflow.estimator import ModeKeys
+import tensorflow.compat.v1 as tf
 
 from tensorflow.contrib import graph_editor as ge
 
@@ -33,11 +28,13 @@ from fedlearner.trainer import utils
 class ConfigRunError(Exception):
     pass
 
+
 class SparseFLModel(estimator.FLModel):
     def __init__(self, role, bridge, example_ids, exporting=False,
                  config_run=True,
                  bias_tensor=None, vec_tensor=None,
-                 bias_embedding=None, vec_embedding=None):
+                 bias_embedding=None, vec_embedding=None,
+                 feature_columns=None):
         super(SparseFLModel, self).__init__(role,
             bridge, example_ids, exporting)
 
@@ -51,6 +48,7 @@ class SparseFLModel(estimator.FLModel):
             self._vec_tensor = vec_tensor
         self._bias_embedding = bias_embedding
         self._vec_embedding = vec_embedding
+        self._feature_columns = feature_columns
 
         self._frozen = False
         self._slot_ids = []
@@ -188,23 +186,25 @@ class SparseFLModel(estimator.FLModel):
 
 class SparseFLEstimator(estimator.FLEstimator):
     def __init__(self,
-                 model_fn,
-                 bridge,
+                 cluster_server,
                  trainer_master,
+                 bridge,
                  role,
-                 worker_rank=0,
-                 application_id=None,
-                 cluster_spec=None):
-        super(SparseFLEstimator, self).__init__(model_fn,
-            bridge, trainer_master, role, worker_rank,
-            application_id, cluster_spec)
+                 model_fn,
+                 is_chief=False):
+        super(SparseFLEstimator, self).__init__(
+            cluster_server, trainer_master, bridge, role, model_fn, is_chief)
 
         self._bias_slot_configs = None
         self._vec_slot_configs = None
         self._slot_configs = None
-        self._application_id = application_id
-        self._embedding_devices = [None,] if cluster_spec is None else \
-            ['/job:ps/task:%d'%i for i in range(cluster_spec.num_tasks('ps'))]
+        try:
+            ps_indices = cluster_server.cluster_spec.task_indices('ps')
+        except ValueError:
+            ps_indices = None
+        finally:
+            self._embedding_devices = [None,] if not ps_indices else \
+                ['/job:ps/task:%d'%i for i in ps_indices]
         self._num_shards = len(self._embedding_devices)
 
     def _preprocess_fids(self, fids, configs):
@@ -254,22 +254,20 @@ class SparseFLEstimator(estimator.FLEstimator):
 
     def _get_model_spec(self, features, labels, mode):
         features = features.copy()
-        embedding_devices = self._embedding_devices
-        if mode == ModeKeys.PREDICT:
+        if mode == tf.estimator.ModeKeys.PREDICT:
             fids = tf.IndexedSlices(
                 indices=features.pop('fids_indices'),
                 values=features.pop('fids_values'),
                 dense_shape=features.pop('fids_dense_shape'))
             features.update(self._preprocess_fids(
                 fids, self._slot_configs))
-            embedding_devices = [None] * self._num_shards
 
         bias_embedding = embedding.Embedding(self._bias_slot_configs,
-                                             devices=embedding_devices)
+                                             devices=self._embedding_devices)
         bias_tensor = bias_embedding.lookup(features)
         if self._vec_slot_configs is not None:
             vec_embedding = embedding.Embedding(self._vec_slot_configs,
-                                                devices=embedding_devices)
+                                                devices=self._embedding_devices)
             vec_tensor = vec_embedding.lookup(features)
         else:
             vec_embedding = None
@@ -281,7 +279,8 @@ class SparseFLEstimator(estimator.FLEstimator):
                               bias_tensor=bias_tensor,
                               bias_embedding=bias_embedding,
                               vec_tensor=vec_tensor,
-                              vec_embedding=vec_embedding)
+                              vec_embedding=vec_embedding,
+                              feature_columns=self._feature_columns)
 
         spec = self._model_fn(model, features, labels, mode)
         assert model._frozen, "Please finalize model in model_fn"
