@@ -15,14 +15,13 @@
 # coding: utf-8
 # pylint: disable=no-else-return, inconsistent-return-statements
 
-import logging
 import tensorflow.compat.v1 as tf
 import fedlearner.trainer as flt
 
 ROLE = 'leader'
 
 parser = flt.trainer_worker.create_argument_parser()
-parser.add_argument('--batch-size', type=int, default=256,
+parser.add_argument('--batch-size', type=int, default=8,
                     help='Training batch size.')
 parser.add_argument('--fid_version', type=int, default=1,
                     help="the version of fid")
@@ -46,19 +45,16 @@ def input_fn(bridge, trainer_master=None):
 
 
 def serving_input_receiver_fn():
-    feature_map = {}
-    feature_map['fids_indices'] = tf.placeholder(dtype=tf.int64, shape=[None],
+    features = {}
+    features['fids_indices'] = tf.placeholder(dtype=tf.int64, shape=[None],
         name='fids_indices')
-    feature_map['fids_values'] = tf.placeholder(dtype=tf.int64, shape=[None],
+    features['fids_values'] = tf.placeholder(dtype=tf.int64, shape=[None],
         name='fids_values')
-    feature_map['fids_dense_shape'] = tf.placeholder(dtype=tf.int64,
-        shape=[None], name='fids_dense_shape')
-    feature_map['act1_f'] = tf.placeholder(dtype=tf.float32, name='act1_f')
-    receiver_tensors = {
-        'act1_f': feature_map['act1_f']
-    }
-    return tf.estimator.export.ServingInputReceiver(
-        feature_map, receiver_tensors)
+    features['fids_dense_shape'] = tf.placeholder(dtype=tf.int64, shape=[None],
+        name='fids_dense_shape')
+    features['act1_f'] = tf.placeholder(dtype=tf.float32, shape=[None, 64],
+        name='act1_f')
+    return tf.estimator.export.build_raw_serving_input_receiver_fn(features)()
 
 def model_fn(model, features, labels, mode):
     """Model Builder of wide&deep learning models
@@ -137,7 +133,6 @@ def model_fn(model, features, labels, mode):
         return model.make_spec(mode, predictions=logits)
 
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.INFO)
     flt.trainer_worker.train(
         ROLE, args, input_fn,
         model_fn, serving_input_receiver_fn)

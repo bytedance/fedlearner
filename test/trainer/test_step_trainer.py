@@ -24,8 +24,8 @@ import numpy as np
 import tensorflow as tf
 import fedlearner.trainer as flt
 
-run_step = 4
-batch_size = 64
+run_step = 2
+batch_size = 256
 
 def union_shuffle(a, b):
     assert len(a) == len(a)
@@ -115,17 +115,17 @@ def create_leader_model_fn(hook_context):
         x, y = features["x"], labels
 
         w1 = tf.get_variable("w1",
-                             shape=[x.shape[1], 64],
+                             shape=[x.shape[1], 32],
                              dtype=tf.float32,
                              initializer=tf.random_uniform_initializer(seed=0))
 
         b1 = tf.get_variable("b1",
-                             shape=[64],
+                             shape=[32],
                              dtype=tf.float32,
                              initializer=tf.zeros_initializer())
 
         w2 = tf.get_variable("w2",
-                             shape=[64 * 2, 10],
+                             shape=[32 * 2, 10],
                              dtype=tf.float32,
                              initializer=tf.random_uniform_initializer(seed=0))
 
@@ -170,12 +170,12 @@ def follower_model_fn(model, features, labels, mode):
     x, _ = features["x"], labels
 
     w1 = tf.get_variable("w1",
-                         shape=[x.shape[1], 64],
+                         shape=[x.shape[1], 32],
                          dtype=tf.float32,
                          initializer=tf.random_uniform_initializer(seed=0))
 
     b1 = tf.get_variable("b1",
-                         shape=[64],
+                         shape=[32],
                          dtype=tf.float32,
                          initializer=tf.zeros_initializer())
 
@@ -235,16 +235,12 @@ class TestStepTrain(unittest.TestCase):
         parser = flt.trainer_worker.create_argument_parser()
         # leader
         leader_ps1 = _CreateParamaterServer()
-        leader_ps2 = _CreateParamaterServer()
-        leader_ps3 = _CreateParamaterServer()
         leader_raw_args = (
             "--local-addr", self._leader_bridge_addr,
             "--peer-addr", self._follower_bridge_addr,
             "--data-path", self._current_dir, # noused
-            "--ps-addrs", ",".join([
-                leader_ps1.address, leader_ps2.address, leader_ps3.address]),
-            "--tf-addr", _get_free_tcp_address(),
-            "--verbosity", "1",
+            "--ps-addrs", ",".join([leader_ps1.address]),
+            "--loglevel", "debug",
             )
         if leader_checkpoint_path:
             leader_raw_args += \
@@ -262,15 +258,12 @@ class TestStepTrain(unittest.TestCase):
 
         # follower 
         follower_ps1 = _CreateParamaterServer()
-        follower_ps2 = _CreateParamaterServer()
         follower_raw_args = (
             "--local-addr", self._follower_bridge_addr,
             "--peer-addr", self._leader_bridge_addr,
             "--data-path", self._current_dir, # noused
-            "--ps-addrs", ",".join([
-                follower_ps1.address, follower_ps2.address]),
-            "--tf-addr", _get_free_tcp_address(),
-            "--verbosity", "1",
+            "--ps-addrs", ",".join([follower_ps1.address]),
+            "--loglevel", "debug",
             )
         if follower_checkpoint_path:
             follower_raw_args += \
@@ -290,10 +283,7 @@ class TestStepTrain(unittest.TestCase):
         leader_trainer.join()
         follower_trainer.join()
         leader_ps1.stop()
-        leader_ps2.stop()
-        leader_ps3.stop()
         follower_ps1.stop()
-        follower_ps2.stop()
 
     def test_train(self):
         # run all in one step
