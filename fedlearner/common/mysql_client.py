@@ -16,12 +16,12 @@
 """MySQL client."""
 
 import os
-import logging
 from contextlib import contextmanager
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, scoped_session
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.ext.automap import automap_base
+from . import fl_logging
 
 class MySQLClient(object):
     def __init__(self, database, addr, user, password, base_dir):
@@ -50,7 +50,7 @@ class MySQLClient(object):
             except NoResultFound:
                 return None
             except Exception as e: # pylint: disable=broad-except
-                logging.error('failed to get data. msg[%s]', e)
+                fl_logging.error('failed to get data. msg[%s]', e)
                 sess.rollback()
                 return None
 
@@ -71,7 +71,7 @@ class MySQLClient(object):
                     sess.commit()
                 return True
             except Exception as e: # pylint: disable=broad-except
-                logging.error('failed to set data. msg[%s]', e)
+                fl_logging.error('failed to set data. msg[%s]', e)
                 sess.rollback()
                 return False
 
@@ -86,7 +86,7 @@ class MySQLClient(object):
                 sess.commit()
                 return True
             except Exception as e: # pylint: disable=broad-except
-                logging.error('failed to delete. msg[%s]', e)
+                fl_logging.error('failed to delete. msg[%s]', e)
                 sess.rollback()
                 return False
 
@@ -100,7 +100,7 @@ class MySQLClient(object):
                 sess.commit()
                 return True
             except Exception as e: # pylint: disable=broad-except
-                logging.error('failed to delete prefix. msg[%s]', e)
+                fl_logging.error('failed to delete prefix. msg[%s]', e)
                 sess.rollback()
                 return False
 
@@ -125,7 +125,7 @@ class MySQLClient(object):
                     sess.commit()
                 return flag
             except Exception as e: # pylint: disable=broad-except
-                logging.error('failed to cas. msg[%s]', e)
+                fl_logging.error('failed to cas. msg[%s]', e)
                 sess.rollback()
                 return False
 
@@ -149,7 +149,7 @@ class MySQLClient(object):
                     kvs.append((nkey, value))
                 return kvs
             except Exception as e: # pylint: disable=broad-except
-                logging.error('failed to get prefix kvs. msg[%s]', e)
+                fl_logging.error('failed to get prefix kvs. msg[%s]', e)
                 sess.rollback()
                 return None
 

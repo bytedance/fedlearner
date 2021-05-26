@@ -107,7 +107,6 @@ def model_fn(model, features, labels, mode):
         training_hooks=[logging_hook])
 
 def main(args):
-    logging.basicConfig(level=logging.INFO)
     flt.trainer_worker.train(
         'leader', args, input_fn,
         model_fn, serving_input_receiver_fn)

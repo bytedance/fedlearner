@@ -20,7 +20,7 @@ nfs-client-provisioner:
 
 mysql:
   enabled: true
-  persistence:
+  global:
     storageClass: nfs
   root:
     password: fedlearner

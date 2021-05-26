@@ -17,54 +17,58 @@ syntax = "proto3";
 
 package fedlearner.common;
 import "fedlearner/common/common.proto";
+import "tensorflow/core/protobuf/cluster.proto";
 
 enum MasterStatus {
     CREATED = 0;
     INITIALING = 1;
     RUNNING = 2;
-    FINISHED = 3;
-    ERROR = 4;
+    WORKER_COMPLETED = 3;
+    COMPLETED = 4;
 }
-
 
 message DataBlockRequest {
   uint32 worker_rank = 1;
-  //If TM role is follower, trainer request for datablock by block_id from leader.
   string block_id = 2;
 };
 
-message DataBlockInfo {
-  string block_id = 1;
-  string data_path = 2;
-  string meta_path = 3; 
-}
-
 message DataBlockResponse {
   Status status = 1;
-  //返回状态码
-  DataBlockInfo data_block_info = 2;
+  string block_id = 2;
+  string data_path = 3;
 }
 
-message GetDataBlockCheckpointRequest {
-  string application_id = 1;
+message WorkerRegisterRequest {
+  uint32 worker_rank = 1;
+  string hostname = 2;
+  // for compatibility, worker-0 will send cluster_def to master, because master
+  // cannot get ClusterSpec environment on webconsole_v1.5
+  // set cluster_def field number 999 for more easy to remove when resolved
+  tensorflow.ClusterDef cluster_def = 999;
 }
 
-message GetDataBlockCheckpointResponse {
+message WorkerRegisterResponse {
   Status status = 1;
-  repeated string block_ids = 2;
 }
 
-message RestoreDataBlockCheckpointRequest {
-  string application_id = 1;
-  repeated string block_ids = 2;
+message WorkerCompleteRequest {
+  uint32 worker_rank = 1;
+  uint64 timestamp = 2;
 }
 
-message RestoreDataBlockCheckpointResponse {
+message WorkerCompleteResponse {
   Status status = 1;
+}
+
+message IsCompletedRequest {}
+
+message IsCompletedResponse {
+  bool completed = 1;
 }
 
 service TrainerMasterService {
   rpc RequestDataBlock (DataBlockRequest) returns (DataBlockResponse) {}
-  rpc GetDataBlockCheckpoint (GetDataBlockCheckpointRequest) returns (GetDataBlockCheckpointResponse) {}
-  rpc RestoreDataBlockCheckpoint (RestoreDataBlockCheckpointRequest) returns (RestoreDataBlockCheckpointResponse) {}
+  rpc WorkerRegister (WorkerRegisterRequest) returns (WorkerRegisterResponse) {}
+  rpc WorkerComplete (WorkerCompleteRequest) returns (WorkerCompleteResponse) {}
+  rpc IsCompleted (IsCompletedRequest) returns (IsCompletedResponse) {}
 }

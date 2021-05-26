@@ -15,7 +15,6 @@
 # coding: utf-8
 """DFS client."""
 
-import logging
 import os
 
 try:
@@ -25,6 +24,8 @@ except ImportError:
     import tensorflow as tf
     from tensorflow import gfile
 from tensorflow.python.lib.io import file_io
+
+from . import fl_logging
 
 
 class DFSClient(object):
@@ -50,7 +51,7 @@ class DFSClient(object):
             try:
                 gfile.MakeDirs(base_dir)
             except tf.errors.OpError as e:  # pylint: disable=broad-except
-                logging.warning("create directory %s failed,"
+                fl_logging.warning("create directory %s failed,"
                                 " reason: %s", base_dir, str(e))
                 return False
         file_io.atomic_write_string_to_file(key_path, data)
@@ -61,7 +62,7 @@ class DFSClient(object):
             gfile.Remove(self._generate_path(key))
             return True
         except tf.errors.OpError as e:
-            logging.warning("delete key %s failed, reason: %s",
+            fl_logging.warning("delete key %s failed, reason: %s",
                             key, str(e))
             return False
 
@@ -70,7 +71,7 @@ class DFSClient(object):
             gfile.DeleteRecursively(self._generate_path(key, with_meta=False))
             return True
         except Exception as e:   # pylint: disable=broad-except
-            logging.warning("delete prefix with key %s failed,"
+            fl_logging.warning("delete prefix with key %s failed,"
                             " reason: %s", key, str(e))
             return False
 
@@ -81,7 +82,7 @@ class DFSClient(object):
         if isinstance(old_data, bytes):
             old_data = old_data.decode('utf-8')
         if org_data != old_data:
-            logging.warning("CAS failed. \norg data: %s old data: %s"
+            fl_logging.warning("CAS failed. \norg data: %s old data: %s"
                             " new data: %s", org_data, old_data, new_data)
             return False
         return self.set_data(key, new_data)
@@ -98,7 +99,7 @@ class DFSClient(object):
                     if gfile.IsDirectory(path):
                         filenames = gfile.ListDirectory(path)
                 except Exception as e:  # pylint: disable=broad-except
-                    logging.warning("get prefix kvs %s failed, "
+                    fl_logging.warning("get prefix kvs %s failed, "
                                     " reason: %s", path, str(e))
                     break
                 for filename in sorted(filenames):
