@@ -12,8 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# -*- coding: utf-8 -*-
-
+from fedlearner.common import stats
 import time
 import logging
 import unittest
@@ -55,9 +54,11 @@ class TestChannel(unittest.TestCase):
         super(TestChannel, self).__init__()
         self._token = "test_token"
         self._channel1 = Channel("[::]:50001", "localhost:50002",
-            token=self._token)
+            token=self._token,
+            stats_client=stats.with_tags({"channel_name": "channel_1"}))
         self._channel2 = Channel("[::]:50002", "localhost:50001",
-            token=self._token)
+            token=self._token,
+            stats_client=stats.with_tags({"channel_name": "channel_2"}))
 
         self._client1 = greeter_pb2_grpc.GreeterStub(self._channel1)
         self._client2 = greeter_pb2_grpc.GreeterStub(self._channel2)

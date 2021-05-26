@@ -22,7 +22,7 @@ import enum
 from concurrent import futures
 
 import grpc
-from fedlearner.common import fl_logging
+from fedlearner.common import fl_logging, stats
 from fedlearner.channel import channel_pb2, channel_pb2_grpc
 from fedlearner.proxy.channel import make_insecure_channel, ChannelType
 from fedlearner.channel.client_interceptor import ClientInterceptor
@@ -133,7 +133,8 @@ class Channel():
                  max_workers=16,
                  compression=grpc.Compression.Gzip,
                  heartbeat_timeout=120,
-                 retry_interval=2):
+                 retry_interval=2,
+                 stats_client=None):
         # identifier
         self._identifier = uuid.uuid4().hex[:16]
         self._peer_identifier = ""
@@ -188,7 +189,8 @@ class Channel():
             identifier=self._identifier,
             retry_interval=self._retry_interval,
             wait_fn=self.wait_for_ready,
-            check_fn=self._channel_response_check_fn)
+            check_fn=self._channel_response_check_fn,
+            stats_client=stats_client)
         self._channel = grpc.intercept_channel(self._channel,
             self._channel_interceptor)
 
@@ -211,6 +213,9 @@ class Channel():
         self._channel_call = channel_pb2_grpc.ChannelStub(self._channel)
         channel_pb2_grpc.add_ChannelServicer_to_server(
             Channel._Servicer(self), self._server)
+
+        # stats
+        self._stats_client = stats_client or stats.NoneClient()
 
     @property
     def connected_at(self):
@@ -399,10 +404,13 @@ class Channel():
                 token=self._token,
                 identifier=self._identifier,
                 peer_identifier=self._peer_identifier)
+            timer = self._stats_client.timer("channel.call_timing").start()
             res = self._channel_call.Call(req,
                                           timeout=self._heartbeat_interval,
                                           wait_for_ready=True)
+            timer.stop()
         except Exception as e:
+            self._stats_client.incr("channel.call_error")
             if isinstance(e, grpc.RpcError):
                 fl_logging.warning("[Channel] grpc error, code: %s, "
                     "details: %s.(call type: %s)",
@@ -459,8 +467,9 @@ class Channel():
         while True:
             now = time.time()
             saved_state = self._state
-            wait_timeout = 60
+            wait_timeout = 10
 
+            self._stats_client.gauge("channel.status", self._state.value)
             if self._state in (Channel.State.DONE, Channel.State.ERROR):
                 break
 

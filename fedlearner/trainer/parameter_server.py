@@ -15,10 +15,13 @@
 # coding: utf-8
 # pylint: disable=unused-import
 
+import os
 import argparse
 
 import tensorflow.compat.v1 as tf
+from fedlearner.common import stats
 from fedlearner.trainer.cluster_server import ClusterServer
+from fedlearner.trainer._global_context import global_context as _gctx
 
 
 if __name__ == '__main__':
@@ -26,8 +29,12 @@ if __name__ == '__main__':
     parser.add_argument('address', type=str,
                         help='Listen address of the parameter server, ' \
                              'with format [IP]:[PORT]')
-
     args = parser.parse_args()
+
+    _gctx.task = "ps"
+    stats.enable_cpu_stats(_gctx.stats_client)
+    stats.enable_mem_stats(_gctx.stats_client)
+
     cluster_spec = tf.train.ClusterSpec({'ps': {0: args.address}})
     cluster_server = ClusterServer(cluster_spec, "ps")
     cluster_server.join()
