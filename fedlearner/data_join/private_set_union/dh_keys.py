@@ -37,8 +37,8 @@ class DHKeys(BaseKeys):
             state = gmpy2.random_state(ord(os.urandom(1)))
             key1 = gmpy2.mpz_random(state, self._mod - 1)
             key2 = gmpy2.mpz_random(state, self._mod - 1)
-            key1 = gmpy2.powmod(2, key1, self._mod)
-            key2 = gmpy2.powmod(2, key2, self._mod)
+            key1 = gmpy2.powmod(GENERATOR, key1, self._mod)
+            key2 = gmpy2.powmod(GENERATOR, key2, self._mod)
             # use a base of 62 to shrink down the size
             keys = {'key1': key1.digits(62),
                     'key2': key2.digits(62)}
