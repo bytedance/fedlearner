@@ -6,7 +6,7 @@ import gmpy2
 
 from fedlearner.common.db_client import DBClient
 from fedlearner.data_join.common import convert_to_str
-from fedlearner.data_join.private_set_union.base_keys import BaseKeys
+from fedlearner.data_join.private_set_union.keys import BaseKeys
 
 PRIME = 'FFFFFFFFFFFFFFFFC90FDAA22168C234C4C6628B80DC1CD129024E088A67CC74020B' \
         'BEA63B139B22514A08798E3404DDEF9519B3CD3A431B302B0A6DF25F14374FE1356D' \
@@ -35,8 +35,8 @@ class DHKeys(BaseKeys):
             key2 = gmpy2.mpz(keys['key2'], base=62)
         else:
             state = gmpy2.random_state(ord(os.urandom(1)))
-            key1 = gmpy2.mpz_random(state, self._mod - 1)
-            key2 = gmpy2.mpz_random(state, self._mod - 1)
+            key1 = gmpy2.mpz_random(state, self._mod)
+            key2 = gmpy2.mpz_random(state, self._mod)
             key1 = gmpy2.powmod(GENERATOR, key1, self._mod)
             key2 = gmpy2.powmod(GENERATOR, key2, self._mod)
             # use a base of 62 to shrink down the size
@@ -59,4 +59,4 @@ class DHKeys(BaseKeys):
     def encrypt_func2(self, item: bytes) -> bytes:
         item = gmpy2.mpz(item, base=62)
         encrypted = gmpy2.f_mod(item * self._key2, self._mod)
-        return encrypted.digits(62).encode
+        return encrypted.digits(62).encode()
