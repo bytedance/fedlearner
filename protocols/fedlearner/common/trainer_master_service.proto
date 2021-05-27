@@ -27,9 +27,20 @@ enum MasterStatus {
     COMPLETED = 4;
 }
 
+enum DataSourceType {
+  JOINED = 0;
+  LOCAL = 1;
+}
+
+enum WorkerType {
+  REMOTE_WORKER = 0;
+  LOCAL_WORKER = 1;
+}
+
 message DataBlockRequest {
   uint32 worker_rank = 1;
   string block_id = 2;
+  WorkerType worker_type = 3;
 };
 
 message DataBlockResponse {

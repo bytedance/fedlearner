@@ -533,6 +533,12 @@ class LeaderTrainerMaster(_TrainerMaster):
                          trigger_fn=self._trigger_fn)
             )
 
+        # worker type: data source type
+        self._worker_data_source_map = {
+            tm_pb.WorkerType.REMOTE_WORKER: [tm_pb.DataSourceType.JOINED],
+            tm_pb.WorkerType.LOCAL_WORKER: [tm_pb.DataSourceType.LOCAL]
+        }
+
     def _trigger_fn(self, global_step):
         now = time.time()
         if self._last_global_step >= 0:
@@ -559,13 +565,27 @@ class LeaderTrainerMaster(_TrainerMaster):
         self._last_global_step = global_step
 
     def _request_data_block(self, request):
+        need_waiting = False
         try:
-            data_block = next(self._data_visitor)
+            data_block = None
+            next_data_block = self._data_visitor.peek()
+            if next_data_block.type not in self._worker_data_source_map[
+                                           request.worker_type]:
+                need_waiting = True
+            else:
+                data_block = next(self._data_visitor)
         except StopIteration:
             data_block = None
 
-        response = tm_pb.DataBlockResponse()
-        if data_block:
+        if need_waiting:
+            fl_logging.info("Worker %s with type %s need to wait data block",
+                            request.worker_rank,
+                            request.worker_type)
+            response = tm_pb.DataBlockResponse(
+                status=common_pb.Status(
+                    code=common_pb.StatusCode.STATUS_WAIT_FOR_DATA_BLOCK),
+            )
+        elif data_block:
             fl_logging.info("allocated worker_%d with block: %s",
                             request.worker_rank,
                             data_block.id)
