@@ -5,59 +5,17 @@ import uuid
 import numpy as np
 import pyarrow as pa
 import pyarrow.parquet as pq
-from tensorflow import gfile
 
 import fedlearner.common.private_set_union_pb2 as psu_pb
 import fedlearner.common.transmitter_service_pb2 as transmitter_pb
-from fedlearner.data_join.private_set_union.base_keys import BaseKeys
-from fedlearner.data_join.transmitter.components import Sender, Receiver
+from fedlearner.data_join.private_set_union.keys import BaseKeys
+from fedlearner.data_join.private_set_union.utils import _make_parquet_dumper, \
+    _get_skip
+from fedlearner.data_join.private_set_union.parquet_components import ParquetSender
 from fedlearner.data_join.transmitter.utils import IDX
 
 
-def _make_dumper(output_path: str,
-                 schema: pa.Schema,
-                 current_dumper: pq.ParquetWriter,
-                 dump_idx: IDX,
-                 end_idx: IDX,
-                 job_id: int) -> pq.ParquetWriter:
-    # OUTPUT_PATH/<job_id>/<file_idx>.parquet
-    file_name = str(end_idx.file_idx) + '.parquet'
-    file_path = os.path.join(output_path, str(job_id), file_name)
-    if dump_idx.file_idx < end_idx.file_idx:
-        # close the last file's writer and clear the next file
-        current_dumper.close()
-        current_dumper = None
-        if gfile.Exists(file_path):
-            gfile.DeleteRecursively(file_path)
-    if current_dumper is None:
-        current_dumper = pq.ParquetWriter(file_path, schema, flavor='spark')
-    return current_dumper
-
-
-def _get_skip(start_idx: IDX,
-              current_idx: IDX,
-              end_idx: IDX) -> int:
-    """
-    Calculate how many rows should be skipped according to current_idx. Note
-        that in Parquet scene, we send files one by one without mixing files,
-        so if start_idx.file_idx != end_idx.file_idx, all of the rows belong to
-        the end_idx.file_idx's file.
-    Args:
-        start_idx: start IDX of the req/resp
-        current_idx: current state of IDX
-        end_idx: end IDX of the req/resp
-
-    Returns:
-
-    """
-    length = end_idx.row_idx if start_idx.file_idx != end_idx.file_idx \
-        else end_idx.row_idx - start_idx.row_idx
-    skip = 0 if current_idx.file_idx != end_idx.file_idx \
-        else length - (end_idx.row_idx - current_idx.row_idx)
-    return skip
-
-
-class ParquetEncryptSender(Sender):
+class ParquetEncryptSender(ParquetSender):
     def __init__(self,
                  keys: BaseKeys,
                  output_path: str,
@@ -73,9 +31,6 @@ class ParquetEncryptSender(Sender):
         self._output_path = output_path
         self._join_key = join_key
         self._indices = {}
-        self._reader = None
-        self._pq_file = None
-        self._reader_idx = None
         self._dumper = None
         self._dump_file_path = None
         self._schema = pa.schema([pa.field('_job_id', pa.int64()),
@@ -89,8 +44,9 @@ class ParquetEncryptSender(Sender):
                       files: typing.List[str],
                       start_idx: IDX,
                       row_num: int) -> (bytes, IDX, bool):
-        file_path, batch, end_idx = self._get_batch(root_path, files,
-                                                    start_idx, row_num)
+        batch, end_idx = self._get_batch(
+            root_path, files, start_idx, row_num,
+            columns=['_index', '_job_id', self._join_key])
         if not batch:
             # No batch means all files finished
             #   -> no payload, next of end row, data finished
@@ -153,44 +109,14 @@ class ParquetEncryptSender(Sender):
                  '_job_id': [encrypt_res.job_id for _ in range(len(_index))],
                  'quadruply_encrypted': quadruply_encrypted.tolist()}
         table = pa.Table.from_pydict(mapping=table, schema=self._schema)
-        self._dumper = _make_dumper(
-            self._output_path, self._schema, self._dumper,
-            current_idx, end_idx, encrypt_res.job_id)
+        # OUTPUT_PATH/<job_id>/<file_idx>.parquet
+        file_name = str(end_idx.file_idx) + '.parquet'
+        file_path = os.path.join(self._output_path, str(resp.job_id), file_name)
+        self._dumper = _make_parquet_dumper(
+            file_path, self._schema, self._dumper, current_idx, end_idx)
         self._dumper.write_table(table)
         return None if current_idx.file_idx == end_idx.file_idx \
             else current_idx
-
-    def _get_batch(self,
-                   root_path: str,
-                   files: typing.List[str],
-                   start_idx: IDX,
-                   row_num: int) -> (pa.RecordBatch, IDX):
-        file_path = os.path.join(root_path, files[start_idx.file_idx])
-        if self._reader is None:
-            self._pq_file = pq.ParquetFile(file_path)
-            self._reader = self._pq_file.iter_batches(
-                row_num, columns=['_job_id', '_index', self._join_key])
-            self._reader_idx = IDX(start_idx.file_idx, 0)
-
-        try:
-            # entry to the loop should be guaranteed
-            assert self._reader_idx.row_idx <= start_idx.row_idx
-            while self._reader_idx.row_idx <= start_idx.row_idx:
-                batch = next(self._reader)
-                self._reader_idx.row_idx += batch.num_rows
-        except StopIteration:
-            # if it is the end of all files
-            if start_idx.file_idx == len(files) - 1:
-                return None, self._reader_idx
-            # starting from a new file
-            file_path = os.path.join(root_path, files[start_idx.file_idx + 1])
-            self._pq_file = pq.ParquetFile(file_path)
-            self._reader = self._pq_file.iter_batches(
-                row_num, columns=['_job_id', '_index', self._join_key])
-            batch = next(self._reader)
-            self._reader_idx.file_idx += 1
-            self._reader_idx.row_idx = batch.num_rows
-        return batch, self._reader_idx
 
 
 class ParquetEncryptReceiver(Receiver):
@@ -225,9 +151,12 @@ class ParquetEncryptReceiver(Receiver):
         if need_dump:
             # skip the duplicated rows
             skip = _get_skip(start_idx, current_idx, end_idx)
-            self._dumper = _make_dumper(
-                self._output_path, self._schema, self._dumper, current_idx,
-                end_idx, req.job_id)
+            # OUTPUT_PATH/<job_id>/<file_idx>.parquet
+            file_name = str(end_idx.file_idx) + '.parquet'
+            file_path = os.path.join(
+                self._output_path, str(req.job_id), file_name)
+            self._dumper = _make_parquet_dumper(
+                file_path, self._schema, self._dumper, current_idx, end_idx)
             table = pa.Table.from_pydict(
                 mapping={'_doubly_encrypted': doubly_encrypted[skip:]},
                 schema=self._schema)
