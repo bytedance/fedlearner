@@ -26,16 +26,26 @@ from fedlearner.common import common_pb2 as common_pb
 
 
 class _TrainerMasterClient(object):
-    def __init__(self, client, worker_rank):
+    def __init__(self, client, worker_rank,
+                 worker_type=tm_pb.WorkerType.REMOTE_WORKER):
         self._worker_rank = worker_rank
         self._client = client
+        self._worker_type = worker_type
 
-    def request_data_block(self, block_id):
+    def request_data_block(self, block_id, data_source_type=tm_pb.JOINED):
         request = tm_pb.DataBlockRequest(
             worker_rank=self._worker_rank,
-            block_id=block_id)
+            block_id=block_id,
+            worker_type=self._worker_type)
         response = _grpc_with_retry(
             lambda: self._client.RequestDataBlock(request))
+        while response.status.code == \
+            common_pb.StatusCode.STATUS_WAIT_FOR_DATA_BLOCK:
+            fl_logging.info("Sleep 1s to wait for data block of type %s",
+                            data_source_type)
+            time.sleep(1)
+            response = _grpc_with_retry(
+                lambda: self._client.RequestDataBlock(request))
         if response.status.code == common_pb.StatusCode.STATUS_SUCCESS:
             fl_logging.debug("succeeded to get datablock, id:%s, data_path: %s",
                           response.block_id, response.data_path)
@@ -98,7 +108,7 @@ class _TrainerMasterClient(object):
 
 
 class TrainerMasterClient(_TrainerMasterClient):
-    def __init__(self, address, worker_rank):
+    def __init__(self, address, worker_rank, worker_type):
         channel = make_insecure_channel(
             address,
             mode=ChannelType.INTERNAL,
@@ -109,7 +119,8 @@ class TrainerMasterClient(_TrainerMasterClient):
             )
         )
         client = tm_grpc.TrainerMasterServiceStub(channel)
-        super(TrainerMasterClient, self).__init__(client, worker_rank)
+        super(TrainerMasterClient, self).__init__(client, worker_rank,
+                                                  worker_type)
 
 
 class LocalTrainerMasterClient(_TrainerMasterClient):

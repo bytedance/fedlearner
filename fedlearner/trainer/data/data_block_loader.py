@@ -54,19 +54,20 @@ class DataBlockLoader(object):
         if self._role == 'leader':
             while True:
                 block = self._trainer_master.request_data_block(None)
-                if block is not None:
-                    if not self._bridge.load_data_block(
-                            self._count, block.block_id):
-                        continue
-                else:
-                    self._bridge.load_data_block(self._count, '')
+                if self._bridge:
+                    if block is not None:
+                        if not self._bridge.load_data_block(
+                                self._count, block.block_id):
+                            continue
+                    else:
+                        self._bridge.load_data_block(self._count, '')
                 break
             self._count += 1
         else:
             block = self._block_queue.get()
         return block
 
-    def make_dataset(self):
+    def make_dataset(self, compression_type=None):
         def gen():
             while True:
                 block = self.get_next_block()
@@ -75,7 +76,8 @@ class DataBlockLoader(object):
                 yield block.data_path
 
         dataset = tf.data.Dataset.from_generator(gen, tf.string)
-        dataset = tf.data.TFRecordDataset(dataset)
+        dataset = tf.data.TFRecordDataset(dataset,
+                                          compression_type=compression_type)
         dataset = dataset.batch(self._batch_size, drop_remainder=True)
         dataset = dataset.prefetch(1)
         return dataset

@@ -24,6 +24,7 @@ import random
 
 import tensorflow.compat.v1 as tf
 from fedlearner.common import fl_logging
+from fedlearner.common import trainer_master_service_pb2 as tm_pb
 from fedlearner.data_join.data_block_visitor import DataBlockVisitor
 
 
@@ -33,13 +34,13 @@ kvstore_use_mock = os.environ.get('KVSTORE_USE_MOCK', "off") == "on"
 
 class _RawDataBlock(
     collections.namedtuple('RowDataBlock',
-                           ['id', 'data_path'])):
+                           ['id', 'data_path', 'type'])):
     pass
 
 
 class DataBlock(
     collections.namedtuple('DataBlock',
-                           ['id', 'epoch', 'data_path'])):
+                           ['id', 'epoch', 'data_path', 'type'])):
     pass
 
 
@@ -48,8 +49,8 @@ class _DataVisitor(object):
         self._datablocks = list(datablocks)
         self._datablock_dict = {}
         for datablock in datablocks:
-            fl_logging.info("load datablock, id: %s, data_path: %s",
-                            datablock.id, datablock.data_path)
+            fl_logging.info("load datablock, id: %s, data_path: %s, type %s",
+                            datablock.id, datablock.data_path, datablock.type)
             self._datablock_dict[datablock.id] = datablock
         self._epoch_num = epoch_num if epoch_num > 0 else 1
         self._shuffle = shuffle
@@ -113,7 +114,11 @@ class _DataVisitor(object):
         if block_id not in self._datablock_dict:
             return None
         datablock = self._datablock_dict[block_id]
-        return DataBlock(datablock.id, epoch, datablock.data_path)
+        return DataBlock(datablock.id, epoch, datablock.data_path,
+                         datablock.type)
+
+    def peek(self):
+        return self._next(peek=True)
 
     def _try_parse_v2(self, buff):
         try:
@@ -153,7 +158,8 @@ class _DataVisitor(object):
                         self._allocate(self._current_epoch, datablock)
                     return DataBlock(datablock.id,
                                      self._current_epoch,
-                                     datablock.data_path)
+                                     datablock.data_path,
+                                     datablock.type)
                 self._datablock_index += 1
 
             if self._current_epoch == self._epoch_num:
@@ -176,19 +182,30 @@ class DataSourceVisitor(_DataVisitor):
                  data_source,
                  start_date=None,
                  end_date=None,
+                 local_data_source=None,
+                 local_start_date=None,
+                 local_end_date=None,
                  epoch_num=1,
                  shuffle=False):
-        fl_logging.info("create DataVisitor by data_source: %s", data_source)
-        self._data_block_visitor = DataBlockVisitor(
+        fl_logging.info("Load data_source: %s", data_source)
+        data_block_visitor = DataBlockVisitor(
             data_source, kvstore_type, kvstore_use_mock)
         datablocks = []
-        for datablock in self._data_block_visitor.LoadDataBlockRepByTimeFrame(
+        for datablock in data_block_visitor.LoadDataBlockRepByTimeFrame(
             start_date, end_date).values():
-            datablocks.append(datablock)
-        datablocks.sort(key=lambda x: x.start_time)
+            datablocks.append((datablock, tm_pb.JOINED))
+        if local_data_source:
+            fl_logging.info("Load local data_source: %s", local_data_source)
+            data_block_visitor = DataBlockVisitor(
+                local_data_source, kvstore_type, kvstore_use_mock)
+            for datablock in data_block_visitor.LoadDataBlockRepByTimeFrame(
+                local_start_date, local_end_date).values():
+                datablocks.append((datablock, tm_pb.LOCAL))
+        datablocks.sort(key=lambda x: x[0].start_time)
 
         super(DataSourceVisitor, self).__init__(
-            [_RawDataBlock(d.block_id, d.data_block_fpath) for d in datablocks],
+            [_RawDataBlock(d[0].block_id, d[0].data_block_fpath, d[1])
+             for d in datablocks],
             epoch_num,
             shuffle)
 
@@ -212,7 +229,8 @@ class DataPathVisitor(_DataVisitor):
                 subdirname = os.path.relpath(dirname, data_path)
                 block_id = os.path.join(subdirname, filename)
                 datablock = _RawDataBlock(block_id,
-                                          os.path.join(dirname, filename))
+                                          os.path.join(dirname, filename),
+                                          tm_pb.JOINED)
                 datablocks.append(datablock)
         datablocks.sort()
 

@@ -16,10 +16,12 @@ import os
 import argparse
 import json
 import threading
+import time
 
 import tensorflow.compat.v1 as tf
 from fedlearner.common import fl_logging, stats
 from fedlearner.common.argparse_util import str_as_bool
+from fedlearner.common import trainer_master_service_pb2 as tm_pb
 from fedlearner.trainer.bridge import Bridge
 from fedlearner.trainer.estimator import FLEstimator
 from fedlearner.trainer.sparse_estimator import SparseFLEstimator
@@ -35,6 +37,7 @@ from fedlearner.trainer.run_hooks import StepLossAucMetricsHook, StepMetricsHook
 
 LEADER = "leader"
 FOLLOER = "follower"
+
 
 def create_argument_parser():
     parser = argparse.ArgumentParser(description='FedLearner Trainer.')
@@ -78,6 +81,9 @@ def create_argument_parser():
     parser.add_argument('--data-source',
                         type=str,
                         help='path to data source for training')
+    parser.add_argument('--local-data-source',
+                        type=str,
+                        help='path to local data source for training')
     parser.add_argument('--data-path',
                         type=str,
                         help='path to data block files for training.'
@@ -88,6 +94,12 @@ def create_argument_parser():
     parser.add_argument('--end-date',
                         type=int,
                         help='training data end time')
+    parser.add_argument('--local-start-date',
+                        type=int,
+                        help='local training data start time')
+    parser.add_argument('--local-end-date',
+                        type=int,
+                        help='local training data end time')
     parser.add_argument('--epoch-num',
                         type=int,
                         default=1,
@@ -190,29 +202,37 @@ def _run_master(role,
     master.run_forever(args.master_addr)
 
 def _run_worker(role, args, input_fn, model_fn):
-    if not args.local_addr:
-        raise ValueError("local-addr is required")
-    if not args.peer_addr:
-        raise ValueError("peer-addr is required")
     if not args.master_addr:
         raise ValueError("master-addr is required")
     mode = args.mode.lower()
+
+    worker_type = tm_pb.WorkerType.REMOTE_WORKER
+    bridge = None
+    if args.is_local_worker:
+        worker_type = tm_pb.WorkerType.LOCAL_WORKER
+    else:
+        if not args.local_addr:
+            raise ValueError("local-addr is required")
+        if not args.peer_addr:
+            raise ValueError("peer-addr is required")
+        bridge = Bridge(role,
+                        int(args.local_addr.split(':')[1]),
+                        args.peer_addr,
+                        args.application_id,
+                        args.worker_rank)
+
+    fl_logging.info("Start worker rank %d with type %s", args.worker_rank,
+                    worker_type)
 
     cluster_spec = _create_cluster_spec(args, require_ps=True)
     cluster_server = ClusterServer(cluster_spec,
                                    "worker",
                                    task_index=args.worker_rank)
-
     trainer_master = TrainerMasterClient(args.master_addr,
-                                         args.worker_rank)
+                                         args.worker_rank,
+                                         worker_type)
     if not trainer_master.worker_register(cluster_spec.as_cluster_def()):
         return
-
-    bridge = Bridge(role,
-                    int(args.local_addr.split(':')[1]),
-                    args.peer_addr,
-                    args.application_id,
-                    args.worker_rank)
 
     estimator_factory = SparseFLEstimator \
         if args.sparse_estimator else FLEstimator
@@ -228,7 +248,10 @@ def _run_worker(role, args, input_fn, model_fn):
     elif mode == 'eval':
         estimator.evaluate(input_fn)
 
-    trainer_master.worker_complete(bridge.terminated_at)
+    if bridge:
+        trainer_master.worker_complete(bridge.terminated_at)
+    else:
+        trainer_master.worker_complete(int(time.time()))
     trainer_master.wait_master_complete()
 
 def _run_local(role,
@@ -351,10 +374,17 @@ def _create_data_visitor(args):
     visitor = None
     start_date = int(args.start_date) if args.start_date else None
     end_date = int(args.end_date) if args.end_date else None
+    local_start_date = int(args.local_start_date) if args.local_start_date \
+        else None
+    local_end_date = int(args.local_end_date) if args.local_end_date \
+        else None
     if args.data_source:
         visitor = DataSourceVisitor(args.data_source,
                                     start_date=start_date,
                                     end_date=end_date,
+                                    local_data_source=args.local_data_source,
+                                    local_start_date=local_start_date,
+                                    local_end_date=local_end_date,
                                     epoch_num=args.epoch_num,
                                     shuffle=args.shuffle)
     elif args.data_path:
