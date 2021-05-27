@@ -19,6 +19,7 @@ class Sender:
                  send_row_num: int,
                  file_paths: typing.List[str],
                  root_path: str = None,
+                 start_from_peer: bool = False,
                  pending_len: int = 10):
         self._db_client = DBClient('dfs')
         self._meta_path = os.path.join(meta_path, 'send')
@@ -27,6 +28,8 @@ class Sender:
         # The meta is used in ACK.
         self._meta = self._get_meta(file_paths, root_path or '')
         self._file_len = len(self._meta['files'])
+        # whether to start from peer's state regardless of local state
+        self._start_from_peer = start_from_peer
         self._synced = False
         self._started = False
         self._finished = self._meta['finished']
@@ -66,7 +69,8 @@ class Sender:
     def _sync(self):
         resp = self._client.SyncState(transmitter_pb.SyncRequest())
         with self._condition:
-            if self._meta['file_idx'] > resp.file_idx:
+            # if start from peer, always start sending from peer's state
+            if self._meta['file_idx'] > resp.file_idx or self._start_from_peer:
                 self._send_idx = IDX(resp.file_idx,
                                      resp.row_idx)
                 self._finished = False
