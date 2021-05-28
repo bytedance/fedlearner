@@ -29,7 +29,8 @@ from fedlearner.trainer.trainer_master_client \
     import LocalTrainerMasterClient, TrainerMasterClient
 from fedlearner.trainer.trainer_master \
     import LeaderTrainerMaster, FollowerTrainerMaster, ExportModelHook
-from fedlearner.trainer.data_visitor import DataPathVisitor, DataSourceVisitor
+from fedlearner.trainer.data_visitor import DataPathVisitor, \
+    DataSourceVisitor, ShuffleType
 from fedlearner.trainer.cluster_server import ClusterServer
 from fedlearner.trainer._global_context import global_context as _gctx
 from fedlearner.trainer.run_hooks import StepLossAucMetricsHook, StepMetricsHook #pylint: disable=unused-import
@@ -109,6 +110,9 @@ def create_argument_parser():
                         type=str_as_bool,
                         default=False, const=True, nargs='?',
                         help='shuffle the data block or not')
+    parser.add_argument('--shuffle-in-day',
+                        type=bool,
+                        help='shuffle the data block within a day or not')
     parser.add_argument('--export-path',
                         type=str,
                         help='Path to save exported models.')
@@ -378,6 +382,12 @@ def _create_data_visitor(args):
         else None
     local_end_date = int(args.local_end_date) if args.local_end_date \
         else None
+
+    shuffle_type = None
+    if args.shuffle:
+        shuffle_type = ShuffleType.ALL
+    elif args.shuffle_in_day:
+        shuffle_type = ShuffleType.DAY
     if args.data_source:
         visitor = DataSourceVisitor(args.data_source,
                                     start_date=start_date,
@@ -386,11 +396,11 @@ def _create_data_visitor(args):
                                     local_start_date=local_start_date,
                                     local_end_date=local_end_date,
                                     epoch_num=args.epoch_num,
-                                    shuffle=args.shuffle)
+                                    shuffle_type=shuffle_type)
     elif args.data_path:
         visitor = DataPathVisitor(args.data_path,
                                   epoch_num=args.epoch_num,
-                                  shuffle=args.shuffle)
+                                  shuffle_type=shuffle_type)
     if not visitor:
         raise ValueError("cannot found any data to train, "
                    "please specify --data-source or --data-path")

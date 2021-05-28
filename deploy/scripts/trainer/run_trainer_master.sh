@@ -31,6 +31,10 @@ epoch_num=$(normalize_env_to_args "--epoch-num" $EPOCH_NUM)
 start_date=$(normalize_env_to_args "--start-date" $START_DATE)
 end_date=$(normalize_env_to_args "--end-date" $END_DATE)
 shuffle=$(normalize_env_to_args "--shuffle" $SUFFLE_DATA_BLOCK)
+shuffle_in_day=$(normalize_env_to_args "--shuffle-in-day" $SHUFFLE_IN_DAY)
+local_data_source=$(normalize_env_to_args "--local-data-source" $LOCAL_DATA_SOURCE)
+local_start_date=$(normalize_env_to_args "--local-start-date" $LOCAL_START_DATE)
+local_end_date=$(normalize_env_to_args "--local-end-date" $LOCAL_END_DATE)
 
 if [ -n "$CHECKPOINT_PATH" ]; then
     checkpoint_path="--checkpoint-path=$CHECKPOINT_PATH"
@@ -86,4 +90,5 @@ python main.py --master \
     $mode $sparse_estimator \
     $save_checkpoint_steps $save_checkpoint_secs \
     $summary_save_steps $summary_save_secs \
-    $epoch_num $start_date $end_date $shuffle
+    $local_data_source $local_start_date $local_end_date \
+    $epoch_num $start_date $end_date $shuffle $shuffle_in_day
