@@ -1,9 +1,10 @@
 import datetime
 import os
+import logging
 
 import pytz
 
-from . import fl_logging
+from fedlearner.common import fl_logging
 
 
 class Config(object):
@@ -251,15 +252,15 @@ def convert_time_string_to_datetime(value):
 
 
 def set_logger():
-    verbosity = int(os.environ.get('VERBOSITY', 1))
+    verbosity = os.environ.get('VERBOSITY', 1)
     if verbosity == 0:
-        fl_logging.getLogger().setLevel(fl_logging.WARNING)
+        logging.getLogger().setLevel(logging.WARNING)
     elif verbosity == 1:
-        fl_logging.getLogger().setLevel(fl_logging.INFO)
+        logging.getLogger().setLevel(logging.INFO)
     elif verbosity > 1:
-        fl_logging.getLogger().setLevel(fl_logging.DEBUG)
-    fl_logging.basicConfig(format="%(asctime)s %(filename)s "
-                               "%(lineno)s %(levelname)s - %(message)s")
+        logging.getLogger().setLevel(logging.DEBUG)
+    logging.basicConfig(format="%(asctime)s %(filename)s "
+                                "%(lineno)s %(levelname)s - %(message)s")
 
 
 def time_diff(minuend, sub):
