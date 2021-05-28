@@ -374,6 +374,7 @@ class TestHorizontalNNTraining(unittest.TestCase):
             "--cluster-spec", leader_cluster_spec_str,
             "--checkpoint-path", ckpt_path,
             "--export-path", exp_path,
+            "--shuffle-in-day", 'true',
         ))
         child_env['ETCD_BASE_DIR'] = self._etcd_base_dirs[0]
         tml = _Task(name="RunLeaderMaster", target=run_lm, args=(args,),
