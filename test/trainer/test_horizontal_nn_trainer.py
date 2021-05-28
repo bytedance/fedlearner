@@ -20,6 +20,7 @@ import os
 import time
 import logging
 import json
+from datetime import datetime, timedelta
 from multiprocessing import Process
 import tensorflow.compat.v1 as tf
 from tensorflow.compat.v1 import gfile
@@ -237,6 +238,8 @@ class TestHorizontalNNTraining(unittest.TestCase):
 
         leader_index = 0
         follower_index = N * chunk_size * 10
+        event_time = datetime.strptime('20210101', '%Y%m%d')
+        delta = timedelta(minutes=1)
         for i in range(N):
             builder = DataBlockBuilder(
                 common.data_source_data_block_dir(data_source),
@@ -252,7 +255,7 @@ class TestHorizontalNNTraining(unittest.TestCase):
                 exam_id = '{}'.format(idx).encode()
                 feat['example_id'] = Feature(
                     bytes_list=BytesList(value=[exam_id]))
-                evt_time = idx
+                evt_time =int(event_time.strftime('%Y%m%d%H%M%S'))
                 feat['event_time'] = Feature(
                     int64_list = Int64List(value=[evt_time])
                 )
@@ -271,6 +274,7 @@ class TestHorizontalNNTraining(unittest.TestCase):
                                     leader_index, follower_index)
                 leader_index += 1
                 follower_index += 1
+                event_time += delta
             data_block_metas.append(builder.finish_data_block())
         self.max_index = follower_index
         return data_block_metas
