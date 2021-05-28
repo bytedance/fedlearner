@@ -21,6 +21,8 @@ import json
 import threading
 import collections
 import random
+import sys
+from datetime import timedelta, datetime
 
 import tensorflow.compat.v1 as tf
 from fedlearner.common import fl_logging
@@ -34,7 +36,8 @@ kvstore_use_mock = os.environ.get('KVSTORE_USE_MOCK', "off") == "on"
 
 class _RawDataBlock(
     collections.namedtuple('RowDataBlock',
-                           ['id', 'data_path', 'type'])):
+                           ['id', 'data_path', 'start_time', 'end_time',
+                            'type'])):
     pass
 
 
@@ -44,8 +47,71 @@ class DataBlock(
     pass
 
 
+class ShuffleType(object):
+    ALL = 'all'
+    DAY = 'day'
+
+
+class RawDataBlockDealer(object):
+    def __init__(self, data_blocks):
+        self._data_blocks = data_blocks
+
+    @property
+    def data_blocks(self):
+        return self._data_blocks
+
+    def time_translate(self, forward, day, hour=0,):
+        delta = timedelta(days=day, hours=hour)
+        date_fmt = '%Y%m%d'
+        for db in self._data_blocks:
+            start_time = db.start_time[:8]
+            end_time = db.end_time[:8]
+            if forward:
+                new_start_time = datetime.strptime(start_time, date_fmt) + delta
+                new_end_time = datetime.strptime(end_time, date_fmt) + delta
+            else:
+                new_start_time = datetime.strptime(start_time, date_fmt) - delta
+                new_end_time = datetime.strptime(end_time, date_fmt) - delta
+            db.start_time = new_start_time.strftime(date_fmt) + start_time[8:]
+            db.end_time = new_end_time.strftime(date_fmt) + end_time[8:]
+        return self
+
+    def merge_data_blocks(self, data_blocks):
+        self._data_blocks.extend(data_blocks)
+        return self
+
+    def shuffle(self):
+        random.shuffle(self._data_blocks)
+        return self
+
+    def shuffle_in_day(self):
+        def _shuffle(_start_index, _end_index):
+            # using Fisher–Yates shuffle Algorithm
+            for i in range(_end_index, _start_index, -1):
+                j = random.randint(_start_index, i)
+                self._data_blocks[i], self._data_blocks[j] = \
+                    self._data_blocks[j], self._data_blocks[i]
+
+        start_index = 0
+        end_index = 1
+        num_data_blocks = len(self._data_blocks)
+        if not self._data_blocks or not self._data_blocks[0].start_time:
+            return
+        start_day = self._data_blocks[0].start_time[:8]
+        while end_index < num_data_blocks:
+            new_day = self._data_blocks[end_index].start_time[:8]
+            if new_day != start_day:
+                _shuffle(start_index, end_index-1)
+                start_index = end_index
+                start_day = new_day
+            end_index += 1
+        _shuffle(start_index, end_index - 1)
+        return self
+
+
 class _DataVisitor(object):
-    def __init__(self, datablocks, epoch_num=1, shuffle=False):
+    def __init__(self, datablocks, epoch_num=1,
+                 shuffle_type=None):
         self._datablocks = list(datablocks)
         self._datablock_dict = {}
         for datablock in datablocks:
@@ -53,15 +119,14 @@ class _DataVisitor(object):
                             datablock.id, datablock.data_path, datablock.type)
             self._datablock_dict[datablock.id] = datablock
         self._epoch_num = epoch_num if epoch_num > 0 else 1
-        self._shuffle = shuffle
+        self._shuffle_type = shuffle_type
 
         self._lock = threading.Lock()
         self._datablock_index = 0
         self._current_epoch = 1
         self._allocated = {} # epoch -> set(datablock.id)
 
-        if self._shuffle:
-            random.shuffle(self._datablocks)
+        self._shuffle_data_blocks()
 
     @property
     def epoch_num(self):
@@ -70,6 +135,17 @@ class _DataVisitor(object):
     @property
     def datablock_size(self):
         return len(self._datablocks) * self._epoch_num
+
+    def _shuffle_data_blocks(self):
+        dealer = RawDataBlockDealer(self._datablocks)
+        if self._shuffle_type == ShuffleType.ALL:
+            dealer.shuffle()
+        elif self._shuffle_type == ShuffleType.DAY:
+            dealer.shuffle_in_day()
+        elif self._shuffle_type:
+            fl_logging.fatal("Not supported shuffle type %s",
+                             self._shuffle_type)
+            sys.exit(-1)
 
     def summary(self):
         with self._lock:
@@ -116,9 +192,6 @@ class _DataVisitor(object):
         datablock = self._datablock_dict[block_id]
         return DataBlock(datablock.id, epoch, datablock.data_path,
                          datablock.type)
-
-    def peek(self):
-        return self._next(peek=True)
 
     def _try_parse_v2(self, buff):
         try:
@@ -167,8 +240,15 @@ class _DataVisitor(object):
 
             self._current_epoch += 1
             self._datablock_index = 0
-            if self._shuffle:
-                random.shuffle(self._datablocks)
+            self._shuffle_data_blocks()
+
+    def next_with_type(self, data_block_type):
+        with self._lock:
+            data_block = self._next(peek=True)
+            if data_block.type == data_block_type:
+                return self._next()
+            else:
+                return None
 
     def __next__(self):
         with self._lock:
@@ -186,28 +266,33 @@ class DataSourceVisitor(_DataVisitor):
                  local_start_date=None,
                  local_end_date=None,
                  epoch_num=1,
-                 shuffle=False):
+                 shuffle_type=None):
         fl_logging.info("Load data_source: %s", data_source)
         data_block_visitor = DataBlockVisitor(
             data_source, kvstore_type, kvstore_use_mock)
-        datablocks = []
+        data_blocks = []
         for datablock in data_block_visitor.LoadDataBlockRepByTimeFrame(
             start_date, end_date).values():
-            datablocks.append((datablock, tm_pb.JOINED))
+            data_blocks.append(
+                _RawDataBlock(datablock.block_id, datablock.data_block_fpath,
+                              datablock.start_time, datablock.end_time,
+                              tm_pb.JOINED))
         if local_data_source:
             fl_logging.info("Load local data_source: %s", local_data_source)
             data_block_visitor = DataBlockVisitor(
                 local_data_source, kvstore_type, kvstore_use_mock)
             for datablock in data_block_visitor.LoadDataBlockRepByTimeFrame(
-                local_start_date, local_end_date).values():
-                datablocks.append((datablock, tm_pb.LOCAL))
-        datablocks.sort(key=lambda x: x[0].start_time)
+                    local_start_date, local_end_date).values():
+                data_blocks.append(
+                    _RawDataBlock(datablock.block_id,
+                                  datablock.data_block_fpath,
+                                  datablock.start_time,
+                                  datablock.end_time,
+                                  tm_pb.LOCAL))
+        data_blocks.sort(key=lambda x: (x.start_time, x.end_time))
 
         super(DataSourceVisitor, self).__init__(
-            [_RawDataBlock(d[0].block_id, d[0].data_block_fpath, d[1])
-             for d in datablocks],
-            epoch_num,
-            shuffle)
+            data_blocks, epoch_num, shuffle_type)
 
 
 class DataPathVisitor(_DataVisitor):
@@ -215,7 +300,7 @@ class DataPathVisitor(_DataVisitor):
                  data_path,
                  ext=".tfrecord",
                  epoch_num=1,
-                 shuffle=False):
+                 shuffle_type=None):
         fl_logging.info("create DataVisitor by data_path: %s", data_path)
         if not tf.io.gfile.exists(data_path):
             raise ValueError("data_path not found: %s"%data_path)
@@ -230,8 +315,10 @@ class DataPathVisitor(_DataVisitor):
                 block_id = os.path.join(subdirname, filename)
                 datablock = _RawDataBlock(block_id,
                                           os.path.join(dirname, filename),
+                                          None, None,
                                           tm_pb.JOINED)
                 datablocks.append(datablock)
         datablocks.sort()
 
-        super(DataPathVisitor, self).__init__(datablocks, epoch_num, shuffle)
+        super(DataPathVisitor, self).__init__(datablocks, epoch_num,
+                                              shuffle_type)

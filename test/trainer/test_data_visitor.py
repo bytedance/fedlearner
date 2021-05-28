@@ -15,13 +15,15 @@
 # coding: utf-8
 
 import unittest
-from fedlearner.trainer.data_visitor import _DataVisitor, _RawDataBlock
+from datetime import datetime, timedelta
+from fedlearner.trainer.data_visitor import _DataVisitor, _RawDataBlock,\
+    RawDataBlockDealer, ShuffleType
 
 class TestLeaderDataVisitor(unittest.TestCase):
     def setUp(self):
         self._datablocks = [
             _RawDataBlock(
-                "id_"+str(i), "path/to/"+str(i)
+                "id_"+str(i), "path/to/"+str(i), 0, 0, ''
             )
             for i in range(10)
         ]
@@ -45,7 +47,7 @@ class TestLeaderDataVisitor(unittest.TestCase):
     def test_shuffle_next(self):
         epoch_num = 5
         visitor = _DataVisitor(
-            self._datablocks, epoch_num, shuffle=True)
+            self._datablocks, epoch_num, shuffle_type=ShuffleType.ALL)
         try:
             i = 0
             c = 0
@@ -70,7 +72,7 @@ class TestLeaderDataVisitor(unittest.TestCase):
         for i in range(epoch_num):
             output[i+1] = set()
         visitor = _DataVisitor(
-            self._datablocks, epoch_num, shuffle=True)
+            self._datablocks, epoch_num, shuffle_type=ShuffleType.ALL)
         for i in range(len(self._datablocks)*3 + 2):
             b = next(visitor)
             output[b.epoch].add(b.id)
@@ -91,6 +93,31 @@ class TestLeaderDataVisitor(unittest.TestCase):
         for i in range(epoch_num):
             for j, id in enumerate(sorted(output[i+1])):
                 assert self._datablocks[j].id == id
+
+
+class TestDataBlockDealer(unittest.TestCase):
+    def setUp(self):
+        start_time = datetime.strptime('20210101', '%Y%m%d')
+        hour_delta = timedelta(hours=1)
+        self._datablocks = []
+        for i in range(100):
+            end_time = start_time + hour_delta
+            self._datablocks.append(_RawDataBlock(
+                "id_" + str(i), "path/to/" + str(i),
+                start_time.strftime('%Y%m%d%H%M%S'),
+                end_time.strftime('%Y%m%d%H%M%S'),
+                ''
+            ))
+            start_time += hour_delta
+
+    def test_shuffle_in_day(self):
+        dealer = RawDataBlockDealer(self._datablocks)
+        dealer.shuffle_in_day()
+
+    def test_shuffle(self):
+        dealer = RawDataBlockDealer(self._datablocks)
+        dealer.shuffle()
+
 
 if __name__ == '__main__':
         unittest.main()

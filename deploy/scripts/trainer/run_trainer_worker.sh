@@ -96,6 +96,16 @@ fi
 server_port=$(normalize_env_to_args "--server-port" "$PORT1")
 
 python main.py --worker \
+    --is-local-worker \
+    --application-id="$APPLICATION_ID" \
+    --master-addr="$MASTER_HOST:50051" \
+    --cluster-spec="$CLUSTER_SPEC" \
+    --worker-rank="$WORKER_RANK" \
+    $mode $batch_size \
+    $sparse_estimator $learning_rate > local_worker.log 2>&1 &
+local_worker_pid=$!
+
+python main.py --worker \
     --application-id="$APPLICATION_ID" \
     --master-addr="$MASTER_HOST:50051" \
     --cluster-spec="$CLUSTER_SPEC" \
@@ -104,3 +114,5 @@ python main.py --worker \
     --worker-rank="$WORKER_RANK" \
     $server_port $mode $batch_size \
     $sparse_estimator $learning_rate
+
+wait $local_worker_pid

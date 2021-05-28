@@ -535,8 +535,8 @@ class LeaderTrainerMaster(_TrainerMaster):
 
         # worker type: data source type
         self._worker_data_source_map = {
-            tm_pb.WorkerType.REMOTE_WORKER: [tm_pb.DataSourceType.JOINED],
-            tm_pb.WorkerType.LOCAL_WORKER: [tm_pb.DataSourceType.LOCAL]
+            tm_pb.WorkerType.REMOTE_WORKER: tm_pb.DataSourceType.JOINED,
+            tm_pb.WorkerType.LOCAL_WORKER: tm_pb.DataSourceType.LOCAL
         }
 
     def _trigger_fn(self, global_step):
@@ -567,13 +567,10 @@ class LeaderTrainerMaster(_TrainerMaster):
     def _request_data_block(self, request):
         need_waiting = False
         try:
-            data_block = None
-            next_data_block = self._data_visitor.peek()
-            if next_data_block.type not in self._worker_data_source_map[
-                                           request.worker_type]:
+            data_block = self._data_visitor.next_with_type(
+                self._worker_data_source_map[request.worker_type])
+            if not data_block:
                 need_waiting = True
-            else:
-                data_block = next(self._data_visitor)
         except StopIteration:
             data_block = None
 
