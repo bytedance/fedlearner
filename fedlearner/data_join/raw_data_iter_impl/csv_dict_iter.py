@@ -125,7 +125,8 @@ class CsvDictIter(RawDataIter):
             assert aware_headers
             return csv.DictReader(fh), [], True
         read_buffer = fh.read(self._options.read_ahead_size)
-        read_finished = len(read_buffer) < self._options.read_ahead_size
+        read_finished = len(read_buffer.encode()) \
+                        < self._options.read_ahead_size
         idx = read_buffer.rfind('\n')
         if read_finished:
             idx = len(read_buffer) - 1
