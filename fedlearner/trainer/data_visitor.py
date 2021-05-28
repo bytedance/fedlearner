@@ -64,8 +64,8 @@ class RawDataBlockDealer(object):
         delta = timedelta(days=day, hours=hour)
         date_fmt = '%Y%m%d'
         for db in self._data_blocks:
-            start_time = db.start_time[:8]
-            end_time = db.end_time[:8]
+            start_time = str(db.start_time)[:8]
+            end_time = str(db.end_time)[:8]
             if forward:
                 new_start_time = datetime.strptime(start_time, date_fmt) + delta
                 new_end_time = datetime.strptime(end_time, date_fmt) + delta
@@ -97,9 +97,9 @@ class RawDataBlockDealer(object):
         num_data_blocks = len(self._data_blocks)
         if not self._data_blocks or not self._data_blocks[0].start_time:
             return self
-        start_day = self._data_blocks[0].start_time[:8]
+        start_day = str(self._data_blocks[0].start_time)[:8]
         while end_index < num_data_blocks:
-            new_day = self._data_blocks[end_index].start_time[:8]
+            new_day = str(self._data_blocks[end_index].start_time)[:8]
             if new_day != start_day:
                 _shuffle(start_index, end_index-1)
                 start_index = end_index
