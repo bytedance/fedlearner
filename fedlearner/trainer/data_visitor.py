@@ -96,7 +96,7 @@ class RawDataBlockDealer(object):
         end_index = 1
         num_data_blocks = len(self._data_blocks)
         if not self._data_blocks or not self._data_blocks[0].start_time:
-            return
+            return self
         start_day = self._data_blocks[0].start_time[:8]
         while end_index < num_data_blocks:
             new_day = self._data_blocks[end_index].start_time[:8]
@@ -247,8 +247,7 @@ class _DataVisitor(object):
             data_block = self._next(peek=True)
             if data_block.type == data_block_type:
                 return self._next()
-            else:
-                return None
+            return None
 
     def __next__(self):
         with self._lock:
