@@ -212,7 +212,7 @@ def _run_worker(role, args, input_fn, model_fn):
 
     worker_type = tm_pb.WorkerType.REMOTE_WORKER
     bridge = None
-    if args.is_local_worker:
+    if args.local_worker:
         worker_type = tm_pb.WorkerType.LOCAL_WORKER
     else:
         if not args.local_addr:
