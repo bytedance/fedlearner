@@ -96,7 +96,7 @@ print(json.dumps({'clusterSpec': cluster_spec}))
 """`
 fi
 
-echo python main.py --worker \
+python main.py --worker \
     --local-worker \
     --application-id="$APPLICATION_ID" \
     --master-addr="$MASTER_HOST:50051" \
@@ -106,7 +106,7 @@ echo python main.py --worker \
     $sparse_estimator $learning_rate > local_worker.log 2>&1 &
 local_worker_pid=$!
 
-echo python main.py --worker \
+python main.py --worker \
     --application-id="$APPLICATION_ID" \
     --master-addr="$MASTER_HOST:50051" \
     --cluster-spec="$CLUSTER_SPEC" \
