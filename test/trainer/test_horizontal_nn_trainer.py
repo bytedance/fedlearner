@@ -339,16 +339,17 @@ class TestHorizontalNNTraining(unittest.TestCase):
     #@unittest.skip("demonstrating skipping")
     def test_remote_cluster(self):
         parser = flt.trainer_worker.create_argument_parser()
-        parser.add_argument('--is-local-worker',
+        parser.add_argument('--local-worker',
                             action='store_true',
                             help='is local worker')
-
+        num_worker = 2
         leader_master_address = "0.0.0.0:4051"
         leader_cluster_spec = {
             "clusterSpec": {
                 "Master": ["0.0.0.0:4050"],
                 "PS": ["0.0.0.0:4060"],
-                "Worker": ["0.0.0.0:4070", "0.0.0.0:4071"]
+                "Worker": ["0.0.0.0:4070", "0.0.0.0:4071",
+                           "0.0.0.0:4080", "0.0.0.0:5081"]
             }
         }
         leader_cluster_spec_str = json.dumps(leader_cluster_spec)
@@ -411,9 +412,7 @@ class TestHorizontalNNTraining(unittest.TestCase):
             self.sche.submit(psl)
 
         # launch leader/follower worker
-        assert len(leader_cluster_spec["clusterSpec"]["Worker"]) == \
-               len(follower_cluster_spec["clusterSpec"]["Worker"])
-        for i in range(len(leader_cluster_spec["clusterSpec"]["Worker"])):
+        for i in range(num_worker):
             _, leader_worker_port = \
                 leader_cluster_spec["clusterSpec"]["Worker"][i].split(':')
             leader_worker_port = int(leader_worker_port) + 10000
@@ -450,12 +449,12 @@ class TestHorizontalNNTraining(unittest.TestCase):
                         weight=1, force_quit=True,
                         kwargs={'env' : child_env}, daemon=True)
             self.sche.submit(ftm)
-        local_worker_rank = len(leader_cluster_spec["clusterSpec"]["Worker"])
-        for _ in range(len(leader_cluster_spec["clusterSpec"]["Worker"])):
-            # leader worker
+
+            # leader local worker
+            local_worker_rank = i + num_worker
             args = parser.parse_args((
                 "--worker",
-                "--is-local-worker",
+                "--local-worker",
                 "--application-id", self.app_id,
                 "--master-addr", leader_master_address,
                 "--cluster-spec", leader_cluster_spec_str,
@@ -467,7 +466,6 @@ class TestHorizontalNNTraining(unittest.TestCase):
                         weight=1, force_quit=True,
                         kwargs={'env' : child_env}, daemon=True)
             self.sche.submit(ftm)
-            local_worker_rank += 1
 
         self.sche.run()
 

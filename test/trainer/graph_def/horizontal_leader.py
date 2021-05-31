@@ -141,7 +141,7 @@ def local_model_fn(model, features, labels, mode):
 
 def main(args):
     logging.getLogger().setLevel(level=logging.DEBUG)
-    if args.is_local_worker:
+    if args.local_worker:
         flt.trainer_worker.train(
             'leader', args, input_fn,
             local_model_fn, serving_input_receiver_fn)
