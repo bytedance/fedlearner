@@ -45,8 +45,10 @@ class TestDataGenerator(object):
         return event_times, eid_etime_dict, etime_eid_dict
 
     def _generate_input_partition(self, output_dir,
-                                  partition_id, example_ids,
-                                  event_times):
+                                  partition_id,
+                                  example_ids,
+                                  event_times,
+                                  is_dirty):
         types = ['Chinese', 'English', 'Math', 'Physics']
         date_str = str(event_times[0])[:8]
         fpath = self._get_input_fpath(output_dir, date_str, partition_id)
@@ -58,17 +60,18 @@ class TestDataGenerator(object):
         with tf.io.TFRecordWriter(fpath, options=options) as writer:
             for example_id, event_time in zip(example_ids, event_times):
                 feat = {}
-                feat['example_id'] = tf.train.Feature(
-                    bytes_list=tf.train.BytesList(value=[
-                        str(example_id).encode(
-                            'utf-8')]))
-                feat['raw_id'] = tf.train.Feature(
-                    bytes_list=tf.train.BytesList(value=[
-                        str(example_id).encode(
-                            'utf-8')]))
-                feat['event_time'] = tf.train.Feature(
-                    int64_list=tf.train.Int64List(
-                        value=[event_time]))
+                if not is_dirty:
+                    feat['example_id'] = tf.train.Feature(
+                        bytes_list=tf.train.BytesList(value=[
+                            str(example_id).encode(
+                                'utf-8')]))
+                    feat['raw_id'] = tf.train.Feature(
+                        bytes_list=tf.train.BytesList(value=[
+                            str(example_id).encode(
+                                'utf-8')]))
+                    feat['event_time'] = tf.train.Feature(
+                        int64_list=tf.train.Int64List(
+                            value=[event_time]))
                 if random.random() < 0.8:
                     feat['label'] = tf.train.Feature(
                         int64_list=tf.train.Int64List(
@@ -87,7 +90,8 @@ class TestDataGenerator(object):
         return fpath
 
     def generate_input_data(self, output_dir, partition_num,
-                            num_item_per_partition):
+                            num_item_per_partition,
+                            is_dirty=False):
         if not gfile.Exists(output_dir):
             gfile.MakeDirs(output_dir)
         start_time = datetime.strptime('2020-7-1', '%Y-%m-%d')
@@ -106,7 +110,7 @@ class TestDataGenerator(object):
                 example_id += 1
             filename = self._generate_input_partition(
                 output_dir, partition_id,
-                eids, event_times)
+                eids, event_times, is_dirty)
             output_files.append(filename)
             print(event_times, eids)
             start_time += timedelta(days=1)
@@ -153,12 +157,6 @@ class RawDataTests(unittest.TestCase):
         self._input_dir = "{}/input_data".format(self._job_path)
         self._num_partition = 4
         self._num_item_per_partition = 5
-        # generate test data
-        generator = TestDataGenerator()
-        self._input_data, self._input_files = \
-            generator.generate_input_data(
-                self._input_dir, self._num_partition,
-                self._num_item_per_partition)
         cur_dir = os.path.dirname(os.path.realpath(__file__))
         jar_path = os.path.join(cur_dir, 'jars')
         self._jars = []
@@ -191,6 +189,13 @@ class RawDataTests(unittest.TestCase):
         self.assertEqual(total_cnt, wanted_cnt)
 
     def test_generate_raw_data(self):
+        # generate test data
+        generator = TestDataGenerator()
+        self._input_data, self._input_files = \
+            generator.generate_input_data(
+                self._input_dir, self._num_partition,
+                self._num_item_per_partition)
+
         schema_file_path = os.path.join(self._job_path, "raw_data",
                                         "data.schema.json")
         output_path = os.path.join(self._job_path, "raw_data", str(0))
@@ -219,7 +224,78 @@ class RawDataTests(unittest.TestCase):
 
         self._check_raw_data(file_paths, total_num)
 
+    def test_dirty_input(self):
+        # generate test data
+        generator = TestDataGenerator()
+        self._input_data, self._input_files = \
+            generator.generate_input_data(
+                self._input_dir, self._num_partition,
+                self._num_item_per_partition, is_dirty=True)
+
+        schema_file_path = os.path.join(self._job_path, "raw_data",
+                                        "data.schema.json")
+        output_path = os.path.join(self._job_path, "raw_data", str(0))
+        output_partition_num = 4
+
+        json_str = """{
+            "job_type": "%s",
+            "input_files": "%s",
+            "schema_path": "%s",
+            "output_type": "raw_data",
+            "output_path": "%s",
+            "output_partition_num": %d
+        }""" % (JobType.Streaming, ','.join(self._input_files),
+                schema_file_path, output_path, output_partition_num)
+        config = json.loads(json_str)
+        processor = RawData(None, self._jars)
+        processor.run(config)
+        processor.stop()
+
+        self.assertFalse(gfile.Exists(output_path))
+
+    def test_run_raw_data_dirty(self):
+        # generate test data
+        generator = TestDataGenerator()
+        self._input_data, self._input_files = \
+            generator.generate_input_data(
+                self._input_dir, self._num_partition,
+                self._num_item_per_partition, is_dirty=True)
+
+        output_partition_num = 4
+        os.environ['STORAGE_ROOT_PATH'] = self._job_path
+        output_path = os.path.join(self._job_path, "raw_data", self._job_name)
+        raw_data_publish_dir = os.path.join("portal_publish_dir",
+                                            self._job_name)
+        upload_dir = os.path.join(output_path, "upload")
+        if not gfile.Exists(upload_dir):
+            gfile.MakeDirs(upload_dir)
+        entry_file_path = inspect.getfile(RawData)
+        file_name = os.path.basename(entry_file_path)
+        target_dir = os.path.join(upload_dir, file_name)
+        gfile.Copy(entry_file_path, target_dir)
+        job = RawDataJob(self._job_name, output_path,
+                         job_type=JobType.Streaming,
+                         output_partition_num=output_partition_num,
+                         raw_data_publish_dir=raw_data_publish_dir,
+                         output_type=OutputType.RawData,
+                         check_success_tag=True,
+                         single_subfolder=True,
+                         upload_dir=upload_dir,
+                         use_fake_k8s=True)
+        job.run(self._input_dir)
+
+        for job_id in range(self._num_partition):
+            output_dir = os.path.join(output_path, str(job_id))
+            self.assertFalse(gfile.Exists(output_dir))
+
     def test_run_raw_data(self):
+        # generate test data
+        generator = TestDataGenerator()
+        self._input_data, self._input_files = \
+            generator.generate_input_data(
+                self._input_dir, self._num_partition,
+                self._num_item_per_partition)
+
         output_partition_num = 4
         os.environ['STORAGE_ROOT_PATH'] = self._job_path
         output_path = os.path.join(self._job_path, "raw_data", self._job_name)
