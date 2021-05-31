@@ -42,6 +42,7 @@ class K8SAPPStatus(enum.Enum):
     RUNNING = "RUNNING"
     COMPLETED = "COMPLETED"
     FAILED = "FAILED"
+    FAILING = "FAILING"
 
 
 class K8SClient(object):
