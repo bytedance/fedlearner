@@ -93,8 +93,16 @@ class RawData:
             .option("recordType", "Example") \
             .load(",".join(input_files))
 
+        partition_field = self._get_partition_field(job_type)
+        if partition_field not in data_df.columns:
+            logging.warning("There is no partition field %s in data",
+                            partition_field)
+            return
+        partition_index = data_df.columns.index(partition_field)
+
         # deal with data
-        output_df = self._partition_and_sort(data_df, job_type, partition_num)
+        output_df = self._partition_and_sort(data_df, job_type,
+                                             partition_num, partition_index)
 
         # output data
         write_options = {
@@ -151,10 +159,8 @@ class RawData:
 
         logging.info("Export data to %s finished", output_path)
 
-    def _partition_and_sort(self, data_df, job_type, partition_num):
-        partition_field = self._get_partition_field(job_type)
-        partition_index = data_df.columns.index(partition_field)
-
+    def _partition_and_sort(self, data_df, job_type,
+                            partition_num, partition_index):
         def partitioner_fn(x):
             return CityHash32(x)
 

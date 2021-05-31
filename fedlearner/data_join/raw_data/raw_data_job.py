@@ -132,15 +132,11 @@ class RawDataJob:
         task_name = self._encode_spark_task_name(job_id)
         self._launch_spark_job(task_name, job_config.config_path)
 
-        # 2. check spark job successful
         success_tag = os.path.join(output_path, "_SUCCESS")
         if not gfile.Exists(success_tag):
-            logging.fatal("There is no _SUCCESS file in output path %s",
-                          output_path)
-            sys.exit(-1)
-
-        # 3. publish
-        self._publish_raw_data(job_id, output_path)
+            logging.warning("Encounter empty inputs")
+        else:
+            self._publish_raw_data(job_id, output_path)
 
     def _run_data_block_job(self, job_id, input_files):
         data_source = self._create_data_source(job_id, self._root_path)
@@ -157,16 +153,12 @@ class RawDataJob:
         task_name = self._encode_spark_task_name(job_id)
         self._launch_spark_job(task_name, job_config.config_path)
 
-        # 2. check spark job successful
         success_tag = os.path.join(temp_output_path, "_SUCCESS")
         if not gfile.Exists(success_tag):
-            logging.fatal("There is no _SUCCESS file in output path %s",
-                          temp_output_path)
-            sys.exit(-1)
-
-        # 3. publish data block
-        self._publish_data_block(job_id, data_source, temp_output_path,
-                                 output_base_path, input_files[0])
+            logging.warning("Encounter empty inputs, no data generated")
+        else:
+            self._publish_data_block(job_id, data_source, temp_output_path,
+                                     output_base_path, input_files[0])
 
     @staticmethod
     def _is_flag_file(filename: str):
