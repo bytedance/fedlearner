@@ -336,7 +336,8 @@ class _TrainerMaster(tm_grpc.TrainerMasterServiceServicer):
                 )
 
             # summary hook
-            if self._summary_save_secs or self._summary_save_steps:
+            if mode_key == tf.estimator.ModeKeys.TRAIN \
+                and (self._summary_save_secs or self._summary_save_steps):
                 if not self._summary_path:
                     self._summary_path = self._checkpoint_path
                 if self._summary_path:
