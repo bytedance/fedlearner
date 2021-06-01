@@ -4,18 +4,16 @@ import uuid
 
 import numpy as np
 import pyarrow as pa
-import pyarrow.parquet as pq
 
 import fedlearner.common.private_set_union_pb2 as psu_pb
 import fedlearner.common.transmitter_service_pb2 as transmitter_pb
+import fedlearner.data_join.private_set_union.parquet_utils as pqu
 from fedlearner.data_join.private_set_union.keys import BaseKeys
-from fedlearner.data_join.private_set_union.utils import _make_parquet_dumper, \
-    _get_skip
-from fedlearner.data_join.private_set_union.parquet_components import ParquetSender
+from fedlearner.data_join.transmitter.components import Sender, Receiver
 from fedlearner.data_join.transmitter.utils import IDX
 
 
-class ParquetEncryptSender(ParquetSender):
+class ParquetEncryptSender(Sender):
     def __init__(self,
                  keys: BaseKeys,
                  output_path: str,
@@ -26,56 +24,69 @@ class ParquetEncryptSender(ParquetSender):
                  pending_len: int = 10,
                  join_key: str = 'example_id'):
         self._keys = keys
+        self._hash_func = np.frompyfunc(self._keys.hash_func, 1, 1)
         self._encrypt_func1 = np.frompyfunc(self._keys.encrypt_func1, 1, 1)
         self._encrypt_func2 = np.frompyfunc(self._keys.encrypt_func2, 1, 1)
         self._output_path = output_path
         self._join_key = join_key
         self._indices = {}
+        self._reader = None
         self._dumper = None
-        self._dump_file_path = None
         self._schema = pa.schema([pa.field('_job_id', pa.int64()),
                                   pa.field('_index', pa.int64()),
-                                  pa.field('quadruply_signed', pa.string())])
+                                  pa.field('quadruply_encrypted', pa.string())])
         super().__init__(meta_path, send_row_num, file_paths,
-                         root_path, pending_len)
+                         root_path, False, pending_len)
 
     def _send_process(self,
                       root_path: str,
                       files: typing.List[str],
                       start_idx: IDX,
                       row_num: int) -> (bytes, IDX, bool):
-        batch, end_idx = self._get_batch(
-            root_path, files, start_idx, row_num,
-            columns=['_index', '_job_id', self._join_key])
-        if not batch:
+        """
+        Prepare requests to send. Note that we will start sending from the
+            beginning of a file.
+        Args:
+            root_path: root path of all files.
+            files: file paths relative to root_path.
+            start_idx: IDX from where we start reading.
+            row_num: number of rows to read.
+
+        Returns:
+            a serialized encrypt request payload,
+            an IDX indicating the start IDX of next restart,
+            a bool indicating whether all data is finished.
+        """
+        batches, self._reader = pqu.get_batch(
+            self._reader, root_path, files, start_idx, row_num,
+            columns=['_index', '_job_id', self._join_key],
+            consume_remain=True)
+
+        if not len(batches) == 0:
             # No batch means all files finished
-            #   -> no payload, next of end row, data finished
-            return None, \
-                   IDX(start_idx.file_idx,
-                       self._pq_file.metadata.num_rows), \
-                   True
+            #   (return)-> no payload, start of next file, data finished
+            # NOTE: this next-file IDX is needed for peer and self(in recv) to
+            #   update the meta respectively
+            return None, IDX(self._reader.file_idx + 1, 0), True
 
-        batch_dict = batch.to_pydict()
-        # how many elements from batch should be retained, as batch may start
-        #   at a position before start_idx.
-        if start_idx.file_idx < end_idx.file_idx:
-            retain = end_idx.row_idx
-        else:
-            retain = end_idx.row_idx - start_idx.row_idx
+        batch_dict = batches[0].to_pydict()
+        if len(batches) > 1:
+            batch_dict.update(batches[1].to_pydict())
 
+        assert len(batch_dict['_index']) == len(batch_dict['_singly_encrypted'])
         # the job id of this file. _index is unique in the event of same job id.
         job_id = batch_dict['job_id'][0]
         # _index is the order of each row in raw data's Spark process,
         #   independent of <join_key>.
-        _index = np.asarray(batch_dict['_index'][-retain:])
-        # encrypt join keys using private key 1
-        join_keys = np.asarray(batch_dict[self._join_key][-retain:])
-        singly_encrypted = self._encrypt_func1(join_keys)
-
-        assert batch.num_rows == len(_index) == len(singly_encrypted)
+        _index = np.asarray(batch_dict['_index'])
+        # hash and encrypt join keys using private key 1
+        singly_encrypted = self._encrypt_func1(
+            self._hash_func(np.asarray(batch_dict[self._join_key]))
+        )
         # in-place shuffle
         unison = np.c_[_index, singly_encrypted]
         np.random.shuffle(unison)
+        # record the original indices for data merging in the future
         req_id = uuid.uuid4().hex
         self._indices[req_id] = unison[:, 0].tobytes()
         singly_encrypted = unison[:, 1]
@@ -83,28 +94,43 @@ class ParquetEncryptSender(ParquetSender):
             singly_encrypted=singly_encrypted.tolist(),
             job_id=job_id,
             req_id=req_id)
-        return payload.SerializeToString(), end_idx, False
+        return payload.SerializeToString(), self._reader.idx, False
 
     def _resp_process(self,
                       resp: transmitter_pb.Response,
                       current_idx: IDX) -> IDX:
+        """
+        Process response from peer. Note that we will start sending & dumping
+            from the beginning of a file, so responses will not contain
+            partially duplicated rows.
+        Args:
+            resp: transmitter response.
+            current_idx: the next row we expect to process, will start from the
+                beginning of a file if restarts.
+
+        Returns:
+            an IDX indicating where the next restart should start from. Note
+                that this will be None or its row_idx part will be 0.
+        """
         start_idx = IDX(resp.start_file_idx, resp.start_row_idx)
         end_idx = IDX(resp.end_file_idx, resp.end_row_idx)
-        if not start_idx <= current_idx < end_idx:
+        if end_idx.row_idx == 0:
+            # it is the last response indicating the end of all data
+            return end_idx
+        if not start_idx == current_idx < end_idx:
             # it is a duplicated one or a preceded one, nothing to dump
             return None
 
-        # skip rows that are already dumped
-        skip = _get_skip(start_idx, current_idx, end_idx)
-
         encrypt_res = psu_pb.EncryptTransmitResponse()
         encrypt_res.ParseFromString(resp.payload)
-        _index = np.frombuffer(self._indices[encrypt_res.req_id],
-                               dtype=np.long)[skip:]
-        triply_encrypted = np.asarray(encrypt_res.triply_encrypted)[skip:]
+        # retrieve original indices, Channel assures each response will only
+        #   arrive once
+        _index = np.frombuffer(self._indices.pop(encrypt_res.req_id),
+                               dtype=np.long)
+        triply_encrypted = np.asarray(encrypt_res.triply_encrypted)
         assert len(triply_encrypted) == len(_index)
         quadruply_encrypted = self._encrypt_func2(triply_encrypted)
-
+        # construct a table and dump
         table = {'_index': _index.tolist(),
                  '_job_id': [encrypt_res.job_id for _ in range(len(_index))],
                  'quadruply_encrypted': quadruply_encrypted.tolist()}
@@ -112,59 +138,81 @@ class ParquetEncryptSender(ParquetSender):
         # OUTPUT_PATH/<job_id>/<file_idx>.parquet
         file_name = str(end_idx.file_idx) + '.parquet'
         file_path = os.path.join(self._output_path, str(resp.job_id), file_name)
-        self._dumper = _make_parquet_dumper(
+        # dumper will be renewed if the last file finished.
+        self._dumper = pqu.get_or_update_parquet_dumper(
             file_path, self._schema, self._dumper, current_idx, end_idx)
         self._dumper.write_table(table)
+        # if it's still the same file, we don't update meta to disk;
+        # if it's a new file, update meta to the first line of the new file,
+        #   s.t. we will start reading from the new file if restarts.
         return None if current_idx.file_idx == end_idx.file_idx \
-            else current_idx
+            else IDX(end_idx.file_idx, 0)
 
 
 class ParquetEncryptReceiver(Receiver):
     def __init__(self,
                  keys: BaseKeys,
+                 dump_file_len: int,
                  meta_path: str,
                  output_path: str,
                  join_key: str = 'example_id'):
         self._keys = keys
+        self._dump_file_len = dump_file_len
         self._hash_func = np.frompyfunc(self._keys.hash_func, 1, 1)
         self._encrypt_func1 = np.frompyfunc(self._keys.encrypt_func1, 1, 1)
         self._encrypt_func2 = np.frompyfunc(self._keys.encrypt_func2, 1, 1)
         self._join_key = join_key
         self._dumper = None
-        self._dump_file_path = None
-        self._schema = pa.schema([pa.field('_doubly_signed', pa.string())])
+        self._schema = pa.schema([pa.field('_doubly_encrypted', pa.string())])
         super().__init__(meta_path, output_path)
 
     def _recv_process(self,
                       req: transmitter_pb.Request,
                       current_idx: IDX) -> (bytes, IDX):
+        """
+        Process requests from peer. Note that we will start from the beginning
+            of a file after restarts. No requests will contain partially
+            duplicated rows. If there is a duplicated / preceded request, we'll
+            encrypt it as usual but without dumping.
+        Args:
+            req: a transmitter request.
+            current_idx: the next IDX we expect to process
+
+        Returns:
+            a serialized encrypt response payload,
+            an IDX indicating where to start from if restarts
+        """
         start_idx = IDX(req.start_file_idx, req.start_row_idx)
         end_idx = IDX(req.end_file_idx, req.end_row_idx)
-        need_dump = start_idx <= current_idx < end_idx
-        sign_req = psu_pb.EncryptTransmitRequest()
-        sign_req.ParseFromString(req.payload)
+        if end_idx.row_idx == 0:
+            # it is the end of all data
+            return None, end_idx
+        # duplicated and preceded req does not need dump
+        need_dump = start_idx == current_idx < end_idx
+        encrypt_req = psu_pb.EncryptTransmitRequest()
+        encrypt_req.ParseFromString(req.payload)
 
-        singly_encrypted = np.asarray(sign_req.singly_signed, np.bytes_)
+        singly_encrypted = np.asarray(encrypt_req.singly_encrypted, np.bytes_)
         doubly_encrypted = self._encrypt_func1(singly_encrypted)
         triply_encrypted = self._encrypt_func2(doubly_encrypted)
 
         if need_dump:
-            # skip the duplicated rows
-            skip = _get_skip(start_idx, current_idx, end_idx)
-            # OUTPUT_PATH/<job_id>/<file_idx>.parquet
-            file_name = str(end_idx.file_idx) + '.parquet'
-            file_path = os.path.join(
-                self._output_path, str(req.job_id), file_name)
-            self._dumper = _make_parquet_dumper(
-                file_path, self._schema, self._dumper, current_idx, end_idx)
+            # OUTPUT_PATH/doubly_encrypted/<file_idx>.parquet
+            file_path = pqu.encode_doubly_encrypted_file_path(
+                self._output_path, end_idx.file_idx)
+            self._dumper = pqu.make_or_update_dumper(
+                self._dumper, start_idx, end_idx, file_path, self._schema,
+                flavor='spark')
             table = pa.Table.from_pydict(
-                mapping={'_doubly_encrypted': doubly_encrypted[skip:]},
+                mapping={'_doubly_encrypted': doubly_encrypted},
                 schema=self._schema)
             self._dumper.write_table(table)
 
-        # if we didn't switch to a new file, then do not forward
+        # if it's still the same file, we don't update meta to disk;
+        # if it's a new file, update meta to the first line of the new file,
+        #   s.t. we will start receiving from the new file if restarts.
         forward_idx = None if current_idx.file_idx == end_idx.file_idx \
-            else current_idx
+            else IDX(end_idx.file_idx, 0)
         res = psu_pb.EncryptTransmitResponse(
             triply_encrypted=triply_encrypted.tolist(),
             req_id=req.req_id,
