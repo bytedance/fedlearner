@@ -357,7 +357,7 @@ export default function TicketList({
     const insert2Env = filterArrayValue([
       { name: 'DATA_SOURCE', getValue: data => data.datasource },
       jobType === JOB_TYPE.nn_model
-        ? { name: 'CODE_KEY', getValue: data => data.code_key, writeTo: ['Worker'] }
+        ? { name: 'CODE_KEY', getValue: data => data.code_key, writeTo: ['Master', 'Worker'] }
         : undefined
     ])
     rewriteEnvs(draft, data, insert2Env)
