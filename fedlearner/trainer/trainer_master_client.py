@@ -41,9 +41,9 @@ class _TrainerMasterClient(object):
             lambda: self._client.RequestDataBlock(request))
         while response.status.code == \
             common_pb.StatusCode.STATUS_WAIT_FOR_DATA_BLOCK:
-            fl_logging.info("Sleep 1s to wait for data block of type %s",
+            fl_logging.info("Sleep 5s to wait for data block of type %s",
                             data_source_type)
-            time.sleep(1)
+            time.sleep(5)
             response = _grpc_with_retry(
                 lambda: self._client.RequestDataBlock(request))
         if response.status.code == common_pb.StatusCode.STATUS_SUCCESS:
