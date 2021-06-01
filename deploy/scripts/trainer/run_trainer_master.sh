@@ -20,6 +20,7 @@ export CUDA_VISIBLE_DEVICES=
 source /app/deploy/scripts/hdfs_common.sh || true
 source /app/deploy/scripts/env_to_args.sh
 
+mode=$(normalize_env_to_args "--mode" "$MODE")
 sparse_estimator=$(normalize_env_to_args "--sparse-estimator" "$SPARSE_ESTIMATOR")
 save_checkpoint_steps=$(normalize_env_to_args "--save-checkpoint-steps" "$SAVE_CHECKPOINT_STEPS")
 save_checkpoint_secs=$(normalize_env_to_args "--save-checkpoint-secs" "$SAVE_CHECKPOINT_SECS")
@@ -80,7 +81,7 @@ python main.py --master \
     --checkpoint-path=$checkpoint_path \
     $load_checkpoint_filename $load_checkpoint_filename_with_path \
     --export-path=$export_path \
-    $sparse_estimator \
+    $mode $sparse_estimator \
     $save_checkpoint_steps $save_checkpoint_secs \
     $summary_save_steps $summary_save_secs \
     $epoch_num $start_date $end_date $shuffle
