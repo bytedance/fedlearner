@@ -103,7 +103,7 @@ python main.py --worker \
     --cluster-spec="$CLUSTER_SPEC" \
     --worker-rank="$LOCAL_WORKER_RANK" \
     $mode $batch_size \
-    $sparse_estimator $learning_rate > local_worker.log 2>&1 &
+    $sparse_estimator $learning_rate > /app/local_worker.log 2>&1 &
 local_worker_pid=$!
 
 python main.py --worker \
