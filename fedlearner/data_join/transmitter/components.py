@@ -177,13 +177,23 @@ class Sender:
                 while not self.finished:
                     self._condition.wait()
 
-    def stop(self):
+    def stop(self, *args, **kwargs):
         with self._condition:
             if not self._stopped:
-                self._stopped = True
                 self._put_thread.join()
                 self._send_thread.join()
+                self._stop(*args, **kwargs)
+                self._stopped = True
                 self._condition.notify_all()
+
+    def _stop(self, *args, **kwargs):
+        """
+        Called before stopping, for shutting down custom objects like dumper.
+            No need to inherit if nothing needs to be done at exit.
+        Returns:
+
+        """
+        pass
 
     def _send_process(self,
                       root_path: str,
@@ -266,9 +276,10 @@ class Receiver:
                 while not self.finished:
                     self._condition.wait()
 
-    def stop(self):
+    def stop(self, *args, **kwargs):
         if self.finished:
             with self._condition:
+                self._stop(*args, **kwargs)
                 self._stopped = True
                 self._condition.notify_all()
 
@@ -330,6 +341,15 @@ class Receiver:
                                            end_file_idx=req.end_file_idx,
                                            end_row_idx=req.end_row_idx,
                                            payload=payload)
+
+    def _stop(self, *args, **kwargs):
+        """
+        Called before stopping, for shutting down custom objects like dumper.
+            No need to inherit if nothing needs to be done at exit.
+        Returns:
+
+        """
+        pass
 
     def _recv_process(self,
                       req: transmitter_pb.Request,
