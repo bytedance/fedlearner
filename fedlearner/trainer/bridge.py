@@ -126,11 +126,11 @@ class Bridge(object):
 
     @property
     def connected_at(self):
-        return self._channel._connected_at
+        return self._channel.connected_at
 
     @property
     def terminated_at(self):
-        return self._channel._closed_at
+        return self._channel.closed_at
 
     def _check_iteration_timeout(self):
         with self._condition:

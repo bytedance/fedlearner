@@ -363,8 +363,9 @@ func (am *appManager) createIngress(ctx context.Context, app *v1alpha1.FLApp) er
 				Annotations:     annotations,
 				OwnerReferences: []metav1.OwnerReference{*ownerReference},
 			},
+			// Explicitly set IngressClassName to nil for k8s backward compatibility
 			Spec: networking.IngressSpec{
-				IngressClassName: &ingressClassName,
+				IngressClassName: nil,
 			},
 		}
 		for rtype := range app.Spec.FLReplicaSpecs {
