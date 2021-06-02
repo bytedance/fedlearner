@@ -3,7 +3,6 @@ Fedlearner is collaborative machine learning framework that enables joint modeli
 
 
 
-
 ## Trademark Usage Policy
 
 Fedlearner welcomes everyone to build on or modify Fedlearner open source software for your own project.
