@@ -96,7 +96,7 @@ sparkoperator:
 
   sparkJobNamespace: default
   installCrds: true
-  logLevel: 6
+  logLevel: 4
 
   enableWebhook: true
   webhookPort: 8080
