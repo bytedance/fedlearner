@@ -903,6 +903,7 @@ class BoostingTreeEnsamble(object):
         self._pool = None
         if self._num_parallel > 1:
             self._pool = ProcessPoolExecutor(num_parallel)
+            self._pool._start_queue_management_thread()
 
         assert max_bins < 255, "Only support max_bins < 255"
         self._max_bins = max_bins
