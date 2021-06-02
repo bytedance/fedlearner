@@ -20,8 +20,8 @@ import queue
 import time
 import logging
 import collections
-from concurrent.futures import ProcessPoolExecutor
 import numpy as np
+import multiprocessing as mp
 from google.protobuf import text_format
 import tensorflow.compat.v1 as tf
 from fedlearner.model.tree.packing import GradHessPacker
@@ -902,7 +902,7 @@ class BoostingTreeEnsamble(object):
         self._num_parallel = num_parallel
         self._pool = None
         if self._num_parallel > 1:
-            self._pool = ProcessPoolExecutor(num_parallel)
+            self._pool = mp.get_context('spawn').Pool(num_parallel)
 
         assert max_bins < 255, "Only support max_bins < 255"
         self._max_bins = max_bins
