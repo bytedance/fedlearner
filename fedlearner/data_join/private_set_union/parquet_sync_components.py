@@ -1,14 +1,13 @@
 import typing
-import os
+
 import numpy as np
 import pyarrow as pa
-import pyarrow.parquet as pq
 
-import fedlearner.common.transmitter_service_pb2 as transmitter_pb
 import fedlearner.common.private_set_union_pb2 as psu_pb
+import fedlearner.common.transmitter_service_pb2 as transmitter_pb
+import fedlearner.data_join.private_set_union.parquet_utils as pqu
 from fedlearner.data_join.transmitter.components import Sender, Receiver
 from fedlearner.data_join.transmitter.utils import IDX
-import fedlearner.data_join.private_set_union.parquet_utils as pqu
 
 
 class ParquetSyncSender(Sender):
@@ -30,14 +29,14 @@ class ParquetSyncSender(Sender):
                       row_num: int) -> (bytes, IDX, bool):
         batches, self._reader = pqu.get_batch(
             self._reader, root_path, files, start_idx, row_num,
-            columns=['_doubly_encrypted'],
+            columns=['doubly_encrypted'],
             consume_remain=True)
         if len(batches) == 0:
             # No batch means all files finished
             #   -> no payload, next of end row, data finished
             return None, IDX(self._reader.file_idx, 0), True
 
-        batches = [batch.to_pydict()['_doubly_encrypted'] for batch in batches]
+        batches = [batch.to_pydict()['doubly_encrypted'] for batch in batches]
         batches = np.concatenate(batches)
         np.random.shuffle(batches)
         payload = psu_pb.DataSyncRequest(doubly_encrypted=batches.tolist())
@@ -55,7 +54,7 @@ class PSUSyncReceiver(Receiver):
                  meta_path: str,
                  output_path: str):
         self._dumper = None
-        self._schema = pa.schema([pa.field('_doubly_signed', pa.string())])
+        self._schema = pa.schema([pa.field('doubly_encrypted', pa.string())])
         super().__init__(meta_path, output_path)
 
     def _recv_process(self,
@@ -80,7 +79,7 @@ class PSUSyncReceiver(Receiver):
                 self._dumper, start_idx, end_idx, file_path, self._schema,
                 flavor='spark')
             table = pa.Table.from_pydict(
-                mapping={'_doubly_encrypted': encrypt_req.doubly_encrypted},
+                mapping={'doubly_encrypted': encrypt_req.doubly_encrypted},
                 schema=self._schema)
             self._dumper.write_table(table)
 

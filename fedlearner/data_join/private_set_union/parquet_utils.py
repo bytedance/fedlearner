@@ -33,7 +33,7 @@ class ParquetBatchReader:
 
     def __next__(self):
         batch = next(self._reader)
-        self.idx.row_idx += batch.num_rows
+        self.idx = IDX(self.idx.file_idx, self.idx.row_idx + batch.num_rows)
         return batch
 
     def __iter__(self):
@@ -70,7 +70,18 @@ class ParquetBatchDumper:
 def encode_doubly_encrypted_file_path(output_path: str, file_id: [int, str]):
     return os.path.join(str(output_path),
                         'doubly_encrypted',
-                        str(file_id) + 'parquet')
+                        str(file_id) + '.parquet')
+
+
+def encode_quadruply_encrypted_file_path(output_path: str, file_id: [int, str]):
+    return os.path.join(str(output_path),
+                        'quadruply_encrypted',
+                        str(file_id) + '.parquet')
+
+
+def make_dirs_if_not_exists(file_path: str):
+    if not gfile.Exists(os.path.dirname(file_path)):
+        gfile.MakeDirs(os.path.dirname(file_path))
 
 
 def get_batch(reader: ParquetBatchReader,
@@ -92,7 +103,7 @@ def get_batch(reader: ParquetBatchReader,
             # if this file contains fewer rows than row_idx, jump to next file.
             # NOTE: reader.idx won't be the last row if it's the last file.
             if reader.idx <= start_idx and \
-                    reader.metadata.row_nums <= start_idx.row_idx:
+                    reader.metadata.num_rows <= start_idx.row_idx:
                 raise StopIteration
             # some file might not contain any row, so `not batch` is needed
             while reader.idx <= start_idx or not batch:
@@ -119,8 +130,8 @@ def make_or_update_dumper(dumper: [pq.ParquetWriter, None],
                           file_path: str,
                           schema: pa.Schema,
                           flavor: str = None) -> pq.ParquetWriter:
-    if is_new_file(start_idx, end_idx) or dumper is None:
-        if dumper is not None:
+    if is_new_file(start_idx, end_idx) or not dumper:
+        if dumper:
             dumper.close()
         dumper = pq.ParquetWriter(file_path, schema, flavor=flavor)
     return dumper

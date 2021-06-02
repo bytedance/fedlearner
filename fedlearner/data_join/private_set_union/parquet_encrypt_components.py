@@ -62,7 +62,7 @@ class ParquetEncryptSender(Sender):
             columns=['_index', '_job_id', self._join_key],
             consume_remain=True)
 
-        if not len(batches) == 0:
+        if len(batches) == 0:
             # No batch means all files finished
             #   (return)-> no payload, start of next file, data finished
             # NOTE: this next-file IDX is needed for peer and self(in recv) to
@@ -71,11 +71,12 @@ class ParquetEncryptSender(Sender):
 
         batch_dict = batches[0].to_pydict()
         if len(batches) > 1:
-            batch_dict.update(batches[1].to_pydict())
-
-        assert len(batch_dict['_index']) == len(batch_dict['_singly_encrypted'])
+            batch2 = batches[1].to_pydict()
+            for k in batch_dict.keys():
+                batch_dict[k].extend(batch2[k])
+        assert len(batch_dict['_index']) == len(batch_dict[self._join_key])
         # the job id of this file. _index is unique in the event of same job id.
-        job_id = batch_dict['job_id'][0]
+        job_id = batch_dict['_job_id'][0]
         # _index is the order of each row in raw data's Spark process,
         #   independent of <join_key>.
         _index = np.asarray(batch_dict['_index'])
@@ -88,10 +89,10 @@ class ParquetEncryptSender(Sender):
         np.random.shuffle(unison)
         # record the original indices for data merging in the future
         req_id = uuid.uuid4().hex
-        self._indices[req_id] = unison[:, 0].tobytes()
+        self._indices[req_id] = unison[:, 0].astype(np.long).tobytes()
         singly_encrypted = unison[:, 1]
         payload = psu_pb.EncryptTransmitRequest(
-            singly_encrypted=singly_encrypted.tolist(),
+            singly_encrypted=singly_encrypted,
             job_id=job_id,
             req_id=req_id)
         return payload.SerializeToString(), self._reader.idx, False
@@ -135,12 +136,14 @@ class ParquetEncryptSender(Sender):
                  '_job_id': [encrypt_res.job_id for _ in range(len(_index))],
                  'quadruply_encrypted': quadruply_encrypted.tolist()}
         table = pa.Table.from_pydict(mapping=table, schema=self._schema)
-        # OUTPUT_PATH/<job_id>/<file_idx>.parquet
-        file_name = str(end_idx.file_idx) + '.parquet'
-        file_path = os.path.join(self._output_path, str(resp.job_id), file_name)
+        # OUTPUT_PATH/quadruply_encrypted/<file_idx>.parquet
+        file_path = pqu.encode_quadruply_encrypted_file_path(
+            self._output_path, end_idx.file_idx)
+        pqu.make_dirs_if_not_exists(file_path)
         # dumper will be renewed if the last file finished.
-        self._dumper = pqu.get_or_update_parquet_dumper(
-            file_path, self._schema, self._dumper, current_idx, end_idx)
+        self._dumper = pqu.make_or_update_dumper(
+            self._dumper, start_idx, end_idx, file_path, self._schema,
+            flavor='spark')
         self._dumper.write_table(table)
         # if it's still the same file, we don't update meta to disk;
         # if it's a new file, update meta to the first line of the new file,
@@ -148,22 +151,22 @@ class ParquetEncryptSender(Sender):
         return None if current_idx.file_idx == end_idx.file_idx \
             else IDX(end_idx.file_idx, 0)
 
+    def _stop(self, *args, **kwargs):
+        if self._dumper:
+            self._dumper.close()
+
 
 class ParquetEncryptReceiver(Receiver):
     def __init__(self,
                  keys: BaseKeys,
-                 dump_file_len: int,
                  meta_path: str,
-                 output_path: str,
-                 join_key: str = 'example_id'):
+                 output_path: str):
         self._keys = keys
-        self._dump_file_len = dump_file_len
         self._hash_func = np.frompyfunc(self._keys.hash_func, 1, 1)
         self._encrypt_func1 = np.frompyfunc(self._keys.encrypt_func1, 1, 1)
         self._encrypt_func2 = np.frompyfunc(self._keys.encrypt_func2, 1, 1)
-        self._join_key = join_key
         self._dumper = None
-        self._schema = pa.schema([pa.field('_doubly_encrypted', pa.string())])
+        self._schema = pa.schema([pa.field('doubly_encrypted', pa.string())])
         super().__init__(meta_path, output_path)
 
     def _recv_process(self,
@@ -192,19 +195,21 @@ class ParquetEncryptReceiver(Receiver):
         encrypt_req = psu_pb.EncryptTransmitRequest()
         encrypt_req.ParseFromString(req.payload)
 
-        singly_encrypted = np.asarray(encrypt_req.singly_encrypted, np.bytes_)
-        doubly_encrypted = self._encrypt_func1(singly_encrypted)
+        doubly_encrypted = self._encrypt_func1(
+            np.asarray(encrypt_req.singly_encrypted, np.bytes_)
+        )
         triply_encrypted = self._encrypt_func2(doubly_encrypted)
 
         if need_dump:
             # OUTPUT_PATH/doubly_encrypted/<file_idx>.parquet
             file_path = pqu.encode_doubly_encrypted_file_path(
                 self._output_path, end_idx.file_idx)
+            pqu.make_dirs_if_not_exists(file_path)
             self._dumper = pqu.make_or_update_dumper(
                 self._dumper, start_idx, end_idx, file_path, self._schema,
                 flavor='spark')
             table = pa.Table.from_pydict(
-                mapping={'_doubly_encrypted': doubly_encrypted},
+                mapping={'doubly_encrypted': doubly_encrypted},
                 schema=self._schema)
             self._dumper.write_table(table)
 
@@ -214,7 +219,11 @@ class ParquetEncryptReceiver(Receiver):
         forward_idx = None if current_idx.file_idx == end_idx.file_idx \
             else IDX(end_idx.file_idx, 0)
         res = psu_pb.EncryptTransmitResponse(
-            triply_encrypted=triply_encrypted.tolist(),
-            req_id=req.req_id,
-            job_id=req.job_id)
+            triply_encrypted=triply_encrypted,
+            req_id=encrypt_req.req_id,
+            job_id=encrypt_req.job_id)
         return res.SerializeToString(), forward_idx
+
+    def _stop(self, *args, **kwargs):
+        if self._dumper:
+            self._dumper.close()
