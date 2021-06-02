@@ -887,6 +887,9 @@ def _vectorized_assignment(vec, assignment, direction, peer_direction=None):
     new_assignment = vec['children'][direction.astype(np.int32), assignment]
     return np.where(vec['is_leaf'][assignment], assignment, new_assignment)
 
+def _process_pool_init():
+    pass
+
 class BoostingTreeEnsamble(object):
     def __init__(self, bridge, learning_rate=0.3, max_iters=50, max_depth=6,
                  max_leaves=0, l2_regularization=1.0, max_bins=33,
@@ -903,7 +906,7 @@ class BoostingTreeEnsamble(object):
         self._pool = None
         if self._num_parallel > 1:
             self._pool = ProcessPoolExecutor(num_parallel)
-            self._pool._start_queue_management_thread()
+            self._pool.submit(fn=_process_pool_init)
 
         assert max_bins < 255, "Only support max_bins < 255"
         self._max_bins = max_bins
