@@ -168,6 +168,7 @@ class _TrainerMaster(tm_grpc.TrainerMasterServiceServicer):
     def __init__(self,
                  cluster_server,
                  role,
+                 mode,
                  model_fn,
                  input_fn,
                  serving_input_receiver_fn,
@@ -183,6 +184,7 @@ class _TrainerMaster(tm_grpc.TrainerMasterServiceServicer):
                  export_model_hook=None):
         self._cluster_server = cluster_server
         self._role = role
+        self._mode = mode
         self._model_fn = model_fn
         self._input_fn = input_fn
         self._serving_input_receiver_fn = serving_input_receiver_fn
@@ -297,15 +299,17 @@ class _TrainerMaster(tm_grpc.TrainerMasterServiceServicer):
                               tm_pb.MasterStatus.COMPLETED)
 
     def _session_run(self, estimator):
+        mode_key = tf.estimator.ModeKeys.TRAIN if self._mode == "train" \
+                       else tf.estimator.ModeKeys.EVAL
         with tf.Graph().as_default() as g, \
             g.device(self._cluster_server.device_setter):
 
             features, labels = estimator. \
                 _get_features_and_labels_from_input_fn(
-                    self._input_fn, tf.estimator.ModeKeys.TRAIN)
+                    self._input_fn, mode_key)
             # only for create graph
             spec, _ = estimator._get_model_spec(
-                features, labels, tf.estimator.ModeKeys.TRAIN)
+                features, labels, mode_key)
 
             session_creator = tf.train.ChiefSessionCreator(
                 master=self._cluster_server.target,
@@ -317,8 +321,10 @@ class _TrainerMaster(tm_grpc.TrainerMasterServiceServicer):
             hooks = self._session_hooks
 
             # saver hook
-            if self._checkpoint_path and \
-                (self._save_checkpoint_secs or self._save_checkpoint_steps):
+            if mode_key == tf.estimator.ModeKeys.TRAIN \
+                and self._checkpoint_path \
+                and (self._save_checkpoint_secs \
+                    or self._save_checkpoint_steps):
                 hooks.append(
                     tf.train.CheckpointSaverHook(
                         checkpoint_dir=self._checkpoint_path,
@@ -329,7 +335,8 @@ class _TrainerMaster(tm_grpc.TrainerMasterServiceServicer):
                 )
 
             # summary hook
-            if self._summary_save_secs or self._summary_save_steps:
+            if mode_key == tf.estimator.ModeKeys.TRAIN \
+                and (self._summary_save_secs or self._summary_save_steps):
                 if not self._summary_path:
                     self._summary_path = self._checkpoint_path
                 if self._summary_path:
@@ -474,6 +481,7 @@ class LeaderTrainerMaster(_TrainerMaster):
     def __init__(self,
                  cluster_server,
                  data_visitor,
+                 mode,
                  model_fn,
                  input_fn,
                  serving_input_receiver_fn,
@@ -490,6 +498,7 @@ class LeaderTrainerMaster(_TrainerMaster):
         super(LeaderTrainerMaster, self).__init__(
             cluster_server,
             "leader",
+            mode,
             model_fn,
             input_fn,
             serving_input_receiver_fn,
@@ -569,6 +578,7 @@ class FollowerTrainerMaster(_TrainerMaster):
     def __init__(self,
                  cluster_server,
                  data_visitor,
+                 mode,
                  model_fn,
                  input_fn,
                  serving_input_receiver_fn,
@@ -586,6 +596,7 @@ class FollowerTrainerMaster(_TrainerMaster):
         super(FollowerTrainerMaster, self).__init__(
             cluster_server,
             "follower",
+            mode,
             model_fn,
             input_fn,
             serving_input_receiver_fn,

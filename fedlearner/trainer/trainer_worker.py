@@ -188,6 +188,7 @@ def _run_master(role,
                 export_model_hook=None):
     if not args.master_addr:
         raise ValueError("master-addr is required")
+    mode = args.mode.lower()
 
     try:
         cluster_spec = _create_cluster_spec(args, require_ps=True)
@@ -206,6 +207,7 @@ def _run_master(role,
     master = master_factory(
              cluster_server,
              data_visitor,
+             mode,
              model_fn,
              input_fn,
              serving_input_receiver_fn,
@@ -229,8 +231,6 @@ def _run_worker(role, args, input_fn, model_fn):
     if not args.master_addr:
         raise ValueError("master-addr is required")
     mode = args.mode.lower()
-    if mode not in ('train', 'eval'):
-        raise ValueError("--mode must set one of 'train' or 'eval'")
 
     cluster_spec = _create_cluster_spec(args, require_ps=True)
     cluster_server = ClusterServer(cluster_spec,
@@ -275,10 +275,7 @@ def _run_local(role,
         raise ValueError("local-addr is required")
     if not args.peer_addr:
         raise ValueError("peer-addr is required")
-
     mode = args.mode.lower()
-    if mode not in ('train', 'eval'):
-        raise ValueError("--mode must set one of 'train' or 'eval'")
 
     cluster_spec = _create_cluster_spec(args)
     cluster_server = ClusterServer(cluster_spec, "local")
@@ -291,6 +288,7 @@ def _run_local(role,
     local_master = master_factory(
              cluster_server,
              data_visitor,
+             mode,
              model_fn,
              input_fn,
              serving_input_receiver_fn,
@@ -418,6 +416,10 @@ def train(role,
         if not isinstance(export_model_hook, ExportModelHook):
             raise ValueError("model_export_hook must be a "
                              "ExportModelHook, but get %r"%export_model_hook)
+
+    mode = args.mode.lower()
+    if mode not in ('train', 'eval'):
+        raise ValueError("--mode must set one of 'train' or 'eval'")
 
     if not (args.master or args.worker):
         fl_logging.info("************ Run as local mode ************")

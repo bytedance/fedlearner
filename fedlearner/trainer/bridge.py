@@ -19,6 +19,7 @@ import os
 import collections
 import threading
 import time
+from distutils.util import strtobool
 
 import tensorflow.compat.v1 as tf
 from google.protobuf import any_pb2 as any_pb
@@ -28,6 +29,8 @@ from fedlearner.common import common_pb2 as common_pb
 from fedlearner.common import trainer_worker_service_pb2 as tws2_pb
 from fedlearner.common import trainer_worker_service_pb2_grpc as tws2_grpc
 
+_BRIDGE_SUPERVISE_ENABLED = strtobool(
+    os.getenv("FL_BRIDGE_SUPERVISE_ENABLED", "false"))
 
 class Bridge(object):
     class TrainerWorkerServicer(tws2_grpc.TrainerWorkerServiceServicer):
@@ -126,15 +129,15 @@ class Bridge(object):
 
     @property
     def connected_at(self):
-        return self._channel._connected_at
+        return self._channel.connected_at
 
     @property
     def terminated_at(self):
-        return self._channel._closed_at
+        return self._channel.closed_at
 
     def _check_iteration_timeout(self):
         with self._condition:
-            if not self._current_iter_id:
+            if self._current_iter_id is None:
                 return
             duration = time.time() - self._iter_started_at
             if duration >= self._supervise_iteration_timeout:
@@ -169,10 +172,11 @@ class Bridge(object):
             target=self._stream_transmit_fn)
         self._stream_transmit_thread.daemon = True
         self._stream_transmit_thread.start()
-        self._supervise_thread = threading.Thread(
-            target=self._supervise_fn)
-        self._supervise_thread.daemon = True
-        self._supervise_thread.start()
+        if _BRIDGE_SUPERVISE_ENABLED:
+            self._supervise_thread = threading.Thread(
+                target=self._supervise_fn)
+            self._supervise_thread.daemon = True
+            self._supervise_thread.start()
 
     def terminate(self):
         with self._condition:

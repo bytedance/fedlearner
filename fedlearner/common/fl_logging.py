@@ -33,7 +33,7 @@ _name_to_level = {
 }
 
 def _get_level_from_env():
-    level_name = os.getenv("FL_LOG_LEVEL")
+    level_name = os.getenv("FL_LOG_LEVEL", "").lower()
     if level_name in _name_to_level:
         return _name_to_level[level_name]
 
