@@ -33,10 +33,10 @@ if __name__ == "__main__":
                         help='the base dir of input directory')
     parser.add_argument('--output_base_dir', type=str, required=True,
                         help='the base dir of output directory')
-    parser.add_argument('--output_partition_num', type=int, required=True,
-                        help='the output partition number of data portal')
     parser.add_argument('--raw_data_publish_dir', type=str, required=True,
                         help='the raw data publish dir in mysql')
+    parser.add_argument('--output_partition_num', type=int, default=1,
+                        help='the output partition number of data portal')
     parser.add_argument('--upload_dir', type=str, required=True,
                         help='Upload directory for spark scripts')
     parser.add_argument('--check_success_tag', action='store_true',
