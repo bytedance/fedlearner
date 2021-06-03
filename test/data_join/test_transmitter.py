@@ -251,9 +251,9 @@ class TestStreamTransmit(unittest.TestCase):
             self.assertEqual(f.read(), send2_expected)
         with open(os.path.join(self._mgr2_path, 'recv.txt'), 'r') as f:
             self.assertEqual(f.read(), recv2_expected)
-    #
-    # def tearDown(self) -> None:
-    #     gfile.DeleteRecursively(self._test_root)
+
+    def tearDown(self) -> None:
+        gfile.DeleteRecursively(self._test_root)
 
 
 if __name__ == '__main__':
