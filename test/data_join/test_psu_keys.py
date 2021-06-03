@@ -37,3 +37,7 @@ class PSUKeysTest(unittest.TestCase):
         self.assertEqual(e3, e4)
         self.assertEqual(e1, e3)
         self.assertEqual(hashed, hashed1)
+
+
+if __name__ == '__main__':
+    unittest.main()

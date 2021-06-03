@@ -139,7 +139,6 @@ class ParquetEncryptSender(Sender):
         # OUTPUT_PATH/quadruply_encrypted/<file_idx>.parquet
         file_path = pqu.encode_quadruply_encrypted_file_path(
             self._output_path, end_idx.file_idx)
-        pqu.make_dirs_if_not_exists(file_path)
         # dumper will be renewed if the last file finished.
         self._dumper = pqu.make_or_update_dumper(
             self._dumper, start_idx, end_idx, file_path, self._schema,
@@ -204,7 +203,6 @@ class ParquetEncryptReceiver(Receiver):
             # OUTPUT_PATH/doubly_encrypted/<file_idx>.parquet
             file_path = pqu.encode_doubly_encrypted_file_path(
                 self._output_path, end_idx.file_idx)
-            pqu.make_dirs_if_not_exists(file_path)
             self._dumper = pqu.make_or_update_dumper(
                 self._dumper, start_idx, end_idx, file_path, self._schema,
                 flavor='spark')

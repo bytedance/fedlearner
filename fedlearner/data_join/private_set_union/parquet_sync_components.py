@@ -35,11 +35,10 @@ class ParquetSyncSender(Sender):
             # No batch means all files finished
             #   -> no payload, next of end row, data finished
             return None, IDX(self._reader.file_idx, 0), True
-
         batches = [batch.to_pydict()['doubly_encrypted'] for batch in batches]
-        batches = np.concatenate(batches)
+        batches = np.concatenate(batches).astype(np.bytes_)
         np.random.shuffle(batches)
-        payload = psu_pb.DataSyncRequest(doubly_encrypted=batches.tolist())
+        payload = psu_pb.DataSyncRequest(doubly_encrypted=batches)
         return payload.SerializeToString(), self._reader.idx, False
 
     def _resp_process(self,
@@ -49,7 +48,7 @@ class ParquetSyncSender(Sender):
             else IDX(resp.end_file_idx, 0)
 
 
-class PSUSyncReceiver(Receiver):
+class ParquetSyncReceiver(Receiver):
     def __init__(self,
                  meta_path: str,
                  output_path: str):
@@ -89,3 +88,7 @@ class PSUSyncReceiver(Receiver):
         forward_idx = None if current_idx.file_idx == end_idx.file_idx \
             else IDX(end_idx.file_idx, 0)
         return psu_pb.DataSyncResponse().SerializeToString(), forward_idx
+
+    def _stop(self, *args, **kwargs):
+        if self._dumper:
+            self._dumper.close()

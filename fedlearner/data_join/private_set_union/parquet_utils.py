@@ -91,7 +91,7 @@ def get_batch(reader: ParquetBatchReader,
               row_num: int,
               columns: typing.List[str],
               consume_remain: bool = False) -> (pa.RecordBatch,
-                                                        ParquetBatchReader):
+                                                ParquetBatchReader):
     file_path = os.path.join(root_path, files[start_idx.file_idx])
     if reader is None or reader.file_idx != start_idx.file_idx:
         reader = ParquetBatchReader(
@@ -133,10 +133,6 @@ def make_or_update_dumper(dumper: [pq.ParquetWriter, None],
     if is_new_file(start_idx, end_idx) or not dumper:
         if dumper:
             dumper.close()
+        make_dirs_if_not_exists(file_path)
         dumper = pq.ParquetWriter(file_path, schema, flavor=flavor)
     return dumper
-
-
-
-
-
