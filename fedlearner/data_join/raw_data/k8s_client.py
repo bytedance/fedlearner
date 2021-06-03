@@ -86,7 +86,8 @@ class K8SClient(object):
                 namespace=namespace,
                 plural=CrdKind.SPARK_APPLICATION.value,
                 name=name)
-            if 'status' in resp:
+            if 'status' in resp and \
+                resp['status']['applicationState']['state'] in K8SAPPStatus:
                 return (
                     K8SAPPStatus[resp['status']['applicationState']['state']],
                     resp)
