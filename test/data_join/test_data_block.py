@@ -44,12 +44,13 @@ class RawDataTests(unittest.TestCase):
     def _check_data_block(self,
                           file_paths,
                           wanted_cnts=None,
-                          wanted_total_cnt=0):
+                          wanted_total_cnt=0,
+                          compression_type="GZIP"):
         total_cnt = 0
         etime_eid_dict = {}
         for idx, fpath in enumerate(sorted(file_paths)):
             segment_cnt = 0
-            options = tf.io.TFRecordOptions(compression_type='GZIP')
+            options = tf.io.TFRecordOptions(compression_type=compression_type)
             logging.info("check %s", fpath)
             for record in tf.python_io.tf_record_iterator(fpath, options):
                 tf_item = convert_tf_example_to_dict(parse_example(record))
@@ -136,6 +137,39 @@ class RawDataTests(unittest.TestCase):
                 if file.endswith(DataBlockSuffix):
                     file_paths.append(os.path.join(output_dir, file))
         self._check_data_block(file_paths, wanted_total_cnt=total_num)
+
+    def test_run_data_block_no_compression(self):
+        data_block_threshold = 2
+        data_source_name = "test_data_source"
+        os.environ['STORAGE_ROOT_PATH'] = self._job_path
+        output_path = os.path.join(self._job_path, "raw_data", self._job_name)
+        upload_dir = os.path.join(output_path, "upload")
+        if not gfile.Exists(upload_dir):
+            gfile.MakeDirs(upload_dir)
+        entry_file_path = inspect.getfile(RawData)
+        file_name = os.path.basename(entry_file_path)
+        target_dir = os.path.join(upload_dir, file_name)
+        gfile.Copy(entry_file_path, target_dir)
+        job = RawDataJob(self._job_name, output_path,
+                         output_type=OutputType.DataBlock,
+                         data_source_name=data_source_name,
+                         data_block_threshold=data_block_threshold,
+                         check_success_tag=True,
+                         upload_dir=upload_dir,
+                         use_fake_k8s=True)
+        job.run(self._input_dir)
+
+        db_path = os.path.join(output_path, 'data_block')
+        total_num = self._num_partition * self._num_item_per_partition
+        file_paths = []
+        for partition_id in range(self._num_partition):
+            output_dir = os.path.join(db_path,
+                                      partition_repr(partition_id))
+            for file in gfile.ListDirectory(output_dir):
+                if file.endswith(DataBlockSuffix):
+                    file_paths.append(os.path.join(output_dir, file))
+        self._check_data_block(file_paths, wanted_total_cnt=total_num,
+                               compression_type='')
 
 
 if __name__ == '__main__':

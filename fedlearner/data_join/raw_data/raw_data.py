@@ -123,12 +123,15 @@ class RawData:
         output_path = config[Constants.output_path_key]
         data_block_threshold = config[Constants.data_block_threshold_key]
         compression_type = config[Constants.compression_type_key]
-        write_options = None
         if compression_type and compression_type.upper() == "GZIP":
             write_options = {
                 "mapred.output.compress": "true",
                 "mapred.output.compression.codec":
                     "org.apache.hadoop.io.compress.GzipCodec",
+            }
+        else:
+            write_options = {
+                "mapred.output.compress": "false",
             }
 
         logging.info("Deal with new files %s with write option %s",
