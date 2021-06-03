@@ -58,10 +58,11 @@ class TestSender(Sender):
                  send_row_num: int,
                  file_paths: typing.List[str],
                  root_path: str = None,
+                 start_from_peer: bool = False,
                  pending_len: int = 10):
         self._output_path = output_path
         super().__init__(meta_path, send_row_num, file_paths,
-                         root_path, pending_len)
+                         root_path, start_from_peer, pending_len)
 
     def _send_process(self,
                       root_path: str,
@@ -76,7 +77,7 @@ class TestSender(Sender):
         send_ = os.path.join(self._output_path, 'send.txt')
         with gfile.GFile(send_, 'a') as f:
             f.write(payload)
-        return payload.encode(), end_idx, end_idx.row_idx == FILE_LEN
+        return payload.encode(), end_idx, end_idx == IDX(FILE_NUM - 1, FILE_LEN)
 
     def _resp_process(self,
                       resp: transmitter_pb.Response,
@@ -114,7 +115,7 @@ class TestReceiver(Receiver):
 class TestStreamTransmit(unittest.TestCase):
     def setUp(self) -> None:
         self.file_paths = [str(i) for i in range(FILE_NUM)]
-        self._test_root = './test_stream_transmit'
+        self._test_root = './test_transmitter'
         os.environ['STORAGE_ROOT_PATH'] = self._test_root
         self._db_client = DBClient('dfs')
         self._mgr1_path = os.path.join(self._test_root, '1')
@@ -250,9 +251,9 @@ class TestStreamTransmit(unittest.TestCase):
             self.assertEqual(f.read(), send2_expected)
         with open(os.path.join(self._mgr2_path, 'recv.txt'), 'r') as f:
             self.assertEqual(f.read(), recv2_expected)
-
-    def tearDown(self) -> None:
-        gfile.DeleteRecursively(self._test_root)
+    #
+    # def tearDown(self) -> None:
+    #     gfile.DeleteRecursively(self._test_root)
 
 
 if __name__ == '__main__':

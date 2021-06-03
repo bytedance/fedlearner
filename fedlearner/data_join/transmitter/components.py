@@ -172,9 +172,9 @@ class Sender:
                 self._started = True
 
     def wait_for_finish(self):
-        if not self.finished:
+        if not self.finished and not self._stopped:
             with self._condition:
-                while not self.finished:
+                while not self.finished and not self._stopped:
                     self._condition.wait()
 
     def stop(self, *args, **kwargs):
@@ -271,9 +271,9 @@ class Receiver:
         return meta
 
     def wait_for_finish(self):
-        if not self.finished:
+        if not self.finished and not self._stopped:
             with self._condition:
-                while not self.finished:
+                while not self.finished and not self._stopped:
                     self._condition.wait()
 
     def stop(self, *args, **kwargs):
