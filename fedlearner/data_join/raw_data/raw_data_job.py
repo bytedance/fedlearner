@@ -47,6 +47,7 @@ class RawDataJob:
                  spark_dependent_package='',
                  spark_driver_config=None,
                  spark_executor_config=None,
+                 kvstore_type="dfs",
                  use_fake_k8s=False):
         self._job_name = job_name
         self._root_path = root_path
@@ -85,7 +86,7 @@ class RawDataJob:
         self._next_job_id = self._meta.job_id + 1
         self._template_dirname = "template"
 
-        self._kvstore = DBClient("dfs")
+        self._kvstore = DBClient(kvstore_type)
         self._use_fake_k8s = use_fake_k8s
 
     def run(self, input_path):

@@ -69,7 +69,7 @@ python -m fedlearner.data_join.cmd.raw_data_cli \
     --spark_k8s_config_path=$K8S_CONFIG_PATH \
     --spark_k8s_namespace=$SPARK_K8S_NAMESPACE \
     --spark_dependent_package=$UPLOAD_DIR/${DEP_FILE} \
-    $input_file_wildcard $LONG_RUNNING $CHECK_SUCCESS_TAG \
+    $input_file_wildcard $LONG_RUNNING $CHECK_SUCCESS_TAG $kvstore_type \
     $SINGLE_SUBFOLDER $files_per_job_limit $output_type \
     $data_source_name $data_block_dump_threshold \
     $spark_image $spark_driver_cores $spark_driver_memory \
