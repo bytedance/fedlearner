@@ -62,12 +62,13 @@ class TestDataPortalJobManager(unittest.TestCase):
             ['1002/{}.data'.format(i) for i in range(100)]
         self._csv_fnames = ['1003/{}.csv'.format(i) for i in range(100)]
         self._unused_fnames = ['{}.xx'.format(100)]
+        self._ignored_fnames = [f'.part-{i}.crc' for i in range(10)]
         self._all_fnames = self._data_fnames + \
                            self._data_fnames_without_success + \
                            self._csv_fnames + self._unused_fnames
 
         all_fnames_with_success = ['1001/_SUCCESS'] + ['1003/_SUCCESS'] +\
-                                  self._all_fnames
+                                  self._all_fnames + self._ignored_fnames
         for fname in all_fnames_with_success:
             fpath = os.path.join(self._portal_input_base_dir, fname)
             gfile.MakeDirs(os.path.dirname(fpath))

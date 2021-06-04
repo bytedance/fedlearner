@@ -354,10 +354,11 @@ class DataPortalJobManager(object):
             basename = splits[-1]
             dirnames = splits[:-1]
 
-            # ignore files and dirs starting with _
+            # ignore files and dirs starting with _ or .
+            # for example: _SUCCESS or ._SUCCESS.crc
             ignore = False
             for name in splits:
-                if name.startswith('_'):
+                if name.startswith('_') or name.startswith('.'):
                     ignore = True
                     break
             if ignore:
@@ -408,7 +409,7 @@ class DataPortalJobManager(object):
                 rest_fpaths.extend(v)
 
         logging.info(
-            'Listing %s: found %d dirs, %d files, %d tmp files ignored '
+            'Listing %s: found %d dirs, %d files, %d tmp files ignored, '
             '%d files matching wildcard, %d new files to process. '
             'Processing %d files in this iteration.',
             root, len(by_folder), len(all_files), num_ignored,
