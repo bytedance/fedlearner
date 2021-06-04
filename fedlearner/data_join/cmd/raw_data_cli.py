@@ -60,6 +60,8 @@ if __name__ == "__main__":
                         help='Dumped threshold for data block')
     parser.add_argument('--long_running', action='store_true',
                         help='make the data portal long running')
+    parser.add_argument('--kvstore_type', type=str,
+                        default='dfs', help='the type of kvstore')
     parser.add_argument("--spark_image", type=str, default='',
                         help='docker image for spark')
     parser.add_argument("--spark_k8s_config_path", type=str, default='',
@@ -103,6 +105,7 @@ if __name__ == "__main__":
                      raw_data_publish_dir=args.raw_data_publish_dir,
                      upload_dir=args.upload_dir,
                      long_running=args.long_running,
+                     kvstore_type=args.kvstore_type,
                      spark_image=args.spark_image,
                      spark_k8s_config_path=args.spark_k8s_config_path,
                      spark_k8s_namespace=args.spark_k8s_namespace,
