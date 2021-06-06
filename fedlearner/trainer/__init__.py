@@ -13,12 +13,3 @@
 # limitations under the License.
 
 # coding: utf-8
-
-"""FedLearner training for federated learning models"""
-
-from fedlearner.trainer import bridge
-from fedlearner.trainer import data
-from fedlearner.trainer import trainer_master_client
-from fedlearner.trainer import estimator
-from fedlearner.trainer import trainer_worker
-from fedlearner.trainer import operator

@@ -18,7 +18,7 @@ import os
 import logging
 
 import tensorflow_io # pylint: disable=unused-import
-from tensorflow.compat.v1 import gfile
+from tensorflow import gfile
 from google.protobuf import text_format
 
 from fedlearner.common import data_join_service_pb2 as dj_pb

@@ -20,9 +20,9 @@ import os
 import threading
 import traceback
 
-import tensorflow.compat.v1 as tf
+import tensorflow as tf
+from tensorflow import gfile
 from google.protobuf import text_format
-from tensorflow.compat.v1 import gfile
 
 from fedlearner.common import data_join_service_pb2 as dj_pb
 from fedlearner.common import metrics

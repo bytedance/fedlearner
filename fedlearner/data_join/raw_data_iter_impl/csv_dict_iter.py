@@ -21,8 +21,8 @@ import os
 import traceback
 from collections import OrderedDict
 
-import tensorflow.compat.v1 as tf
-from tensorflow.compat.v1 import gfile
+import tensorflow as tf
+from tensorflow import gfile
 
 import fedlearner.data_join.common as common
 from fedlearner.data_join.raw_data_iter_impl.raw_data_iter import RawDataIter

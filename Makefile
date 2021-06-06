@@ -24,9 +24,11 @@ protobuf:
 		protocols/fedlearner/channel/*.proto
 
 lint:
-	pylint --rcfile ci/pylintrc fedlearner example
+#	pylint --rcfile ci/pylintrc fedlearner/trainer
 
-UNIT_TEST_SCRIPTS := $(shell find test -type f -name "test_*.py")
+UNIT_TEST_SCRIPTS := test/trainer_master/test_follower_tm.py \
+                     test/trainer/test_data_visitor.py \
+                     test/trainer/test_bridge.py
 UNIT_TESTS := $(UNIT_TEST_SCRIPTS:%.py=%.phony)
 
 test/%.phony: test/%.py
@@ -37,7 +39,7 @@ unit-test: $(UNIT_TESTS)
 integration-test:
 	bash integration_tests.sh
 
-test: unit-test integration-test
+test: unit-test
 
 docker-build:
 	docker build . -t ${IMG}

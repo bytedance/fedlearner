@@ -283,7 +283,7 @@ class _SingleConsumerSendRequestQueue():
                     return self._get()
 
             # get from request_iterator
-            if self._request_lock.acquire(timeout=1):
+            if self._request_lock.acquire():
                 try:
                     with self._lock:
                         # check again

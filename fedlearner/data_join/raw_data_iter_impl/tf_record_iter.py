@@ -18,14 +18,14 @@ import logging
 from collections import OrderedDict
 from contextlib import contextmanager
 
-import tensorflow.compat.v1 as tf
+import tensorflow as tf
 import fedlearner.data_join.common as common
 from fedlearner.data_join.raw_data_iter_impl.raw_data_iter import RawDataIter
 
 
 class TfExampleItem(RawDataIter.Item):
     def __init__(self, record_str, cache_type=None, index=None):
-        super().__init__()
+        super(TfExampleItem, self).__init__()
         self._cache_type = cache_type
         self._index = index
         if self._cache_type:
@@ -43,6 +43,7 @@ class TfExampleItem(RawDataIter.Item):
     @classmethod
     def make(cls, example_id, event_time, raw_id, fname=None, fvalue=None):
         row = OrderedDict()
+
         row["example_id"] = example_id.decode()
         row["event_time"] = event_time
         if raw_id:

@@ -14,6 +14,7 @@
 
 # coding: utf-8
 
+import six
 import os
 import logging
 import uuid
@@ -26,9 +27,9 @@ from collections import namedtuple
 from guppy import hpy
 
 import tensorflow_io # pylint: disable=unused-import
-import tensorflow.compat.v1 as tf
+import tensorflow as tf
+from tensorflow import gfile
 from google.protobuf import text_format
-from tensorflow.compat.v1 import gfile
 
 import psutil
 
@@ -279,7 +280,7 @@ class Singleton(type):
                                                                      **kwargs)
             return cls._instances[cls]
 
-class _MemUsageProxy(object, metaclass=Singleton):
+class _MemUsageProxy(six.with_metaclass(Singleton, object)):
     def __init__(self):
         self._lock = threading.Lock()
         self._mem_limit = int(os.environ.get('MEM_LIMIT', '17179869184'))
@@ -311,7 +312,7 @@ class _MemUsageProxy(object, metaclass=Singleton):
 def _get_mem_usage_proxy():
     return _MemUsageProxy()
 
-class _HeapMemStats(object, metaclass=Singleton):
+class _HeapMemStats(six.with_metaclass(Singleton, object)):
     class StatsRecord(object):
         def __init__(self, potential_mem_incr, stats_expiration_time):
             self._lock = threading.Lock()

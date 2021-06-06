@@ -17,7 +17,7 @@
 import unittest
 import threading
 import time
-import tensorflow.compat.v1 as tf
+import tensorflow as tf
 
 from fedlearner.trainer.bridge import Bridge
 from fedlearner.common import trainer_worker_service_pb2 as tws_pb

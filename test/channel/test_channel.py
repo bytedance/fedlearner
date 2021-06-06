@@ -52,7 +52,6 @@ class _Server(greeter_pb2_grpc.GreeterServicer):
 
 class TestChannel(unittest.TestCase):
     def setUp(self):
-        super(TestChannel, self).__init__()
         self._token = "test_token"
         self._channel1 = Channel("[::]:50001", "localhost:50002",
             token=self._token)
@@ -97,12 +96,12 @@ class TestChannel(unittest.TestCase):
 
     def test_send(self):
         thread1 = threading.Thread(target=self._test_run_fn,
-                                   args=(self._client1, "[client 1]",),
-                                   daemon=True)
+                                   args=(self._client1, "[client 1]",))
+        thread1.setDaemon(True)
         thread1.start()
         thread2 = threading.Thread(target=self._test_run_fn,
-                                   args=(self._client2, "[client 2]",),
-                                   daemon=True)
+                                   args=(self._client2, "[client 2]",))
+        thread2.setDaemon(True)
         thread2.start()
 
         thread1.join()

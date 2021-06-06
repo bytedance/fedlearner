@@ -22,7 +22,7 @@ import threading
 import collections
 import random
 
-import tensorflow.compat.v1 as tf
+import tensorflow as tf
 from fedlearner.common import fl_logging
 from fedlearner.data_join.data_block_visitor import DataBlockVisitor
 

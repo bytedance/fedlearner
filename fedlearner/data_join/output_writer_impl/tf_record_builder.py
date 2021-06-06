@@ -14,7 +14,7 @@
 
 # coding: utf-8
 
-import tensorflow.compat.v1 as tf
+import tensorflow as tf
 
 from fedlearner.data_join.output_writer_impl.output_writer import OutputWriter
 
