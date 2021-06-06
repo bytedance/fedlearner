@@ -1,4 +1,4 @@
-import React, { FC, useState } from 'react';
+import React, { FC, useContext, useState } from 'react';
 import styled from 'styled-components';
 import { useTranslation } from 'react-i18next';
 import { Form, Select, Input, Row, Col, Button, Switch } from 'antd';
@@ -6,13 +6,14 @@ import { KibanaChartType, KibanaQueryFields, KibanaQueryParams } from 'typings/k
 import { JobType } from 'typings/job';
 import IntervalInput from './FieldComponents/IntervalInput';
 import XAxisInput from './FieldComponents/XAxisInput';
-import QueryInput from './FieldComponents/QueryInput';
+import JsonStringInput from './FieldComponents/JsonStringInput';
 import UnixTimePicker from './FieldComponents/UnixTimePicker';
 import TimerNameInput from './FieldComponents/TimerNameInput';
 import AggregatorSelect from './FieldComponents/AggregatorSelect';
 import GridRow from 'components/_base/GridRow';
 import FormLabel from 'components/FormLabel';
 import { ShareInternal } from 'components/IconPark';
+import { JobExecutionDetailsContext } from '../JobExecutionDetailsDrawer';
 
 const Container = styled.div``;
 
@@ -22,15 +23,15 @@ const FieldToComponentMap: Partial<Record<KibanaQueryFields, { use: any; help?: 
     use: XAxisInput,
     help: '数据分桶的桶长度',
   },
-  [KibanaQueryFields.query]: { use: QueryInput },
+  [KibanaQueryFields.query]: { use: JsonStringInput },
   [KibanaQueryFields.start_time]: { use: UnixTimePicker },
   [KibanaQueryFields.end_time]: { use: UnixTimePicker },
   [KibanaQueryFields.numerator]: {
-    use: Input,
+    use: JsonStringInput,
     help: '语法同过滤条件，过滤出符合条件的数据，其数量作为分子',
   },
   [KibanaQueryFields.denominator]: {
-    use: Input,
+    use: JsonStringInput,
     help: '语法同过滤条件，过滤出符合条件的数据，其数量作为分母',
   },
   [KibanaQueryFields.aggregator]: { use: AggregatorSelect },
@@ -60,12 +61,12 @@ const chartTypeToFormMap = {
     onlyFor: undefined,
     fields: [
       KibanaQueryFields.interval,
+      KibanaQueryFields.numerator,
+      KibanaQueryFields.denominator,
       KibanaQueryFields.x_axis_field,
       KibanaQueryFields.query,
       KibanaQueryFields.start_time,
       KibanaQueryFields.end_time,
-      KibanaQueryFields.numerator,
-      KibanaQueryFields.denominator,
     ],
   },
   [KibanaChartType.Numeric]: {
@@ -77,6 +78,7 @@ const chartTypeToFormMap = {
       KibanaQueryFields.start_time,
       KibanaQueryFields.end_time,
       KibanaQueryFields.value_field,
+      KibanaQueryFields.aggregator,
     ],
   },
   [KibanaChartType.Time]: {
@@ -104,18 +106,19 @@ const chartTypeToFormMap = {
 };
 
 type Props = {
-  jobType: JobType;
+  types: KibanaChartType[];
   onPreview: any;
   onNewWindowPreview: any;
   onConfirm: any;
 };
 
-const KibanaParamsForm: FC<Props> = ({ jobType, onPreview, onNewWindowPreview, onConfirm }) => {
+const KibanaParamsForm: FC<Props> = ({ types, onPreview, onNewWindowPreview, onConfirm }) => {
   const { t } = useTranslation();
 
   const initialValues = {
-    type: jobType === JobType.DATA_JOIN ? KibanaChartType.Rate : KibanaChartType.Ratio,
+    type: types[0],
   };
+  const { isPeerSide } = useContext(JobExecutionDetailsContext);
 
   const [formData, setFormData] = useState<KibanaQueryParams>(initialValues);
 
@@ -130,7 +133,6 @@ const KibanaParamsForm: FC<Props> = ({ jobType, onPreview, onNewWindowPreview, o
       <Form
         form={formInstance}
         layout="vertical"
-        size="small"
         initialValues={initialValues}
         onFinish={onFinish}
         onValuesChange={onValuesChange}
@@ -139,7 +141,7 @@ const KibanaParamsForm: FC<Props> = ({ jobType, onPreview, onNewWindowPreview, o
           <Col span={12}>
             <Form.Item label="Type" name="type">
               <Select>
-                {Object.values(KibanaChartType).map((type) => (
+                {types.map((type) => (
                   <Select.Option key={type} value={type}>
                     {type}
                   </Select.Option>
@@ -166,17 +168,13 @@ const KibanaParamsForm: FC<Props> = ({ jobType, onPreview, onNewWindowPreview, o
 
         <Form.Item>
           <GridRow gap={16} top="12" justify="end">
-            <Button
-              type="link"
-              size="small"
-              icon={<ShareInternal />}
-              onClick={onNewWindowPreviewClick}
-            >
-              {t('workflow.btn_preview_kibana_fullscreen')}
-            </Button>
-            <Button size="middle" onClick={onPreviewClick}>
-              {t('workflow.btn_preview_kibana')}
-            </Button>
+            {!isPeerSide && (
+              <Button type="link" icon={<ShareInternal />} onClick={onNewWindowPreviewClick}>
+                {t('workflow.btn_preview_kibana_fullscreen')}
+              </Button>
+            )}
+
+            <Button onClick={onPreviewClick}>{t('workflow.btn_preview_kibana')}</Button>
             <Button type="primary" htmlType="submit" size="middle">
               {t('confirm')}
             </Button>

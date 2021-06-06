@@ -20,6 +20,7 @@ function RouterViews() {
             path={route.path}
             exact={route.exact}
             render={(props: any) => <route.component {...props} />}
+            roles={route.roles}
           />
         );
       })}

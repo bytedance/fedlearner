@@ -1,16 +1,20 @@
-import { useQuery } from 'react-query';
+import { useQuery, UseQueryOptions } from 'react-query';
 import { useSetRecoilState } from 'recoil';
 import { checkConnection } from 'services/project';
 import { forceReloadProjectList } from 'stores/project';
 import { ConnectionStatus, Project } from 'typings/project';
 
-export function useCheckConnection(project: Project): [ConnectionStatus, Function] {
+export function useCheckConnection(
+  project: Project,
+  options?: UseQueryOptions<{ data: { success: boolean } }>,
+): [ConnectionStatus, Function] {
   const checkQuery = useQuery(
     [`checkConnection-${project.id}`, project.id],
     () => checkConnection(project.id),
     {
       cacheTime: 1,
       retry: false,
+      ...options,
     },
   );
 

@@ -1,4 +1,4 @@
-# Copyright 2020 The FedLearner Authors. All Rights Reserved.
+# Copyright 2021 The FedLearner Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the 'License');
 # you may not use this file except in compliance with the License.
@@ -96,14 +96,13 @@ class DatasetApiTest(BaseTestCase):
         name = 'test post dataset'
         dataset_type = DatasetType.STREAMING.value
         comment = 'test comment'
-        create_response = self.client.post('/api/v2/datasets',
-                                           data=json.dumps({
+        create_response = self.post_helper('/api/v2/datasets',
+                                           data={
                                                'name': name,
                                                'dataset_type': dataset_type,
                                                'comment': comment,
                                                'project_id': 1,
-                                           }),
-                                           content_type='application/json')
+                                           })
         self.assertEqual(create_response.status_code, HTTPStatus.OK)
         created_dataset = self.get_response_data(create_response)
 
@@ -120,23 +119,41 @@ class DatasetApiTest(BaseTestCase):
                 'data_batches': [],
                 'project_id': 1,
             }, created_dataset)
+        # patch datasets
+        updated_comment = 'updated comment'
+        put_response = self.patch_helper('/api/v2/datasets/3',
+                                         data={'comment': updated_comment})
+        updated_dataset = self.get_response_data(put_response)
+        self.assertEqual(
+            {
+                'id': 3,
+                'name': 'test post dataset',
+                'dataset_type': dataset_type,
+                'comment': updated_comment,
+                'path': '/tmp/dataset/20200608_060606_test-post-dataset',
+                'created_at': mock.ANY,
+                'updated_at': mock.ANY,
+                'deleted_at': None,
+                'data_batches': [],
+                'project_id': 1,
+            }, updated_dataset)
 
     @patch('fedlearner_webconsole.dataset.apis.scheduler.wakeup')
     def test_post_batches(self, mock_wakeup):
         dataset_id = self.default_dataset1.id
-        event_time = int(datetime(2020, 6, 8, 6, 8, 8, tzinfo=timezone.utc).timestamp())
+        event_time = int(
+            datetime(2020, 6, 8, 6, 8, 8, tzinfo=timezone.utc).timestamp())
         files = ['/data/upload/1.csv', '/data/upload/2.csv']
         move = False
         comment = 'test post comment'
-        create_response = self.client.post(
+        create_response = self.post_helper(
             f'/api/v2/datasets/{dataset_id}/batches',
-            data=json.dumps({
+            data={
                 'event_time': event_time,
                 'files': files,
                 'move': move,
                 'comment': comment
-            }),
-            content_type='application/json')
+            })
         self.assertEqual(create_response.status_code, HTTPStatus.OK)
         created_data_batch = self.get_response_data(create_response)
 

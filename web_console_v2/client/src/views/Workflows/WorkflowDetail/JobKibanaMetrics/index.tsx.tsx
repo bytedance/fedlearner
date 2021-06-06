@@ -1,4 +1,4 @@
-import React, { FC, useEffect, useState } from 'react';
+import React, { FC, useContext, useEffect, useState } from 'react';
 import styled from 'styled-components';
 import { useTranslation } from 'react-i18next';
 import { JobExecutionDetalis } from 'typings/job';
@@ -7,14 +7,18 @@ import { Plus } from 'components/IconPark';
 import KibanaItem from './KibanaItem';
 import GridRow from 'components/_base/GridRow';
 import { giveWeakRandomKey } from 'shared/helpers';
-
-const Container = styled.div``;
-const ChartContainer = styled.div`
-  margin-bottom: 20px;
-`;
+import { MixinFlexAlignCenter } from 'styles/mixins';
+import { JobExecutionDetailsContext } from '../JobExecutionDetailsDrawer';
 
 const AddChartButton = styled(Button)`
   width: 250px;
+`;
+const MetricsNotPublic = styled.div`
+  ${MixinFlexAlignCenter()}
+  display: flex;
+  height: 160px;
+  font-size: 12px;
+  color: var(--textColorSecondary);
 `;
 
 type Props = {
@@ -24,32 +28,38 @@ type Props = {
 
 const JobKibanaMetrics: FC<Props> = ({ job }) => {
   const { t } = useTranslation();
-  const [chartList, setChartList] = useState([giveWeakRandomKey()]);
+  const [queryList, setQueryList] = useState([giveWeakRandomKey()]);
+
+  const { isPeerSide, workflow } = useContext(JobExecutionDetailsContext);
 
   useEffect(() => {
-    setChartList([giveWeakRandomKey()]);
+    setQueryList([giveWeakRandomKey()]);
   }, [job?.id]);
 
+  const isPeerMetricsPublic = isPeerSide && workflow?.metric_is_public;
+
+  if (!isPeerMetricsPublic) {
+    return <MetricsNotPublic>{t('workflow.placeholder_metric_not_public')}</MetricsNotPublic>;
+  }
+
   return (
-    <Container>
-      {chartList.map((key) => (
-        <ChartContainer key={key}>
-          <KibanaItem />
-        </ChartContainer>
+    <section>
+      {queryList.map((key) => (
+        <KibanaItem key={key} />
       ))}
 
-      <GridRow justify="center">
+      <GridRow justify="center" top="20">
         <AddChartButton type="primary" icon={<Plus />} size="large" onClick={onAddClick}>
           {t('workflow.btn_add_kibana_chart')}
         </AddChartButton>
       </GridRow>
-    </Container>
+    </section>
   );
 
   function onAddClick() {
-    const nextList = [...chartList, giveWeakRandomKey()];
+    const nextList = [...queryList, giveWeakRandomKey()];
 
-    setChartList(nextList);
+    setQueryList(nextList);
   }
 };
 

@@ -73,6 +73,11 @@ const JobExecutionPods: FC<Props> = ({ job, isPeerSide }) => {
       },
     },
     {
+      title: i18n.t('workflow.col_pod_ip'),
+      dataIndex: 'pod_ip',
+      key: 'pod_ip',
+    },
+    {
       title: i18n.t('workflow.col_worker_status'),
       dataIndex: 'state',
       key: 'state',

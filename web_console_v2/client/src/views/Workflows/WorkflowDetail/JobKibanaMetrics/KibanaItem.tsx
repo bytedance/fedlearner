@@ -1,57 +1,99 @@
-import React, { FC, useContext, useEffect, useState } from 'react';
+import React, { FC, memo, useContext, useEffect, useState } from 'react';
 import styled from 'styled-components';
 import KibanaParamsForm from './KibanaParamsForm';
-import KibanaEmbeddedChart from './KibanaEmbeddedChart';
-import { Col, message, Row } from 'antd';
+import KibanaEmbeddedChart from './KibanaChart/EmbeddedChart';
+import { Col, message, Row, Spin } from 'antd';
 import { JobType } from 'typings/job';
-import { fetchJobEmbedKibanaSrc } from 'services/workflow';
+import { fetchJobEmbedKibanaSrc, fetchPeerKibanaMetrics } from 'services/workflow';
 import { JobExecutionDetailsContext } from '../JobExecutionDetailsDrawer';
 import { to } from 'shared/helpers';
-import { KibanaQueryParams } from 'typings/kibana';
+import { KiabanaMetrics, KibanaChartType, KibanaQueryParams } from 'typings/kibana';
 import { useToggle } from 'react-use';
 import { useTranslation } from 'react-i18next';
+import KibanaLineChart from './KibanaChart/LineChart';
+import { NotLoadedPlaceholder, ChartContainer } from './elements';
+
+const { Rate, Ratio, Numeric, Time, Timer } = KibanaChartType;
+
+const typesForPeerSideJob = [Ratio, Numeric];
+const typesForDataJoinJob = [Rate, Ratio, Numeric, Time, Timer];
+const typesForNonDataJoinJob = [Ratio, Numeric, Time, Timer];
 
 const Container = styled.div`
   position: relative;
   padding: 20px 20px 10px;
   border: 1px solid var(--lineColor);
   border-radius: 4px;
+
+  & + & {
+    margin-top: 20px;
+  }
 `;
 
-const KibanaItem: FC = () => {
+const KibanaItem: FC = memo(() => {
   /** Need a empty string as placeholder on left side */
   const { t } = useTranslation();
-  const [embedSrcs, setEmbedSrcs] = useState(['']);
+  const [embedSrcs, setEmbedSrcs] = useState<string[]>([]);
+  const [metrics, setMetrics] = useState<KiabanaMetrics>([]);
   const [configuring, toggleConfiguring] = useToggle(true);
+  const [fetching, toggleFetching] = useToggle(false);
 
-  const context = useContext(JobExecutionDetailsContext);
+  const { isPeerSide, job, workflow } = useContext(JobExecutionDetailsContext);
 
   useEffect(() => {
-    setEmbedSrcs(['']);
+    setEmbedSrcs([]);
+    setMetrics([]);
     toggleConfiguring(true);
-  }, [context.job?.id, toggleConfiguring]);
+  }, [job?.id, toggleConfiguring]);
+
+  const isEmpty = isPeerSide ? metrics.length === 0 : embedSrcs.length === 0;
 
   return (
     <Container>
       <Row gutter={20}>
         <Col span={configuring ? 12 : 24}>
-          {embedSrcs.map((src) => (
-            <KibanaEmbeddedChart
-              src={`${src}`}
-              fill={!configuring}
-              onEditParams={onEditParamsClick}
-              onOpenNewWindow={onNewWindowClick}
-            />
-          ))}
+          <Spin spinning={fetching}>
+            <ChartContainer data-is-fill={!configuring}>
+              {isEmpty ? (
+                <NotLoadedPlaceholder>
+                  {t('workflow.placeholder_fill_kibana_form')}
+                </NotLoadedPlaceholder>
+              ) : isPeerSide ? (
+                <KibanaLineChart
+                  isFill={!configuring}
+                  label=""
+                  metrics={metrics}
+                  onEditParams={onEditParamsClick}
+                />
+              ) : (
+                <>
+                  {embedSrcs.map((src) => (
+                    <KibanaEmbeddedChart
+                      src={`${src}`}
+                      isFill={!configuring}
+                      onEditParams={onEditParamsClick}
+                      onOpenNewWindow={onNewWindowClick}
+                    />
+                  ))}
+                </>
+              )}
+            </ChartContainer>
+          </Spin>
         </Col>
 
         {configuring && (
           <Col span={12}>
             <KibanaParamsForm
-              jobType={JobType.DATA_JOIN}
+              types={
+                isPeerSide
+                  ? typesForPeerSideJob
+                  : _isDataJoinJob(job?.job_type)
+                  ? typesForDataJoinJob
+                  : typesForNonDataJoinJob
+              }
               onConfirm={onConfirm}
-              onNewWindowPreview={onNewWindowPreview}
               onPreview={onPreview}
+              onNewWindowPreview={onNewWindowPreview}
             />
           </Col>
         )}
@@ -59,37 +101,71 @@ const KibanaItem: FC = () => {
     </Container>
   );
 
-  async function fetchSrc(values: KibanaQueryParams): Promise<string[]> {
-    const [res, err] = await to(fetchJobEmbedKibanaSrc(context.job.id, values));
+  async function fetchEmbedSrcList(values: KibanaQueryParams): Promise<string[]> {
+    toggleFetching(true);
+    const [res, err] = await to(fetchJobEmbedKibanaSrc(job.id, values));
+    toggleFetching(false);
     if (err) {
-      return message.error(err.message);
+      message.error(err.message);
+      return [];
     }
 
-    if (res.data.length) {
+    if (Array.isArray(res.data) && res.data.length) {
       return res.data;
     }
 
     message.warn(t('workflow.msg_no_available_kibana'));
 
-    return [''];
+    return [];
+  }
+
+  /** For peer side, we need to render chart by ourself due to kibana is unaccessiable */
+  async function fetchMetrics(values: KibanaQueryParams) {
+    toggleFetching(true);
+    const [res, err] = await to(
+      fetchPeerKibanaMetrics(workflow?.uuid!, job.k8sName || job.name, values),
+    );
+    toggleFetching(false);
+    if (err) {
+      message.error(err.message);
+      return;
+    }
+
+    setMetrics(res.data);
   }
 
   async function onConfirm(values: KibanaQueryParams) {
-    const srcs = await fetchSrc(values);
+    if (isPeerSide) {
+      fetchMetrics(values);
+      toggleConfiguring(false);
+      return;
+    }
+
+    const srcs = await fetchEmbedSrcList(values);
     setEmbedSrcs(srcs);
+
     toggleConfiguring(false);
   }
+  async function onPreview(values: KibanaQueryParams) {
+    if (isPeerSide) {
+      fetchMetrics(values);
+      return;
+    }
+    const srcs = await fetchEmbedSrcList(values);
+    setEmbedSrcs(srcs);
+  }
+
   async function onNewWindowPreview(values: KibanaQueryParams) {
-    const srcs = await fetchSrc(values);
+    // Peer side shouldn't have this action
+    if (isPeerSide) return;
+
+    const srcs = await fetchEmbedSrcList(values);
 
     srcs.forEach(async (src) => {
       window.open(src, '_blank noopener');
     });
   }
-  async function onPreview(values: KibanaQueryParams) {
-    const src = await fetchSrc(values);
-    setEmbedSrcs(src);
-  }
+
   function onEditParamsClick() {
     toggleConfiguring(true);
   }
@@ -98,6 +174,10 @@ const KibanaItem: FC = () => {
       window.open(src, '_blank noopener');
     }
   }
-};
+});
+
+function _isDataJoinJob(type: JobType) {
+  return [JobType.DATA_JOIN, JobType.PSI_DATA_JOIN].includes(type);
+}
 
 export default KibanaItem;

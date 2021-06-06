@@ -1,4 +1,4 @@
-# Copyright 2020 The FedLearner Authors. All Rights Reserved.
+# Copyright 2021 The FedLearner Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -24,6 +24,7 @@ from fedlearner_webconsole.db import db
 from fedlearner_webconsole.utils.file_manager import FileManager
 from fedlearner_webconsole.proto import dataset_pb2
 
+
 class ImportHandler(object):
     def __init__(self):
         self._executor = ThreadPoolExecutor(max_workers=os.cpu_count() * 3)
@@ -44,12 +45,13 @@ class ImportHandler(object):
             dataset_batch_ids = [dataset_batch_ids]
         self._pending_imports.update(dataset_batch_ids)
 
-    def _copy_file(self, source_path, destination_path,
-                   move=False, num_retry=3):
-        logging.info('%s from %s to %s',
-                     'moving' if move else 'copying',
-                     source_path,
-                     destination_path)
+    def _copy_file(self,
+                   source_path,
+                   destination_path,
+                   move=False,
+                   num_retry=3):
+        logging.info('%s from %s to %s', 'moving' if move else 'copying',
+                     source_path, destination_path)
         # Creates parent folders if needed
         parent_folder = os.path.dirname(destination_path)
         self._file_manager.mkdir(parent_folder)
@@ -58,31 +60,23 @@ class ImportHandler(object):
         for _ in range(num_retry):
             try:
                 if move:
-                    self._file_manager.move(
-                        source_path,
-                        destination_path)
+                    self._file_manager.move(source_path, destination_path)
                 else:
-                    self._file_manager.copy(
-                        source_path,
-                        destination_path)
+                    self._file_manager.copy(source_path, destination_path)
                 success = True
                 break
             except Exception as e:  # pylint: disable=broad-except
                 logging.error(
                     'Error occurred when importing file from %s to %s',
-                    source_path,
-                    destination_path)
+                    source_path, destination_path)
                 error_message = str(e)
-        file = dataset_pb2.File(
-            source_path=source_path,
-            destination_path=destination_path
-        )
+        file = dataset_pb2.File(source_path=source_path,
+                                destination_path=destination_path)
         if not success:
             file.error_message = error_message
             file.state = dataset_pb2.File.State.FAILED
         else:
-            file.size = self._file_manager.ls(
-                destination_path)[0].size
+            file.size = self._file_manager.ls(destination_path)[0].size
             file.state = dataset_pb2.File.State.COMPLETED
         return file
 
@@ -106,16 +100,19 @@ class ImportHandler(object):
         for file in details.files:
             if file.state == dataset_pb2.File.State.UNSPECIFIED:
                 # Recovers the state
-                destination_existed = len(
-                    self._file_manager.ls(file.destination_path)) > 0
+                try:
+                    destination_existed = len(
+                        self._file_manager.ls(file.destination_path)) > 0
+                except Exception:  # pylint: disable=broad-except
+                    destination_existed = False
                 if destination_existed:
                     file.state = dataset_pb2.File.State.COMPLETED
                     continue
                 # Moves/Copies
-                file.MergeFrom(self._copy_file(
-                    source_path=file.source_path,
-                    destination_path=file.destination_path,
-                    move=batch.move))
+                file.MergeFrom(
+                    self._copy_file(source_path=file.source_path,
+                                    destination_path=file.destination_path,
+                                    move=batch.move))
 
         batch.set_details(details)
         db.session.commit()
@@ -123,7 +120,6 @@ class ImportHandler(object):
         self._import_lock.acquire()
         self._running_imports.remove(batch_id)
         self._import_lock.release()
-
 
     def handle(self, pull=False):
         """Handles all the batches in the queue or all batches which

@@ -32,5 +32,5 @@ export function createNewUser(payload: FedUserInfo): Promise<{ data: FedUserInfo
 }
 
 export function logout() {
-  return request.post('/v2/auth/signout');
+  return request.delete('/v2/auth/signin');
 }

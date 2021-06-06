@@ -1,4 +1,4 @@
-# Copyright 2020 The FedLearner Authors. All Rights Reserved.
+# Copyright 2021 The FedLearner Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -19,7 +19,8 @@ from passlib.apps import custom_app_context as pwd_context
 from sqlalchemy.sql.schema import UniqueConstraint, Index
 from sqlalchemy.sql import func
 
-from fedlearner_webconsole.db import db, to_dict_mixin, default_table_args
+from fedlearner_webconsole.utils.mixins import to_dict_mixin
+from fedlearner_webconsole.db import db, default_table_args
 
 
 class Role(enum.Enum):

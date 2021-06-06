@@ -60,6 +60,7 @@ export enum PodState {
 
 export interface Pod {
   name: string;
+  pod_ip: string;
   state: PodState;
   /** @deprecated */
   status?: PodState;

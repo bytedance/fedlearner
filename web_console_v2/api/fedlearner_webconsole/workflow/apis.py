@@ -1,4 +1,4 @@
-# Copyright 2020 The FedLearner Authors. All Rights Reserved.
+# Copyright 2021 The FedLearner Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -21,6 +21,7 @@ from http import HTTPStatus
 from flask_restful import Resource, reqparse, request
 from google.protobuf.json_format import MessageToDict
 from fedlearner_webconsole.composer.models import ItemStatus
+from fedlearner_webconsole.utils.decorators import jwt_required
 from fedlearner_webconsole.workflow.models import (
     Workflow, WorkflowState, TransactionState
 )
@@ -36,6 +37,7 @@ from fedlearner_webconsole.scheduler.scheduler import scheduler
 from fedlearner_webconsole.rpc.client import RpcClient
 from fedlearner_webconsole.composer.composer import composer
 from fedlearner_webconsole.workflow.cronjob import WorkflowCronJobItem
+from fedlearner_webconsole.utils.metrics import emit_counter
 
 
 def _get_workflow(workflow_id) -> Workflow:
@@ -83,7 +85,35 @@ def start_or_stop_cronjob(batch_update_interval: int, workflow: Workflow):
     else:
         logging.info('skip cronjob since batch_update_interval is -1')
 
+def is_peer_job_inheritance_matched(workflow):
+    # TODO: Move it to workflow service
+    if workflow.forked_from is None:
+        return True
+    job_flags = workflow.get_create_job_flags()
+    peer_job_flags = workflow.get_peer_create_job_flags()
+    job_defs = workflow.get_config().job_definitions
+    project = workflow.project
+    if project is None:
+        return True
+    project_config = project.get_config()
+    # TODO: Fix for multi-peer
+    client = RpcClient(project_config, project_config.participants[0])
+    parent_workflow = db.session.query(Workflow).get(workflow.forked_from)
+    resp = client.get_workflow(parent_workflow.name)
+    if resp.status.code != common_pb2.STATUS_SUCCESS:
+        emit_counter('get_workflow_failed', 1)
+        raise InternalException(resp.status.msg)
+    peer_job_defs = resp.config.job_definitions
+    for i, job_def in enumerate(job_defs):
+        if job_def.is_federated:
+            for j, peer_job_def in enumerate(peer_job_defs):
+                if job_def.name == peer_job_def.name:
+                    if job_flags[i] != peer_job_flags[j]:
+                        return False
+    return True
+
 class WorkflowsApi(Resource):
+    @jwt_required()
     def get(self):
         result = Workflow.query
         if 'project' in request.args and request.args['project'] is not None:
@@ -108,9 +138,9 @@ class WorkflowsApi(Resource):
                     'error': f'Failed to get workflow state {repr(e)}'
                 }
             res.append(wf_dict)
-
         return {'data': res}, HTTPStatus.OK
 
+    @jwt_required()
     def post(self):
         parser = reqparse.RequestParser()
         parser.add_argument('name', required=True, help='name is empty')
@@ -136,6 +166,7 @@ class WorkflowsApi(Resource):
                             type=int,
                             required=False,
                             help='interval for workflow cronjob in minute')
+
         parser.add_argument('comment')
         data = parser.parse_args()
         name = data['name']
@@ -158,6 +189,7 @@ class WorkflowsApi(Resource):
                             state=WorkflowState.NEW,
                             target_state=WorkflowState.READY,
                             transaction_state=TransactionState.READY)
+        workflow.set_config(template_proto)
         workflow.set_create_job_flags(data['create_job_flags'])
 
         if workflow.forked_from is not None:
@@ -169,11 +201,11 @@ class WorkflowsApi(Resource):
                 raise InvalidArgumentException(
                     'Forked workflow\'s template does not match base workflow')
             workflow.set_fork_proposal_config(fork_config)
-            # TODO: check that federated jobs have
-            #       same reuse policy on both sides
             workflow.set_peer_create_job_flags(data['peer_create_job_flags'])
+            if not is_peer_job_inheritance_matched(workflow):
+                raise InvalidArgumentException('Forked workflow has federated \
+                                               job with unmatched inheritance')
 
-        workflow.set_config(template_proto)
         db.session.add(workflow)
         db.session.commit()
         logging.info('Inserted a workflow to db')
@@ -189,6 +221,7 @@ class WorkflowsApi(Resource):
 
 
 class WorkflowApi(Resource):
+    @jwt_required()
     def get(self, workflow_id):
         workflow = _get_workflow(workflow_id)
         result = workflow.to_dict()
@@ -202,6 +235,7 @@ class WorkflowApi(Resource):
                 including_default_value_fields=True)
         return {'data': result}, HTTPStatus.OK
 
+    @jwt_required()
     def put(self, workflow_id):
         parser = reqparse.RequestParser()
         parser.add_argument('config', type=dict, required=True,
@@ -239,6 +273,7 @@ class WorkflowApi(Resource):
                      workflow.id, workflow.target_state)
         return {'data': workflow.to_dict()}, HTTPStatus.OK
 
+    @jwt_required()
     def patch(self, workflow_id):
         parser = reqparse.RequestParser()
         parser.add_argument('target_state', type=str, required=False,
@@ -343,6 +378,7 @@ class WorkflowApi(Resource):
 
 
 class PeerWorkflowsApi(Resource):
+    @jwt_required()
     def get(self, workflow_id):
         workflow = _get_workflow(workflow_id)
         project_config = workflow.project.get_config()
@@ -363,6 +399,7 @@ class PeerWorkflowsApi(Resource):
             peer_workflows[party.name] = peer_workflow
         return {'data': peer_workflows}, HTTPStatus.OK
 
+    @jwt_required()
     def patch(self, workflow_id):
         parser = reqparse.RequestParser()
         parser.add_argument('config', type=dict, required=True,

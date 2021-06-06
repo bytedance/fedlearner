@@ -1,4 +1,4 @@
-import { KibanaQueryParams } from './../typings/kibana';
+import { KibanaQueryParams, KiabanaMetrics } from './../typings/kibana';
 import request, { BASE_URL } from 'libs/request';
 import {
   WorkflowForkPayload,
@@ -173,4 +173,19 @@ export function fetchJobEmbedKibanaSrc(
   params: KibanaQueryParams,
 ): Promise<{ data: any[] }> {
   return request(`/v2/jobs/${id}/kibana_metrics`, { params });
+}
+
+export function fetchPeerKibanaMetrics(
+  workflowUuid: string,
+  k8sJobName: string,
+  params: KibanaQueryParams,
+): Promise<{ data: KiabanaMetrics }> {
+  return request(
+    `/v2/workflows/${workflowUuid}/peer_workflows/${
+      0 /** peerId, fix to 0 so far */
+    }/jobs/${k8sJobName}/kibana_metrics`,
+    {
+      params,
+    },
+  );
 }

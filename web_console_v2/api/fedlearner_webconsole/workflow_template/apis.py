@@ -1,4 +1,4 @@
-# Copyright 2020 The FedLearner Authors. All Rights Reserved.
+# Copyright 2021 The FedLearner Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -23,6 +23,8 @@ import tarfile
 from flask import send_file
 from flask_restful import Resource, reqparse, request
 from google.protobuf.json_format import ParseDict, ParseError
+
+from fedlearner_webconsole.utils.decorators import jwt_required
 from fedlearner_webconsole.workflow_template.models import WorkflowTemplate, \
     WorkflowTemplateKind
 from fedlearner_webconsole.proto import workflow_definition_pb2
@@ -76,6 +78,7 @@ def _dic_without_key(d, keys):
 
 
 class WorkflowTemplatesApi(Resource):
+    @jwt_required()
     def get(self):
         preset_datajoin = request.args.get('from', '') == 'preset_datajoin'
         templates = WorkflowTemplate.query
@@ -98,6 +101,7 @@ class WorkflowTemplatesApi(Resource):
             ]
         }, HTTPStatus.OK
 
+    @jwt_required()
     def post(self):
         parser = reqparse.RequestParser()
         parser.add_argument('name', required=True, help='name is empty')
@@ -136,6 +140,7 @@ class WorkflowTemplatesApi(Resource):
 
 
 class WorkflowTemplateApi(Resource):
+    @jwt_required()
     def get(self, template_id):
         download = request.args.get('download', 'false') == 'true'
 
@@ -155,6 +160,7 @@ class WorkflowTemplateApi(Resource):
                              cache_timeout=0)
         return {'data': result}, HTTPStatus.OK
 
+    @jwt_required()
     def delete(self, template_id):
         result = WorkflowTemplate.query.filter_by(id=template_id)
         if result.first() is None:
@@ -163,6 +169,7 @@ class WorkflowTemplateApi(Resource):
         db.session.commit()
         return {'data': {}}, HTTPStatus.OK
 
+    @jwt_required()
     def put(self, template_id):
         parser = reqparse.RequestParser()
         parser.add_argument('name', required=True, help='name is empty')
@@ -207,12 +214,11 @@ def _format_template_with_yaml_editor(template_proto, editor_info_proto):
         # if job is in editor_info, than use meta_yaml format with
         # slots instead of yaml_template
         yaml_editor_infos = editor_info_proto.yaml_editor_infos
-        if job_def.name in yaml_editor_infos:
+        if not job_def.expert_mode and job_def.name in yaml_editor_infos:
             yaml_editor_info = yaml_editor_infos[job_def.name]
-            if yaml_editor_info.is_used:
-                job_def.yaml_template = generate_yaml_template(
-                    yaml_editor_info.meta_yaml, yaml_editor_info.slots)
-                job_def.variables.CopyFrom(yaml_editor_info.variables)
+            job_def.yaml_template = generate_yaml_template(
+                yaml_editor_info.meta_yaml,
+                yaml_editor_info.slots)
     try:
         check_workflow_definition(template_proto)
     except ValueError as e:
@@ -256,6 +262,7 @@ def _check_config_and_editor_info(config, editor_info):
 
 
 class CodeApi(Resource):
+    @jwt_required()
     def get(self):
         parser = reqparse.RequestParser()
         parser.add_argument('code_path',

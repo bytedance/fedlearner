@@ -1,4 +1,4 @@
-# Copyright 2020 The FedLearner Authors. All Rights Reserved.
+# Copyright 2021 The FedLearner Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -20,13 +20,16 @@ import enum
 from datetime import datetime
 from sqlalchemy.sql import func
 from sqlalchemy import UniqueConstraint
+
+from envs import Features
 from fedlearner_webconsole.composer.models import SchedulerItem
-from fedlearner_webconsole.db import db, to_dict_mixin
+from fedlearner_webconsole.utils.mixins import to_dict_mixin
+from fedlearner_webconsole.db import db
 from fedlearner_webconsole.proto import (common_pb2, workflow_definition_pb2)
 from fedlearner_webconsole.job.models import (Job, JobState, JobType,
                                               JobDependency)
 from fedlearner_webconsole.rpc.client import RpcClient
-
+from fedlearner_webconsole.mmgr.service import ModelService
 
 class WorkflowState(enum.Enum):
     INVALID = 0
@@ -311,8 +314,8 @@ class Workflow(db.Model):
             and self.target_state != WorkflowState.INVALID:
             raise ValueError(f'Another transaction is in progress [{self.id}]')
         if target_state not in [
-            WorkflowState.READY, WorkflowState.RUNNING,
-            WorkflowState.STOPPED
+                WorkflowState.READY, WorkflowState.RUNNING,
+                WorkflowState.STOPPED
         ]:
             raise ValueError(f'Invalid target_state {self.target_state}')
         if (self.state, target_state) not in VALID_TRANSITIONS:
@@ -479,6 +482,10 @@ class Workflow(db.Model):
                 db.session.add(dep)
 
         self.set_job_ids([job.id for job in jobs])
+        if Features.FEATURE_MODEL_WORKFLOW_HOOK:
+            for job in jobs:
+                ModelService(db.session).workflow_hook(job)
+
 
     def log_states(self):
         logging.debug(

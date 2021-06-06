@@ -10,6 +10,12 @@ const AggregatorChoices: Partial<Record<KibanaChartType, any[]>> = {
     KibanaAggregator.Min,
     KibanaAggregator.Variance,
   ],
+  [KibanaChartType.Numeric]: [
+    KibanaAggregator.Average,
+    KibanaAggregator.Sum,
+    KibanaAggregator.Min,
+    KibanaAggregator.Variance,
+  ],
 };
 
 type Props = {
