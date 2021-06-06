@@ -27,7 +27,10 @@ interface Props {
 function DetailHeader({ project }: Props): ReactElement {
   const { t } = useTranslation();
   const history = useHistory();
-  const [status, checkConnection] = useCheckConnection(project);
+  const [status, checkConnection] = useCheckConnection(project, {
+    refetchOnWindowFocus: false,
+    refetchInterval: 10 * 60 * 1000, // 10min
+  });
 
   return (
     <RowContainer justify="space-between" align="middle">

@@ -61,6 +61,7 @@ const workflow: I18nMessageModule = {
   col_tpl_name: { zh: '模版名' },
   col_group_alias: { zh: 'Group 别名' },
   col_pod_name: { zh: 'Pod' },
+  col_pod_ip: { zh: 'IP' },
 
   state_success: { zh: '成功' },
   state_failed: { zh: '失败' },
@@ -147,9 +148,10 @@ const workflow: I18nMessageModule = {
   placeholder_start_time: { zh: '开始时间' },
   placeholder_end_time: { zh: '结束时间' },
   placeholder_timers: { zh: 'Timers' },
-  placeholder_kibana_query: { zh: '自定义 query' },
+  placeholder_json_syntax: { zh: '' },
   placeholder_fill_kibana_form: {
-    zh: '填写参数后查看数据，Kibana加载时间可能稍长或出现长时间空白，请耐心等待',
+    zh:
+      '右侧确认筛选项后查看指标，Kibana加载时间可能稍长甚至出现长时间空白，属于正常现象，请耐心等待',
   },
   placeholder_kibana_timer: {
     zh: '输入多个 timer 名称',

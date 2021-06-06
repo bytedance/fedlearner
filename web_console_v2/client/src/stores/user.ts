@@ -45,6 +45,7 @@ export const userInfoGetters = selector({
 
     return {
       isAuthenticated: Boolean(userInfo.id) || process.env.REACT_APP_ENABLE_FULLY_MOCK,
+      role: userInfo.role,
     };
   },
 });

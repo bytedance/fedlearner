@@ -18,6 +18,7 @@ import i18n from 'i18n';
 import { FedUserInfo, FedRoles } from 'typings/auth';
 import UserRoleBadge from 'components/UserRoleBadge';
 import Log from 'components/IconPark/icons/Log';
+import { logout } from 'services/user';
 
 const Container = styled.div`
   ${MixinCommonTransition()}
@@ -117,8 +118,7 @@ const AccountPopover: FC<{ userInfo: FedUserInfo }> = ({ userInfo }) => {
 
   async function onLogoutClick() {
     try {
-      // logout api is now unavailable, only fe remove the user storage.
-      // await logout();
+      await logout();
       store.remove(LOCAL_STORAGE_KEYS.current_user);
       resetUserInfo();
       history.push('/login');

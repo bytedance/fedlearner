@@ -1,4 +1,4 @@
-# Copyright 2020 The FedLearner Authors. All Rights Reserved.
+# Copyright 2021 The FedLearner Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -29,7 +29,8 @@ from fedlearner_webconsole.auth.models import (State, User, Role,
 from fedlearner_webconsole.exceptions import (NotFoundException,
                                               InvalidArgumentException,
                                               ResourceConflictException,
-                                              UnauthorizedException)
+                                              UnauthorizedException,
+                                              NoAccessException)
 
 
 class SigninApi(Resource):
@@ -131,20 +132,26 @@ class UserApi(Resource):
             raise NotFoundException()
         return user
 
+    def _check_current_user(self, user_id, msg):
+        current_user = get_current_user()
+        if not current_user.role == Role.ADMIN \
+                and not user_id == current_user.id:
+            raise NoAccessException(msg)
+
     @jwt_required()
     def get(self, user_id):
+        self._check_current_user(user_id,
+                                 'user cannot get other user\'s information')
         user = self._find_user(user_id)
         return {'data': user.to_dict()}, HTTPStatus.OK
 
     @jwt_required()
     def patch(self, user_id):
+        self._check_current_user(user_id,
+                                 'user cannot modify other user\'s information')
         user = self._find_user(user_id)
 
-        current_user = get_current_user()
-        if current_user.role != Role.ADMIN and current_user.id != user_id:
-            raise UnauthorizedException('user cannot modify others infomation')
-
-        mutable_attrs = MUTABLE_ATTRS_MAPPER.get(current_user.role)
+        mutable_attrs = MUTABLE_ATTRS_MAPPER.get(get_current_user().role)
 
         data = request.get_json()
         for k, v in data.items():

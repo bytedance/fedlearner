@@ -7,16 +7,17 @@ type Props = {
   onChange?: any;
 };
 
-const QueryInput: FC<Props> = ({ value, onChange }) => {
+const JsonStringInput: FC<Props> = ({ value, onChange }) => {
   const { t } = useTranslation();
 
   return (
     <Input.TextArea
       defaultValue={value}
       onChange={onChange}
-      placeholder={t('workflow.placeholder_kibana_query')}
+      rows={1}
+      placeholder={t('workflow.placehodler_json_syntax')}
     />
   );
 };
 
-export default QueryInput;
+export default JsonStringInput;

@@ -1,4 +1,4 @@
-# Copyright 2020 The FedLearner Authors. All Rights Reserved.
+# Copyright 2021 The FedLearner Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the 'License');
 # you may not use this file except in compliance with the License.
@@ -35,6 +35,7 @@ from fedlearner_webconsole.project.add_on \
 from fedlearner_webconsole.exceptions \
     import InvalidArgumentException, NotFoundException
 from fedlearner_webconsole.rpc.client import RpcClient
+from fedlearner_webconsole.utils.decorators import jwt_required
 from fedlearner_webconsole.utils.k8s_client import k8s_client
 from fedlearner_webconsole.workflow.models import Workflow
 
@@ -57,6 +58,7 @@ class ErrorMessage(Enum):
 
 
 class ProjectsApi(Resource):
+    @jwt_required()
     def post(self):
         parser = reqparse.RequestParser()
         parser.add_argument('name',
@@ -171,6 +173,7 @@ class ProjectsApi(Resource):
 
         return {'data': new_project.to_dict()}
 
+    @jwt_required()
     def get(self):
         # TODO: Not count soft-deleted workflow
         projects = db.session.query(
@@ -187,12 +190,14 @@ class ProjectsApi(Resource):
 
 
 class ProjectApi(Resource):
+    @jwt_required()
     def get(self, project_id):
         project = Project.query.filter_by(id=project_id).first()
         if project is None:
             raise NotFoundException()
         return {'data': project.to_dict()}
 
+    @jwt_required()
     def patch(self, project_id):
         project = Project.query.filter_by(id=project_id).first()
         if project is None:
@@ -239,6 +244,7 @@ class ProjectApi(Resource):
 
 
 class CheckConnectionApi(Resource):
+    @jwt_required()
     def post(self, project_id):
         project = Project.query.filter_by(id=project_id).first()
         if project is None:

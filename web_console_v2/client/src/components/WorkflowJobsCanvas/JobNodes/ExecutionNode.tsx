@@ -35,7 +35,7 @@ const ExecutionJobNode: FC<JobNodeProps> = ({ data, id }) => {
           {icon && <StatusIcon src={icon} />}
           <JobStatusText>
             {hasError ? (
-              <Tooltip className="error-message" title={data.raw.error_message}>
+              <Tooltip className="error-message" title={data.raw.error_message} placement="topLeft">
                 {data.raw.error_message}
               </Tooltip>
             ) : (

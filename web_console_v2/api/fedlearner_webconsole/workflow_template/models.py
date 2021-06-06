@@ -1,4 +1,4 @@
-# Copyright 2020 The FedLearner Authors. All Rights Reserved.
+# Copyright 2021 The FedLearner Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,7 +16,8 @@
 import enum
 
 from sqlalchemy.sql.schema import Index, UniqueConstraint
-from fedlearner_webconsole.db import db, to_dict_mixin, default_table_args
+from fedlearner_webconsole.utils.mixins import to_dict_mixin
+from fedlearner_webconsole.db import db, default_table_args
 from fedlearner_webconsole.proto import workflow_definition_pb2
 
 

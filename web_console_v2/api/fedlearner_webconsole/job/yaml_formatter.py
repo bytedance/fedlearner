@@ -1,4 +1,4 @@
-# Copyright 2020 The FedLearner Authors. All Rights Reserved.
+# Copyright 2021 The FedLearner Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -21,6 +21,7 @@ from string import Template
 from flatten_dict import flatten
 from fedlearner_webconsole.utils.system_envs import get_system_envs
 from fedlearner_webconsole.proto import common_pb2
+
 
 class _YamlTemplate(Template):
     delimiter = '$'
@@ -48,8 +49,8 @@ def make_variables_dict(variables):
     var_dict = {
         var.name: (
             code_dict_encode(json.loads(var.value))
-                if var.value_type == common_pb2.Variable.ValueType.CODE \
-                    else var.value)
+            if var.value_type == common_pb2.Variable.ValueType.CODE \
+                else var.value)
         for var in variables
     }
     return var_dict
@@ -66,7 +67,7 @@ def generate_project_dict(proj):
     participants = project['config']['participants']
     for index, participant in enumerate(participants):
         project[f'participants[{index}]'] = {}
-        project[f'participants[{index}]']['egress_domain'] =\
+        project[f'participants[{index}]']['egress_domain'] = \
             participant['domain_name']
         project[f'participants[{index}]']['egress_host'] = \
             participant['grpc_spec']['authority']
@@ -86,11 +87,20 @@ def generate_workflow_dict(wf):
     return workflow
 
 
+def generate_self_dict(j):
+    job = j.to_dict()
+    job['variables'] = make_variables_dict(
+        j.get_config().variables
+    )
+    return job
+
+
 def generate_job_run_yaml(job):
     yaml = format_yaml(job.get_config().yaml_template,
                        workflow=generate_workflow_dict(job.workflow),
                        project=generate_project_dict(job.project),
-                       system=generate_system_dict())
+                       system=generate_system_dict(),
+                       self=generate_self_dict(job))
 
     try:
         loaded = json.loads(yaml)

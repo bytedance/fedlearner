@@ -3,8 +3,10 @@ dependencies:
   '@formily/antd': 1.3.13_b13a12cfbb184a60a7e1275d8262e450
   '@formily/antd-components': 1.3.13_b13a12cfbb184a60a7e1275d8262e450
   '@monaco-editor/react': 4.1.0_react-dom@17.0.2+react@17.0.2
+  '@welldone-software/why-did-you-render': 6.1.1_react@17.0.2
   antd: 4.14.1_2235c505ed33ea6efd93d3050f896208
   axios: 0.21.1
+  chart.js: 3.2.1
   classnames: 2.2.6
   dayjs: 1.10.4
   i18next: 19.9.2
@@ -15,6 +17,7 @@ dependencies:
   rc-menu: 8.10.6_react-dom@17.0.2+react@17.0.2
   react: 17.0.2
   react-app-polyfill: 2.0.0
+  react-chartjs-2: 3.0.3_chart.js@3.2.1+react@17.0.2
   react-dev-utils: 11.0.4
   react-dom: 17.0.2_react@17.0.2
   react-flow-renderer: 9.4.0_react-dom@17.0.2+react@17.0.2
@@ -3006,6 +3009,15 @@ packages:
         optional: true
     resolution:
       integrity: sha512-0qXvpeYO6vaNoRBI52/UsbcaBydJCggoBBnIo/ovQQdn6fug0BgwsjorV1hVS7fMqGVTZGcVxv8334gjmbj5hw==
+  /@welldone-software/why-did-you-render/6.1.1_react@17.0.2:
+    dependencies:
+      lodash: 4.17.21
+      react: 17.0.2
+    dev: false
+    peerDependencies:
+      react: ^16 || ^17
+    resolution:
+      integrity: sha512-BMFp33T4MC27qvCWsI1SqwZCxIlxoQXsPQFdGLDsPSg7sgoWX4Gzj0+hlKVrWrCBiIxi7gP2JcS9IK6CZzk8mg==
   /@xobotyi/scrollbar-width/1.9.5:
     dev: false
     resolution:
@@ -4209,6 +4221,10 @@ packages:
       node: '>=10'
     resolution:
       integrity: sha512-kWWXztvZ5SBQV+eRgKFeh8q5sLuZY2+8WUIzlxWVTg+oGwY14qylx1KbKzHd8P6ZYkAg0xyIDU9JMHhyJMZ1jw==
+  /chart.js/3.2.1:
+    dev: false
+    resolution:
+      integrity: sha512-XsNDf3854RGZkLCt+5vWAXGAtUdKP2nhfikLGZqud6G4CvRE2ts64TIxTTfspOin2kEZvPgomE29E6oU02dYjQ==
   /check-types/11.1.2:
     dev: true
     resolution:
@@ -11422,6 +11438,17 @@ packages:
       node: '>=10'
     resolution:
       integrity: sha512-0sF4ny9v/B7s6aoehwze9vJNWcmCemAUYBVasscVr92+UYiEqDXOxfKjXN685mDaMRNF3WdhHQs76oTODMocFA==
+  /react-chartjs-2/3.0.3_chart.js@3.2.1+react@17.0.2:
+    dependencies:
+      chart.js: 3.2.1
+      lodash: 4.17.21
+      react: 17.0.2
+    dev: false
+    peerDependencies:
+      chart.js: ^3.1.0
+      react: ^16.8.0 || ^17.0.0
+    resolution:
+      integrity: sha512-jOFZKwZ8sMLkddewZ/tToxuu4pYimAvvY5I6uK+hCpSFT16Pvo2bdHhUoZ0X87zu9I+dx2I+JCqaLN6XhmrbDg==
   /react-dev-utils/11.0.4:
     dependencies:
       '@babel/code-frame': 7.10.4
@@ -14498,6 +14525,7 @@ specifiers:
   '@types/styled-components': ^5.1.4
   '@typescript-eslint/eslint-plugin': ^4.5.0
   '@typescript-eslint/parser': ^4.5.0
+  '@welldone-software/why-did-you-render': ^6.1.1
   antd: ^4.14.0
   antd-dayjs-webpack-plugin: ^1.0.6
   axios: ^0.21.0
@@ -14509,6 +14537,7 @@ specifiers:
   bfj: ^7.0.2
   camelcase: ^6.1.0
   case-sensitive-paths-webpack-plugin: 2.3.0
+  chart.js: ^3.2.1
   classnames: ^2.2.6
   css-loader: 4.3.0
   dayjs: ^1.9.7
@@ -14556,6 +14585,7 @@ specifiers:
   rc-menu: ^8.10.6
   react: ^17.0.1
   react-app-polyfill: ^2.0.0
+  react-chartjs-2: ^3.0.3
   react-dev-utils: ^11.0.0
   react-dom: ^17.0.1
   react-flow-renderer: ^9.1.1

@@ -1,4 +1,4 @@
-# Copyright 2020 The FedLearner Authors. All Rights Reserved.
+# Copyright 2021 The FedLearner Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@
 import os
 
 from datetime import datetime, timezone
+from http import HTTPStatus
 
 from flask import current_app, request
 from flask_restful import Resource, Api, reqparse
@@ -29,6 +30,7 @@ from fedlearner_webconsole.exceptions import (InvalidArgumentException,
 from fedlearner_webconsole.db import db
 from fedlearner_webconsole.proto import dataset_pb2
 from fedlearner_webconsole.scheduler.scheduler import scheduler
+from fedlearner_webconsole.utils.decorators import jwt_required
 from fedlearner_webconsole.utils.file_manager import FileManager
 
 _FORMAT_ERROR_MESSAGE = '{} is empty'
@@ -43,18 +45,44 @@ def _get_dataset_path(dataset_name):
 
 
 class DatasetApi(Resource):
+    @jwt_required()
     def get(self, dataset_id):
         dataset = Dataset.query.get(dataset_id)
         if dataset is None:
             raise NotFoundException()
         return {'data': dataset.to_dict()}
 
+    @jwt_required()
+    def patch(self, dataset_id: int):
+        parser = reqparse.RequestParser()
+        parser.add_argument('name',
+                            type=str,
+                            required=False,
+                            help='dataset name')
+        parser.add_argument('comment',
+                            type=str,
+                            required=False,
+                            help='dataset comment')
+        parser.add_argument('comment')
+        data = parser.parse_args()
+        dataset = db.session.query(Dataset).filter_by(id=dataset_id).first()
+        if not dataset:
+            raise NotFoundException()
+        if data['name']:
+            dataset.name = data['name']
+        if data['comment']:
+            dataset.comment = data['comment']
+        db.session.commit()
+        return {'data': dataset.to_dict()}, HTTPStatus.OK
+
 
 class DatasetsApi(Resource):
+    @jwt_required()
     def get(self):
         datasets = Dataset.query.order_by(Dataset.created_at.desc()).all()
         return {'data': [d.to_dict() for d in datasets]}
 
+    @jwt_required()
     def post(self):
         parser = reqparse.RequestParser()
         parser.add_argument('name',
@@ -95,6 +123,7 @@ class DatasetsApi(Resource):
 
 
 class BatchesApi(Resource):
+    @jwt_required()
     def post(self, dataset_id: int):
         parser = reqparse.RequestParser()
         parser.add_argument('event_time', type=int)
@@ -150,6 +179,7 @@ class FilesApi(Resource):
     def __init__(self):
         self._file_manager = FileManager()
 
+    @jwt_required()
     def get(self):
         # TODO: consider the security factor
         if 'directory' in request.args:

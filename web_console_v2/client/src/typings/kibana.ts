@@ -33,3 +33,5 @@ export enum KibanaQueryFields {
 }
 
 export type KibanaQueryParams = Partial<Record<KibanaQueryFields, any>>;
+
+export type KiabanaMetrics = [DateTime, number][];

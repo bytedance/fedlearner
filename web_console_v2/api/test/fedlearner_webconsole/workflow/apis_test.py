@@ -1,4 +1,4 @@
-# Copyright 2020 The FedLearner Authors. All Rights Reserved.
+# Copyright 2021 The FedLearner Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the 'License');
 # you may not use this file except in compliance with the License.
@@ -30,7 +30,11 @@ from fedlearner_webconsole.workflow.cronjob import WorkflowCronJobItem
 from fedlearner_webconsole.workflow.models import Workflow, WorkflowState
 from fedlearner_webconsole.job.models import Job, JobType, JobState
 from fedlearner_webconsole.scheduler.transaction import TransactionState
+from fedlearner_webconsole.proto.service_pb2 import GetWorkflowResponse
 from fedlearner_webconsole.proto import project_pb2
+from fedlearner_webconsole.rpc.client import RpcClient
+from fedlearner_webconsole.proto.common_pb2 import CreateJobFlag
+from fedlearner_webconsole.workflow.apis import is_peer_job_inheritance_matched
 from testing.common import BaseTestCase
 
 
@@ -97,9 +101,8 @@ class WorkflowsApiTest(BaseTestCase):
             'comment': 'test-comment',
             'config': config
         }
-        response = self.client.post('/api/v2/workflows',
-                                    data=json.dumps(workflow),
-                                    content_type='application/json')
+        response = self.post_helper('/api/v2/workflows',
+                                    data=workflow)
         self.assertEqual(response.status_code, HTTPStatus.CREATED)
         created_workflow = json.loads(response.data).get('data')
         # Check scheduler
@@ -139,9 +142,8 @@ class WorkflowsApiTest(BaseTestCase):
 
         # Post again
         mock_wakeup.reset_mock()
-        response = self.client.post('/api/v2/workflows',
-                                    data=json.dumps(workflow),
-                                    content_type='application/json')
+        response = self.post_helper('/api/v2/workflows',
+                                    data=workflow)
         self.assertEqual(response.status_code, HTTPStatus.CONFLICT)
         # Check mock
         mock_wakeup.assert_not_called()
@@ -434,6 +436,38 @@ class WorkflowApiTest(BaseTestCase):
         self.assertEqual(response.status_code, HTTPStatus.OK)
         patched_job = Job.query.get(job.id)
         self.assertEqual(patched_job.is_disabled, False)
+
+    # TODO: Move it to service_test
+    @patch('fedlearner_webconsole.rpc.client.RpcClient.get_workflow')
+    def test_is_peer_job_inheritance_matched(self, mock_get_workflow):
+        peer_job_0 = JobDefinition(name='raw-data-job')
+        peer_job_1 = JobDefinition(name='train-job', is_federated=True)
+        peer_config = WorkflowDefinition()
+        peer_config.job_definitions.extend([peer_job_0, peer_job_1])
+        resp = GetWorkflowResponse(config=peer_config)
+        mock_get_workflow.return_value = resp
+
+        job_0 = JobDefinition(name='train-job', is_federated=True)
+        config = WorkflowDefinition(job_definitions=[job_0])
+
+        project = Project()
+        participant = project_pb2.Participant()
+        project.set_config(project_pb2.Project(participants=[participant]))
+        workflow0 = Workflow(project=project)
+        workflow0.set_config(config)
+        db.session.add(workflow0)
+        db.session.commit()
+        db.session.flush()
+        workflow1 = Workflow(project=project, forked_from=workflow0.id)
+        workflow1.set_config(config)
+        workflow1.set_create_job_flags([CreateJobFlag.REUSE])
+        workflow1.set_peer_create_job_flags([CreateJobFlag.NEW, CreateJobFlag.REUSE])
+
+
+        self.assertTrue(is_peer_job_inheritance_matched(workflow1))
+
+        workflow1.set_create_job_flags([CreateJobFlag.NEW])
+        self.assertFalse(is_peer_job_inheritance_matched(workflow1))
 
 
 if __name__ == '__main__':

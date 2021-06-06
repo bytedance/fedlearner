@@ -123,11 +123,13 @@ class Pod(object):
                  name: str,
                  state: PodState,
                  pod_type: PodType,
+                 pod_ip: str = None,
                  container_states: List[ContainerState] = None,
                  pod_conditions: List[PodCondition] = None):
         self.name = name
         self.state = state or PodState.UNKNOWN
         self.pod_type = pod_type
+        self.pod_ip = pod_ip
         self.container_states = container_states or []
         self.pod_conditions = pod_conditions or []
 
@@ -146,7 +148,8 @@ class Pod(object):
                 return False
         return self.name == other.name and \
                self.state == other.state and \
-               self.pod_type == other.pod_type
+               self.pod_type == other.pod_type and \
+               self.pod_ip == other.pod_ip
 
     def to_dict(self, include_private_info: bool = False):
         # TODO: to reuse to_dict from db.py
@@ -164,6 +167,7 @@ class Pod(object):
             'name': self.name,
             'pod_type': self.pod_type.name,
             'state': self.state.name,
+            'pod_ip': self.pod_ip,
             'message': ', '.join(messages)
         }
 
@@ -198,6 +202,7 @@ class Pod(object):
             pod_type=PodType.from_value(
                 p['metadata']['labels']['fl-replica-type']),
             state=PodState.from_value(p['status']['phase']),
+            pod_ip=p['status'].get('pod_ip'),
             container_states=container_states,
             pod_conditions=pod_conditions)
 
