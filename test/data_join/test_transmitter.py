@@ -14,7 +14,7 @@ from fedlearner.data_join.transmitter.transmitter import Transmitter
 from fedlearner.data_join.transmitter.utils import IDX
 
 FILE_NUM = 500
-FILE_LEN = 100
+ROW_NUM = 100
 SEND_ROW_NUM = 480
 
 
@@ -23,7 +23,7 @@ def _get_next_idx(start_idx: IDX,
                   file_len: int,
                   file_num: int):
     remain_rows = row_num - file_len + start_idx.row_idx
-    next_file = start_idx.file_idx + math.ceil(remain_rows / FILE_LEN)
+    next_file = start_idx.file_idx + math.ceil(remain_rows / ROW_NUM)
     if next_file >= file_num:
         next_file = file_num - 1
         next_row = file_len
@@ -31,7 +31,7 @@ def _get_next_idx(start_idx: IDX,
         if remain_rows <= 0:
             next_row = start_idx.row_idx + row_num
         else:
-            next_row = (remain_rows - 1) % FILE_LEN + 1
+            next_row = (remain_rows - 1) % ROW_NUM + 1
     return IDX(next_file, next_row)
 
 
@@ -69,7 +69,7 @@ class TestSender(Sender):
                       files: typing.List[str],
                       start_idx: IDX,
                       row_num: int) -> (bytes, IDX, bool):
-        end_idx = _get_next_idx(start_idx, row_num, FILE_LEN, len(files))
+        end_idx = _get_next_idx(start_idx, row_num, ROW_NUM, len(files))
         payload = '{}_{}-{}_{}'.format(start_idx.file_idx,
                                        start_idx.row_idx,
                                        end_idx.file_idx,
@@ -77,7 +77,8 @@ class TestSender(Sender):
         send_ = os.path.join(self._output_path, 'send.txt')
         with gfile.GFile(send_, 'a') as f:
             f.write(payload)
-        return payload.encode(), end_idx, end_idx == IDX(FILE_NUM - 1, FILE_LEN)
+        return payload.encode(), end_idx, \
+               end_idx == IDX(len(self._meta['files']) - 1, ROW_NUM)
 
     def _resp_process(self,
                       resp: transmitter_pb.Response,
@@ -160,6 +161,10 @@ class TestStreamTransmit(unittest.TestCase):
         th2_stop.start()
         th1_stop.join()
         th2_stop.join()
+
+    def _meta_assert(self):
+        assert self._manager1
+        assert self._manager2
         recv1_meta = json.loads(self._db_client.get_data(
             self._manager1._receiver._meta_path))
         recv2_meta = json.loads(self._db_client.get_data(
@@ -172,11 +177,8 @@ class TestStreamTransmit(unittest.TestCase):
         del recv2_meta['output_path']
         del send1_meta['root']
         del send2_meta['root']
-        return send1_meta, send2_meta, recv1_meta, recv2_meta
-
-    def _meta_assert(self, send1_meta, send2_meta, recv1_meta, recv2_meta):
         self.assertEqual(send1_meta, {'file_idx': len(self.file_paths) - 1,
-                                      'row_idx': FILE_LEN,
+                                      'row_idx': ROW_NUM,
                                       'files': self.file_paths,
                                       'finished': True})
         self.assertEqual(recv1_meta, recv2_meta)
@@ -185,11 +187,11 @@ class TestStreamTransmit(unittest.TestCase):
         self.assertEqual(send1_meta['row_idx'], recv1_meta['row_idx'])
 
     def test_transmit(self):
-        send1_meta, send2_meta, recv1_meta, recv2_meta = self._transmit()
-        self._meta_assert(send1_meta, send2_meta, recv1_meta, recv2_meta)
+        self._transmit()
+        self._meta_assert()
 
         expected_content = _ground_truth_payload(IDX(0, 0), SEND_ROW_NUM,
-                                                 FILE_LEN, FILE_NUM)
+                                                 ROW_NUM, FILE_NUM)
         for file in gfile.ListDirectory(self._mgr1_path):
             if file.endswith('txt'):
                 with gfile.GFile(os.path.join(self._mgr1_path, file), 'r') as f:
@@ -219,25 +221,25 @@ class TestStreamTransmit(unittest.TestCase):
         self._db_client.set_data('2/send', json.dumps(send_meta).encode())
         self._db_client.set_data('1/recv', json.dumps(recv1_meta).encode())
         self._db_client.set_data('2/recv', json.dumps(recv2_meta).encode())
-        send1_meta, send2_meta, recv1_meta, recv2_meta = self._transmit()
-        self._meta_assert(send1_meta, send2_meta, recv1_meta, recv2_meta)
+        self._transmit()
+        self._meta_assert()
         # recv1 has a staler meta than send2
         recv1_expected = _ground_truth_payload(IDX(20, 70), SEND_ROW_NUM,
-                                               FILE_LEN, FILE_NUM)
+                                               ROW_NUM, FILE_NUM)
         # send1 has a staler meta than recv2
         send1_expected = _ground_truth_payload(IDX(40, 60), SEND_ROW_NUM,
-                                               FILE_LEN, FILE_NUM)
+                                               ROW_NUM, FILE_NUM)
         # send2 need to send from recv1's initial meta
         send2_expected = recv1_expected
 
-        recv2_dup_row = (60 - 40) * FILE_LEN + (80 - 60)
+        recv2_dup_row = (60 - 40) * ROW_NUM + (80 - 60)
         recv2_remain_row = recv2_dup_row % SEND_ROW_NUM
         recv2_overflow = SEND_ROW_NUM - recv2_remain_row
         # from here it receives full request without duplicates
         recv2_start = _get_next_idx(IDX(60, 80), recv2_overflow,
-                                    FILE_LEN, FILE_NUM)
+                                    ROW_NUM, FILE_NUM)
         recv2_expected = _ground_truth_payload(recv2_start, SEND_ROW_NUM,
-                                               FILE_LEN, FILE_NUM)
+                                               ROW_NUM, FILE_NUM)
         recv2_expected = '{}_{}-{}_{}'.format(60, 80,
                                               recv2_start.file_idx,
                                               recv2_start.row_idx) \
@@ -251,6 +253,24 @@ class TestStreamTransmit(unittest.TestCase):
             self.assertEqual(f.read(), send2_expected)
         with open(os.path.join(self._mgr2_path, 'recv.txt'), 'r') as f:
             self.assertEqual(f.read(), recv2_expected)
+
+    def test_add_files(self):
+        self._transmit()
+        self.file_paths.extend(str(i) for i in range(FILE_NUM, 2 * FILE_NUM))
+        self._transmit()
+        self._meta_assert()
+        expected = _ground_truth_payload(
+            IDX(0, 0), SEND_ROW_NUM, ROW_NUM, FILE_NUM)
+        expected = expected + _ground_truth_payload(
+            IDX(FILE_NUM - 1, ROW_NUM), SEND_ROW_NUM, ROW_NUM, 2 * FILE_NUM)
+        for file in gfile.ListDirectory(self._mgr1_path):
+            if file.endswith('txt'):
+                with gfile.GFile(os.path.join(self._mgr1_path, file), 'r') as f:
+                    self.assertEqual(f.read(), expected)
+        for file in gfile.ListDirectory(self._mgr2_path):
+            if file.endswith('txt'):
+                with gfile.GFile(os.path.join(self._mgr2_path, file), 'r') as f:
+                    self.assertEqual(f.read(), expected)
 
     def tearDown(self) -> None:
         gfile.DeleteRecursively(self._test_root)

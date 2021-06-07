@@ -12,7 +12,7 @@ class _StreamTransmitServicer(transmitter_grpc.TransmitterServiceServicer):
         self._receiver = receiver
 
     def SyncState(self, request, context):
-        return self._receiver.sync_state()
+        return self._receiver.sync_state(request)
 
     def Transmit(self, request_iterator, context):
         return self._receiver.transmit(request_iterator)

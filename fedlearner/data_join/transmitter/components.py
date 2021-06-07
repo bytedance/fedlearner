@@ -26,8 +26,7 @@ class Sender:
         self._send_row_num = send_row_num
         self._client = None
         # The meta is used in ACK.
-        self._meta = self._get_meta(file_paths, root_path or '')
-        self._file_len = len(self._meta['files'])
+        self._meta, self._has_new = self._get_meta(file_paths, root_path or '')
         # whether to start from peer's state regardless of local state
         self._start_from_peer = start_from_peer
         self._synced = False
@@ -47,9 +46,18 @@ class Sender:
     def _get_meta(self,
                   file_paths: list,
                   root_path: str):
+        has_new = False
         meta = self._db_client.get_data(self._meta_path)
         if meta:
             meta = json.loads(meta)
+            file_diff = set(file_paths) - set(meta['files'])
+            if file_diff:
+                # use loop to preserve path order
+                for file in file_paths:
+                    if file in file_diff:
+                        meta['files'].append(file)
+                meta['finished'] = False
+                has_new = True
         else:
             meta = {
                 'file_idx': 0,
@@ -58,8 +66,9 @@ class Sender:
                 'files': file_paths,
                 'finished': False
             }
-            self._db_client.set_data(self._meta_path, json.dumps(meta).encode())
-        return meta
+            has_new = True
+        self._db_client.set_data(self._meta_path, json.dumps(meta).encode())
+        return meta, has_new
 
     def add_client(self, client: transmitter_grpc.TransmitterServiceStub):
         with self._condition:
@@ -67,7 +76,8 @@ class Sender:
                 self._client = client
 
     def _sync(self):
-        resp = self._client.SyncState(transmitter_pb.SyncRequest())
+        resp = self._client.SyncState(
+            transmitter_pb.SyncRequest(has_new=self._has_new))
         with self._condition:
             # if start from peer, always start sending from peer's state
             if self._meta['file_idx'] > resp.file_idx or self._start_from_peer:
@@ -125,7 +135,8 @@ class Sender:
         files = self._meta['files']
         data_finished = False
         # while not data finished
-        while self._send_idx.file_idx < self._file_len and not data_finished:
+        while self._send_idx.file_idx < len(self._meta['files']) \
+                and not data_finished:
             if self._stopped:
                 break
             # the payload to send, the IDX next to the end idx of payload,
@@ -271,20 +282,28 @@ class Receiver:
         return meta
 
     def wait_for_finish(self):
-        if not self.finished and not self._stopped:
+        if not self._finished and not self._stopped:
             with self._condition:
-                while not self.finished and not self._stopped:
+                while not self._finished and not self._stopped:
                     self._condition.wait()
 
     def stop(self, *args, **kwargs):
-        if self.finished:
-            with self._condition:
+        with self._condition:
+            if not self._stopped:
                 self._stop(*args, **kwargs)
                 self._stopped = True
                 self._condition.notify_all()
 
-    def sync_state(self):
+    def sync_state(self, request):
         with self._condition:
+            if request.has_new:
+                self._finished = False
+                self._meta['finished'] = False
+                # not dump current meta b/c it may differ with the meta on disk
+                meta = json.loads(self._db_client.get_data(self._meta_path))
+                meta['finished'] = False
+                self._db_client.set_data(self._meta_path,
+                                         json.dumps(meta).encode())
             return transmitter_pb.SyncResponse(file_idx=self._meta['file_idx'],
                                                row_idx=self._meta['row_idx'])
 
@@ -292,7 +311,7 @@ class Receiver:
         for r in request_iterator:
             if self._stopped:
                 break
-            if self.finished:
+            if self._finished:
                 raise RuntimeError('The stream has already finished.')
             with self._condition:
                 # Channel assures us there is a subsequence of requests that
