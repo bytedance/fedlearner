@@ -37,7 +37,6 @@
   &-sm {
     height: 28px;
     line-height: 28px;
-
   }
   &-lg {
     height: 36px;
@@ -152,7 +151,7 @@
 .ant-form-item-has-error {
   .ant-input,
   .ant-input-affix-wrapper {
-    border-color: @error-color;
+    border-color: transparent;
     background-color: var(--backgroundColorError);
 
     &:hover {
@@ -187,13 +186,48 @@
   }
 }
 
+// Select
+// ---
+@select-background: var(--componentBackgroundColorGray);
+@select-border-color: transparent;
+@input-placeholder-color: var(--gray7);
+
+.ant-select {
+  &:not(.ant-select-disabled) {
+    &:hover .ant-select-selector {
+      border-color: transparent;
+      background-color: var(--backgroundColorGray);
+    }
+
+    &.ant-select-focused .ant-select-selector.ant-select-selector.ant-select-selector {
+      border-color: var(--primaryColor);
+      box-shadow: none;
+      background-color: transparent;
+    }
+  }
+
+  &.ant-select-disabled {
+    opacity: 0.5;
+  }
+}
+
+// Date Picker
+// --
+@picker-bg:var (--componentBackgroundColorGray);
+@picker-border-color: transparent;
+
 // Drawer
 // --
-.ant-drawer {
-  .ant-drawer-header {
-    .ant-drawer-header {
-      border-bottom: none;
-    }
+.ant-picker {
+  background-color: var(--componentBackgroundColorGray);
+
+  &:hover {
+    border-color: transparent;
+    background-color: var(--backgroundColorGray);
+  }
+
+  &.ant-picker-focused {
+    background-color: transparent;
   }
 }
 

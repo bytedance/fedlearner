@@ -1,4 +1,4 @@
-# Copyright 2020 The FedLearner Authors. All Rights Reserved.
+# Copyright 2021 The FedLearner Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@ import os
 import secrets
 
 from fedlearner_webconsole.db import get_database_uri
+from envs import Envs
 
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 
@@ -33,7 +34,7 @@ class Config(object):
     PROPAGATE_EXCEPTIONS = True
     GRPC_LISTEN_PORT = 1990
     JWT_ACCESS_TOKEN_EXPIRES = 86400
-    STORAGE_ROOT = os.getenv('STORAGE_ROOT', '/data')
+    STORAGE_ROOT = Envs.STORAGE_ROOT
 
     START_GRPC_SERVER = True
     START_SCHEDULER = True

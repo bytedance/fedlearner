@@ -178,6 +178,7 @@ function _generateJobExecutionDetails(UUID: string): JobExecutionDetalis[] {
 function _genPod() {
   return {
     name: `0-79f60e7a-520e-4cd7-a679-sada2e21hjklhds8s`,
+    pod_ip: '172.10.0.20',
     pod_type: 'Master',
     state: sample(PodState),
     message: '0/3 nodes are available: 3 Insufficient cpu.',

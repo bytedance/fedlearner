@@ -1,4 +1,4 @@
-# Copyright 2020 The FedLearner Authors. All Rights Reserved.
+# Copyright 2021 The FedLearner Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -17,14 +17,14 @@ from fedlearner_webconsole.db import db
 
 INITIAL_USER_INFO = [{
     'username': 'ada',
-    'password': 'ada',
+    'password': 'fl@123.',
     'name': 'ada',
     'email': 'ada@fedlearner.com',
     'role': Role.USER,
     'state': State.ACTIVE,
 }, {
     'username': 'admin',
-    'password': 'admin',
+    'password': 'fl@123.',
     'name': 'admin',
     'email': 'admin@fedlearner.com',
     'role': Role.ADMIN,

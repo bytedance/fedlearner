@@ -17,6 +17,7 @@ const UnixTimePicker: FC<Props> = ({ value, onChange, placeholder }) => {
       disabledDate={disableFuture}
       showTime={{ format: 'HH:mm:ss' }}
       placeholder={placeholder}
+      style={{ width: '100%' }}
     />
   );
 

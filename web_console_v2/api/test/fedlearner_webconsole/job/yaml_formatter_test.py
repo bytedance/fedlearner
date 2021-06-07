@@ -1,4 +1,4 @@
-# Copyright 2020 The FedLearner Authors. All Rights Reserved.
+# Copyright 2021 The FedLearner Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the 'License');
 # you may not use this file except in compliance with the License.
@@ -17,10 +17,14 @@ import unittest
 import tarfile
 import base64
 from io import BytesIO
-from fedlearner_webconsole.job.yaml_formatter import format_yaml, code_dict_encode
+from google.protobuf.json_format import ParseDict
+from fedlearner_webconsole.job.yaml_formatter import format_yaml, code_dict_encode, generate_self_dict
+from fedlearner_webconsole.job.models import Job, JobState
+from fedlearner_webconsole.proto.workflow_definition_pb2 import JobDefinition
+from testing.common import BaseTestCase
 
 
-class YamlFormatterTest(unittest.TestCase):
+class YamlFormatterTest(BaseTestCase):
     def test_format_with_phs(self):
         project = {
             'variables[0]':
@@ -66,9 +70,9 @@ class YamlFormatterTest(unittest.TestCase):
 
     def test_encode_code(self):
         test_data = {'test/a.py': 'awefawefawefawefwaef',
-                                      'test1/b.py': 'asdfasd',
-                                      'c.py': '',
-                                      'test/d.py': 'asdf'}
+                     'test1/b.py': 'asdfasd',
+                     'c.py': '',
+                     'test/d.py': 'asdf'}
         code_base64 = code_dict_encode(test_data)
         code_dict = {}
         if code_base64.startswith('base64://'):
@@ -79,6 +83,69 @@ class YamlFormatterTest(unittest.TestCase):
                                                encoding='utf-8')
         self.assertEqual(code_dict, test_data)
 
+    def test_generate_self_dict(self):
+        config = {
+            'variables': [
+                {
+                    'name': 'namespace',
+                    'value': 'leader'
+                },
+                {
+                    'name': 'basic_envs',
+                    'value': '{}'
+                },
+                {
+                    'name': 'storage_root_dir',
+                    'value': '/'
+                },
+                {
+                    'name': 'EGRESS_URL',
+                    'value': '127.0.0.1:1991'
+                }
+            ]
+        }
+        job = Job(name='aa', project_id=1, workflow_id=1, state=JobState.STOPPED)
+        job.set_config(ParseDict(config, JobDefinition()))
+        self.assertEqual(generate_self_dict(job),
+                         {'id': None, 'name': 'aa',
+                          'job_type': None, 'state': 'NEW', 'config':
+                              {'expert_mode': False,
+                               'variables': [
+                                   {
+                                       'name': 'namespace',
+                                       'value': 'leader',
+                                       'access_mode': 'UNSPECIFIED',
+                                       'widget_schema': '',
+                                       'value_type': 'STRING'},
+                                   {
+                                       'name': 'basic_envs',
+                                       'value': '{}',
+                                       'access_mode': 'UNSPECIFIED',
+                                       'widget_schema': '',
+                                       'value_type': 'STRING'},
+                                   {
+                                       'name': 'storage_root_dir',
+                                       'value': '/',
+                                       'access_mode': 'UNSPECIFIED',
+                                       'widget_schema': '',
+                                       'value_type': 'STRING'},
+                                   {
+                                       'name': 'EGRESS_URL',
+                                       'value': '127.0.0.1:1991',
+                                       'access_mode': 'UNSPECIFIED',
+                                       'widget_schema': '',
+                                       'value_type': 'STRING'}],
+                               'name': '',
+                               'job_type': 'UNSPECIFIED',
+                               'is_federated': False,
+                               'dependencies': [],
+                               'yaml_template': ''},
+                          'is_disabled': None, 'workflow_id': 1, 'project_id': 1, 'flapp_snapshot': None,
+                          'pods_snapshot': None, 'error_message': None, 'created_at': None, 'updated_at': None,
+                          'deleted_at': None, 'pods': [], 'complete_at': None,
+                          'variables': {'namespace': 'leader', 'basic_envs': '{}', 'storage_root_dir': '/',
+                                        'EGRESS_URL': '127.0.0.1:1991'}}
+                         )
 
 
 if __name__ == '__main__':

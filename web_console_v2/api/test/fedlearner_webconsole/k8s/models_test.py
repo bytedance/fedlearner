@@ -72,6 +72,7 @@ class PodTest(unittest.TestCase):
         pod = Pod(name='this-is-a-pod',
                   state=PodState.RUNNING,
                   pod_type=PodType.WORKER,
+                  pod_ip='172.10.0.20',
                   container_states=[ContainerState(
                       state='h1',
                       message='test message'
@@ -85,6 +86,7 @@ class PodTest(unittest.TestCase):
                              'name': 'this-is-a-pod',
                              'pod_type': 'WORKER',
                              'state': 'RUNNING',
+                             'pod_ip': '172.10.0.20',
                              'message': 'h1:test message, h2:test reason'
                          })
 
@@ -98,6 +100,7 @@ class PodTest(unittest.TestCase):
                 },
             },
             'status': {
+                'pod_ip': '172.10.0.20',
                 'phase': 'Running',
                 'conditions': [
                     {
@@ -122,6 +125,7 @@ class PodTest(unittest.TestCase):
             name='test-pod',
             state=PodState.RUNNING,
             pod_type=PodType.MASTER,
+            pod_ip='172.10.0.20',
             container_states=[
                 ContainerState(
                     state='running',

@@ -1,4 +1,4 @@
-# Copyright 2020 The FedLearner Authors. All Rights Reserved.
+# Copyright 2021 The FedLearner Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -27,6 +27,7 @@ from fedlearner_webconsole.job.metrics import JobMetricsBuilder
 from fedlearner_webconsole.job.models import Job
 from fedlearner_webconsole.proto import common_pb2
 from fedlearner_webconsole.rpc.client import RpcClient
+from fedlearner_webconsole.utils.decorators import jwt_required
 from fedlearner_webconsole.utils.es import es
 from fedlearner_webconsole.utils.kibana import Kibana
 from fedlearner_webconsole.workflow.models import Workflow
@@ -40,6 +41,7 @@ def _get_job(job_id):
 
 
 class JobApi(Resource):
+    @jwt_required()
     def get(self, job_id):
         job = _get_job(job_id)
         return {'data': job.to_dict()}
@@ -48,6 +50,7 @@ class JobApi(Resource):
 
 
 class PodLogApi(Resource):
+    @jwt_required()
     def get(self, job_id, pod_name):
         parser = reqparse.RequestParser()
         parser.add_argument('start_time', type=int, location='args',
@@ -68,6 +71,7 @@ class PodLogApi(Resource):
 
 
 class JobLogApi(Resource):
+    @jwt_required()
     def get(self, job_id):
         parser = reqparse.RequestParser()
         parser.add_argument('start_time', type=int, location='args',
@@ -93,6 +97,7 @@ class JobLogApi(Resource):
 
 
 class JobMetricsApi(Resource):
+    @jwt_required()
     def get(self, job_id):
         job = _get_job(job_id)
         try:
@@ -106,6 +111,7 @@ class JobMetricsApi(Resource):
 
 
 class PeerJobMetricsApi(Resource):
+    @jwt_required()
     def get(self, workflow_uuid, participant_id, job_name):
         workflow = Workflow.query.filter_by(uuid=workflow_uuid).first()
         if workflow is None:
@@ -126,6 +132,7 @@ class PeerJobMetricsApi(Resource):
 
 class JobEventApi(Resource):
     # TODO(xiangyuxuan): need test
+    @jwt_required()
     def get(self, job_id):
         parser = reqparse.RequestParser()
         parser.add_argument('start_time', type=int, location='args',
@@ -150,6 +157,7 @@ class JobEventApi(Resource):
 
 
 class PeerJobEventsApi(Resource):
+    @jwt_required()
     def get(self, workflow_uuid, participant_id, job_name):
         parser = reqparse.RequestParser()
         parser.add_argument('start_time', type=int, location='args',
@@ -182,6 +190,7 @@ class PeerJobEventsApi(Resource):
 
 
 class KibanaMetricsApi(Resource):
+    @jwt_required()
     def get(self, job_id):
         job = _get_job(job_id)
         parser = reqparse.RequestParser()
@@ -250,6 +259,7 @@ class KibanaMetricsApi(Resource):
 
 
 class PeerKibanaMetricsApi(Resource):
+    @jwt_required()
     def get(self, workflow_uuid, participant_id, job_name):
         parser = reqparse.RequestParser()
         parser.add_argument('type', type=str, location='args',

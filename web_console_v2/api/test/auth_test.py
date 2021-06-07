@@ -1,4 +1,4 @@
-# Copyright 2020 The FedLearner Authors. All Rights Reserved.
+# Copyright 2021 The FedLearner Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -48,7 +48,7 @@ class AuthApiTest(BaseTestCase):
 
         self.signin_helper()
         resp = self.patch_helper('/api/v2/auth/users/10', data={})
-        self.assertEqual(resp.status_code, HTTPStatus.NOT_FOUND)
+        self.assertEqual(resp.status_code, HTTPStatus.FORBIDDEN)
 
         resp = self.patch_helper(f'/api/v2/auth/users/{user_id}',
                                  data={
@@ -63,7 +63,7 @@ class AuthApiTest(BaseTestCase):
                                  data={
                                      'name': 'cannot_modify',
                                  })
-        self.assertEqual(resp.status_code, HTTPStatus.UNAUTHORIZED)
+        self.assertEqual(resp.status_code, HTTPStatus.FORBIDDEN)
 
         # now we are signing in as admin
         self.signin_as_admin()
@@ -113,11 +113,20 @@ class AuthApiTest(BaseTestCase):
 
     def test_get_specific_user(self):
         resp = self.get_helper(url='/api/v2/auth/users/10086')
-        self.assertEqual(resp.status_code, HTTPStatus.NOT_FOUND)
+        self.assertEqual(resp.status_code, HTTPStatus.FORBIDDEN)
 
         resp = self.get_helper(url='/api/v2/auth/users/1')
         self.assertEqual(resp.status_code, HTTPStatus.OK)
         self.assertEqual(self.get_response_data(resp).get('username'), 'ada')
+
+        self.signin_as_admin()
+
+        resp = self.get_helper(url='/api/v2/auth/users/1')
+        self.assertEqual(resp.status_code, HTTPStatus.OK)
+        self.assertEqual(self.get_response_data(resp).get('username'), 'ada')
+
+        resp = self.get_helper(url='/api/v2/auth/users/10086')
+        self.assertEqual(resp.status_code, HTTPStatus.NOT_FOUND)
 
     def test_signout(self):
         self.signin_helper()

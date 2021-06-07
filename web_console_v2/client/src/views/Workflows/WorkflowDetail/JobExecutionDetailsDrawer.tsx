@@ -72,6 +72,7 @@ export type JobExecutionDetailsExposedRef = {};
 export const JobExecutionDetailsContext = React.createContext({
   job: (undefined as unknown) as JobNodeRawData,
   workflow: undefined as WorkflowExecutionDetails | undefined,
+  isPeerSide: undefined as boolean | undefined,
 });
 
 enum JobDetailTabs {
@@ -129,7 +130,7 @@ const JobExecutionDetailsDrawer: ForwardRefRenderFunction<JobExecutionDetailsExp
 
   return (
     <ErrorBoundary>
-      <JobExecutionDetailsContext.Provider value={{ job, workflow }}>
+      <JobExecutionDetailsContext.Provider value={{ job, workflow, isPeerSide }}>
         <Container
           getContainer="#app-content"
           mask={false}
@@ -159,15 +160,11 @@ const JobExecutionDetailsDrawer: ForwardRefRenderFunction<JobExecutionDetailsExp
           </DrawerHeader>
 
           <CoverHeaderShadowIfNotSticky />
-          {!isPeerSide && (
-            <Tabs defaultActiveKey={currTab} onChange={onTabChange as any}>
-              <Tabs.TabPane tab={t('workflow.label_job_basics')} key={JobDetailTabs.Basic} />
-              <Tabs.TabPane
-                tab={t('workflow.label_job_kibana_metrics')}
-                key={JobDetailTabs.Kibana}
-              />
-            </Tabs>
-          )}
+
+          <Tabs defaultActiveKey={currTab} onChange={onTabChange as any}>
+            <Tabs.TabPane tab={t('workflow.label_job_basics')} key={JobDetailTabs.Basic} />
+            <Tabs.TabPane tab={t('workflow.label_job_kibana_metrics')} key={JobDetailTabs.Kibana} />
+          </Tabs>
 
           <TabPanel data-visible={currTab === JobDetailTabs.Basic}>
             <PropertyList

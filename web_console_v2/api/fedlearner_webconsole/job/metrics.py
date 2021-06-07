@@ -1,4 +1,4 @@
-# Copyright 2020 The FedLearner Authors. All Rights Reserved.
+# Copyright 2021 The FedLearner Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -37,6 +37,9 @@ class JobMetricsBuilder(object):
         elif self._job.job_type in [
                 JobType.NN_MODEL_TRANINING, JobType.NN_MODEL_EVALUATION]:
             metrics = self.plot_nn_metrics(num_buckets)
+        elif self._job.job_type in [JobType.TREE_MODEL_TRAINING,
+                                    JobType.TREE_MODEL_EVALUATION]:
+            metrics = self.plot_tree_metrics()
         elif self._job.job_type == JobType.RAW_DATA:
             metrics = self.plot_raw_data_metrics(num_buckets)
         else:
@@ -108,6 +111,35 @@ class JobMetricsBuilder(object):
         ax.legend()
         metrics.append(mpld3.fig_to_dict(fig))
 
+        return metrics
+
+    def plot_tree_metrics(self):
+        metric_list = ['acc', 'auc', 'precision', 'recall',
+                       'f1', 'ks', 'mse', 'msre', 'abs']
+        metrics = []
+        aggregations = es.query_tree_metrics(self._job.name, metric_list)
+        for name in metric_list:
+            train_ = aggregations[name.upper()]['TRAIN']['TOP']['hits']['hits']
+            eval_ = aggregations[name.upper()]['EVAL']['TOP']['hits']['hits']
+            if len(train_) == 0 and len(eval_) == 0:
+                continue
+            fig = Figure()
+            ax = fig.add_subplot(111)
+            if len(train_) > 0:
+                train_metric = [(item['_source']['tags']['iteration'],
+                                 item['_source']['value'])
+                                for item in train_]
+                ax.plot(*zip(*train_metric), label='train', color='blue')
+            if len(eval_) > 0:
+                eval_metric = [(item['_source']['tags']['iteration'],
+                                item['_source']['value'])
+                               for item in eval_]
+                ax.plot(*zip(*eval_metric), label='eval', color='red')
+            ax.legend()
+            ax.set_title(name)
+            ax.set_xlabel('iteration')
+            ax.set_ylabel('value')
+            metrics.append(mpld3.fig_to_dict(fig))
         return metrics
 
     def plot_raw_data_metrics(self, num_buckets=30):

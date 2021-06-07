@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Copyright 2020 The FedLearner Authors. All Rights Reserved.
+# Copyright 2021 The FedLearner Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@
 PORT=33600
 
 docker rm -f mysql-fedlearner &> /dev/null
-docker run -it --name mysql-fedlearner -p $PORT:3306 --rm -d -e MYSQL_ROOT_PASSWORD=root mysql:8 --default-authentication-plugin=mysql_native_password
+docker run -it --name mysql-fedlearner -p $PORT:3306 --rm -d -e MYSQL_ROOT_PASSWORD=root mysql:5.7 --default-authentication-plugin=mysql_native_password
 
 while :
 do

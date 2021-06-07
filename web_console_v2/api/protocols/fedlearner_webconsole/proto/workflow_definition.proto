@@ -1,4 +1,4 @@
-/* Copyright 2020 The FedLearner Authors. All Rights Reserved.
+/* Copyright 2021 The FedLearner Authors. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -44,6 +44,7 @@ message JobDefinition {
     repeated Variable variables = 4;
     repeated JobDependency dependencies = 5;
     string yaml_template = 6;
+    bool expert_mode = 7;
 }
 
 message Slot {
@@ -54,6 +55,9 @@ message Slot {
         WORKFLOW = 3;
         PROJECT = 4;
         SYSTEM = 5;
+        // any properties in all jobs(including self and others).
+        // now limits to only name properties in frontend.
+        JOB_PROPERTY = 6;
     }
     string reference = 1;
     string default = 2;
@@ -67,7 +71,6 @@ message YamlEditorInfo {
     // {"Slot_namespace": Slot}
     map<string, Slot> slots = 1;
     string meta_yaml = 2;
-    bool is_used = 3;
     repeated Variable variables = 4;
 }
 

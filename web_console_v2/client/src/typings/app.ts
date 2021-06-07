@@ -1,10 +1,11 @@
 /** Federation Learner global types */
+import { FedRoles } from 'typings/auth';
 export interface FedRouteConfig {
   path: string;
   component: React.FunctionComponent;
   exact?: boolean;
   auth?: boolean; // whether require logged in
-  roles?: string[];
+  roles?: FedRoles[];
 }
 
 export enum FedLanguages {

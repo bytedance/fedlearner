@@ -1,4 +1,4 @@
-# Copyright 2020 The FedLearner Authors. All Rights Reserved.
+# Copyright 2021 The FedLearner Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -75,9 +75,9 @@ class BaseTestCase(TestCase):
 
     def signin_as_admin(self):
         self.signout_helper()
-        self.signin_helper(username='admin', password='admin')
+        self.signin_helper(username='admin', password='fl@123.')
 
-    def signin_helper(self, username='ada', password='ada'):
+    def signin_helper(self, username='ada', password='fl@123.'):
         resp = self.client.post('/api/v2/auth/signin',
                                 data=json.dumps({
                                     'username': username,

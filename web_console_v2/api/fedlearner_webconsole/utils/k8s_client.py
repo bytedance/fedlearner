@@ -1,4 +1,4 @@
-# Copyright 2020 The FedLearner Authors. All Rights Reserved.
+# Copyright 2021 The FedLearner Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the 'License');
 # you may not use this file except in compliance with the License.
@@ -14,6 +14,7 @@
 
 # coding: utf-8
 import enum
+import logging
 import os
 from http import HTTPStatus
 from typing import Optional
@@ -23,10 +24,14 @@ import requests
 from kubernetes import client
 from kubernetes.client.exceptions import ApiException
 
+from envs import Envs
+from fedlearner_webconsole.exceptions import (InvalidArgumentException,
+                                              NotFoundException,
+                                              ResourceConflictException,
+                                              InternalException)
 from fedlearner_webconsole.utils.decorators import retry_fn
 from fedlearner_webconsole.utils.fake_k8s_client import FakeK8sClient
 from fedlearner_webconsole.utils.k8s_cache import k8s_cache
-from envs import Envs
 
 
 class CrdKind(enum.Enum):
@@ -39,7 +44,7 @@ FEDLEARNER_CUSTOM_VERSION = 'v1alpha1'
 
 SPARKOPERATOR_CUSTOM_GROUP = 'sparkoperator.k8s.io'
 SPARKOPERATOR_CUSTOM_VERSION = 'v1beta2'
-SPARKOPERATOR_NAMESPACE = 'default'
+SPARKOPERATOR_NAMESPACE = Envs.K8S_NAMESPACE
 
 
 class K8sClient(object):
@@ -277,6 +282,18 @@ class K8sClient(object):
     def get_sparkapplication(self,
                              name: str,
                              namespace: str = SPARKOPERATOR_NAMESPACE) -> dict:
+        """get sparkapp
+
+        Args:
+            name (str): sparkapp name
+            namespace (str, optional): namespace to submit.
+
+        Raises:
+            ApiException
+
+        Returns:
+            dict: resp of k8s
+        """
         try:
             return self.crds.get_namespaced_custom_object(
                 group=SPARKOPERATOR_CUSTOM_GROUP,
@@ -284,27 +301,58 @@ class K8sClient(object):
                 namespace=namespace,
                 plural=CrdKind.SPARK_APPLICATION.value,
                 name=name)
-        except ApiException as e:
-            self._raise_runtime_error(e)
+        except ApiException as err:
+            if err.status == 404:
+                raise NotFoundException()
+            raise InternalException(details=err.body)
 
     def create_sparkapplication(
             self,
             json_object: dict,
             namespace: str = SPARKOPERATOR_NAMESPACE) -> dict:
+        """ create sparkapp
+
+        Args:
+            json_object (dict): json object of config
+            namespace (str, optional): namespace to submit.
+
+        Raises:
+            ApiException
+
+        Returns:
+            dict: resp of k8s
+        """
         try:
+            logging.debug('create sparkapp json is %s', json_object)
             return self.crds.create_namespaced_custom_object(
                 group=SPARKOPERATOR_CUSTOM_GROUP,
                 version=SPARKOPERATOR_CUSTOM_VERSION,
                 namespace=namespace,
                 plural=CrdKind.SPARK_APPLICATION.value,
                 body=json_object)
-        except ApiException as e:
-            self._raise_runtime_error(e)
+        except ApiException as err:
+            if err.status == 409:
+                raise ResourceConflictException(message=err.reason)
+            if err.status == 400:
+                raise InvalidArgumentException(details=err.reason)
+            raise InternalException(details=err.body)
 
     def delete_sparkapplication(self,
                                 name: str,
                                 namespace: str = SPARKOPERATOR_NAMESPACE
                                 ) -> dict:
+        """ delete sparkapp
+
+        Args:
+            name (str): sparkapp name
+            namespace (str, optional): namespace to delete.
+
+        Raises:
+            ApiException
+
+        Returns:
+            dict: resp of k8s
+        """
         try:
             return self.crds.delete_namespaced_custom_object(
                 group=SPARKOPERATOR_CUSTOM_GROUP,
@@ -313,8 +361,10 @@ class K8sClient(object):
                 plural=CrdKind.SPARK_APPLICATION.value,
                 name=name,
                 body=client.V1DeleteOptions())
-        except ApiException as e:
-            self._raise_runtime_error(e)
+        except ApiException as err:
+            if err.status == 404:
+                raise NotFoundException()
+            raise InternalException(details=err.body)
 
     def get_pod_log(self, name: str, namespace: str, tail_lines: int):
         try:

@@ -1,4 +1,4 @@
-# Copyright 2020 The FedLearner Authors. All Rights Reserved.
+# Copyright 2021 The FedLearner Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -18,7 +18,8 @@ import enum
 import json
 from sqlalchemy.sql import func
 from sqlalchemy.sql.schema import Index
-from fedlearner_webconsole.db import db, to_dict_mixin
+from fedlearner_webconsole.utils.mixins import to_dict_mixin
+from fedlearner_webconsole.db import db
 from fedlearner_webconsole.k8s.models import FlApp, Pod, FlAppState
 from fedlearner_webconsole.utils.k8s_client import k8s_client
 from fedlearner_webconsole.proto.workflow_definition_pb2 import JobDefinition
@@ -120,6 +121,7 @@ class Job(db.Model):
             if isinstance(o, (datetime.date, datetime.datetime)):
                 return o.isoformat()
             return str(o)
+
         flapp = k8s_client.get_flapp(self.name)
         if flapp:
             self.flapp_snapshot = json.dumps(flapp, default=default)
@@ -156,8 +158,7 @@ class Job(db.Model):
             result[pod.name] = pod
         for pod in pods:
             result[pod.name] = pod
-        return [pod.to_dict(include_private_info)
-                for pod in result.values()]
+        return [pod.to_dict(include_private_info) for pod in result.values()]
 
     def get_state_for_frontend(self):
         if self.state == JobState.STARTED:
@@ -174,10 +175,7 @@ class Job(db.Model):
     def is_failed(self):
         # TODO: make the getter more efficient
         flapp = FlApp.from_json(self.get_flapp_details()['flapp'])
-        return flapp.state in [
-            FlAppState.FAILED,
-            FlAppState.SHUTDOWN
-        ]
+        return flapp.state in [FlAppState.FAILED, FlAppState.SHUTDOWN]
 
     def is_complete(self):
         # TODO: make the getter more efficient

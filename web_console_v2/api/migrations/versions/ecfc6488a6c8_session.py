@@ -31,6 +31,7 @@ def upgrade():
                     sa.Column(
                         'expired_at',
                         sa.DateTime(timezone=True),
+                        server_default=sa.text('now()'),
                         nullable=True,
                         comment='expired time, for db automatically clear'),
                     sa.Column('created_at',

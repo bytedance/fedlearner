@@ -1,4 +1,4 @@
-# Copyright 2020 The FedLearner Authors. All Rights Reserved.
+# Copyright 2021 The FedLearner Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -41,6 +41,7 @@ from fedlearner_webconsole.job.apis import initialize_job_apis
 from fedlearner_webconsole.setting.apis import initialize_setting_apis
 from fedlearner_webconsole.mmgr.apis import initialize_mmgr_apis
 from fedlearner_webconsole.debug.apis import initialize_debug_apis
+from fedlearner_webconsole.sparkapp.apis import initialize_sparkapps_apis
 from fedlearner_webconsole.rpc.server import rpc_server
 from fedlearner_webconsole.db import db
 from fedlearner_webconsole.exceptions import (make_response,
@@ -52,6 +53,7 @@ from fedlearner_webconsole.utils.k8s_watcher import k8s_watcher
 from fedlearner_webconsole.auth.models import User, Session
 from fedlearner_webconsole.composer.composer import composer
 from logging_config import LOGGING_CONFIG
+
 
 def _handle_bad_request(error):
     """Handles the bad request raised by reqparse"""
@@ -149,6 +151,7 @@ def create_app(config):
     initialize_dataset_apis(api)
     initialize_setting_apis(api)
     initialize_mmgr_apis(api)
+    initialize_sparkapps_apis(api)
     if os.environ.get('FLASK_ENV') != 'production':
         initialize_debug_apis(api)
     # A hack that use our customized error handlers

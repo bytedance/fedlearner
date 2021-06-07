@@ -1,4 +1,4 @@
-# Copyright 2020 The FedLearner Authors. All Rights Reserved.
+# Copyright 2021 The FedLearner Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the 'License');
 # you may not use this file except in compliance with the License.
@@ -19,12 +19,16 @@ import queue
 import traceback
 from http import HTTPStatus
 from kubernetes import client, watch
-from envs import Envs
+from envs import Envs, Features
 from fedlearner_webconsole.utils.k8s_cache import k8s_cache, \
     Event, ObjectType
 from fedlearner_webconsole.utils.k8s_client import (
     k8s_client, FEDLEARNER_CUSTOM_GROUP,
     FEDLEARNER_CUSTOM_VERSION)
+from fedlearner_webconsole.mmgr.service import ModelService
+from fedlearner_webconsole.db import make_session_context
+
+session_context = make_session_context()
 
 
 class K8sWatcher(object):
@@ -73,6 +77,10 @@ class K8sWatcher(object):
             try:
                 event = self._queue.get()
                 k8s_cache.update_cache(event)
+                if Features.FEATURE_MODEL_K8S_HOOK:
+                    with session_context() as session:
+                        ModelService(session).k8s_watcher_hook(event)
+                        session.commit()
             except Exception as e:  # pylint: disable=broad-except
                 logging.error(f'K8s event_consumer : {str(e)}. '
                               f'traceback:{traceback.format_exc()}')

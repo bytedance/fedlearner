@@ -100,7 +100,10 @@ const CheckConnection: FC<IconButtonProps> = ({ onClick }) => {
 function Card({ item: project, onViewDetail }: CardProps): ReactElement {
   const { t } = useTranslation();
   const history = useHistory();
-  const [status, checkConnection] = useCheckConnection(project);
+  const [status, checkConnection] = useCheckConnection(project, {
+    refetchOnWindowFocus: false,
+    refetchInterval: 10 * 60 * 1000, // 10min
+  });
 
   const participant = project.config.participants[0].name || '-';
 

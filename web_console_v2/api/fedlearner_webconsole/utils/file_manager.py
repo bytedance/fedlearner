@@ -1,4 +1,4 @@
-# Copyright 2020 The FedLearner Authors. All Rights Reserved.
+# Copyright 2021 The FedLearner Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -75,7 +75,8 @@ class DefaultFileManager(FileManagerBase):
             return File(path=path, size=stat.st_size, mtime=int(stat.st_mtime))
 
         if not Path(path).exists():
-            return []
+            raise ValueError(
+                f'cannot access {path}: No such file or directory')
         # If it is a file
         if Path(path).is_file():
             return [_get_file_stats(path)]
@@ -137,6 +138,9 @@ class HdfsFileManager(FileManagerBase):
             elif curr_path_info.type == fs.FileType.Directory:
                 res_files = self._client.get_file_info(
                     fs.FileSelector(path, recursive=recursive))
+            else:
+                raise ValueError(
+                    f'cannot access {path}: No such file or directory')
 
             for file in res_files:
                 if file.type == fs.FileType.File:
@@ -175,7 +179,6 @@ class HdfsFileManager(FileManagerBase):
 
 class GFileFileManager(FileManagerBase):
     """Gfile file manager for all FS supported by TF."""
-
     def can_handle(self, path):
         # TODO: List tf support
         if path.startswith('fake://'):
@@ -189,10 +192,11 @@ class GFileFileManager(FileManagerBase):
             stat = gfile.stat(path)
             return File(path=path,
                         size=stat.length,
-                        mtime=int(stat.mtime_nsec/1e9))
+                        mtime=int(stat.mtime_nsec / 1e9))
 
         if not gfile.exists(path):
-            return []
+            raise ValueError(
+                f'cannot access {path}: No such file or directory')
         # If it is a file
         if not gfile.isdir(path):
             return [_get_file_stats(path)]
@@ -202,13 +206,11 @@ class GFileFileManager(FileManagerBase):
             for root, _, res in gfile.walk(path):
                 for file in res:
                     if not gfile.isdir(os.path.join(root, file)):
-                        files.append(
-                            _get_file_stats(os.path.join(root, file)))
+                        files.append(_get_file_stats(os.path.join(root, file)))
         else:
             for file in gfile.listdir(path):
                 if not gfile.isdir(os.path.join(path, file)):
-                    files.append(
-                        _get_file_stats(os.path.join(path, file)))
+                    files.append(_get_file_stats(os.path.join(path, file)))
         # Files only
         return files
 
@@ -259,7 +261,7 @@ class FileManager(FileManagerBase):
         for fm in self._file_managers:
             if fm.can_handle(path):
                 return fm.ls(path, recursive=recursive)
-        raise RuntimeError('ls is not supported for %s'%path)
+        raise RuntimeError(f'ls is not supported for {path}')
 
     def move(self, source: str, destination: str) -> bool:
         logging.info('Moving files from [%s] to [%s]', source, destination)
@@ -267,14 +269,14 @@ class FileManager(FileManagerBase):
             if fm.can_handle(source) and fm.can_handle(destination):
                 return fm.move(source, destination)
         raise RuntimeError(
-            'move is not supported for %s and %s'%(source, destination))
+            f'move is not supported for {source} and {destination}')
 
     def remove(self, path: str) -> bool:
         logging.info('Removing file [%s]', path)
         for fm in self._file_managers:
             if fm.can_handle(path):
                 return fm.remove(path)
-        raise RuntimeError('remove is not supported for %s'%path)
+        raise RuntimeError(f'remove is not supported for {path}')
 
     def copy(self, source: str, destination: str) -> bool:
         logging.info('Copying file from [%s] to [%s]', source, destination)
@@ -282,11 +284,11 @@ class FileManager(FileManagerBase):
             if fm.can_handle(source) and fm.can_handle(destination):
                 return fm.copy(source, destination)
         raise RuntimeError(
-            'copy is not supported for %s and %s'%(source, destination))
+            f'copy is not supported for {source} and {destination}')
 
     def mkdir(self, path: str) -> bool:
         logging.info('Create directory [%s]', path)
         for fm in self._file_managers:
             if fm.can_handle(path):
                 return fm.mkdir(path)
-        raise RuntimeError('mkdir is not supported for %s'%path)
+        raise RuntimeError(f'mkdir is not supported for {path}')

@@ -1,4 +1,4 @@
-# Copyright 2020 The FedLearner Authors. All Rights Reserved.
+# Copyright 2021 The FedLearner Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -142,7 +142,8 @@ class DefaultFileManagerTest(unittest.TestCase):
         # Renames
         self._fm.move(self._get_temp_path('f2.txt'),
                       self._get_temp_path('f3.txt'))
-        self.assertEqual(self._fm.ls(self._get_temp_path('f2.txt')), [])
+        with self.assertRaises(ValueError):
+            self._fm.ls(self._get_temp_path('f2.txt'))
         self.assertEqual(self._fm.ls(self._get_temp_path('f3.txt')), [
             File(path=self._get_temp_path('f3.txt'),
                  size=self._F2_SIZE,
@@ -179,10 +180,7 @@ class DefaultFileManagerTest(unittest.TestCase):
 
 class HdfsFileManagerTest(unittest.TestCase):
     def setUp(self):
-        self._envs_patcher = patch(
-            'envs.Envs.HDFS_SERVER',
-            'hdfs://haruna/'
-        )
+        self._envs_patcher = patch('envs.Envs.HDFS_SERVER', 'hdfs://haruna/')
         self._envs_patcher.start()
 
         self._mock_client = MagicMock()
@@ -268,9 +266,8 @@ class HdfsFileManagerTest(unittest.TestCase):
     def test_remove_file(self):
         mock_get_file_info = MagicMock()
         self._mock_client.get_file_info = mock_get_file_info
-        mock_get_file_info.return_value = fs.FileInfo(type=fs.FileType.Directory,
-                                                      path='/data/123',
-                                                      size=1024)
+        mock_get_file_info.return_value = fs.FileInfo(
+            type=fs.FileType.Directory, path='/data/123', size=1024)
 
         self.assertTrue(self._fm.remove('hdfs:///data/123'))
         self._mock_client.delete_file.assert_not_called()
