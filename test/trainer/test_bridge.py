@@ -15,8 +15,10 @@
 # coding: utf-8
 
 import unittest
+import logging
 import threading
 import time
+from fedlearner.trainer import bridge
 import tensorflow.compat.v1 as tf
 
 from fedlearner.trainer.bridge import Bridge
@@ -69,4 +71,5 @@ class TestBridge(unittest.TestCase):
         t.join()
 
 if __name__ == '__main__':
+        logging.basicConfig(level=logging.DEBUG)
         unittest.main()

@@ -28,6 +28,7 @@ from fedlearner.channel import Channel
 from fedlearner.common import common_pb2 as common_pb
 from fedlearner.common import trainer_worker_service_pb2 as tws2_pb
 from fedlearner.common import trainer_worker_service_pb2_grpc as tws2_grpc
+from fedlearner.trainer._global_context import global_context as _gctx
 
 _BRIDGE_SUPERVISE_ENABLED = strtobool(
     os.getenv("FL_BRIDGE_SUPERVISE_ENABLED", "false"))
@@ -88,7 +89,9 @@ class Bridge(object):
 
         # channel
         self._channel = Channel(
-            self._listen_address, self._remote_address, token=self._token)
+            self._listen_address, self._remote_address,
+            token=self._token,
+            stats_client=_gctx.stats_client)
         self._channel.subscribe(self._channel_callback)
 
         # client & server
@@ -99,6 +102,7 @@ class Bridge(object):
         # supervise
         self._supervise_interval = 5
         self._supervise_iteration_timeout = 1200
+
 
     def _channel_callback(self, channel, event):
         if event == Channel.Event.PEER_CLOSED:
@@ -388,7 +392,13 @@ class Bridge(object):
             # delete committed data
             if self._current_iter_id in self._received_data:
                 del self._received_data[self._current_iter_id]
+            iter_id = self._current_iter_id
+            duration = (time.time() - self._iter_started_at) * 1000
             self._current_iter_id = None
+
+        with _gctx.stats_client.pipeline() as pipe:
+            pipe.gauge("trainer.bridge.iterator_step", iter_id)
+            pipe.timing("trainer.bridge.iterator_timing", duration)
 
     def register_data_block_handler(self, func):
         assert self._data_block_handler_fn is None, \
@@ -469,9 +479,13 @@ class Bridge(object):
             data = self._received_data[iter_id][name]
 
         duration = time.time() - start_time
+        _gctx.stats_client.timing(
+            "trainer.bridge.receive_timing", duration * 1000,
+            {"bridge_receive_name": name}
+        )
         fl_logging.debug("[Bridge] Data: received iter_id: %d, name: %s "
-                      "after %f sec",
-                      iter_id, name, duration)
+                         "after %f sec",
+                         iter_id, name, duration)
         return data
 
     def receive(self, name):

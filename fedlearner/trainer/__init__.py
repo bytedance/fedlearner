@@ -22,3 +22,5 @@ from fedlearner.trainer import trainer_master_client
 from fedlearner.trainer import estimator
 from fedlearner.trainer import trainer_worker
 from fedlearner.trainer import operator
+from fedlearner.trainer.run_hooks import \
+    GlobalStepMetricTensorHook, StepMetricsHook, StepLossAucMetricsHook

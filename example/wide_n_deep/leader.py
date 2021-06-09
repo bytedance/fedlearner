@@ -137,10 +137,12 @@ def model_fn(model, features, labels, mode):
     # mode == tf.estimator.ModeKeys.TRAIN:
     logging_hook = tf.train.LoggingTensorHook(
         {"loss" : loss}, every_n_iter=10)
+    metric_hook = flt.GlobalStepMetricTensorHook(tensor_dict={"loss": loss},
+                                                 every_steps=10)
     optimizer = tf.train.GradientDescentOptimizer(0.1)
     train_op = model.minimize(optimizer, loss, global_step=global_step)
     return model.make_spec(mode, loss=loss, train_op=train_op,
-                           training_hooks=[logging_hook])
+                           training_hooks=[logging_hook, metric_hook])
 
 class ExportModelHook(flt.trainer_worker.ExportModelHook):
     def after_save(self, sess, model, export_dir, inputs, outputs):

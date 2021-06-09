@@ -30,6 +30,7 @@ from fedlearner.common import common_pb2 as common_pb
 from fedlearner.trainer.estimator import FLEstimator
 from fedlearner.trainer.sparse_estimator import SparseFLEstimator
 from fedlearner.trainer.cluster_server import ClusterServer
+from fedlearner.trainer._global_context import global_context as _gctx
 
 
 class ExportModelHook():
@@ -514,36 +515,43 @@ class LeaderTrainerMaster(_TrainerMaster):
             export_model_hook)
 
         self._data_visitor = data_visitor
-        self._last_trigger_time = 0
         self._last_global_step = -1
 
+        # datavisitor checkpoint hook
         hook = _DataVisitorCheckpointHook(self._data_visitor)
         self._add_checkpoint_listener(
             hook.create_checkpoint_saver_listener())
         self._add_session_hook(hook)
 
+        # trigger hook
+        self._last_trigger_time = 0
         self._add_session_hook(
             _TriggerHook(trigger_secs=10,
-                         trigger_fn=self._trigger_logging)
+                         trigger_fn=self._trigger_fn)
             )
 
-    def _trigger_logging(self, global_step):
+    def _trigger_fn(self, global_step):
         now = time.time()
         if self._last_global_step >= 0:
             speed = (global_step-self._last_global_step) \
                 / (now-self._last_trigger_time)
-            epoch, data_index = self._data_visitor.summary()
-            total_epoch, total_data_size = \
+            allocated_epoch, allocated_datablock = self._data_visitor.summary()
+            total_epoch, total_datablock = \
                 self._data_visitor.epoch_num, \
                     self._data_visitor.datablock_size
             fl_logging.info("global_step: %d, speed: %0.2f step/sec, "
                             "epoch: %d/%d, datablock allocated: %d/%d, "
                             "worker: %d/%d(running/completed)",
                             global_step, speed,
-                            epoch, total_epoch,
-                            data_index, total_data_size,
+                            allocated_epoch, total_epoch,
+                            allocated_datablock, total_datablock,
                             len(self._running_workers),
                             len(self._completed_workers))
+            with _gctx.stats_client.pipeline() as pipe:
+                pipe.gauge("trainer.global_step", global_step)
+                pipe.gauge("trainer.datablock_total", total_datablock)
+                pipe.gauge("trainer.datablock_allocated", allocated_datablock)
+                pipe.gauge("trainer.speed", speed)
         self._last_trigger_time = now
         self._last_global_step = global_step
 
@@ -612,27 +620,32 @@ class FollowerTrainerMaster(_TrainerMaster):
             export_model_hook)
 
         self._data_visitor = data_visitor
-        self._last_trigger_time = 0
         self._last_global_step = -1
 
+        # trigger hook
+        self._last_trigger_time = 0
         self._add_session_hook(
             _TriggerHook(trigger_secs=10,
-                         trigger_fn=self._trigger_logging)
+                         trigger_fn=self._trigger_fn)
             )
 
-    def _trigger_logging(self, global_step):
+    def _trigger_fn(self, global_step):
         now = time.time()
         if self._last_global_step >= 0:
             speed = (global_step-self._last_global_step) \
                 / (now-self._last_trigger_time)
-            total_data_size = self._data_visitor.datablock_size
+            total_datablock = self._data_visitor.datablock_size
             fl_logging.info("global_step: %d, speed: %0.2f step/sec, "
                             "datablock size: %d, "
                             "worker: %d/%d(running/completed)",
                             global_step, speed,
-                            total_data_size,
+                            total_datablock,
                             len(self._running_workers),
                             len(self._completed_workers))
+            with _gctx.stats_client.pipeline() as pipe:
+                pipe.gauge("trainer.global_step", global_step)
+                pipe.gauge("trainer.datablock_total", total_datablock)
+                pipe.gauge("trainer.speed", speed)
         self._last_trigger_time = now
         self._last_global_step = global_step
 
