@@ -425,3 +425,9 @@ def convert_to_str(value):
     if isinstance(value, bytes):
         value = value.decode()
     return str(value)
+
+
+def convert_to_bytes(value):
+    if isinstance(value, bytes):
+        return value
+    return str(value).encode()

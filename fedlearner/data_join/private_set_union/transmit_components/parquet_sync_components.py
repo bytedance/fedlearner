@@ -10,14 +10,62 @@ from fedlearner.data_join.transmitter.components import Sender, Receiver
 from fedlearner.data_join.transmitter.utils import IDX
 
 
+# class BaseSyncSender(Sender):
+#     def __init__(self,
+#                  meta_path: str,
+#                  send_row_num: int,
+#                  file_paths: typing.List[str],
+#                  root_path: str = None,
+#                  pending_len: int = 10):
+#         self._reader = None
+#         # start_from_peer = True, s.t. always use peer's state after restart
+#         super().__init__(meta_path, send_row_num, file_paths,
+#                          root_path, True, pending_len)
+#
+#     def _read(self,
+#               root_path: str,
+#               files: typing.List[str],
+#               start_idx: IDX,
+#               row_num: int,
+#               column: str = None) -> (np.ndarray, IDX, bool):
+#         batches, self._reader = pqu.get_batch(
+#             self._reader, root_path, files, start_idx, row_num,
+#             columns=[column],
+#             consume_remain=True)
+#         if len(batches) == 0:
+#             # No batch means all files finished
+#             #   -> no payload, next of end row, data finished
+#             return None, IDX(self._reader.file_idx, 0), True
+#         batches = [batch.to_pydict()[column] for batch in batches]
+#         batches = np.concatenate(batches).astype(np.bytes_)
+#         return batches, self._reader.idx, False
+#
+#     def _send_process(self,
+#                       root_path: str,
+#                       files: typing.List[str],
+#                       start_idx: IDX,
+#                       row_num: int) -> (bytes, IDX, bool):
+#         raise NotImplementedError
+#
+#     def _resp_process(self,
+#                       resp: transmitter_pb.Response,
+#                       current_idx: IDX) -> IDX:
+#         return None if current_idx.file_idx == resp.end_file_idx \
+#             else IDX(resp.end_file_idx, 0)
+
+
 class ParquetSyncSender(Sender):
     def __init__(self,
+                 sync_column: str,
+                 need_shuffle: str,
                  meta_path: str,
                  send_row_num: int,
                  file_paths: typing.List[str],
                  root_path: str = None,
                  pending_len: int = 10):
         self._reader = None
+        self._column = sync_column
+        self._need_shuffle = need_shuffle
         # start_from_peer = True, s.t. always use peer's state after restart
         super().__init__(meta_path, send_row_num, file_paths,
                          root_path, True, pending_len)
@@ -29,15 +77,16 @@ class ParquetSyncSender(Sender):
                       row_num: int) -> (bytes, IDX, bool):
         batches, self._reader = pqu.get_batch(
             self._reader, root_path, files, start_idx, row_num,
-            columns=['doubly_encrypted'],
+            columns=[self._column],
             consume_remain=True)
         if len(batches) == 0:
             # No batch means all files finished
             #   -> no payload, next of end row, data finished
             return None, IDX(self._reader.file_idx, 0), True
-        batches = [batch.to_pydict()['doubly_encrypted'] for batch in batches]
+        batches = [batch.to_pydict()[self._column] for batch in batches]
         batches = np.concatenate(batches).astype(np.bytes_)
-        np.random.shuffle(batches)
+        if self._need_shuffle:
+            np.random.shuffle(batches)
         payload = psu_pb.DataSyncRequest(doubly_encrypted=batches)
         return payload.SerializeToString(), self._reader.idx, False
 

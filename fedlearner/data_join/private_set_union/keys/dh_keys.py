@@ -7,6 +7,7 @@ import gmpy2
 from fedlearner.common.db_client import DBClient
 from fedlearner.data_join.common import convert_to_str
 from fedlearner.data_join.private_set_union.keys import BaseKeys
+from fedlearner.data_join.private_set_union.utils import Paths
 
 PRIME = 'FFFFFFFFFFFFFFFFC90FDAA22168C234C4C6628B80DC1CD129024E088A67CC74020B' \
         'BEA63B139B22514A08798E3404DDEF9519B3CD3A431B302B0A6DF25F14374FE1356D' \
@@ -17,13 +18,13 @@ PRIME = 'FFFFFFFFFFFFFFFFC90FDAA22168C234C4C6628B80DC1CD129024E088A67CC74020B' \
         'EC07A28FB5C55DF06F4C52C9DE2BCBF6955817183995497CEA956AE515D2261898FA' \
         '051015728E5A8AACAA68FFFFFFFFFFFFFFFF'
 GENERATOR = 2
+MPZ_TYPE = type(gmpy2.mpz())
 
 
 class DHKeys(BaseKeys):
-    def __init__(self,
-                 key_dir: str):
+    def __init__(self):
         self._mod = gmpy2.mpz(PRIME, base=16)
-        self._key_path = os.path.join(key_dir, 'DH')
+        self._key_path = Paths.encode_keys_path('DH')
         self._db_client = DBClient('dfs')
         self._key1, self._key2 = self._get_keys()
 
@@ -45,18 +46,18 @@ class DHKeys(BaseKeys):
             self._db_client.set_data(self._key_path, json.dumps(keys))
         return key1, key2
 
-    def hash_func(self, item: [bytes, str, int]) -> bytes:
+    def encode(self, item: MPZ_TYPE) -> bytes:
+        return item.digits(62).encode()
+
+    def decode(self, item: bytes) -> MPZ_TYPE:
+        return gmpy2.mpz(item, base=62)
+
+    def hash(self, item: [bytes, str, int]) -> MPZ_TYPE:
         item = convert_to_str(item)
-        return gmpy2.mpz(
-            sha512(item.encode()).hexdigest(), base=16
-        ).digits(62).encode()
+        return gmpy2.mpz(sha512(item.encode()).hexdigest(), base=16)
 
-    def encrypt_func1(self, item: bytes) -> bytes:
-        item = gmpy2.mpz(item, base=62)
-        encrypted = gmpy2.f_mod(item * self._key1, self._mod)
-        return encrypted.digits(62).encode()
+    def encrypt_1(self, item: MPZ_TYPE) -> MPZ_TYPE:
+        return gmpy2.f_mod(item * self._key1, self._mod)
 
-    def encrypt_func2(self, item: bytes) -> bytes:
-        item = gmpy2.mpz(item, base=62)
-        encrypted = gmpy2.f_mod(item * self._key2, self._mod)
-        return encrypted.digits(62).encode()
+    def encrypt_2(self, item: MPZ_TYPE) -> MPZ_TYPE:
+        return gmpy2.f_mod(item * self._key2, self._mod)

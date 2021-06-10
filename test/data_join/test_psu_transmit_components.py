@@ -10,10 +10,9 @@ from tensorflow import gfile
 
 import fedlearner.data_join.private_set_union.parquet_utils as pqu
 from fedlearner.data_join.private_set_union.keys import DHKeys
-from fedlearner.data_join.private_set_union.parquet_encrypt_components import \
-    ParquetEncryptSender, ParquetEncryptReceiver
-from fedlearner.data_join.private_set_union.parquet_sync_components import \
-    ParquetSyncSender, ParquetSyncReceiver
+from fedlearner.data_join.private_set_union.transmit_components import \
+    (ParquetEncryptSender, ParquetEncryptReceiver, ParquetSyncSender,
+     ParquetSyncReceiver)
 from fedlearner.data_join.transmitter.components import Sender, Receiver
 from fedlearner.data_join.transmitter.transmitter import Transmitter
 
@@ -163,15 +162,15 @@ class TestPSUEncryptComponents(unittest.TestCase):
                          d_q_unison: typing.List[typing.List[bytes]],
                          original: typing.List[bytes]):
         o1 = [
-            self._keys2.encrypt_func1(
-                self._keys1.encrypt_func1(
-                    self._keys1.hash_func(item)))
+            self._keys2.encrypt_1(
+                self._keys1.encrypt_1(
+                    self._keys1.hash(item)))
             for item in original
         ]
         o1 = [[
             item,  # doubly encrypted
-            self._keys2.encrypt_func2(
-                self._keys1.encrypt_func2(item))  # quadruply encrypted
+            self._keys2.encrypt_2(
+                self._keys1.encrypt_2(item))  # quadruply encrypted
         ] for item in o1]
         self.assertEqual(o1, d_q_unison)
 

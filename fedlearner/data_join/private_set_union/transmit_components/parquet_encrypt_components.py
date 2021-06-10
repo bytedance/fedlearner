@@ -24,9 +24,9 @@ class ParquetEncryptSender(Sender):
                  pending_len: int = 10,
                  join_key: str = 'example_id'):
         self._keys = keys
-        self._hash_func = np.frompyfunc(self._keys.hash_func, 1, 1)
-        self._encrypt_func1 = np.frompyfunc(self._keys.encrypt_func1, 1, 1)
-        self._encrypt_func2 = np.frompyfunc(self._keys.encrypt_func2, 1, 1)
+        self._hash_func = np.frompyfunc(self._keys.hash, 1, 1)
+        self._encrypt_func1 = np.frompyfunc(self._keys.encrypt_1, 1, 1)
+        self._encrypt_func2 = np.frompyfunc(self._keys.encrypt_2, 1, 1)
         self._output_path = output_path
         self._join_key = join_key
         self._indices = {}
@@ -161,9 +161,9 @@ class ParquetEncryptReceiver(Receiver):
                  meta_path: str,
                  output_path: str):
         self._keys = keys
-        self._hash_func = np.frompyfunc(self._keys.hash_func, 1, 1)
-        self._encrypt_func1 = np.frompyfunc(self._keys.encrypt_func1, 1, 1)
-        self._encrypt_func2 = np.frompyfunc(self._keys.encrypt_func2, 1, 1)
+        self._hash_func = np.frompyfunc(self._keys.hash, 1, 1)
+        self._encrypt_func1 = np.frompyfunc(self._keys.encrypt_1, 1, 1)
+        self._encrypt_func2 = np.frompyfunc(self._keys.encrypt_2, 1, 1)
         self._dumper = None
         self._schema = pa.schema([pa.field('doubly_encrypted', pa.string())])
         super().__init__(meta_path, output_path)

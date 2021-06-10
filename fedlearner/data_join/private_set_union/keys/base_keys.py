@@ -1,9 +1,18 @@
+import typing
+
+
 class BaseKeys:
-    def hash_func(self, item: [bytes, str, int]) -> bytes:
+    def encode(self, item: typing.Any) -> bytes:
         raise NotImplementedError
 
-    def encrypt_func1(self, item: bytes) -> bytes:
+    def decode(self, item: bytes) -> typing.Any:
         raise NotImplementedError
 
-    def encrypt_func2(self, item: bytes) -> bytes:
+    def hash(self, item: [bytes, str, int]) -> typing.Any:
+        raise NotImplementedError
+
+    def encrypt_1(self, item: typing.Any) -> typing.Any:
+        raise NotImplementedError
+
+    def encrypt_2(self, item: typing.Any) -> typing.Any:
         raise NotImplementedError
