@@ -18,8 +18,7 @@ import json
 import threading
 
 import tensorflow.compat.v1 as tf
-from fedlearner.common import fl_logging
-from fedlearner.common import metrics
+from fedlearner.common import fl_logging, stats
 from fedlearner.trainer.bridge import Bridge
 from fedlearner.trainer.estimator import FLEstimator
 from fedlearner.trainer.sparse_estimator import SparseFLEstimator
@@ -29,52 +28,12 @@ from fedlearner.trainer.trainer_master \
     import LeaderTrainerMaster, FollowerTrainerMaster, ExportModelHook
 from fedlearner.trainer.data_visitor import DataPathVisitor, DataSourceVisitor
 from fedlearner.trainer.cluster_server import ClusterServer
+from fedlearner.trainer._global_context import global_context as _gctx
+from fedlearner.trainer.run_hooks import StepLossAucMetricsHook, StepMetricsHook #pylint: disable=unused-import
+
 
 LEADER = "leader"
 FOLLOER = "follower"
-
-class StepMetricsHook(tf.train.SessionRunHook):
-    def __init__(self, tensor_dict=None, every_n_iter=5, tags_dict=None):
-        if tensor_dict is None:
-            tensor_dict = {}
-        if tags_dict is None:
-            tags_dict = {}
-        self._tensor_names = list(tensor_dict.keys())
-        self._tag_names = list(tags_dict.keys())
-        # merge
-        self._tensor_dict = {**tensor_dict, **tags_dict}
-        self._every_n_iter = every_n_iter
-        self._iter = 0
-
-    def before_run(self, run_context):
-        return tf.estimator.SessionRunArgs(self._tensor_dict)
-
-    def after_run(self, run_context, run_value):
-        self._iter += 1
-        if self._iter % self._every_n_iter == 0:
-            result = run_value.results
-            tags = {}
-            for tag in self._tag_names:
-                if tag in result:
-                    tags[tag] = result[tag]
-            for name in self._tensor_names:
-                if name in result:
-                    metrics.emit_store(name=name, value=result[name], tags=tags)
-
-
-class StepLossAucMetricsHook(StepMetricsHook):
-    def __init__(self, loss_tensor, auc_tensor, every_n_iter=5,
-                 event_time_tensor=None):
-
-        tensor_dict = {"loss": loss_tensor,
-                       "auc": auc_tensor}
-        tags_dict = {}
-        if event_time_tensor is not None:
-            tags_dict["event_time"] = event_time_tensor
-        super(StepLossAucMetricsHook, self).__init__(
-            tensor_dict, every_n_iter, tags_dict
-        )
-
 
 def create_argument_parser():
     parser = argparse.ArgumentParser(description='FedLearner Trainer.')
@@ -86,7 +45,7 @@ def create_argument_parser():
                         help='Run as trainer worker only')
     parser.add_argument('--application-id',
                         type=str,
-                        default="fl_trainer",
+                        default=None,
                         help='application id on distributed training.')
     parser.add_argument('--master-addr',
                         type=str,
@@ -403,10 +362,10 @@ def train(role,
           model_fn,
           serving_input_receiver_fn,
           export_model_hook=None):
-    if not isinstance(role, str):
-        raise ValueError("--role is not a string")
-    role = role.lower()
-    if role not in (LEADER, FOLLOER):
+    if isinstance(args.application_id, str):
+        _gctx.job = args.application_id
+
+    if not isinstance(role, str) or role.lower() not in (LEADER, FOLLOER):
         raise ValueError("--role must set one of %s or %s"%(LEADER, FOLLOER))
 
     if args.loglevel:
@@ -422,21 +381,29 @@ def train(role,
         raise ValueError("--mode must set one of 'train' or 'eval'")
 
     if not (args.master or args.worker):
-        fl_logging.info("************ Run as local mode ************")
-        _run_local(role, args,
-                   input_fn,
-                   model_fn,
-                   serving_input_receiver_fn,
-                   export_model_hook=export_model_hook)
+        _gctx.task = "local"
+        _gctx.task_index = 0
     elif args.master:
-        fl_logging.info("************ Run as master mode ************")
-        _run_master(role, args,
-                    input_fn,
-                    model_fn,
-                    serving_input_receiver_fn,
-                    export_model_hook=export_model_hook)
-    elif args.worker: # args.worker
-        fl_logging.info("************ Run as worker mode ************")
-        _run_worker(role, args, input_fn, model_fn)
+        _gctx.task = "master"
+        _gctx.task_index = 0
+    elif args.worker:
+        _gctx.task = "worker"
+        _gctx.task_index = args.worker_rank
     else:
         raise ValueError("duplication specify --master and --worker")
+
+    stats.enable_cpu_stats(_gctx.stats_client)
+    stats.enable_mem_stats(_gctx.stats_client)
+
+    if _gctx.task == "local":
+        _run_local(role, args, input_fn, model_fn,
+                   serving_input_receiver_fn,
+                   export_model_hook=export_model_hook)
+    elif _gctx.task == "master":
+        _run_master(role, args, input_fn, model_fn,
+                    serving_input_receiver_fn,
+                    export_model_hook=export_model_hook)
+    elif _gctx.task == "worker":
+        _run_worker(role, args, input_fn, model_fn)
+    else:
+        raise ValueError("unknow task mode: %s"%_gctx.task)
