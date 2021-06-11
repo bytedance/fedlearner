@@ -18,6 +18,8 @@
 import time
 
 import tensorflow.compat.v1 as tf
+from tensorflow.python.estimator.util import parse_input_fn_result
+
 from tensorflow_estimator.python.estimator import model_fn as model_fn_lib
 from fedlearner.common import fl_logging
 
@@ -163,10 +165,12 @@ class FLEstimator(object):
         self._model_fn = model_fn
         self._trainer_master = trainer_master
         self._is_chief = is_chief
+        self._input_hooks = []
 
     def _get_features_and_labels_from_input_fn(self, input_fn, mode):
-        dataset = input_fn(self._bridge, self._trainer_master)
-        features, labels = dataset.make_one_shot_iterator().get_next()
+        features, labels, input_hooks = parse_input_fn_result(
+            input_fn(self._bridge, self._trainer_master))
+        self._input_hooks = input_hooks
         return features, labels
 
     def _get_model_spec(self, features, labels, mode):
@@ -193,6 +197,9 @@ class FLEstimator(object):
 
             if spec.training_hooks:
                 hooks.extend(spec.training_hooks)
+
+            if self._input_hooks:
+                hooks.extend(self._input_hooks)
 
             session_creator = tf.train.WorkerSessionCreator(
                 master=self._cluster_server.target,
