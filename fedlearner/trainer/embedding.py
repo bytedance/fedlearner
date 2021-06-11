@@ -19,6 +19,8 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+from tensorflow.python.framework.constant_op import constant
+
 import tensorflow.compat.v1 as tf
 from fedlearner.trainer import operator
 
@@ -91,8 +93,7 @@ class Embedding(object):
             tf.identity(fid_to_unique_index,
                         name="%s_Identity_fid_to_unique_index"%(fmt)),] + [
             tf.identity(t, name="%s_Identity_unique_fid_hash_%d"%(fmt, i)) \
-                for (i, t) in enumerate(unique_fid_hash)
-        ]
+                for (i, t) in enumerate(unique_fid_hash)]
 
         with tf.control_dependencies(bwd_deps):
             output = operator.lagrange_lite_ops.lagrange_embedding_pooling(

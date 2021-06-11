@@ -80,6 +80,13 @@ def _multidevice_preprocess_fids(fids, config, num_shards):
 def _embedding_pooling_gradient(op, grad):
     num_weights = op.get_attr("num_weights")
     control_inputs = op.control_inputs
+    if not control_inputs:
+        # tf 2.0 graph
+        read_variable_op = op.name + "/ReadVariableOp:"
+        control_inputs = [t.op.control_inputs for t in op.inputs \
+                                    if t.name.startswith(read_variable_op)]
+        assert len(control_inputs) == 1
+        control_inputs = control_inputs[0]
 
     def _get_control_input_by_name(name):
         candidates = [x for x in control_inputs if x.name.find(name) != -1]

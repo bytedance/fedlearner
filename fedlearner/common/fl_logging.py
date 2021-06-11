@@ -62,18 +62,40 @@ def _create_logger():
 
 _logger = _create_logger()
 
+
 def set_level(level):
     level_ = _name_to_level.get(level.lower(), None)
     if not level_:
         raise ValueError("Unknow log level: %s"%level)
     _logger.setLevel(level_)
 
-critical = _logger.critical
-fatal = _logger.critical
-error = _logger.error
-exception = _logger.exception
-warning = _logger.warning
-warn = _logger.warning
-info = _logger.info
-debug = _logger.debug
-log = _logger.log
+def _kwargs_add_stack_level(kwargs):
+    kwargs["stacklevel"] = kwargs.get("stacklevel", 1) + 1
+    return kwargs
+
+def critical(msg, *args, **kwargs):
+    _logger.critical(msg, *args, **_kwargs_add_stack_level(kwargs))
+
+def fatal(msg, *args, **kwargs):
+    _logger.fatal(msg, *args, **_kwargs_add_stack_level(kwargs))
+
+def error(msg, *args, **kwargs):
+    _logger.error(msg, *args, **_kwargs_add_stack_level(kwargs))
+
+def exception(msg, *args, **kwargs):
+    _logger.exception(msg, *args, **_kwargs_add_stack_level(kwargs))
+
+def warning(msg, *args, **kwargs):
+    _logger.warning(msg, *args, **_kwargs_add_stack_level(kwargs))
+
+def warn(msg, *args, **kwargs):
+    _logger.warn(msg, *args, **_kwargs_add_stack_level(kwargs))
+
+def info(msg, *args, **kwargs):
+    _logger.info(msg, *args, **_kwargs_add_stack_level(kwargs))
+
+def debug(msg, *args, **kwargs):
+    _logger.debug(msg, *args, **_kwargs_add_stack_level(kwargs))
+
+def log(level, msg, *args, **kwargs):
+    _logger.log(msg, level, *args, **_kwargs_add_stack_level(kwargs))
