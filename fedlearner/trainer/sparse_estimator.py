@@ -16,8 +16,6 @@
 
 import tensorflow.compat.v1 as tf
 
-from tensorflow.contrib import graph_editor as ge
-
 from fedlearner.trainer import embedding
 from fedlearner.trainer import estimator
 from fedlearner.trainer import feature
@@ -86,9 +84,11 @@ class SparseFLModel(estimator.FLModel):
         self._use_fid_v2 = use_fid_v2
 
     def get_bias(self):
+        assert self._frozen, "Cannot get bias before freeze_slots"
         return self._bias_tensor
 
     def get_vec(self):
+        assert self._frozen, "Cannot get vector before freeze_slots"
         return self._vec_tensor
 
     def _get_bias_slot_configs(self):
@@ -177,12 +177,39 @@ class SparseFLModel(estimator.FLModel):
                     dims.append(sslice.len)
                     placeholders.append(fc.get_vector(sslice))
             vec_split = tf.split(self._vec_tensor, dims, axis=1)
-            ge.swap_ts(vec_split, placeholders)
+            _swap_tensors(vec_split, placeholders)
 
         for slot in self._feature_slots.values():
             slot._frozen = True
         self._frozen = True
 
+def _swap_tensor(t0, t1, consumers1):
+  nb_update_inputs = 0
+  consumers1_indices = {}
+  for consumer1 in consumers1:
+    consumers1_indices[consumer1] = [i for i, t in enumerate(consumer1.inputs)
+                                     if t is t1]
+  for consumer1 in consumers1:
+    for i in consumers1_indices[consumer1]:
+      consumer1._update_input(i, t0)  # pylint: disable=protected-access
+      nb_update_inputs += 1
+  return nb_update_inputs
+
+def _swap_tensors(ts0, ts1):
+    """ simple implement for swap ts0, ts1 consumers, like tf v1.x swap_ts"""
+    nb_update_inputs = 0
+    precomputed_consumers = []
+    for t0, t1 in zip(ts0, ts1):
+        consumers0 = set(t0.consumers())
+        consumers1 = set(t1.consumers())
+        precomputed_consumers.append((consumers0, consumers1))
+    for t0, t1, consumers in zip(ts0, ts1, precomputed_consumers):
+      if t0 is t1:
+        continue  # Silently ignore identical tensors.
+      consumers0, consumers1 = consumers
+      nb_update_inputs += _swap_tensor(t0, t1, consumers1)
+      nb_update_inputs += _swap_tensor(t1, t0, consumers0)
+    return nb_update_inputs
 
 class SparseFLEstimator(estimator.FLEstimator):
     def __init__(self,
@@ -246,7 +273,6 @@ class SparseFLEstimator(estimator.FLEstimator):
                 return (features,) + args if args else features
             dataset = dataset.map(
                 mapper, num_parallel_calls=tf.data.experimental.AUTOTUNE)
-            dataset = dataset.prefetch(2)
             return dataset
 
         return super(SparseFLEstimator, self

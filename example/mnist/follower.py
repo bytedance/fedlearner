@@ -57,7 +57,7 @@ def model_fn(model, features, labels, mode):
     x = features['x']
 
     w1f = tf.get_variable('w1f',
-                          shape=[28 * 28 / 2, 128],
+                          shape=[28 * 28 // 2, 128],
                           dtype=tf.float32,
                           initializer=tf.random_uniform_initializer(
                               -0.01, 0.01))
