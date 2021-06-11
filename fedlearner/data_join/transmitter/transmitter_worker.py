@@ -1,26 +1,27 @@
 import logging
 import threading
 
-import fedlearner.common.transmitter_service_pb2_grpc as transmitter_grpc
+import fedlearner.common.transmitter_service_pb2_grpc as tsmt_grpc
 from fedlearner.channel.channel import Channel
 from fedlearner.data_join.transmitter.components import Sender, Receiver
+from fedlearner.proxy.channel import make_insecure_channel, ChannelType
 
 
-class _StreamTransmitServicer(transmitter_grpc.TransmitterServiceServicer):
-    def __init__(self,
-                 receiver: Receiver):
+class _StreamTransmitServicer(tsmt_grpc.TransmitterWorkerServiceServicer):
+    def __init__(self, receiver: Receiver):
         self._receiver = receiver
 
-    def SyncState(self, request, context):
-        return self._receiver.sync_state(request)
+    def DataFinish(self, request, context):
+        return self._receiver.data_finish()
 
     def Transmit(self, request_iterator, context):
         return self._receiver.transmit(request_iterator)
 
 
-class Transmitter:
+class TransmitterWorker:
     def __init__(self,
                  listen_port: [str, int],
+                 master_address: str,
                  remote_address: str,
                  receiver: Receiver,
                  sender: Sender = None):
@@ -39,13 +40,20 @@ class Transmitter:
         self._remote_address = remote_address
         self._server = Channel(self._listen_address, self._remote_address)
         self._server.subscribe(self._channel_callback)
-        transmitter_grpc.add_TransmitterServiceServicer_to_server(
+        tsmt_grpc.add_TransmitterWorkerServiceServicer_to_server(
             _StreamTransmitServicer(self._receiver),
             self._server)
         if sender:
             self._sender = sender
-            self._client = transmitter_grpc.TransmitterServiceStub(self._server)
-            self._sender.add_client(self._client)
+            peer_client = tsmt_grpc.TransmitterWorkerServiceStub(self._server)
+            raw_channel = make_insecure_channel(
+                master_address, ChannelType.INTERNAL,
+                options=[('grpc.max_send_message_length', 2 ** 31 - 1),
+                         ('grpc.max_receive_message_length', 2 ** 31 - 1)]
+            )
+            master_client = tsmt_grpc.TransmitterMasterServiceStub(raw_channel)
+            self._sender.add_peer_client(peer_client)
+            self._sender.add_master_client(master_client)
         else:
             self._client = None
             self._sender = None
@@ -76,7 +84,7 @@ class Transmitter:
     def wait_for_finish(self):
         self._receiver.wait_for_finish()
         if self._sender:
-            self._sender.wait_for_finish()
+            self._sender._wait_for_task_finish()
 
     def terminate(self):
         with self._condition:

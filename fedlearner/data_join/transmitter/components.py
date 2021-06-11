@@ -1,168 +1,102 @@
-import json
 import logging
-import os
 import queue
 import threading
 import typing
 
 import fedlearner.common.common_pb2 as common_pb
-import fedlearner.common.transmitter_service_pb2 as transmitter_pb
-import fedlearner.common.transmitter_service_pb2_grpc as transmitter_grpc
-from fedlearner.common.db_client import DBClient
-from fedlearner.data_join.transmitter.utils import IDX, _EndSentinel, \
-    RecvProcessException, _assign_idx_to_meta
+import fedlearner.common.transmitter_service_pb2 as tsmt_pb
+import fedlearner.common.transmitter_service_pb2_grpc as tsmt_grpc
+from fedlearner.data_join.routine_worker import RoutineWorker
+from fedlearner.data_join.transmitter.utils import _EndSentinel, \
+    RecvProcessException
 
 
 class Sender:
     def __init__(self,
-                 meta_path: str,
+                 rank_id: int,
                  send_row_num: int,
-                 file_paths: typing.List[str],
-                 root_path: str = None,
-                 start_from_peer: bool = False,
                  pending_len: int = 10):
-        self._db_client = DBClient('dfs')
-        self._meta_path = os.path.join(meta_path, 'send')
+        self._rank_id = rank_id
         self._send_row_num = send_row_num
+        self._files = []
+        self._file_idx = []
         self._client = None
-        # The meta is used in ACK.
-        self._meta, self._has_new = self._get_meta(file_paths, root_path or '')
-        # whether to start from peer's state regardless of local state
-        self._start_from_peer = start_from_peer
-        self._synced = False
+        self._master_client = None
         self._started = False
-        self._finished = self._meta['finished']
+        # whether a task is finished. if True, will try to start a new task
+        self._task_finished = True
+        # whether all data is finished.
+        self._data_finished = False
         self._stopped = False
         self._request_queue = queue.Queue(pending_len)
         self._condition = threading.Condition()
-        self._put_thread = threading.Thread(target=self._put_requests)
-        self._send_thread = threading.Thread(target=self._send)
+        self._put_thread = None
+        self._send_thread = None
+        self._routine_worker = RoutineWorker('sender',
+                                             self._routine_fn,
+                                             self._routine_cond)
 
     @property
     def finished(self):
         with self._condition:
-            return self._finished
+            return self._data_finished
 
-    def _get_meta(self,
-                  file_paths: list,
-                  root_path: str):
-        has_new = False
-        meta = self._db_client.get_data(self._meta_path)
-        if meta:
-            meta = json.loads(meta)
-            file_diff = set(file_paths) - set(meta['files'])
-            if file_diff:
-                # use loop to preserve path order
-                for file in file_paths:
-                    if file in file_diff:
-                        meta['files'].append(file)
-                meta['finished'] = False
-                has_new = True
-        else:
-            meta = {
-                'file_idx': 0,
-                'row_idx': 0,
-                'root': root_path,
-                'files': file_paths,
-                'finished': False
-            }
-            has_new = True
-        self._db_client.set_data(self._meta_path, json.dumps(meta).encode())
-        return meta, has_new
-
-    def add_client(self, client: transmitter_grpc.TransmitterServiceStub):
+    def add_peer_client(self, client: tsmt_grpc.TransmitterWorkerServiceStub):
         with self._condition:
             if not self._client:
                 self._client = client
 
-    def _sync(self):
-        resp = self._client.SyncState(
-            transmitter_pb.SyncRequest(has_new=self._has_new))
+    def add_master_client(self,
+                          client: tsmt_grpc.TransmitterMasterServiceStub):
         with self._condition:
-            # if start from peer, always start sending from peer's state
-            if self._meta['file_idx'] > resp.file_idx or self._start_from_peer:
-                self._send_idx = IDX(resp.file_idx,
-                                     resp.row_idx)
-                self._finished = False
-            elif self._meta['file_idx'] == resp.file_idx \
-                    and self._meta['row_idx'] > resp.row_idx:
-                self._send_idx = IDX(self._meta['file_idx'],
-                                     resp.row_idx)
-                self._finished = False
-            # else sender has staler state, so use the sender's state
+            if not self._master_client:
+                self._master_client = client
+
+    def _request_task(self):
+        assert self._master_client
+        resp = self._master_client.AllocateTask(
+            tsmt_pb.AllocateTaskRequest(rank_id=self._rank_id))
+        with self._condition:
+            if resp.status == common_pb.STATUS_NO_MORE_DATA:
+                self._client.Finish(tsmt_pb.DataFinishRequest())
+                self._data_finished = True
             else:
-                self._send_idx = IDX(self._meta['file_idx'],
-                                     self._meta['row_idx'])
-            self._synced = True
-
-    def _send(self):
-        if not self._synced:
-            raise RuntimeError('Sender not yet synced with peer.')
-        for resp in self._client.Transmit(self._request_iterator()):
-            if self._stopped:
-                break
-            with self._condition:
-                if resp.status.code == common_pb.STATUS_INVALID_REQUEST:
-                    # TODO(zhangzihui): error handling
-                    logging.warning(
-                        '[Transmit]: STATUS_INVALID_REQUEST returned: %s', resp)
-                    continue
-
-                current_idx = IDX(self._meta['file_idx'],
-                                  self._meta['row_idx'])
-                resp_idx = IDX(resp.end_file_idx, resp.end_row_idx)
-                forward_idx = self._resp_process(resp, current_idx)
-                if resp_idx > current_idx:
-                    self._meta['file_idx'] = resp_idx.file_idx
-                    self._meta['row_idx'] = resp_idx.row_idx
-                if resp.status.code == common_pb.STATUS_DATA_FINISHED:
-                    self._meta['finished'] = True
-                    self._finished = True
-                    self._condition.notify_all()
-
-                if forward_idx:
-                    # if need to save state, load the state wished to save
-                    current_idx = IDX(self._meta['file_idx'],
-                                      self._meta['row_idx'])
-                    _assign_idx_to_meta(self._meta, forward_idx)
-                    self._db_client.set_data(self._meta_path,
-                                             json.dumps(self._meta).encode())
-                    _assign_idx_to_meta(self._meta, current_idx)
+                self._files = resp.files
+                self._file_idx = resp.file_idx
+                self._task_finished = False
+            self._condition.notify_all()
 
     def _put_requests(self):
-        assert self._synced
-        root_path = self._meta['root']
-        files = self._meta['files']
-        data_finished = False
-        # while not data finished
-        while self._send_idx.file_idx < len(self._meta['files']) \
-                and not data_finished:
-            if self._stopped:
-                break
-            # the payload to send, the IDX next to the end idx of payload,
-            # and if no more data to send
-            payload, end_idx, data_finished = self._send_process(
-                root_path, files, self._send_idx, self._send_row_num)
-            if data_finished:
-                status = common_pb.Status(code=common_pb.STATUS_DATA_FINISHED)
-            else:
+        for file, file_idx in zip(self._files, self._file_idx):
+            batch_idx = 0
+            while True:
+                if self._stopped:
+                    return
+
+                with self._condition:
+                    payload, file_finished = self._send_process(
+                        file, self._send_row_num)
+                if file_finished:
+                    status = common_pb.Status(
+                        code=common_pb.STATUS_FILE_FINISHED)
+                    self._request_queue.put(tsmt_pb.Request(status=status,
+                                                            file_idx=file_idx,
+                                                            batch_idx=batch_idx,
+                                                            payload=payload))
+                    break
+                # else file not yet finished
+                batch_idx += 1
+                # queue.put will block if no slot available
                 status = common_pb.Status(code=common_pb.STATUS_SUCCESS)
-            req = transmitter_pb.Request(status=status,
-                                         start_file_idx=self._send_idx.file_idx,
-                                         start_row_idx=self._send_idx.row_idx,
-                                         end_file_idx=end_idx.file_idx,
-                                         end_row_idx=end_idx.row_idx,
-                                         payload=payload)
+                self._request_queue.put(tsmt_pb.Request(status=status,
+                                                        file_idx=file_idx,
+                                                        batch_idx=batch_idx,
+                                                        payload=payload))
+        # put a sentinel to tell iterator to stop
+        self._request_queue.put(_EndSentinel())
 
-            self._send_idx = end_idx
-            # Queue will block this thread if no slot available.
-            self._request_queue.put(req)
-        else:
-            # put a sentinel to tell iterator to stop
-            self._request_queue.put(_EndSentinel())
-
-    def _request_iterator(self):
-        while not self._finished and not self._stopped:
+    def _requests_iterator(self):
+        while not (self._stopped or self._data_finished or self._task_finished):
             # use timeout to check condition rather than blocking continuously.
             # Queue object is thread-safe, no need to use Lock.
             try:
@@ -173,28 +107,73 @@ class Sender:
             except queue.Empty:
                 pass
 
+    def _send(self):
+        for resp in self._client.Transmit(self._requests_iterator()):
+            if self._stopped:
+                break
+            if resp.status.code == common_pb.STATUS_INVALID_REQUEST:
+                # TODO(zhangzihui): error handling
+                logging.warning('[Sender]: INVALID REQUEST responded: %s', resp)
+                continue
+            file_finish = resp.status.code == common_pb.STATUS_FILE_FINISHED
+            with self._condition:
+                self._resp_process(resp)
+            if file_finish:
+                fin_resp = self._master_client.FinishFiles(
+                    tsmt_pb.FinishFilesRequest(rank_id=self._rank_id,
+                                               file_idx=[resp.file_idx]))
+                if fin_resp.status == common_pb.STATUS_NOT_PROCESSING:
+                    logging.warning('[Sender]: {}'.format(fin_resp.err_msg))
+        else:
+            with self._condition:
+                self._task_finished = True
+                self._condition.notify_all()
+
+    def _wait_for_task_finish(self):
+        if not self._task_finished and not self._stopped:
+            with self._condition:
+                while not self._task_finished and not self._stopped:
+                    self._condition.wait()
+
+    def _routine_fn(self):
+        self._task_finished = False
+        self._request_task()
+        self._put_thread = threading.Thread(target=self._put_requests)
+        self._send_thread = threading.Thread(target=self._send)
+        self._put_thread.start()
+        self._send_thread.start()
+        self._wait_for_task_finish()
+
+    def _routine_cond(self):
+        with self._condition:
+            return self._task_finished \
+                   and not self._data_finished \
+                   and not self._stopped
+
     def start(self):
         with self._condition:
-            assert self._client
+            assert self._client and self._master_client
+            if self._stopped:
+                raise RuntimeError('Sender has been stopped.')
             if not self._started:
-                self._sync()
-                self._put_thread.start()
-                self._send_thread.start()
-                self._started = True
+                self._routine_worker.start_routine()
 
     def wait_for_finish(self):
-        if not self.finished and not self._stopped:
+        if not (self._stopped or self._data_finished):
             with self._condition:
-                while not self.finished and not self._stopped:
+                while not (self._stopped or self._data_finished):
                     self._condition.wait()
 
     def stop(self, *args, **kwargs):
         with self._condition:
+            if not self._started:
+                raise RuntimeError('Sender not yet started.')
             if not self._stopped:
+                self._stopped = True
+                self._routine_worker.stop_routine()
                 self._put_thread.join()
                 self._send_thread.join()
                 self._stop(*args, **kwargs)
-                self._stopped = True
                 self._condition.notify_all()
 
     def _stop(self, *args, **kwargs):
@@ -207,35 +186,26 @@ class Sender:
         pass
 
     def _send_process(self,
-                      root_path: str,
-                      files: typing.List[str],
-                      start_idx: IDX,
-                      row_num: int) -> (bytes, IDX, bool):
+                      file_path: str,
+                      row_num: int) -> (bytes, bool):
         """
         This method handles file reading and returns the payload.
         Args:
-            root_path: the root path of files.
-            files: all files to be sent.
-            start_idx: an IDX indicating from where the request should start.
             row_num: suggested num of lines to read.
 
         Returns:
             a payload bytes,
-            an IDX indicating the start of next request, i.e., next to the end
-                row of this request. Be aware of file finished,
-            a bool indicating whether all of the data have been read.
+            a bool indicating whether the file is finished.
         """
         raise NotImplementedError('_send_process not implemented.')
 
     def _resp_process(self,
-                      resp: transmitter_pb.Response,
-                      current_idx: IDX) -> IDX:
+                      resp: tsmt_pb.Response) -> None:
         """
         This method handles the response returned by server. Return True if
             nothing is needed to do.
         Args:
-            resp: a st_pb.Response to handle.
-            current_idx: a IDX indicating the progress of transmit.
+            resp: a tsmt_pb.Response to handle.
 
         NOTE: Channel will return response in the original order of send
             sequence, but peer might start from a former index(after restart),
@@ -252,39 +222,25 @@ class Sender:
 
 class Receiver:
     def __init__(self,
-                 meta_path: str,
                  output_path: str):
-        self._db_client = DBClient('dfs')
-        self._meta_path = os.path.join(meta_path, 'recv')
-        self._meta = self._get_meta(output_path)
-        self._output_path = self._meta['output_path']
-        self._finished = self._meta['finished']
+        self._output_path = output_path
+        self._file_idx = -1
+        self._batch_idx = 0
         self._condition = threading.Condition()
+        self._started = False
+        self._task_finished = False
+        self._data_finished = False
         self._stopped = False
 
     @property
     def finished(self) -> bool:
         with self._condition:
-            return self._finished
-
-    def _get_meta(self, output_path: str) -> dict:
-        meta = self._db_client.get_data(self._meta_path)
-        if meta:
-            meta = json.loads(meta)
-        else:
-            meta = {
-                'output_path': output_path,
-                'file_idx': 0,
-                'row_idx': 0,
-                'finished': False
-            }
-            self._db_client.set_data(self._meta_path, json.dumps(meta).encode())
-        return meta
+            return self._task_finished
 
     def wait_for_finish(self):
-        if not self._finished and not self._stopped:
+        if not (self._stopped or self._data_finished):
             with self._condition:
-                while not self._finished and not self._stopped:
+                while not (self._stopped or self._data_finished):
                     self._condition.wait()
 
     def stop(self, *args, **kwargs):
@@ -294,72 +250,53 @@ class Receiver:
                 self._stopped = True
                 self._condition.notify_all()
 
-    def sync_state(self, request):
+    def data_finish(self):
         with self._condition:
-            if request.has_new:
-                self._finished = False
-                self._meta['finished'] = False
-                # not dump current meta b/c it may differ with the meta on disk
-                meta = json.loads(self._db_client.get_data(self._meta_path))
-                meta['finished'] = False
-                self._db_client.set_data(self._meta_path,
-                                         json.dumps(meta).encode())
-            return transmitter_pb.SyncResponse(file_idx=self._meta['file_idx'],
-                                               row_idx=self._meta['row_idx'])
+            self._data_finished = True
+        return tsmt_pb.DataFinishResponse()
 
     def transmit(self, request_iterator: typing.Iterable):
         for r in request_iterator:
             if self._stopped:
                 break
-            if self._finished:
+            if self._task_finished:
                 raise RuntimeError('The stream has already finished.')
             with self._condition:
                 # Channel assures us there is a subsequence of requests that
                 #   constitutes the original requests sequence, including order,
                 #   so we need to deal with preceded and duplicated requests.
                 yield self._process_request(r)
+                # if file finished, reset indices
+                if r.status.code == common_pb.STATUS_FILE_FINISHED:
+                    self._file_idx = -1
+                    self._batch_idx = 0
+                else:
+                    self._batch_idx += 1
         else:
             # only finish when all requests have been processed, as sender may
             #   miss some responses and send some duplicates
             with self._condition:
-                self._meta['finished'] = True
-                self._finished = True
-                self._condition.notify_all()
-                self._db_client.set_data(self._meta_path,
-                                         json.dumps(self._meta))
+                self._task_finished = True
+                self._file_idx = -1
+                self._batch_idx = 0
 
-    def _process_request(self,
-                         req: transmitter_pb.Request):
+    def _process_request(self, req: tsmt_pb.Request):
         with self._condition:
             try:
-                current_idx = IDX(self._meta['file_idx'], self._meta['row_idx'])
-                end_idx = IDX(req.end_file_idx, req.end_row_idx)
-                payload, forward_idx = self._recv_process(req, current_idx)
+                payload = self._recv_process(
+                    req, self._file_idx, self._batch_idx)
             except RecvProcessException as e:
-                return transmitter_pb.Response(
+                return tsmt_pb.Response(
                     status=common_pb.Status(
                         code=common_pb.STATUS_INVALID_REQUEST,
                         error_message=repr(e)))
             # status is good from here as bad status has been returned
-            if current_idx < end_idx:
-                # if newer, update meta
-                _assign_idx_to_meta(self._meta, end_idx)
-            if forward_idx:
-                current_idx = IDX(self._meta['file_idx'],
-                                  self._meta['row_idx'])
-                _assign_idx_to_meta(self._meta, forward_idx)
-                self._db_client.set_data(self._meta_path,
-                                         json.dumps(self._meta).encode())
-                _assign_idx_to_meta(self._meta, current_idx)
-
             status = common_pb.Status()
             status.MergeFrom(req.status)
-            return transmitter_pb.Response(status=status,
-                                           start_file_idx=req.start_file_idx,
-                                           start_row_idx=req.start_row_idx,
-                                           end_file_idx=req.end_file_idx,
-                                           end_row_idx=req.end_row_idx,
-                                           payload=payload)
+            return tsmt_pb.Response(status=status,
+                                    file_idx=req.file_idx,
+                                    batch_idx=req.batch_idx,
+                                    payload=payload)
 
     def _stop(self, *args, **kwargs):
         """
@@ -371,8 +308,9 @@ class Receiver:
         pass
 
     def _recv_process(self,
-                      req: transmitter_pb.Request,
-                      current_idx: IDX) -> (bytes, IDX):
+                      req: tsmt_pb.Request,
+                      file_idx: int,
+                      batch_idx: int) -> [bytes, None]:
         """
         This method should handle preceded and duplicated requests properly,
             and NOTE THAT SENDER MAY SEND DUPLICATED REQUESTS EVEN WHEN THE
@@ -380,7 +318,8 @@ class Receiver:
 
         Args:
             req: a request pb
-            current_idx: an IDX indicating the current transmit progress.
+            file_idx: an int indicating the current transmit file.
+            batch_idx: an int indicating the expected receive batch.
 
         Returns:
             a payload bytes string.
