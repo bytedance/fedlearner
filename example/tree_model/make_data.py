@@ -3,7 +3,7 @@ import os
 import argparse
 
 import numpy as np
-import tensorflow as tf
+import tensorflow.compat.v1 as tf
 from sklearn.datasets import load_iris
 
 

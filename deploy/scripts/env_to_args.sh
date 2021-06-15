@@ -19,7 +19,7 @@ pull_code() {
   elif [[ $1 == "http://"* || $1 == "https://"* ]]; then
       wget $1 -O code.tar.gz
   elif [[ $1 == "oss://"* ]]; then
-      python -c "import tensorflow as tf; import tensorflow_io; open('code.tar.gz', 'wb').write(tf.io.gfile.GFile('$1', 'rb').read())"
+      python -c "import tensorflow.compat.v1 as tf; import tensorflow_io; open('code.tar.gz', 'wb').write(tf.io.gfile.GFile('$1', 'rb').read())"
   elif [[ $1 == "base64://"* ]]; then
       python -c "import base64; f = open('code.tar.gz', 'wb'); f.write(base64.b64decode('$1'[9:])); f.close()"
   else

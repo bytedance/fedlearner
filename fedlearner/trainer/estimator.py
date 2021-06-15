@@ -18,7 +18,7 @@
 import time
 
 import tensorflow.compat.v1 as tf
-from tensorflow.python.estimator.util import parse_input_fn_result
+from tensorflow.python.estimator.util import parse_input_fn_result #pylint: disable=no-name-in-module
 
 from tensorflow_estimator.python.estimator import model_fn as model_fn_lib
 from fedlearner.common import fl_logging

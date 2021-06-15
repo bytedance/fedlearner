@@ -184,16 +184,16 @@ class SparseFLModel(estimator.FLModel):
         self._frozen = True
 
 def _swap_tensor(t0, t1, consumers1):
-  nb_update_inputs = 0
-  consumers1_indices = {}
-  for consumer1 in consumers1:
-    consumers1_indices[consumer1] = [i for i, t in enumerate(consumer1.inputs)
-                                     if t is t1]
-  for consumer1 in consumers1:
-    for i in consumers1_indices[consumer1]:
-      consumer1._update_input(i, t0)  # pylint: disable=protected-access
-      nb_update_inputs += 1
-  return nb_update_inputs
+    nb_update_inputs = 0
+    consumers1_indices = {}
+    for consumer1 in consumers1:
+        consumers1_indices[consumer1] = \
+            [i for i, t in enumerate(consumer1.inputs) if t is t1]
+    for consumer1 in consumers1:
+        for i in consumers1_indices[consumer1]:
+            consumer1._update_input(i, t0)  # pylint: disable=protected-access
+            nb_update_inputs += 1
+    return nb_update_inputs
 
 def _swap_tensors(ts0, ts1):
     """ simple implement for swap ts0, ts1 consumers, like tf v1.x swap_ts"""
@@ -204,11 +204,11 @@ def _swap_tensors(ts0, ts1):
         consumers1 = set(t1.consumers())
         precomputed_consumers.append((consumers0, consumers1))
     for t0, t1, consumers in zip(ts0, ts1, precomputed_consumers):
-      if t0 is t1:
-        continue  # Silently ignore identical tensors.
-      consumers0, consumers1 = consumers
-      nb_update_inputs += _swap_tensor(t0, t1, consumers1)
-      nb_update_inputs += _swap_tensor(t1, t0, consumers0)
+        if t0 is t1:
+            continue  # Silently ignore identical tensors.
+        consumers0, consumers1 = consumers
+        nb_update_inputs += _swap_tensor(t0, t1, consumers1)
+        nb_update_inputs += _swap_tensor(t1, t0, consumers0)
     return nb_update_inputs
 
 class SparseFLEstimator(estimator.FLEstimator):

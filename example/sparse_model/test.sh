@@ -1,25 +1,28 @@
 #!/bin/bash
+set -ex
 
-cd "$( dirname "${BASH_SOURCE[0]}" )"
+BASE_DIR=`dirname $0`
+cd $BASE_DIR
+
 rm -rf data model
 
 export CUDA_VISIBLE_DEVICES=""
-set -e
 
 python make_data.py --fid_version=1
 python follower.py --local-addr=localhost:50010 \
                    --peer-addr=localhost:50011 \
                    --data-path=data/follower/ \
                    --checkpoint-path=model/follower \
-                   --save-checkpoint-steps=100 \
+                   --save-checkpoint-steps=200 \
                    --export-path=model/follower/saved_model \
+                   --epoch-num=5 \
                    --sparse-estimator=True &
 
 python leader.py   --local-addr=localhost:50011 \
                    --peer-addr=localhost:50010 \
                    --data-path=data/leader/ \
                    --checkpoint-path=model/leader \
-                   --save-checkpoint-steps=100 \
+                   --save-checkpoint-steps=200 \
                    --export-path=model/leader/saved_model \
                    --sparse-estimator=True 
 
@@ -33,6 +36,7 @@ python follower.py --local-addr=localhost:50010 \
                    --checkpoint-path=model/follower \
                    --save-checkpoint-steps=100 \
                    --export-path=model/follower/saved_model \
+                   --epoch-num=5 \
                    --sparse-estimator=True \
                    --fid_version=2 &
 
@@ -44,5 +48,8 @@ python leader.py   --local-addr=localhost:50011 \
                    --export-path=model/leader/saved_model \
                    --sparse-estimator=True \
                    --fid_version=2
-rm -rf data model
+
 wait
+
+rm -rf data model
+echo "test done"

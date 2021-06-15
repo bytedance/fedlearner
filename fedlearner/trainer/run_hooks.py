@@ -14,7 +14,7 @@
 
 import re
 import tensorflow.compat.v1 as tf
-from tensorflow.python.training import training_util
+from tensorflow.python.training import training_util #pylint: disable=no-name-in-module
 from fedlearner.trainer._global_context import global_context as _gctx
 
 class GlobalStepMetricTensorHook(tf.train.SessionRunHook):
