@@ -244,16 +244,20 @@ const WorkflowsCreateStepOne: FC<WorkflowCreateProps & { onSuccess?: any }> = ({
     setWorkflowConfigForm(parsedTpl.config as WorkflowConfig<JobNodeRawData>);
   }
   async function getWorkflowDetail() {
-    const { data } = await getWorkflowDetailById(params.id);
+    let { data } = await getWorkflowDetailById(params.id);
+    data = parseComplexDictField(data);
+
     setWorkflow(data);
     formInstance.setFieldsValue((data as any) as CreateWorkflowBasicForm);
   }
   async function getPeerWorkflow() {
     const res = await getPeerWorkflowsConfig(params.id);
 
-    const anyPeerWorkflow = Object.values(res.data).find((item) => !!item.config)!;
+    const anyPeerWorkflow = parseComplexDictField(
+      Object.values(res.data).find((item) => Boolean(item.uuid))!,
+    )!;
 
-    setPeerConfig(anyPeerWorkflow.config!);
+    setPeerConfig(anyPeerWorkflow.config ?? (undefined as never));
     setGroupAlias(anyPeerWorkflow.config?.group_alias || '');
 
     return anyPeerWorkflow;

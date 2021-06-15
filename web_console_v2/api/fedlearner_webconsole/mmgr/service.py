@@ -37,6 +37,14 @@ class ModelService:
         JobType.TREE_MODEL_EVALUATION: ModelType.TREE_EVALUATION.value
     }
 
+    job_state_map = {
+        JobState.STARTED: ModelState.RUNNING.value,
+        JobState.COMPLETED: ModelState.SUCCEEDED.value,
+        JobState.FAILED: ModelState.FAILED.value,
+        JobState.STOPPED: ModelState.PAUSED.value,
+        JobState.WAITING: ModelState.WAITING.value
+    }
+
     @staticmethod
     def is_model_related_job(job):
         job_type = job.job_type
@@ -69,8 +77,8 @@ class ModelService:
         except Exception as e:
             return repr(e)
 
-    def is_model_quiescence(self, model):
-        return model.state in [
+    def is_model_quiescence(self, state):
+        return state in [
             ModelState.SUCCEEDED.value, ModelState.FAILED.value,
             ModelState.PAUSED.value
         ]
@@ -79,17 +87,8 @@ class ModelService:
         logging.info('[ModelService][on_job_update] job name: %s', job.name)
         model = self._session.query(Model).filter_by(job_name=job.name).one()
         # see also `fedlearner_webconsole.job.models.Job.stop`
-        if job.state == JobState.STARTED:
-            if job.is_complete():
-                state = ModelState.SUCCEEDED.value
-            elif job.is_failed():
-                state = ModelState.FAILED.value
-            else:
-                state = ModelState.RUNNING.value
-        elif job.state == JobState.STOPPED:
-            state = ModelState.PAUSED.value
-        elif job.state == JobState.WAITING:
-            state = ModelState.WAITING.value
+        if job.state in self.job_state_map:
+            state = self.job_state_map[job.state]
         else:
             return logging.warning(
                 '[ModelService][on_job_update] job state is %s', job.state)
@@ -101,8 +100,8 @@ class ModelService:
         logging.info(
             '[ModelService][on_job_update] updating model(%d).state from %s to %s',
             model.id, model.state, state)
-        if self.is_model_quiescence(model):
-            model.metrics = self.plot_metrics(model, job)
+        if self.is_model_quiescence(state):
+            model.metrics = json.dumps(self.plot_metrics(model, job))
         model.state = state
         self._session.add(model)
 
@@ -137,8 +136,9 @@ class ModelService:
         model_json = model.to_dict()
         model_json['detail_level'] = detail_level
         if 'metrics' in detail_level:
-            if not self.is_model_quiescence(model) or not model.metrics:
-                model_json['metrics'] = self.plot_metrics(model)
+            if self.is_model_quiescence(model) and model.metrics:
+                model_json['metrics'] = json.loads(model.metrics)
+            else: model_json['metrics'] = self.plot_metrics(model)
         return model_json
 
     def drop(self, model_id):

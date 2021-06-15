@@ -407,4 +407,4 @@ class Composer(object):
 
 
 composer = Composer(config=ComposerConfig(
-    runner_fn=global_runner_fn, name='scheduler for fedlearner webconsole'))
+    runner_fn=global_runner_fn(), name='scheduler for fedlearner webconsole'))

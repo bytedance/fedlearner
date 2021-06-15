@@ -150,7 +150,7 @@ function _generateJobExecutionDetails(UUID: string): JobExecutionDetalis[] {
       id: 2,
       name: `${UUID}-Raw data upload`,
       job_type: JobType.DATA_JOIN,
-      state: JobState.RUNNING,
+      state: JobState.STARTED,
       yaml_template: '',
       workflow_id: 1,
       project_id: 1,

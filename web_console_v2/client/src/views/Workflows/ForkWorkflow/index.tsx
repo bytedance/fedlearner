@@ -1,13 +1,14 @@
 import React, { FC, useState } from 'react';
 import styled from 'styled-components';
 import { Steps, Row, Card } from 'antd';
-import BreadcrumbLink from 'components/BreadcrumbLink';
-import { Route, useParams } from 'react-router-dom';
+import { Route, useParams, useHistory } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useUnmount } from 'react-use';
 import { useResetForkForms } from 'hooks/workflow';
 import StepOneBasic from './StepOneBasic';
 import StepTwoConfig from './StepTwoConfig';
+import SharedPageLayout from 'components/SharedPageLayout';
+import BackButton from 'components/BackButton';
 
 const { Step } = Steps;
 
@@ -26,6 +27,7 @@ enum ForkSteps {
 
 const ForkWorkflow: FC = () => {
   const { t } = useTranslation();
+  const history = useHistory();
   const params = useParams<{ step: keyof typeof ForkSteps; id?: string }>();
   const [currentStep, setStep] = useState(ForkSteps[params.step || 'basic']);
   const reset = useResetForkForms();
@@ -36,14 +38,10 @@ const ForkWorkflow: FC = () => {
   });
 
   return (
-    <>
-      <BreadcrumbLink
-        paths={[
-          { label: 'menu.label_workflow', to: '/workflows' },
-          { label: 'workflow.fork_workflow' },
-        ]}
-      />
-
+    <SharedPageLayout
+      title={<BackButton onClick={() => history.goBack()}>{t('menu.label_workflow')}</BackButton>}
+      contentWrapByCard={false}
+    >
       <Card>
         <Row justify="center">
           <StepContainer>
@@ -63,7 +61,7 @@ const ForkWorkflow: FC = () => {
         />
         <Route path={`/workflows/fork/config/:id`} exact component={StepTwoConfig} />
       </FormArea>
-    </>
+    </SharedPageLayout>
   );
 
   function setToConfigStep() {
