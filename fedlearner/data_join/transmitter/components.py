@@ -7,17 +7,15 @@ import fedlearner.common.common_pb2 as common_pb
 import fedlearner.common.transmitter_service_pb2 as tsmt_pb
 from fedlearner.data_join.routine_worker import RoutineWorker
 from fedlearner.data_join.transmitter.utils import _EndSentinel, \
-    ProcessException
+    ProcessException, PostTask
 
 
 class Sender:
     def __init__(self,
-                 rank_id: int,
                  send_row_num: int,
                  send_queue_len: int = 10,
                  resp_queue_len: int = 10):
         self._transmitter = None
-        self._rank_id = rank_id
         self._send_row_num = send_row_num
         self._files = []
         self._file_idx = []
@@ -115,8 +113,7 @@ class Sender:
 
     def _request_task(self):
         assert self._transmitter
-        resp = self._transmitter.allocate_task(
-            tsmt_pb.AllocateTaskRequest(rank_id=self._rank_id))
+        resp = self._transmitter.allocate_task()
         with self._condition:
             if resp.status == common_pb.STATUS_NO_MORE_DATA:
                 self._transmitter.data_finish_c(tsmt_pb.DataFinishRequest())
@@ -202,7 +199,9 @@ class Sender:
         """
         This method handles file reading and returns the payload.
         Args:
+            file_path: path to the file to read.
             row_num: suggested num of lines to read.
+            send_queue_len: len of buffer queue.
 
         Returns:
             a payload bytes,
@@ -228,7 +227,7 @@ class Sender:
                 may be staler than meta's, meaning that some part of this resp
                 is fully processed and the remaining part is still processing.
         """
-        pass
+        raise NotImplementedError('_resp_process not implemented.')
 
 
 class Receiver:
@@ -310,7 +309,7 @@ class Receiver:
                 #   constitutes the original requests sequence, including order,
                 #   so we need to deal with preceded and duplicated requests.
                 try:
-                    payload, queue_item = self._recv_process(r, consecutive)
+                    payload, task = self._recv_process(r, consecutive)
                 except ProcessException as e:
                     yield tsmt_pb.Response(
                         status=common_pb.Status(
@@ -326,7 +325,7 @@ class Receiver:
                                            payload=payload)
 
                 if consecutive:
-                    self._recv_queue.put((r.status, queue_item))
+                    self._recv_queue.put((r.status, r.file_idx, task))
                     # if file finished, reset indices
                     if r.status.code == common_pb.STATUS_FILE_FINISHED:
                         self._file_idx = r.next_idx
@@ -342,11 +341,12 @@ class Receiver:
         return tsmt_pb.DataFinishResponse()
 
     def _recv(self):
-        for status, item in self._queue_iter(self._recv_queue):
-            self._recv_process_parallel(item)
+        for status, file_idx, task in self._queue_iter(self._recv_queue):
+            if task:
+                task.run()
             if status.code == common_pb.STATUS_FILE_FINISHED:
                 self._transmitter.recv_file_finish_c(
-                    tsmt_pb.RecvFileFinishRequest(file_idx=item.file_idx))
+                    tsmt_pb.RecvFileFinishRequest(file_idx=file_idx))
         with self._condition:
             self._recv_process_finished = True
 
@@ -365,7 +365,7 @@ class Receiver:
 
     def _recv_process(self,
                       req: tsmt_pb.Request,
-                      consecutive: bool) -> [bytes, None]:
+                      consecutive: bool) -> (bytes, [PostTask, None]):
         """
         This method should handle preceded and duplicated requests properly,
             and NOTE THAT SENDER MAY SEND DUPLICATED REQUESTS EVEN WHEN THE
@@ -376,33 +376,8 @@ class Receiver:
             consecutive: whether this request is the next expected request
 
         Returns:
-            a payload bytes string.
-            an IDX indicating where the meta should be updated to and saved.
-                Return None if no need to save state.
-
-        NOTE:
-            after transmit finishes, meta will be automatically saved regardless
-                of the IDX returned here.
+            a payload bytes string. Return None if no payload to respond.
+            a PostTask object that will be run later. Return None if no post
+                task needs to be run later.
         """
         raise NotImplementedError('_receive_process not implemented.')
-
-    def _recv_process_parallel(self,
-                               queue_item: typing.Any) -> None:
-        """
-        This method should handle preceded and duplicated requests properly,
-            and NOTE THAT SENDER MAY SEND DUPLICATED REQUESTS EVEN WHEN THE
-            RECEIVER IS FINISHED, as the sender might not receive the response.
-
-        Args:
-            queue_item
-
-        Returns:
-            a payload bytes string.
-            an IDX indicating where the meta should be updated to and saved.
-                Return None if no need to save state.
-
-        NOTE:
-            after transmit finishes, meta will be automatically saved regardless
-                of the IDX returned here.
-        """
-        pass

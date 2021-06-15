@@ -1,8 +1,7 @@
-import itertools
+import copy
 import json
 import threading
 import typing
-from collections import defaultdict
 
 import fedlearner.common.common_pb2 as common_pb
 import fedlearner.common.transmitter_service_pb2 as tsmt_pb
@@ -16,84 +15,48 @@ class TransmitterMaster(tsmt_grpc.TransmitterMasterServiceServicer):
                  worker_num: int,
                  meta_path: str):
         self._file_paths = file_paths
+        self._worker_num = worker_num
         self._meta_path = meta_path
         self._db_client = DBClient('dfs')
         self._condition = threading.Condition()
         self._meta = self._get_meta()
         self._stopped = False
-        self._task_size = len(self._meta['waiting']) // worker_num
-        # use remains to equally distribute file to every task
-        self._remains = len(self._meta['waiting']) % worker_num
         super().__init__()
 
     def AllocateTask(self, request, context):
         rid = request.rank_id
-        if self._file_depleted(rank_id=rid):
-            with self._condition:
-                self._condition.notify_all()
-            return tsmt_pb.AllocateTaskResponse(
-                status=common_pb.STATUS_NO_MORE_DATA)
-
+        alloc_files = []
+        alloc_idx = []
         with self._condition:
-            alloc_num = self._task_size
-            alloc_idx = self._meta['processing'][rid][:alloc_num + 1]
-            alloc_num -= len(alloc_idx)
-            # if too many processing files, will not allocate waiting files
-            if alloc_num >= 0:
-                if self._remains > 0:
-                    alloc_num += 1
-                    self._remains -= 1
-                new_alloc = self._meta['waiting'][:alloc_num]
-                self._meta['waiting'] = self._meta['waiting'][alloc_num:]
-                self._meta['processing'][rid] += new_alloc
-                alloc_idx += new_alloc
-        alloc_files = [self._meta['files'][i] for i in alloc_idx]
+            for i in list(range(rid, len(self._file_paths), self._worker_num)):
+                if i in self._meta['finished']:
+                    continue
+                alloc_files.append(self._file_paths[i])
+                alloc_idx.append(i)
         return tsmt_pb.AllocateTaskResponse(
             status=common_pb.STATUS_SUCCESS,
             files=alloc_files,
             file_idx=alloc_idx)
 
     def FinishFiles(self, request, context):
-        rid = request.rank_id
-        not_processing = []
         with self._condition:
-            for i in request.file_idx:
-                try:
-                    self._meta['processing'][rid].remove(i)
-                except ValueError:
-                    not_processing.append(i)
-                else:
-                    self._meta['finished'].append(i)
-
+            self._meta['finished'].update(request.files)
             self._dump_meta(self._meta)
-
-        if not_processing:
-            np = [self._meta['files'][i] for i in not_processing]
-            return tsmt_pb.FinishFilesResponse(
-                status=common_pb.STATUS_NOT_PROCESSING,
-                err_msg='Files [{}] were not in processing state.'.format(np))
-
         return tsmt_pb.FinishFilesResponse(
             status=common_pb.STATUS_SUCCESS)
 
     def _get_meta(self) -> dict:
         meta = self._read_meta()
         if meta:
-            processing = list(itertools.chain(*meta['processing'].values()))
-            meta['waiting'] = processing + meta['waiting']
-            meta['processing'] = {}
-            new_files = set(self._file_paths) - set(meta['files'])
-            if new_files:
-                meta['waiting'].extend(
-                    range(len(meta['files']),
-                          len(meta['files']) + len(new_files)))
-                meta['files'].extend(new_files)
+            diff = set(self._file_paths) - set(meta['files'])
+            if diff:
+                for f in self._file_paths:
+                    if f in diff:
+                        meta['files'].append(f)
         else:
             meta = {
                 'files': self._file_paths,
-                'waiting': list(range(len(self._file_paths))),
-                'processing': defaultdict(list),
-                'finished': []
+                'finished': set()
             }
         self._dump_meta(meta)
         return meta
@@ -114,26 +77,22 @@ class TransmitterMaster(tsmt_grpc.TransmitterMasterServiceServicer):
     @staticmethod
     def decode_meta(json_str: [str, bytes]) -> dict:
         meta = json.loads(json_str)
-        meta['processing'] = defaultdict(list, meta['processing'])
+        meta['finished'] = set(meta['finish'])
         return meta
 
     @staticmethod
     def encode_meta(meta: dict) -> str:
-        return json.dumps(meta)
+        m = copy.deepcopy(meta)
+        m['finished'] = list(m['finished'])
+        return json.dumps(m)
 
-    def _file_depleted(self, rank_id: int = None):
-        depleted = len(self._meta['waiting']) == 0
-        if rank_id:
-            depleted = depleted and len(self._meta['processing'][rank_id]) == 0
-        else:
-            for processing in self._meta['processing'].values():
-                if not depleted:
-                    return False
-                depleted = depleted and len(processing) == 0
-        return depleted
+    @property
+    def data_finished(self):
+        with self._condition:
+            return len(self._meta['finished']) == len(self._file_paths)
 
     def wait_for_finished(self):
-        if not self._file_depleted() and not self._stopped:
+        if not self.data_finished and not self._stopped:
             with self._condition:
-                while not self._file_depleted() and not self._stopped:
+                while not self.data_finished and not self._stopped:
                     self._condition.wait()

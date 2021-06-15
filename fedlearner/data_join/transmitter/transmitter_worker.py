@@ -106,8 +106,10 @@ class TransmitterWorker:
 
     # RPCs
     # ======== as a WORKER ======== #
-    def allocate_task(self, request: tsmt_pb.AllocateTaskRequest):
-        return self._master.AllocateTask(request)
+    def allocate_task(self):
+        return self._master.AllocateTask(
+            tsmt_pb.AllocateTaskRequest(rank_id=self._rank_id)
+        )
 
     def report_finish(self, file_idx: int, kind: str):
         assert kind in ('send', 'recv')
