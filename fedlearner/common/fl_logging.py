@@ -89,7 +89,7 @@ def warning(msg, *args, **kwargs):
     _logger.warning(msg, *args, **_kwargs_add_stack_level(kwargs))
 
 def warn(msg, *args, **kwargs):
-    _logger.warn(msg, *args, **_kwargs_add_stack_level(kwargs))
+    _logger.warning(msg, *args, **_kwargs_add_stack_level(kwargs))
 
 def info(msg, *args, **kwargs):
     _logger.info(msg, *args, **_kwargs_add_stack_level(kwargs))

@@ -19,9 +19,7 @@ import random
 import shutil
 import tensorflow.compat.v1 as tf
 
-from tensorflow.core.example.example_pb2 import Example
-from tensorflow.core.example.feature_pb2 import Features, Feature, \
-                                                Int64List, BytesList
+from tensorflow.train import Example, Feature, Features, Int64List, BytesList
 
 current_dir = os.path.dirname(__file__)
 shutil.rmtree(os.path.join(current_dir, 'data'), ignore_errors=True)

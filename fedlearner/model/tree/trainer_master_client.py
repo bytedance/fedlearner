@@ -22,7 +22,7 @@ import traceback
 try:
     import tensorflow.compat.v1 as tf
 except ImportError:
-    import tensorflow as tf
+    import tensorflow.compat.v1 as tf
 
 from fedlearner.common import trainer_master_service_pb2 as tm_pb
 from fedlearner.common import trainer_master_service_pb2_grpc as tm_grpc
