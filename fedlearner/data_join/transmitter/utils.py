@@ -1,4 +1,4 @@
-class RecvProcessException(Exception):
+class ProcessException(Exception):
     pass
 
 

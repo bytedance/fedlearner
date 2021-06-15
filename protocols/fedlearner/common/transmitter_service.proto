@@ -18,32 +18,65 @@ import "fedlearner/common/common.proto";
 
 package fedlearner.common;
 
-message SyncRequest {}
-
-message SyncResponse {
-  int64 file_idx = 1;
-  int64 row_idx = 2;
+message AllocateTaskRequest {
+  int64 rank_id = 1;
 }
+
+message AllocateTaskResponse {
+  Status status = 1;
+  repeated string files = 2;
+  repeated int64 file_idx = 3;
+}
+
+message FinishFilesRequest {
+  int64 rank_id = 1;
+  repeated int64 file_idx = 2;
+}
+
+message FinishFilesResponse {
+  Status status = 1;
+  string err_msg = 2;
+}
+
+service TransmitterMasterService {
+  rpc AllocateTask(AllocateTaskRequest) returns (AllocateTaskResponse) {}
+  rpc FinishFiles(FinishFilesRequest) returns (FinishFilesResponse) {}
+}
+
+message SyncRequest {
+  int64 file_idx = 1;
+}
+
+message SyncResponse {}
+
+message RecvFileFinishRequest {
+  int64 file_idx = 1;
+}
+
+message RecvFileFinishResponse {}
+
+message DataFinishRequest {}
+
+message DataFinishResponse {}
 
 message Request {
   Status status = 1;
-  int64 start_file_idx = 2;
-  int64 start_row_idx = 4;
-  int64 end_file_idx = 5;
-  int64 end_row_idx = 6;
-  bytes payload = 8;
+  int64 file_idx = 2;
+  int64 next_idx = 3;
+  int64 batch_idx = 4;
+  bytes payload = 5;
 }
 
 message Response {
   Status status = 1;
-  int64 start_file_idx = 2;
-  int64 start_row_idx = 4;
-  int64 end_file_idx = 5;
-  int64 end_row_idx = 6;
-  bytes payload = 8;
+  int64 file_idx = 2;
+  int64 batch_idx = 3;
+  bytes payload = 4;
 }
 
-service TransmitterService {
-  rpc SyncState(SyncRequest) returns (SyncResponse) {}
+service TransmitterWorkerService {
+  rpc RecvFileFinish(RecvFileFinishRequest) returns (RecvFileFinishResponse) {}
+  rpc Sync(SyncRequest) returns (SyncResponse) {}
   rpc Transmit(stream Request) returns (stream Response) {}
+  rpc DataFinish(DataFinishRequest) returns (DataFinishResponse) {}
 }
