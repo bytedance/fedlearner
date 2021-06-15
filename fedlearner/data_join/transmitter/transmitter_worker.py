@@ -46,6 +46,8 @@ class TransmitterWorker:
         self._remote_address = remote_address
         self._sender = sender
         self._receiver = receiver
+        self._sender.add_transmitter(self)
+        self._receiver.add_transmitter(self)
 
         self._finish_record = {'send': set(), 'recv': set(), 'finish': set()}
 
