@@ -8,7 +8,7 @@ import time
 import random
 # import logging
 import numpy as np
-import tensorflow as tf
+import tensorflow.compat.v1 as tf
 from tensorflow.keras.datasets import fashion_mnist
 from solver import solve_isotropic_covariance, symKL_objective
 import shared_var

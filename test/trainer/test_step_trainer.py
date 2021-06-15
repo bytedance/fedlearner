@@ -21,7 +21,7 @@ import threading
 import shutil
 import unittest
 import numpy as np
-import tensorflow as tf
+import tensorflow.compat.v1 as tf
 import fedlearner.trainer as flt
 
 run_step = 2
