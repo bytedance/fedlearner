@@ -194,14 +194,16 @@ class ProjectApi(Resource):
     def get(self, project_id):
         project = Project.query.filter_by(id=project_id).first()
         if project is None:
-            raise NotFoundException()
+            raise NotFoundException(
+                f'Failed to find project: {project_id}')
         return {'data': project.to_dict()}
 
     @jwt_required()
     def patch(self, project_id):
         project = Project.query.filter_by(id=project_id).first()
         if project is None:
-            raise NotFoundException()
+            raise NotFoundException(
+                f'Failed to find project: {project_id}')
         config = project.get_config()
         if request.json.get('token') is not None:
             new_token = request.json.get('token')
@@ -222,6 +224,9 @@ class ProjectApi(Resource):
                 grpc_ssl_server_host = variable.value
             if variable.name == 'EGRESS_HOST':
                 egress_host = variable.value
+
+        if request.json.get('participant_name'):
+            config.participants[0].name = request.json.get('participant_name')
 
         if request.json.get('comment'):
             project.comment = request.json.get('comment')
@@ -248,7 +253,8 @@ class CheckConnectionApi(Resource):
     def post(self, project_id):
         project = Project.query.filter_by(id=project_id).first()
         if project is None:
-            raise NotFoundException()
+            raise NotFoundException(
+                f'Failed to find project: {project_id}')
         success = True
         details = []
         # TODO: Concurrently check

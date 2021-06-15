@@ -15,7 +15,6 @@
 # coding: utf-8
 import contextlib
 import json
-import os
 import logging
 import unittest
 import secrets
@@ -25,20 +24,29 @@ import multiprocessing as mp
 from flask import Flask
 from flask_testing import TestCase
 from fedlearner_webconsole.composer.composer import Composer, ComposerConfig
-from fedlearner_webconsole.db import db
+from fedlearner_webconsole.db import db_handler as db, get_database_uri
 from fedlearner_webconsole.app import create_app
 from fedlearner_webconsole.initial_db import initial_db
+from fedlearner_webconsole.scheduler.scheduler import scheduler
 # NOTE: the following models imported is intended to be analyzed by SQLAlchemy
 from fedlearner_webconsole.auth.models import Role, User, State
 from fedlearner_webconsole.composer.models import SchedulerItem, SchedulerRunner, OptimisticLock
+from fedlearner_webconsole.utils.base64 import base64encode
 
-test_db_path = '/tmp/fedlearner_test.db'
+
+def create_all_tables(database_uri: str = None):
+    if database_uri:
+        db.rebind(database_uri)
+
+    # If there's a db file due to some reason, remove it first.
+    if db.metadata.tables.values():
+        db.drop_all()
+    db.create_all()
 
 
 class BaseTestCase(TestCase):
     class Config(object):
-        SQLALCHEMY_DATABASE_URI = \
-            f'sqlite:///{test_db_path}?check_same_thread=False'
+        SQLALCHEMY_DATABASE_URI = get_database_uri()
         SQLALCHEMY_TRACK_MODIFICATIONS = False
         JWT_SECRET_KEY = secrets.token_urlsafe(64)
         PROPAGATE_EXCEPTIONS = True
@@ -49,26 +57,20 @@ class BaseTestCase(TestCase):
         START_COMPOSER = False
 
     def create_app(self):
+        create_all_tables(self.__class__.Config.SQLALCHEMY_DATABASE_URI)
+        initial_db()
         app = create_app(self.__class__.Config)
-        app.app_context().push()
         return app
 
     def setUp(self):
-        try:
-            # keep clean database before each test
-            os.remove(test_db_path)
-        except OSError:
-            pass
-
-        db.create_all()
-        initial_db()
+        super().setUp()
         self.signin_helper()
 
     def tearDown(self):
         self.signout_helper()
-
-        db.session.remove()
+        scheduler.stop()
         db.drop_all()
+        super().tearDown()
 
     def get_response_data(self, response):
         return json.loads(response.data).get('data')
@@ -81,7 +83,7 @@ class BaseTestCase(TestCase):
         resp = self.client.post('/api/v2/auth/signin',
                                 data=json.dumps({
                                     'username': username,
-                                    'password': password
+                                    'password': base64encode(password)
                                 }),
                                 content_type='application/json')
         resp_data = self.get_response_data(resp)
@@ -232,7 +234,8 @@ class TestAppProcess(mp.get_context('spawn').Process):
                     )
             assert result.wasSuccessful()
             self._result_queue.put(True)
-        except Exception:
+        except Exception as err:
+            logging.error('expected happened %s', err)
             self._result_queue.put(False)
             raise
 
@@ -264,13 +267,14 @@ def multi_process_test(test_list):
             raise Exception(f'Subprocess failed: number {i}')
 
 
-def create_test_db():
-    """Creates test db for testing non flask-must units."""
-    app = Flask('fedlearner_webconsole_test')
-    app.config['TESTING'] = True
-    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
-    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-    db.init_app(app)
-    # this does the binding
-    app.app_context().push()
-    return db
+class NoWebServerTestCase(unittest.TestCase):
+    class Config(object):
+        SQLALCHEMY_DATABASE_URI = get_database_uri()
+
+    def setUp(self) -> None:
+        super().setUp()
+        create_all_tables(self.__class__.Config.SQLALCHEMY_DATABASE_URI)
+
+    def tearDown(self) -> None:
+        db.drop_all()
+        return super().tearDown()

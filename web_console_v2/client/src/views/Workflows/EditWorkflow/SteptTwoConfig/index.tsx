@@ -33,7 +33,7 @@ import { patchWorkflow } from 'services/workflow';
 import { to } from 'shared/helpers';
 import { WorkflowAcceptPayload } from 'typings/workflow';
 import { Variable } from 'typings/variable';
-import InspectPeerConfigs from './InspectPeerConfig';
+import InspectPeerConfigs from '../../InspectPeerConfig';
 import { ExclamationCircle } from 'components/IconPark';
 import { Z_INDEX_GREATER_THAN_HEADER } from 'components/Header';
 import { stringifyComplexDictField } from 'shared/formSchema';
@@ -141,7 +141,7 @@ const CanvasAndForm: FC = () => {
           readonly={isCurrNodeReused}
           message={isCurrNodeReused ? t('workflow.msg_resued_job_cannot_edit') : ''}
           toggleVisible={toggleDrawerVisible}
-          showPeerConfigButton
+          showPeerConfigButton={Boolean(peerConfig)}
           currentIdx={currNode?.data.index}
           nodesCount={jobNodes.length}
           jobDefinition={currNode?.data.raw}

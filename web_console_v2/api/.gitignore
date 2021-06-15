@@ -8,3 +8,5 @@ fedlearner_webconsole/proto/*.pyi
 # Coverage generated
 .coverage_html_report/
 .coverage*
+
+root.log.*

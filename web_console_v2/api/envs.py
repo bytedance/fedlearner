@@ -6,9 +6,9 @@ import pytz
 
 class Envs(object):
     TZ = pytz.timezone(os.environ.get('TZ', 'UTC'))
-    HDFS_SERVER = os.environ.get('HDFS_SERVER', None)
     ES_HOST = os.environ.get('ES_HOST',
                              'fedlearner-stack-elasticsearch-client')
+    ES_READ_HOST = os.environ.get('ES_READ_HOST', ES_HOST)
     ES_PORT = os.environ.get('ES_PORT', 9200)
     ES_USERNAME = os.environ.get('ES_USERNAME', 'elastic')
     ES_PASSWORD = os.environ.get('ES_PASSWORD', 'Fedlearner123')
@@ -38,6 +38,16 @@ class Envs(object):
     GRPC_CLIENT_TIMEOUT = os.environ.get('GRPC_CLIENT_TIMEOUT', 5)
     # storage filesystem
     STORAGE_ROOT = os.getenv('STORAGE_ROOT', '/data')
+    # BASE_DIR
+    BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+    # spark on k8s image url
+    SPARKAPP_IMAGE_URL = os.getenv('SPARKAPP_IMAGE_URL', None)
+    SPARKAPP_FILES_PATH = os.getenv('SPARKAPP_FILES_PATH', None)
+    SPARKAPP_VOLUMES = os.getenv('SPARKAPP_VOLUMES', None)
+    SPARKAPP_VOLUME_MOUNTS = os.getenv('SPARKAPP_VOLUME_MOUNTS', None)
+
+    # Hooks
+    PRE_START_HOOK = os.environ.get('PRE_START_HOOK', None)
 
 
 class Features(object):

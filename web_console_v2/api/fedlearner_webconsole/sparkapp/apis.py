@@ -34,7 +34,8 @@ class SparkAppsApi(Resource):
 
         try:
             config = SparkAppConfig.from_dict(data)
-            config.files = base64.b64decode(config.files)
+            if config.files:
+                config.files = base64.b64decode(config.files)
         except ValueError as err:
             raise InvalidArgumentException(details=err)
 

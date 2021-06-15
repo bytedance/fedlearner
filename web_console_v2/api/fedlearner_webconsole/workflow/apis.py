@@ -166,6 +166,10 @@ class WorkflowsApi(Resource):
                             type=int,
                             required=False,
                             help='interval for workflow cronjob in minute')
+        parser.add_argument('extra',
+                            type=str,
+                            required=False,
+                            help='extra json string that needs send to peer')
 
         parser.add_argument('comment')
         data = parser.parse_args()
@@ -188,7 +192,9 @@ class WorkflowsApi(Resource):
                             forked_from=data['forked_from'],
                             state=WorkflowState.NEW,
                             target_state=WorkflowState.READY,
-                            transaction_state=TransactionState.READY)
+                            transaction_state=TransactionState.READY,
+                            extra=data['extra']
+                            )
         workflow.set_config(template_proto)
         workflow.set_create_job_flags(data['create_job_flags'])
 

@@ -29,6 +29,7 @@ from fedlearner_webconsole.scheduler.scheduler import \
 from fedlearner_webconsole.proto import project_pb2
 from workflow_template_test import make_workflow_template
 
+
 class WorkflowsCommitTest(BaseTestCase):
     class Config(BaseTestCase.Config):
         START_GRPC_SERVER = False
@@ -42,61 +43,56 @@ class WorkflowsCommitTest(BaseTestCase):
         super().setUp()
         # Inserts project
         config = {
-            'participants': [
-                {
-                    'name': 'party_leader',
-                    'url': '127.0.0.1:5000',
-                    'domain_name': 'fl-leader.com',
-                    'grpc_spec': {
-                        'authority': 'fl-leader.com'
-                    }
+            'participants': [{
+                'name': 'party_leader',
+                'url': '127.0.0.1:5000',
+                'domain_name': 'fl-leader.com',
+                'grpc_spec': {
+                    'authority': 'fl-leader.com'
                 }
-            ],
-            'variables': [
-                {
-                    'name': 'namespace',
-                    'value': 'leader'
-                },
-                {
-                    'name': 'basic_envs',
-                    'value': '{}'
-                },
-                {
-                    'name': 'storage_root_dir',
-                    'value': '/'
-                },
-                {
-                    'name': 'EGRESS_URL',
-                    'value': '127.0.0.1:1991'
-                }
-            ]
+            }],
+            'variables': [{
+                'name': 'namespace',
+                'value': 'leader'
+            }, {
+                'name': 'basic_envs',
+                'value': '{}'
+            }, {
+                'name': 'storage_root_dir',
+                'value': '/'
+            }, {
+                'name': 'EGRESS_URL',
+                'value': '127.0.0.1:1991'
+            }]
         }
-        project = Project(name='test',
-                          config=ParseDict(config,
-                                           project_pb2.Project()).SerializeToString())
+        project = Project(
+            name='test',
+            config=ParseDict(config,
+                             project_pb2.Project()).SerializeToString())
         db.session.add(project)
         db.session.commit()
 
     @staticmethod
-    def _wait_until(cond):
-        while True:
-            time.sleep(1)
+    def _wait_until(cond, retry_times: int = 5):
+        for _ in range(retry_times):
+            time.sleep(5)
+            db.session.expire_all()
             if cond():
                 return
 
-
-    @patch('fedlearner_webconsole.workflow.models.Job.is_failed')
-    @patch('fedlearner_webconsole.workflow.models.Job.is_complete')
-    def test_workflow_commit(self, mock_is_complete, mock_is_failed):
-        mock_is_complete.return_value = False
-        mock_is_failed.return_value = False
+    def test_workflow_commit(self):
         # test the committing stage for workflow creating
         workflow_def = make_workflow_template()
-        workflow = Workflow(id=20, name='job_test1', comment='这是一个测试工作流',
-                            config=workflow_def.SerializeToString(),
-                            project_id=1, forkable=True, state=WorkflowState.NEW,
-                            target_state=WorkflowState.READY,
-                            transaction_state=TransactionState.PARTICIPANT_COMMITTING)
+        workflow = Workflow(
+            id=20,
+            name='job_test1',
+            comment='这是一个测试工作流',
+            config=workflow_def.SerializeToString(),
+            project_id=1,
+            forkable=True,
+            state=WorkflowState.NEW,
+            target_state=WorkflowState.READY,
+            transaction_state=TransactionState.PARTICIPANT_COMMITTING)
         db.session.add(workflow)
         db.session.commit()
         scheduler.wakeup(20)
@@ -104,8 +100,8 @@ class WorkflowsCommitTest(BaseTestCase):
             lambda: Workflow.query.get(20).state == WorkflowState.READY)
         workflow = Workflow.query.get(20)
         self.assertEqual(len(workflow.get_jobs()), 2)
-        self.assertEqual(workflow.get_jobs()[0].state, JobState.STOPPED)
-        self.assertEqual(workflow.get_jobs()[1].state, JobState.STOPPED)
+        self.assertEqual(workflow.get_jobs()[0].state, JobState.NEW)
+        self.assertEqual(workflow.get_jobs()[1].state, JobState.NEW)
 
         # test the committing stage for workflow running
         workflow.target_state = WorkflowState.RUNNING
@@ -118,15 +114,17 @@ class WorkflowsCommitTest(BaseTestCase):
         self._wait_until(
             lambda: workflow.get_jobs()[0].state == JobState.STARTED)
         self.assertEqual(workflow.get_jobs()[1].state, JobState.WAITING)
-        mock_is_complete.return_value = True
         workflow = Workflow.query.get(20)
+        for job in workflow.owned_jobs:
+            job.state = JobState.COMPLETED
         self.assertEqual(workflow.to_dict()['state'], 'COMPLETED')
-        mock_is_complete.return_value = False
-        mock_is_failed.return_value = True
+        workflow.get_jobs()[0].state = JobState.FAILED
         self.assertEqual(workflow.to_dict()['state'], 'FAILED')
         # test the committing stage for workflow stopping
         workflow.target_state = WorkflowState.STOPPED
         workflow.transaction_state = TransactionState.PARTICIPANT_COMMITTING
+        for job in workflow.owned_jobs:
+            job.state = JobState.STARTED
         db.session.commit()
         scheduler.wakeup(20)
         self._wait_until(

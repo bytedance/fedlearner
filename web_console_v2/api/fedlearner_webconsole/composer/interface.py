@@ -22,10 +22,13 @@ from typing import Tuple
 from fedlearner_webconsole.composer.models import Context, RunnerStatus
 
 
+# NOTE: remember to register new item in `global_runner_fn` \
+# which defined in `runner.py`
 class ItemType(enum.Enum):
-    TASK = 'task'
+    TASK = 'task'  # test only
     MEMORY = 'memory'
     WORKFLOW_CRON_JOB = 'workflow_cron_job'
+    DATA_PIPELINE = 'data_pipeline'
 
 
 # item interface
