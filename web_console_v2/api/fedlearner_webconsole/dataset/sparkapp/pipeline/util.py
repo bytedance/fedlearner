@@ -13,19 +13,24 @@
 # limitations under the License.
 
 # coding: utf-8
-# pylint: disable=raise-missing-from
-
-from sqlalchemy import UniqueConstraint
-from fedlearner_webconsole.db import db
+import os
 
 
-class Setting(db.Model):
-    __tablename__ = 'settings_v2'
-    __table_args__ = (UniqueConstraint('key', name='uniq_key'), {
-                        'comment': 'workflow_v2',
-                        'mysql_engine': 'innodb',
-                        'mysql_charset': 'utf8mb4',
-                      })
-    id = db.Column(db.Integer, primary_key=True, comment='id')
-    key = db.Column(db.String(255), nullable=False, comment='key')
-    value = db.Column(db.Text, comment='value')
+def dataset_rds_path(dataset_path: str) -> str:
+    return os.path.join(dataset_path, 'rds/')
+
+
+def dataset_features_path(dataset_path: str) -> str:
+    return os.path.join(dataset_path, '_FEATURES')
+
+
+def dataset_meta_path(dataset_path: str) -> str:
+    return os.path.join(dataset_path, '_META')
+
+
+def dataset_hist_path(dataset_path: str) -> str:
+    return os.path.join(dataset_path, '_HIST')
+
+
+def dataset_transformer_path(dataset_path: str) -> str:
+    return os.path.join(dataset_path, 'fe/')

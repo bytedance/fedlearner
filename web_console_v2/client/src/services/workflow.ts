@@ -1,5 +1,5 @@
 import { KibanaQueryParams, KiabanaMetrics } from './../typings/kibana';
-import request, { BASE_URL } from 'libs/request';
+import request from 'libs/request';
 import {
   WorkflowForkPayload,
   WorkflowInitiatePayload,
@@ -27,7 +27,7 @@ export function fetchTemplateById(id: ID): Promise<{ data: WorkflowTemplate }> {
 }
 
 export function getTemplateDownloadHref(id: ID): string {
-  return `${BASE_URL}/v2/workflow_templates/${id}?download=true`;
+  return `/v2/workflow_templates/${id}?download=true`;
 }
 
 export function createWorkflowTemplate(payload: WorkflowTemplatePayload) {

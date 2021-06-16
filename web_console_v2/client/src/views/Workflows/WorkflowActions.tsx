@@ -222,7 +222,7 @@ const WorkflowActions: FC<Props> = ({ workflow, type = 'default', without = [], 
       return message.error(t('workflow.msg_get_peer_cfg_failed') + error.message);
     }
 
-    const anyPeerWorkflow = Object.values(res.data).find((item) => !!item.config)!;
+    const anyPeerWorkflow = Object.values(res.data).find((item) => !!item.uuid)!;
     if (!anyPeerWorkflow.forkable) {
       message.warning(t('workflow.msg_unforkable'));
       return;

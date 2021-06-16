@@ -15,26 +15,29 @@
 # coding: utf-8
 import os
 from contextlib import contextmanager
-from typing import Generator, Callable
+from typing import ContextManager, Callable
 
-from flask_sqlalchemy import SQLAlchemy
+import sqlalchemy as sa
+
 from sqlalchemy.engine import Engine, create_engine
+from sqlalchemy.ext.declarative.api import DeclarativeMeta, declarative_base
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.orm.session import Session
+from flask_sqlalchemy import SQLAlchemy
 
-BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '../'))
+from envs import Envs
+BASE_DIR = Envs.BASE_DIR
 
 # Explicitly set autocommit and autoflush
 # Disables autocommit to make developers to commit manually
 # Enables autoflush to make changes visible in the same session
-# Enables expire_on_commit to make it possible that one session commit twice
+# Disable expire_on_commit to make it possible that object can detach
 SESSION_OPTIONS = {
     'autocommit': False,
     'autoflush': True,
-    'expire_on_commit': True
+    'expire_on_commit': False
 }
 ENGINE_OPTIONS = {}
-db = SQLAlchemy(session_options=SESSION_OPTIONS, engine_options=ENGINE_OPTIONS)
 
 
 def default_table_args(comment: str) -> dict:
@@ -102,7 +105,8 @@ def get_database_uri() -> str:
     if 'SQLALCHEMY_DATABASE_URI' in os.environ:
         uri = os.getenv('SQLALCHEMY_DATABASE_URI')
     else:
-        uri = 'sqlite:///{}'.format(os.path.join(BASE_DIR, 'app.db'))
+        uri = 'sqlite:///{}?check_same_thread=False'.format(
+            os.path.join(BASE_DIR, 'app.db'))
     return _turn_db_timezone_to_utc(uri)
 
 
@@ -119,7 +123,7 @@ def get_engine(database_uri: str) -> Engine:
 
 
 @contextmanager
-def get_session(db_engine: Engine) -> Generator[Session, None, None]:
+def get_session(db_engine: Engine) -> ContextManager[Session]:
     """Get session from database engine.
 
     Example:
@@ -128,25 +132,27 @@ def get_session(db_engine: Engine) -> Generator[Session, None, None]:
             session.query(MODEL).filter_by(field=value).first()
     """
     try:
-        session = sessionmaker(bind=db_engine, **SESSION_OPTIONS)()
+        session: Session = sessionmaker(bind=db_engine, **SESSION_OPTIONS)()
     except Exception:
         raise Exception('unknown db engine')
-    else:
+
+    try:
         yield session
+    except Exception:
+        session.rollback()
+        raise
     finally:
         session.close()
 
 
-def make_session_context() -> Callable[[], Generator[Session, None, None]]:
+def make_session_context() -> Callable[[], ContextManager[Session]]:
     """A functional closure that will store engine
         Call it n times if you want to n connection pools
 
     Returns:
-        Callable[[], Generator[Session, None, None]]:
-            a function that yield a context
+        Callable[[], Callable[[], ContextManager[Session]]]
+            a function that return a contextmanager
 
-    Yields:
-        Generator[Session, None, None]: a session context
 
     Examples:
         # First initialize a connection pool,
@@ -159,12 +165,47 @@ def make_session_context() -> Callable[[], Generator[Session, None, None]]:
     """
     engine = None
 
-    @contextmanager
     def wrapper_get_session():
         nonlocal engine
         if engine is None:
             engine = get_engine(get_database_uri())
-        with get_session(engine) as session:
-            yield session
+        return get_session(engine)
 
     return wrapper_get_session
+
+
+class DBHandler(object):
+    def __init__(self) -> None:
+        super().__init__()
+
+        self.engine: Engine = get_engine(get_database_uri())
+        self.Model: DeclarativeMeta = declarative_base(bind=self.engine)
+        for module in sa, sa.orm:
+            for key in module.__all__:
+                if not hasattr(self, key):
+                    setattr(self, key, getattr(module, key))
+
+    def session_scope(self) -> ContextManager[Session]:
+        return get_session(self.engine)
+
+    @property
+    def metadata(self) -> DeclarativeMeta:
+        return self.Model.metadata
+
+    def rebind(self, database_uri: str):
+        self.engine = get_engine(database_uri)
+        self.Model = declarative_base(bind=self.engine, metadata=self.metadata)
+
+    def create_all(self):
+        return self.metadata.create_all()
+
+    def drop_all(self):
+        return self.metadata.drop_all()
+
+
+# now db_handler and db are alive at the same time
+# db will be replaced by db_handler in the near future
+db_handler = DBHandler()
+db = SQLAlchemy(session_options=SESSION_OPTIONS,
+                engine_options=ENGINE_OPTIONS,
+                metadata=db_handler.metadata)

@@ -4,7 +4,9 @@ export enum JobState {
   INVALID = 'INVALID',
   NEW = 'NEW',
   WAITING = 'WAITING',
+  /** @deprecated RUNNING changes to STARTED*/
   RUNNING = 'RUNNING',
+  STARTED = 'STARTED',
   COMPLETED = 'COMPLETED',
   FAILED = 'FAILED',
   STOPPED = 'STOPPED',

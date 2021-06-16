@@ -17,11 +17,10 @@
 from http import HTTPStatus
 from flask import request
 from flask_restful import Resource
-from fedlearner_webconsole.db import db
+from fedlearner_webconsole.db import db_handler
 from fedlearner_webconsole.exceptions import NotFoundException
 from fedlearner_webconsole.mmgr.models import Model, ModelType, ModelGroup
 from fedlearner_webconsole.mmgr.service import ModelService
-from fedlearner_webconsole.db import make_session_context
 from fedlearner_webconsole.utils.decorators import jwt_required
 
 
@@ -29,26 +28,32 @@ class ModelApi(Resource):
     @jwt_required()
     def get(self, model_id):
         detail_level = request.args.get('detail_level', '')
-        model_json = ModelService(db.session).query(model_id, detail_level)
+        with db_handler.session_scope() as session:
+            model_json = ModelService(session).query(model_id, detail_level)
         if not model_json:
-            raise NotFoundException()
+            raise NotFoundException(
+                f'Failed to find model: {model_id}')
         return {'data': model_json}, HTTPStatus.OK
 
     @jwt_required()
     def put(self, model_id):
-        model = db.session.query(Model).filter_by(id=model_id).one_or_none()
-        if not model:
-            raise NotFoundException()
-        model.extra = request.args.get('extra', model.extra)
-        db.session.commit()
-        return {'data': model.to_dict()}, HTTPStatus.OK
+        with db_handler.session_scope() as session:
+            model = session.query(Model).filter_by(id=model_id).one_or_none()
+            if not model:
+                raise NotFoundException(
+                    f'Failed to find model: {model_id}')
+            model.extra = request.args.get('extra', model.extra)
+            session.commit()
+            return {'data': model.to_dict()}, HTTPStatus.OK
 
     @jwt_required()
     def delete(self, model_id):
-        model = ModelService(db.session).drop(model_id)
-        if not model:
-            raise NotFoundException()
-        return {'data': model.to_dict()}, HTTPStatus.OK
+        with db_handler.session_scope() as session:
+            model = ModelService(session).drop(model_id)
+            if not model:
+                raise NotFoundException(
+                    f'Failed to find model: {model_id}')
+            return {'data': model.to_dict()}, HTTPStatus.OK
 
 
 class ModelListApi(Resource):
@@ -56,13 +61,14 @@ class ModelListApi(Resource):
     def get(self):
         detail_level = request.args.get('detail_level', '')
         # TODO serialized query may incur performance penalty
-        model_list = [
-            ModelService(db.session).query(m.id, detail_level)
-            for m in Model.query.filter(
-                Model.type.in_([
-                    ModelType.NN_MODEL.value, ModelType.TREE_MODEL.value
-                ])).all()
-        ]
+        with db_handler.session_scope() as session:
+            model_list = [
+                ModelService(session).query(m.id, detail_level)
+                for m in Model.query.filter(
+                    Model.type.in_([
+                        ModelType.NN_MODEL.value, ModelType.TREE_MODEL.value
+                    ])).all()
+            ]
         return {'data': model_list}, HTTPStatus.OK
 
 
@@ -78,8 +84,9 @@ class GroupListApi(Resource):
 
         group.name = request.args.get('name', group.name)
         group.extra = request.args.get('extra', group.extra)
-        db.session.add(group)
-        db.session.commit()
+        with db_handler.session_scope() as session:
+            session.add(group)
+            session.commit()
 
         return {'data': group.to_dict()}, HTTPStatus.OK
 
@@ -89,12 +96,14 @@ class GroupApi(Resource):
     def patch(self, group_id):
         group = ModelGroup.query.filter_by(id=group_id).one_or_none()
         if not group:
-            raise NotFoundException()
+            raise NotFoundException(
+                f'Failed to find group: {group_id}')
 
         group.name = request.args.get('name', group.name)
         group.extra = request.args.get('extra', group.extra)
-        db.session.add(group)
-        db.session.commit()
+        with db_handler.session_scope() as session:
+            session.add(group)
+            session.commit()
 
         return {'data': group.to_dict()}, HTTPStatus.OK
 

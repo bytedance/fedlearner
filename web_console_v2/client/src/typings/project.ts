@@ -27,6 +27,7 @@ export interface Participant {
 export interface UpdateProjectPayload {
   token?: string;
   variables?: ProjectVariable[];
+  participant_name: string;
   comment: string;
 }
 
