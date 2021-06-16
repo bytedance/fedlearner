@@ -15,7 +15,7 @@ from fedlearner.data_join.common import commit_data_source, partition_repr,\
     partition_manifest_kvstore_key, data_source_kvstore_base_dir, \
     encode_data_block_meta_fname, DataBlockSuffix, \
     data_source_data_block_dir
-from fedlearner.data_join_v2.raw_data.input_data_manager import InputDataManager
+from fedlearner.data_join_v2.input_data_manager import InputDataManager
 from fedlearner.data_join_v2.raw_data.raw_data_meta import RawDataMeta, \
     raw_data_meta_path
 from fedlearner.data_join_v2.raw_data.raw_data_config import RawDataJobConfig
@@ -83,6 +83,7 @@ class RawDataJob:
             files_per_job_limit)
 
         self._next_job_id = self._meta.job_id + 1
+        self._num_processing_files = 0
         self._template_dirname = "template"
 
         self._kvstore = DBClient(kvstore_type)
@@ -94,6 +95,7 @@ class RawDataJob:
             prev_job_id = job_id
             for rest_fpaths in self._input_data_manager.iterator(
                     input_path, self._meta.processed_fpath):
+                self._num_processing_files = len(rest_fpaths)
                 self._run(job_id, rest_fpaths)
                 job_id += 1
             if not self._long_running:
@@ -101,6 +103,13 @@ class RawDataJob:
             if job_id == prev_job_id:
                 logging.info("No new file to process, Wait 60s...")
                 time.sleep(60)
+
+    def _progress(self):
+        num_total_files, num_allocated_files = self._input_data_manager\
+            .summary()
+        num_processed_file = num_allocated_files - self._num_processing_files
+        return "Input files processed: {}/{}, Processing: {}".format(
+            num_processed_file, num_total_files, self._num_processing_files)
 
     def _run(self, job_id, input_files):
         logging.info("Processing %s in job %d", input_files, job_id)
@@ -169,7 +178,8 @@ class RawDataJob:
             self._spark_driver_config,
             self._spark_executor_config,
             k8s_config_path=self._spark_k8s_config_path,
-            use_fake_k8s=self._use_fake_k8s)
+            use_fake_k8s=self._use_fake_k8s,
+            progress_fn=self._progress)
         spark_app.launch(self._spark_k8s_namespace)
         spark_app.join(self._spark_k8s_namespace)
 

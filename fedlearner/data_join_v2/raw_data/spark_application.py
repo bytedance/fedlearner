@@ -77,7 +77,8 @@ def format_yaml(yaml_str, **kwargs):
 class SparkApplication(object):
     def __init__(self, name, file_config, driver_config, executor_config,
                  k8s_config_path=None,
-                 use_fake_k8s=False):
+                 use_fake_k8s=False,
+                 progress_fn=None):
         self._name = name
         if use_fake_k8s:
             self._config = self._local_task_config(name, file_config)
@@ -87,6 +88,7 @@ class SparkApplication(object):
             self._k8s_client.init(k8s_config_path)
             self._config = self._task_config(
                 name, file_config, driver_config, executor_config)
+        self._progress_fn = progress_fn
 
     def launch(self, namespace):
         try:
@@ -106,6 +108,7 @@ class SparkApplication(object):
     def join(self, namespace):
         try:
             while True:
+                logging.info(self._progress_fn())
                 status, msg = self._k8s_client.get_sparkapplication(
                     self._name, namespace=namespace)
                 if status == K8SAPPStatus.COMPLETED:
