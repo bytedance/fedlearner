@@ -281,7 +281,7 @@ class RawDataTests(unittest.TestCase):
                          check_success_tag=True,
                          single_subfolder=True,
                          upload_dir=upload_dir,
-                         use_fake_k8s=True)
+                         use_fake_client=True)
         job.run(self._input_dir)
 
         for job_id in range(self._num_partition):
@@ -316,7 +316,7 @@ class RawDataTests(unittest.TestCase):
                          check_success_tag=True,
                          single_subfolder=True,
                          upload_dir=upload_dir,
-                         use_fake_k8s=True)
+                         use_fake_client=True)
         job.run(self._input_dir)
 
         for job_id in range(self._num_partition):

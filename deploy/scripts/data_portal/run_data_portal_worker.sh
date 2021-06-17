@@ -40,10 +40,6 @@ python /app/deploy/scripts/zip.py -c ${DEP_FILE} fedlearner
 ${HADOOP_HOME}/bin/hadoop fs -put -f ${DEP_FILE} $UPLOAD_DIR
 cd $CUR_DIR
 rm -rf $TMP_DIR
-# write k8s config
-K8S_CONFIG_PATH="k8s.config"
-rm -rf $K8S_CONFIG_PATH
-${HADOOP_HOME}/bin/hadoop fs -get $SPARK_K8S_CONFIG_PATH $K8S_CONFIG_PATH
 
 input_file_wildcard=$(normalize_env_to_args "--input_file_wildcard" $FILE_WILDCARD)
 kvstore_type=$(normalize_env_to_args '--kvstore_type' $KVSTORE_TYPE)
@@ -66,8 +62,9 @@ python -m fedlearner.data_join.cmd.raw_data_cli \
     --output_base_dir=$OUTPUT_BASE_DIR \
     --raw_data_publish_dir=$RAW_DATA_PUBLISH_DIR \
     --upload_dir=$UPLOAD_DIR \
-    --spark_k8s_config_path=$K8S_CONFIG_PATH \
-    --spark_k8s_namespace=$SPARK_K8S_NAMESPACE \
+    --web_console_url=$WEB_CONSOLE_V2_ENDPOINT \
+    --web_console_username=$ROBOT_USERNAME \
+    --web_console_password=$ROBOT_PWD \
     --spark_dependent_package=$UPLOAD_DIR/${DEP_FILE} \
     $input_file_wildcard $LONG_RUNNING $CHECK_SUCCESS_TAG $kvstore_type \
     $SINGLE_SUBFOLDER $files_per_job_limit $output_type \
