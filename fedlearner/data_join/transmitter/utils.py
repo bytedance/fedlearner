@@ -13,10 +13,9 @@ class _EndSentinel:
 class PostTask:
     def __init__(self,
                  func: typing.Callable,
-                 args: typing.List = None,
-                 kwargs: typing.Dict = None):
-        self._args = args or []
-        self._kwargs = kwargs or {}
+                 *args, **kwargs):
+        self._args = args
+        self._kwargs = kwargs
         self._func = func
 
     def run(self):
