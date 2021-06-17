@@ -42,13 +42,14 @@ class RawDataJob:
                  upload_dir="",
                  long_running=False,
                  spark_image='',
-                 spark_k8s_config_path='',
-                 spark_k8s_namespace='',
                  spark_dependent_package='',
                  spark_driver_config=None,
                  spark_executor_config=None,
+                 web_console_url='',
+                 web_console_username='',
+                 web_console_password='',
                  kvstore_type="dfs",
-                 use_fake_k8s=False):
+                 use_fake_client=False):
         self._job_name = job_name
         self._root_path = root_path
         self._job_type = job_type
@@ -61,12 +62,13 @@ class RawDataJob:
         self._upload_dir = upload_dir
         self._long_running = long_running
         self._spark_image = spark_image
-        self._spark_k8s_config_path = spark_k8s_config_path
-        self._spark_k8s_namespace = spark_k8s_namespace
         self._spark_dependent_package = spark_dependent_package
         self._spark_driver_config = spark_driver_config
         self._spark_executor_config = spark_executor_config
         self._spark_entry_script_name = 'raw_data.py'
+        self._web_console_url = web_console_url
+        self._web_console_username = web_console_username
+        self._web_console_password = web_console_password
 
         if self._output_type == OutputType.DataBlock:
             # if output data block, run folder one by one
@@ -84,10 +86,9 @@ class RawDataJob:
             files_per_job_limit)
 
         self._next_job_id = self._meta.job_id + 1
-        self._template_dirname = "template"
 
         self._kvstore = DBClient(kvstore_type)
-        self._use_fake_k8s = use_fake_k8s
+        self._use_fake_client = use_fake_client
 
     def run(self, input_path):
         job_id = self._next_job_id
@@ -170,10 +171,12 @@ class RawDataJob:
             task_name, file_config,
             self._spark_driver_config,
             self._spark_executor_config,
-            k8s_config_path=self._spark_k8s_config_path,
-            use_fake_k8s=self._use_fake_k8s)
-        spark_app.launch(self._spark_k8s_namespace)
-        spark_app.join(self._spark_k8s_namespace)
+            web_console_url=self._web_console_url,
+            web_console_username=self._web_console_username,
+            web_console_password=self._web_console_password,
+            use_fake_client=self._use_fake_client)
+        spark_app.launch()
+        spark_app.join()
 
     def _encode_data_block_filename(self,
                                     partition_id, block_id,

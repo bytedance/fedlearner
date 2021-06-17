@@ -64,10 +64,6 @@ if __name__ == "__main__":
                         default='dfs', help='the type of kvstore')
     parser.add_argument("--spark_image", type=str, default='',
                         help='docker image for spark')
-    parser.add_argument("--spark_k8s_config_path", type=str, default='',
-                        help='k8s config path for spark')
-    parser.add_argument("--spark_k8s_namespace", type=str, default='default',
-                        help='k8s namespace for spark')
     parser.add_argument("--spark_dependent_package", type=str, default='',
                         help='Dependency package of spark')
     parser.add_argument("--spark_driver_cores", type=int, default=0,
@@ -82,6 +78,12 @@ if __name__ == "__main__":
                              'with spark config, e.g. 5g)')
     parser.add_argument("--spark_executor_instances", type=int, default=0,
                         help='Number of instances of spark executor')
+    parser.add_argument("--web_console_url", type=str, default='',
+                        help='web console url used for call spark API')
+    parser.add_argument("--web_console_username", type=str, default='',
+                        help='username of web console')
+    parser.add_argument("--web_console_password", type=str, default='',
+                        help='password of web console')
     args = parser.parse_args()
     set_logger()
     spark_driver_config = SparkDriverConfig(args.spark_driver_cores,
@@ -107,9 +109,10 @@ if __name__ == "__main__":
                      long_running=args.long_running,
                      kvstore_type=args.kvstore_type,
                      spark_image=args.spark_image,
-                     spark_k8s_config_path=args.spark_k8s_config_path,
-                     spark_k8s_namespace=args.spark_k8s_namespace,
                      spark_dependent_package=args.spark_dependent_package,
                      spark_driver_config=spark_driver_config,
-                     spark_executor_config=spark_executor_config)
+                     spark_executor_config=spark_executor_config,
+                     web_console_url=args.web_console_url,
+                     web_console_username=args.web_console_username,
+                     web_console_password=args.web_console_password)
     job.run(args.input_base_dir)
