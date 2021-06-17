@@ -22,11 +22,13 @@ SparkExecutorConfig = collections.namedtuple('SparkExecutorConfig',
 class SparkApplication(object):
     def __init__(self, name, file_config, driver_config, executor_config,
                  web_console_url, web_console_username, web_console_password,
+                 progress_fn=None,
                  use_fake_client=False):
         self._name = name
         self._file_config = file_config
         self._driver_config = driver_config
         self._executor_config = executor_config
+        self._progress_fn = progress_fn
         if use_fake_client:
             self._update_local_file_config()
             self._client = FakeWebConsoleClient()
@@ -53,6 +55,7 @@ class SparkApplication(object):
     def join(self):
         try:
             while True:
+                logging.info(self._progress_fn())
                 status, msg = self._client.get_sparkapplication(self._name)
                 if status == SparkAPPStatus.COMPLETED:
                     logging.info("Spark job %s completed", self._name)

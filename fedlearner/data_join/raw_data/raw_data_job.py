@@ -86,6 +86,7 @@ class RawDataJob:
             files_per_job_limit)
 
         self._next_job_id = self._meta.job_id + 1
+        self._num_processing_file = 0
 
         self._kvstore = DBClient(kvstore_type)
         self._use_fake_client = use_fake_client
@@ -96,6 +97,7 @@ class RawDataJob:
             prev_job_id = job_id
             for rest_fpaths in self._input_data_manager.iterator(
                     input_path, self._meta.processed_fpath):
+                self._num_processing_file = len(rest_fpaths)
                 with Timer("RawData Job {}".format(job_id)):
                     self._run(job_id, rest_fpaths)
                 job_id += 1
@@ -161,6 +163,13 @@ class RawDataJob:
             self._publish_data_block(job_id, data_source, temp_output_path,
                                      output_base_path, input_files[0])
 
+    def _progress(self):
+        num_total_files, num_allocated_files = self._input_data_manager\
+            .summary()
+        num_processed_file = num_allocated_files - self._num_processing_file
+        return "Input files processed: {}/{}, Processing: {}".format(
+            num_processed_file, num_total_files, self._num_processing_file)
+
     @staticmethod
     def _is_flag_file(filename: str):
         return filename.startswith(('_', '.'))
@@ -174,6 +183,7 @@ class RawDataJob:
             web_console_url=self._web_console_url,
             web_console_username=self._web_console_username,
             web_console_password=self._web_console_password,
+            progress_fn=self._progress,
             use_fake_client=self._use_fake_client)
         spark_app.launch()
         spark_app.join()
