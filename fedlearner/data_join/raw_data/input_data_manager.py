@@ -14,6 +14,9 @@ class InputDataManager(object):
         self._single_subfolder = single_subfolder
         self._files_per_job_limit = files_per_job_limit
 
+        self._num_files = 0
+        self._num_allocated_files = 0
+
     @staticmethod
     def _list_dir_helper_oss(root):
         # oss returns a file multiple times, e.g. listdir('root') returns
@@ -56,8 +59,10 @@ class InputDataManager(object):
         else:
             all_files = set(self._list_dir_helper(root))
 
+        self._num_files = 0
+        self._num_allocated_files = len(processed_fpath)
+
         num_ignored = 0
-        num_target_files = 0
         num_new_files = 0
         by_folder = {}
         for fname in all_files:
@@ -77,7 +82,7 @@ class InputDataManager(object):
             # check wildcard
             if self._wildcard and not fnmatch(fname, self._wildcard):
                 continue
-            num_target_files += 1
+            self._num_files += 1
 
             # check success tag
             if self._check_success_tag:
@@ -98,7 +103,7 @@ class InputDataManager(object):
             'Listing %s: found %d dirs, %d files, %d tmp files ignored, '
             '%d files matching wildcard, %d new files to process.',
             root, len(by_folder), len(all_files), num_ignored,
-            num_target_files, num_new_files)
+            self._num_files, num_new_files)
         return by_folder
 
     def iterator(self, input_path, processed_fpath):
@@ -123,4 +128,8 @@ class InputDataManager(object):
                     rest_fpaths.extend(v)
                 for folder in rest_folders:
                     del files_by_folder[folder]
+            self._num_allocated_files += len(rest_fpaths)
             yield rest_fpaths
+
+    def summary(self):
+        return self._num_files, self._num_allocated_files
