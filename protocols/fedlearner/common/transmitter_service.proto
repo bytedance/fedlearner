@@ -29,8 +29,7 @@ message AllocateTaskResponse {
 }
 
 message FinishFilesRequest {
-  int64 rank_id = 1;
-  repeated int64 file_idx = 2;
+  repeated int64 file_idx = 1;
 }
 
 message FinishFilesResponse {
@@ -55,6 +54,10 @@ message RecvFileFinishRequest {
 
 message RecvFileFinishResponse {}
 
+message RecvTaskFinishRequest {}
+
+message RecvTaskFinishResponse {}
+
 message DataFinishRequest {}
 
 message DataFinishResponse {}
@@ -76,6 +79,7 @@ message Response {
 
 service TransmitterWorkerService {
   rpc RecvFileFinish(RecvFileFinishRequest) returns (RecvFileFinishResponse) {}
+  rpc RecvTaskFinish(RecvTaskFinishRequest) returns (RecvTaskFinishResponse) {}
   rpc Sync(SyncRequest) returns (SyncResponse) {}
   rpc Transmit(stream Request) returns (stream Response) {}
   rpc DataFinish(DataFinishRequest) returns (DataFinishResponse) {}
