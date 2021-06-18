@@ -7,10 +7,10 @@ from fedlearner.data_join.visitors.visitor import Visitor
 
 class ParquetVisitor(Visitor):
     def __init__(self,
-                 file_paths: typing.List[str],
+                 file_info: typing.List[str],
                  batch_size: int,
                  columns: typing.List[str] = None):
-        super(ParquetVisitor, self).__init__(file_paths, batch_size)
+        super(ParquetVisitor, self).__init__(file_info, batch_size)
         self._columns = columns
 
     def create_iter(self, file_path):
