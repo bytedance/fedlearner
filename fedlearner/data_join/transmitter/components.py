@@ -172,16 +172,11 @@ class Sender:
     def _resp(self):
         for resp in _queue_iter(self._resp_queue, self._stopped_or_finished):
             self._resp_process(resp)
-            if resp.status.code == common_pb.STATUS_FILE_FINISHED:
-                self._report_file_finish_to_master(resp.file_idx)
         with self._condition:
             self._task_finished = True
             self._condition.notify_all()
 
     def _request_task_from_master(self):
-        raise NotImplementedError
-
-    def _report_file_finish_to_master(self, file_idx: int):
         raise NotImplementedError
 
     def report_peer_file_finish_to_master(self, file_idx: int):

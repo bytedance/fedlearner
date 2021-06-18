@@ -12,19 +12,29 @@ class TransmitterWorkerServicer(tsmt_grpc.TransmitterWorkerServiceServicer):
 
     # from RECV to SEND
     def RecvFileFinish(self, request, context):
+        if not self._sender:
+            raise NotImplementedError('Method not implemented!')
         return self._sender.report_peer_file_finish_to_master(
             request.file_idx)
 
     def RecvTaskFinish(self, request, context):
+        if not self._sender:
+            raise NotImplementedError('Method not implemented!')
         self._sender.set_peer_task_finished()
         return tsmt_pb.RecvTaskFinishResponse()
 
     # from SEND to RECV
     def Sync(self, request, context):
+        if not self._receiver:
+            raise NotImplementedError('Method not implemented!')
         return self._receiver.sync(request)
 
     def Transmit(self, request_iterator, context):
+        if not self._receiver:
+            raise NotImplementedError('Method not implemented!')
         return self._receiver.transmit(request_iterator)
 
     def DataFinish(self, request, context):
+        if not self._receiver:
+            raise NotImplementedError('Method not implemented!')
         return self._receiver.data_finish()
