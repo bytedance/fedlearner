@@ -30,7 +30,7 @@ class Visitor(object):
             raise StopIteration
         if not self._iter:
             logging.info("Visit file %s", self._file_info.files[self._file_idx])
-            self._iter = self.create_iter(self._file_info.idx[self._file_idx])
+            self._iter = self.create_iter(self._file_info.files[self._file_idx])
         try:
             items = next(self._iter)
             return items
