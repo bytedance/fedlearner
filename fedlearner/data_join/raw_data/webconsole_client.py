@@ -79,8 +79,9 @@ class WebConsoleClient(object):
         response = json.loads(response.text)
         self._check_response(response)
         k8s_status = set(item.value for item in SparkAPPStatus)
-        if 'state' in response and response['state'] in k8s_status:
-            return SparkAPPStatus[response['state']], response
+        if 'data' in response and 'state' in response['data'] and \
+            response['data']['state'] in k8s_status:
+            return SparkAPPStatus[response['data']['state']], response
         return SparkAPPStatus.PENDING, ''
 
     @staticmethod
