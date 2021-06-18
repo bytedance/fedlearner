@@ -5,23 +5,28 @@ import typing
 
 import fedlearner.common.common_pb2 as common_pb
 import fedlearner.common.transmitter_service_pb2 as tsmt_pb
+import fedlearner.common.transmitter_service_pb2_grpc as tsmt_grpc
 from fedlearner.data_join.routine_worker import RoutineWorker
 from fedlearner.data_join.transmitter.utils import _EndSentinel, \
-    ProcessException, PostTask
+    ProcessException, PostProcessJob, _queue_iter
 
 
 class Sender:
     def __init__(self,
+                 peer_client: tsmt_grpc.TransmitterWorkerServiceStub,
+                 master_client,
                  send_row_num: int,
                  send_queue_len: int = 10,
                  resp_queue_len: int = 10):
-        self._transmitter = None
+        self._peer = peer_client
+        self._master = master_client
         self._send_row_num = send_row_num
         self._files = []
         self._file_idx = []
         self._started = False
         # whether a task is finished. if True, will try to start a new task
         self._task_finished = True
+        self._peer_task_finished = False
         # whether all data is finished.
         self._data_finished = False
         self._stopped = False
@@ -40,22 +45,20 @@ class Sender:
 
     @property
     def finished(self):
-        with self._condition:
-            return self._data_finished
+        return self._data_finished
 
-    def add_transmitter(self, transmitter):
-        with self._condition:
-            self._transmitter = transmitter
+    def _stopped_or_finished(self):
+        return self._stopped or self._data_finished
 
     # 1 routine == 1 transmit task
     def _routine_fn(self):
-        self._task_finished = False
         self._request_task()
         for k, v in self._targets.items():
             assert not (k in self._threads and self._threads[k].is_alive())
             self._threads[k] = threading.Thread(target=v)
             self._threads[k].start()
         self._wait_for_task_finish()
+        self._wait_for_peer_task_finish()
         self._join_threads()
 
     def _routine_cond(self):
@@ -66,7 +69,7 @@ class Sender:
 
     def start(self):
         with self._condition:
-            assert self._transmitter
+            assert self._peer and self._master
             if self._stopped:
                 raise RuntimeError('[Sender]: Already stopped, cannot restart.')
             if not self._started:
@@ -76,6 +79,12 @@ class Sender:
         if not self._task_finished and not self._stopped:
             with self._condition:
                 while not self._task_finished and not self._stopped:
+                    self._condition.wait()
+
+    def _wait_for_peer_task_finish(self):
+        if not self._peer_task_finished and not self._stopped:
+            with self._condition:
+                while not self._peer_task_finished and not self._stopped:
                     self._condition.wait()
 
     def wait_for_finish(self):
@@ -99,32 +108,19 @@ class Sender:
                 self._stop(*args, **kwargs)
                 self._condition.notify_all()
 
-    def _queue_iter(self, q: queue.Queue):
-        while not self._stopped:
-            # use timeout to check condition rather than blocking continuously.
-            # Queue object is thread-safe, no need to use Lock.
-            try:
-                req = q.get(timeout=5)
-                if isinstance(req, _EndSentinel):
-                    break
-                yield req
-            except queue.Empty:
-                pass
-
     def _request_task(self):
-        assert self._transmitter
-        resp = self._transmitter.allocate_task()
+        resp = self._request_task_from_master()
         with self._condition:
             if resp.status == common_pb.STATUS_NO_MORE_DATA:
-                self._transmitter.data_finish_c(tsmt_pb.DataFinishRequest())
+                self._peer.DataFinish(tsmt_pb.DataFinishRequest())
                 self._task_finished = True
                 self._data_finished = True
             else:
                 self._files = resp.files
                 self._file_idx = resp.file_idx
-                self._transmitter.sync_c(
-                    tsmt_pb.SyncRequest(file_idx=self._file_idx[0]))
+                self._peer.Sync(tsmt_pb.SyncRequest(file_idx=self._file_idx[0]))
                 self._task_finished = False
+                self._peer_task_finished = False
                 self._data_finished = False
             self._condition.notify_all()
 
@@ -162,9 +158,8 @@ class Sender:
         self._send_queue.put(_EndSentinel())
 
     def _send(self):
-        for resp in self._transmitter.transmit_c(
-            self._queue_iter(self._send_queue)
-        ):
+        for resp in self._peer.Transmit(_queue_iter(self._send_queue,
+                                                    self._stopped_or_finished)):
             if self._stopped:
                 break
             if resp.status.code == common_pb.STATUS_INVALID_REQUEST:
@@ -175,18 +170,32 @@ class Sender:
         self._resp_queue.put(_EndSentinel())
 
     def _resp(self):
-        for resp in self._queue_iter(self._resp_queue):
+        for resp in _queue_iter(self._resp_queue, self._stopped_or_finished):
             self._resp_process(resp)
             if resp.status.code == common_pb.STATUS_FILE_FINISHED:
-                self._transmitter.report_finish(resp.file_idx, 'send')
+                self._report_file_finish_to_master(resp.file_idx)
         with self._condition:
             self._task_finished = True
+            self._condition.notify_all()
+
+    def _request_task_from_master(self):
+        raise NotImplementedError
+
+    def _report_file_finish_to_master(self, file_idx: int):
+        raise NotImplementedError
+
+    def report_peer_file_finish_to_master(self, file_idx: int):
+        raise NotImplementedError
+
+    def set_peer_task_finished(self):
+        with self._condition:
+            self._peer_task_finished = True
             self._condition.notify_all()
 
     def _stop(self, *args, **kwargs):
         """
         Called before stopping, for shutting down custom objects like dumper.
-            No need to inherit if nothing needs to be done at exit.
+            No need to overwrite if nothing needs to be done at exit.
         Returns:
 
         """
@@ -232,9 +241,10 @@ class Sender:
 
 class Receiver:
     def __init__(self,
+                 peer_client: tsmt_grpc.TransmitterWorkerServiceStub,
                  output_path: str,
                  recv_queue_len: int):
-        self._transmitter = None
+        self._peer = peer_client
         self._output_path = output_path
         self._recv_queue_len = recv_queue_len
         self._recv_queue = queue.Queue(recv_queue_len)
@@ -247,44 +257,12 @@ class Receiver:
         self._data_finished = False
         self._stopped = False
 
-    def add_transmitter(self, transmitter):
-        assert not (self._stopped or self._started)
-        with self._condition:
-            self._transmitter = transmitter
+    @property
+    def finished(self):
+        return self._data_finished
 
-    def start(self):
-        if self._stopped:
-            raise RuntimeError('[Receiver]: Already stopped, cannot restart.')
-        if self._started:
-            return
-        with self._condition:
-            self._started = True
-            self._recv_thread.start()
-
-    def wait_for_finish(self):
-        if not (self._stopped or self._data_finished):
-            with self._condition:
-                while not (self._stopped or self._data_finished):
-                    self._condition.wait()
-
-    def stop(self, *args, **kwargs):
-        with self._condition:
-            if not self._stopped:
-                self._stop(*args, **kwargs)
-                self._stopped = True
-                self._condition.notify_all()
-
-    def _queue_iter(self, q: queue.Queue):
-        while not self._stopped:
-            # use timeout to check condition rather than blocking continuously.
-            # Queue object is thread-safe, no need to use Lock.
-            try:
-                req = q.get(timeout=5)
-                if isinstance(req, _EndSentinel):
-                    break
-                yield req
-            except queue.Empty:
-                pass
+    def _stopped_or_finished(self):
+        return self._stopped or self._data_finished
 
     # RPC
     def sync(self, request: tsmt_pb.SyncRequest):
@@ -309,7 +287,7 @@ class Receiver:
                 #   constitutes the original requests sequence, including order,
                 #   so we need to deal with preceded and duplicated requests.
                 try:
-                    payload, task = self._recv_process(r, consecutive)
+                    payload, process_job = self._recv_process(r, consecutive)
                 except ProcessException as e:
                     yield tsmt_pb.Response(
                         status=common_pb.Status(
@@ -325,7 +303,7 @@ class Receiver:
                                            payload=payload)
 
                 if consecutive:
-                    self._recv_queue.put((r.status, r.file_idx, task))
+                    self._recv_queue.put((r.status, r.file_idx, process_job))
                     # if file finished, reset indices
                     if r.status.code == common_pb.STATUS_FILE_FINISHED:
                         self._file_idx = r.next_idx
@@ -338,17 +316,41 @@ class Receiver:
     def data_finish(self):
         with self._condition:
             self._data_finished = True
+            self._condition.notify_all()
         return tsmt_pb.DataFinishResponse()
 
-    def _recv(self):
-        for status, file_idx, task in self._queue_iter(self._recv_queue):
-            if task:
-                task.run()
-            if status.code == common_pb.STATUS_FILE_FINISHED:
-                self._transmitter.recv_file_finish_c(
-                    tsmt_pb.RecvFileFinishRequest(file_idx=file_idx))
+    def start(self):
+        if self._stopped:
+            raise RuntimeError('[Receiver]: Already stopped, cannot restart.')
+        if self._started:
+            return
         with self._condition:
-            self._recv_process_finished = True
+            self._started = True
+            self._recv_thread.start()
+
+    def wait_for_finish(self):
+        if not (self._stopped or self._data_finished):
+            with self._condition:
+                while not (self._stopped or self._data_finished):
+                    self._condition.wait()
+
+    def stop(self, *args, **kwargs):
+        with self._condition:
+            if not self._stopped:
+                self._stop(*args, **kwargs)
+                self._stopped = True
+                self._condition.notify_all()
+
+    def _recv(self):
+        while not self._data_finished and not self._stopped:
+            for status, file_idx, job in _queue_iter(self._recv_queue,
+                                                     self._stopped_or_finished):
+                if job:
+                    job.run()
+                if status.code == common_pb.STATUS_FILE_FINISHED:
+                    self._peer.RecvFileFinish(
+                        tsmt_pb.RecvFileFinishRequest(file_idx=file_idx))
+            self._peer.RecvTaskFinish(tsmt_pb.RecvTaskFinishRequest())
 
     def _check_req_consecutive(self, req: tsmt_pb.Request):
         return self._file_idx == req.file_idx \
@@ -365,7 +367,7 @@ class Receiver:
 
     def _recv_process(self,
                       req: tsmt_pb.Request,
-                      consecutive: bool) -> (bytes, [PostTask, None]):
+                      consecutive: bool) -> (bytes, [PostProcessJob, None]):
         """
         This method should handle preceded and duplicated requests properly,
             and NOTE THAT SENDER MAY SEND DUPLICATED REQUESTS EVEN WHEN THE

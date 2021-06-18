@@ -1,4 +1,5 @@
 import typing
+import queue
 
 
 class ProcessException(Exception):
@@ -10,7 +11,7 @@ class _EndSentinel:
     pass
 
 
-class PostTask:
+class PostProcessJob:
     def __init__(self,
                  func: typing.Callable,
                  *args, **kwargs):
@@ -20,3 +21,16 @@ class PostTask:
 
     def run(self):
         self._func(*self._args, **self._kwargs)
+
+
+def _queue_iter(q: queue.Queue, stop_cond):
+    while not stop_cond():
+        # use timeout to check condition rather than blocking continuously.
+        # Queue object is thread-safe, no need to use Lock.
+        try:
+            req = q.get(timeout=5)
+            if isinstance(req, _EndSentinel):
+                break
+            yield req
+        except queue.Empty:
+            pass

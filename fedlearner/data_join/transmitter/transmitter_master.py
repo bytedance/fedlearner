@@ -28,7 +28,7 @@ class TransmitterMaster(tsmt_grpc.TransmitterMasterServiceServicer):
         alloc_files = []
         alloc_idx = []
         with self._condition:
-            for i in list(range(rid, len(self._file_paths), self._worker_num)):
+            for i in range(rid, len(self._file_paths), self._worker_num):
                 if i in self._meta['finished']:
                     continue
                 alloc_files.append(self._file_paths[i])
