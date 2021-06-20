@@ -18,14 +18,24 @@ import "fedlearner/common/common.proto";
 
 package fedlearner.common;
 
+message FileInfoList {
+  repeated string files = 1;
+  repeated int64 idx = 2;
+}
+
+message BatchInfo {
+  bool finished = 1;
+  int64 file_idx = 2;
+  int64 batch_idx = 4;
+}
+
 message AllocateTaskRequest {
   int64 rank_id = 1;
 }
 
 message AllocateTaskResponse {
   Status status = 1;
-  repeated string files = 2;
-  repeated int64 file_idx = 3;
+  FileInfoList file_info = 2;
 }
 
 message FinishFilesRequest {
@@ -63,24 +73,19 @@ message DataFinishRequest {}
 message DataFinishResponse {}
 
 message Request {
-  Status status = 1;
-  int64 file_idx = 2;
-  int64 next_idx = 3;
-  int64 batch_idx = 4;
+  BatchInfo batch_info = 1;
   bytes payload = 5;
 }
 
 message Response {
   Status status = 1;
-  int64 file_idx = 2;
-  int64 batch_idx = 3;
+  BatchInfo batch_info = 2;
   bytes payload = 4;
 }
 
 service TransmitterWorkerService {
   rpc RecvFileFinish(RecvFileFinishRequest) returns (RecvFileFinishResponse) {}
   rpc RecvTaskFinish(RecvTaskFinishRequest) returns (RecvTaskFinishResponse) {}
-  rpc Sync(SyncRequest) returns (SyncResponse) {}
   rpc Transmit(stream Request) returns (stream Response) {}
   rpc DataFinish(DataFinishRequest) returns (DataFinishResponse) {}
 }
