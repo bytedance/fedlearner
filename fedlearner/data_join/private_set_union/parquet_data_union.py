@@ -3,11 +3,12 @@ import logging
 import math
 import os
 
-from pyspark.sql.functions import col, udf
+from pyspark.sql.functions import col
 
+import fedlearner.common.private_set_union_pb2 as psu_pb
 from fedlearner.common.common import set_logger
 from fedlearner.data_join.private_set_union import spark_utils as spu
-from fedlearner.data_join.private_set_union.keys import KEYS
+from fedlearner.data_join.private_set_union.keys import get_keys
 from fedlearner.data_join.private_set_union.utils import Paths
 
 
@@ -18,7 +19,7 @@ class _Keys:
     partition_size = 'partition_size'
     partition_num = 'partition_num'
     union_key = 'doubly_encrypted'
-    encryption_key = 'encryption_key'
+    encryption_keys = 'encryption_key'
 
 
 class ParquetDataUnionJob:
@@ -28,28 +29,17 @@ class ParquetDataUnionJob:
         self._spark = spu.start_spark(app_name='PSU_DataUnion',
                                       jar_packages=jar_packages,
                                       files=[config_file])
-        self._encrypt_udf = None
         self._config = spu.get_config(os.path.basename(config_file))
         self._right_dir = self._config[_Keys.right_dir]
         self._left_dir = self._config[_Keys.left_dir]
         self._output_dir = self._config[_Keys.output_path]
         self._partition_size = self._config.get(_Keys.partition_size, None)
         self._partition_num = self._config.get(_Keys.partition_num, 32)
-        self._keys = KEYS[self._config[_Keys.encryption_key]]()
-        self._encrypt_udf = self._make_udf()
-
-    def _make_udf(self):
-        # use the second key to encrypt the set differences
-        assert self._keys
-        keys = self._keys
-
-        @udf
-        def _udf(item: [str, bytes, int]):
-            item = keys.encrypt_2(item)
-            item.decode()
-            return item
-
-        return _udf
+        keys = self._config[_Keys.encryption_keys]
+        key_info = psu_pb.KeyInfo()
+        key_info.ParseFromString(keys)
+        self._keys = get_keys(key_info)
+        self._encrypt_udf = spu.make_udf(self._keys)
 
     def run(self, config: dict = None):
         config = config or self._config

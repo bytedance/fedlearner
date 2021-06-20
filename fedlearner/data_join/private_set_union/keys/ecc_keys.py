@@ -1,18 +1,18 @@
 import base64
 import json
+import os
 
 import pyrelic as pr
+from tensorflow import gfile
 
-from fedlearner.common.db_client import DBClient
+import fedlearner.common.private_set_union_pb2 as psu_pb
 from fedlearner.data_join.common import convert_to_bytes
 from fedlearner.data_join.private_set_union.keys import BaseKeys
-from fedlearner.data_join.private_set_union.utils import Paths
 
 
 class ECCKeys(BaseKeys):
-    def __init__(self):
-        self._key_path = Paths.encode_keys_path('ECC')
-        self._db_client = DBClient('dfs')
+    def __init__(self, key_info: psu_pb.KeyInfo):
+        super().__init__(key_info)
         self._key1, self._key2 = self._get_keys()
 
     def encode(self, item: pr.G2) -> bytes:
@@ -36,8 +36,9 @@ class ECCKeys(BaseKeys):
         return item ** self._key2
 
     def _get_keys(self):
-        keys = self._db_client.get_data(self._key_path)
-        if keys:
+        if gfile.Exists(self._key_path):
+            with gfile.GFile(self._key_path) as f:
+                keys = json.load(f)
             keys = json.loads(keys)
             key1 = pr.BN(base64.b64decode(keys['key1']))
             key2 = pr.BN(base64.b64decode(keys['key2']))
@@ -46,5 +47,11 @@ class ECCKeys(BaseKeys):
             key2 = pr.rand_BN_order()
             keys = {'key1': base64.b64encode(bytes(key1)).decode(),
                     'key2': base64.b64encode(bytes(key2)).decode()}
-            self._db_client.set_data(self._key_path, json.dumps(keys))
+            gfile.MakeDirs(os.path.dirname(self._key_path))
+            with gfile.GFile(self._key_path) as f:
+                json.dump(keys, f)
         return key1, key2
+
+    @staticmethod
+    def is_info_matched(key_info: psu_pb.KeyInfo):
+        return key_info.type == psu_pb.ECC

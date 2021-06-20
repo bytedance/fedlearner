@@ -3,11 +3,11 @@ import os
 from hashlib import sha512
 
 import gmpy2
+from tensorflow import gfile
 
-from fedlearner.common.db_client import DBClient
+import fedlearner.common.private_set_union_pb2 as psu_pb
 from fedlearner.data_join.common import convert_to_str
 from fedlearner.data_join.private_set_union.keys import BaseKeys
-from fedlearner.data_join.private_set_union.utils import Paths
 
 PRIME = 'FFFFFFFFFFFFFFFFC90FDAA22168C234C4C6628B80DC1CD129024E088A67CC74020B' \
         'BEA63B139B22514A08798E3404DDEF9519B3CD3A431B302B0A6DF25F14374FE1356D' \
@@ -22,16 +22,15 @@ MPZ_TYPE = type(gmpy2.mpz())
 
 
 class DHKeys(BaseKeys):
-    def __init__(self):
+    def __init__(self, key_info: psu_pb.KeyInfo):
+        super().__init__(key_info)
         self._mod = gmpy2.mpz(PRIME, base=16)
-        self._key_path = Paths.encode_keys_path('DH')
-        self._db_client = DBClient('dfs')
         self._key1, self._key2 = self._get_keys()
 
     def _get_keys(self):
-        keys = self._db_client.get_data(self._key_path)
-        if keys:
-            keys = json.loads(keys)
+        if gfile.Exists(self._key_path):
+            with gfile.GFile(self._key_path) as f:
+                keys = json.load(f)
             key1 = gmpy2.mpz(keys['key1'], base=62)
             key2 = gmpy2.mpz(keys['key2'], base=62)
         else:
@@ -43,7 +42,9 @@ class DHKeys(BaseKeys):
             # use a base of 62 to shrink down the size
             keys = {'key1': key1.digits(62),
                     'key2': key2.digits(62)}
-            self._db_client.set_data(self._key_path, json.dumps(keys))
+            gfile.MakeDirs(os.path.dirname(self._key_path))
+            with gfile.GFile(self._key_path) as f:
+                json.dump(keys, f)
         return key1, key2
 
     def encode(self, item: MPZ_TYPE) -> bytes:
@@ -61,3 +62,7 @@ class DHKeys(BaseKeys):
 
     def encrypt_2(self, item: MPZ_TYPE) -> MPZ_TYPE:
         return gmpy2.f_mod(item * self._key2, self._mod)
+
+    @staticmethod
+    def is_info_matched(key_info: psu_pb.KeyInfo):
+        return key_info.type == psu_pb.DH
