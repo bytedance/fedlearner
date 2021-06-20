@@ -9,7 +9,7 @@ import fedlearner.common.private_set_union_pb2 as psu_pb
 from fedlearner.common.common import set_logger
 from fedlearner.data_join.private_set_union import spark_utils as spu
 from fedlearner.data_join.private_set_union.keys import get_keys
-from fedlearner.data_join.private_set_union.utils import Paths
+from fedlearner.data_join.private_set_union.utils import Paths, E2, E3
 
 
 class _Keys:
@@ -18,7 +18,7 @@ class _Keys:
     output_path = 'output_path'
     partition_size = 'partition_size'
     partition_num = 'partition_num'
-    union_key = 'doubly_encrypted'
+    union_key = E2
     encryption_keys = 'encryption_key'
 
 
@@ -96,11 +96,11 @@ class ParquetDataUnionJob:
         # LEFT - RIGHT with encryption, these are ids that right doesn't have
         right_diff = diff \
             .filter(col(r_col) is None) \
-            .select(self._encrypt_udf(l_col).alias('triply_encrypted'))
+            .select(self._encrypt_udf(l_col).alias(E3))
         # PEER - LOCAL WITHOUT encryption, these are ids that left doesn't have
         left_diff = diff \
             .filter(col(l_col) is None) \
-            .select(col(r_col).alias('doubly_encrypted'))
+            .select(col(r_col).alias(E2))
 
         r_output_dir, l_output_dir = Paths.encode_union_output_paths(output_dir)
         # if specify partition size, calculate the num of partitions

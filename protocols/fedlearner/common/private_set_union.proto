@@ -14,8 +14,22 @@
  */
 
 syntax = "proto3";
+import "google/protobuf/empty.proto";
+import "fedlearner/common/common.proto";
+import "fedlearner/common/transmitter_service.proto";
 
 package fedlearner.common;
+
+enum EncryptionKey {
+  DH = 0;
+  ECC = 1;
+  RSA = 2;
+}
+
+message KeyInfo {
+  EncryptionKey type = 1;
+  string path = 2;
+}
 
 message EncryptTransmitRequest {
   repeated bytes singly_encrypted = 1;
@@ -27,4 +41,28 @@ message EncryptTransmitResponse {
   repeated bytes triply_encrypted = 1;
   string req_id = 2;
   int64 job_id = 3;
+}
+
+message BytesList {
+  repeated bytes value = 1;
+}
+
+message DataSyncRequest {
+  map<string, BytesList> payload = 1;
+}
+
+message DataSyncResponse {
+  map<string, BytesList> payload = 1;
+}
+
+message GetKeysResponse {
+  Status status = 1;
+  KeyInfo key_info = 2;
+}
+
+service PSUTransmitterMasterService {
+  rpc GetKeys(google.protobuf.Empty) returns (GetKeysResponse) {}
+  rpc AllocateTask(AllocateTaskRequest) returns (AllocateTaskResponse) {}
+  rpc FinishFiles(FinishFilesRequest) returns (FinishFilesResponse) {}
+  rpc RecvFinishFiles(FinishFilesRequest) returns (FinishFilesResponse) {}
 }

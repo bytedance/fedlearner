@@ -1,6 +1,12 @@
 import os
 
 
+E1 = 'singly_encrypted'
+E2 = 'doubly_encrypted'
+E3 = 'triply_encrypted'
+E4 = 'quadruply_encrypted'
+
+
 class Paths:
     @staticmethod
     def encode_union_output_paths(output_dir: str):

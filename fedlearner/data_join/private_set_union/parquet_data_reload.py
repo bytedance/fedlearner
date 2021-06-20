@@ -7,6 +7,7 @@ import fedlearner.common.private_set_union_pb2 as psu_pb
 from fedlearner.common.common import set_logger
 from fedlearner.data_join.private_set_union import spark_utils as spu
 from fedlearner.data_join.private_set_union.keys import get_keys
+from fedlearner.data_join.private_set_union.utils import E3, E4
 
 
 class _Keys:
@@ -17,8 +18,6 @@ class _Keys:
     partition_size = 'partition_size'
     partition_num = 'partition_num'
     encryption_keys = 'encryption_key'
-    triply_encrypted = 'triply_encrypted'
-    quadruply_encrypted = 'quadruply_encrypted'
 
 
 class PSUDataReloadJob:
@@ -86,12 +85,11 @@ class PSUDataReloadJob:
             .option('recursiveFileLookup', 'true') \
             .option('pathGlobFilter', '*.parquet') \
             .parquet(diff_dir) \
-            .select(self._encrypt_udf(_Keys.triply_encrypted)
-                    .alias(_Keys.quadruply_encrypted))
+            .select(self._encrypt_udf(E3).alias(E3))
 
         data_df = data_df \
             .join(id_df, ['_index', '_job_id'], 'left_outer') \
-            .join(diff_df, [_Keys.quadruply_encrypted], 'full')
+            .join(diff_df, [E4], 'full')
 
         if partition_size:
             # count() is fast in the event of parquet files
@@ -100,8 +98,8 @@ class PSUDataReloadJob:
 
         # repartition and save
         data_df \
-            .repartition(partition_num, _Keys.quadruply_encrypted) \
-            .sortWithinPartitions(_Keys.quadruply_encrypted) \
+            .repartition(partition_num, E4) \
+            .sortWithinPartitions(E4) \
             .write \
             .mode('overwrite') \
             .parquet(output_dir)
