@@ -7,6 +7,7 @@ import pyarrow.parquet as pq
 from tensorflow.compat.v1 import gfile
 
 from fedlearner.data_join.visitors.parquet_visitor import ParquetVisitor
+import fedlearner.common.transmitter_service_pb2 as tsmt_pb
 
 
 def _generate_parquet_files(output_dir,
@@ -31,7 +32,9 @@ def _generate_parquet_files(output_dir,
             gfile.MakeDirs(os.path.dirname(output_path))
         pq.write_table(table, output_path, compression="GZIP")
         output_files.append(output_path)
-    return output_files
+    file_info = tsmt_pb.FileInfoList(files=output_files,
+                                     idx=list(range(len(output_files))))
+    return file_info
 
 
 class ParquetVisitorTest(unittest.TestCase):
@@ -61,10 +64,10 @@ class ParquetVisitorTest(unittest.TestCase):
         batch_size = 2
         visitor = ParquetVisitor(self._input_files, batch_size)
         wanted_value = 0
-        for batch_data in visitor:
-            self.assertEqual(self._schema, batch_data.schema)
-            self.assertEqual(batch_data.num_rows, batch_size)
-            values = batch_data.column(self._schema.names[0]).to_pylist()
+        for batch_data, batch_info in visitor:
+            self.assertEqual(self._schema, batch_data[0].schema)
+            self.assertEqual(batch_data[0].num_rows, batch_size)
+            values = batch_data[0].column(self._schema.names[0]).to_pylist()
             for v in values:
                 self.assertEqual(v, wanted_value)
                 wanted_value += 1
@@ -78,11 +81,11 @@ class ParquetVisitorTest(unittest.TestCase):
         ])
         visitor = ParquetVisitor(self._input_files, batch_size, wanted_columns)
         wanted_value = 0
-        for batch_data in visitor:
-            self.assertEqual(wanted_schema, batch_data.schema)
-            self.assertEqual(batch_data.num_rows, batch_size)
-            k2_values = batch_data.column(wanted_columns[0]).to_pylist()
-            k4_values = batch_data.column(wanted_columns[1]).to_pylist()
+        for batch_data, batch_info in visitor:
+            self.assertEqual(wanted_schema, batch_data[0].schema)
+            self.assertEqual(batch_data[0].num_rows, batch_size)
+            k2_values = batch_data[0].column(wanted_columns[0]).to_pylist()
+            k4_values = batch_data[0].column(wanted_columns[1]).to_pylist()
             for idx in range(len(k2_values)):
                 self.assertEqual(k2_values[idx], wanted_value)
                 self.assertEqual(k4_values[idx], str(wanted_value).encode())

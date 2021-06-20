@@ -24,11 +24,6 @@ class TransmitterWorkerServicer(tsmt_grpc.TransmitterWorkerServiceServicer):
         return tsmt_pb.RecvTaskFinishResponse()
 
     # from SEND to RECV
-    def Sync(self, request, context):
-        if not self._receiver:
-            raise NotImplementedError('Method not implemented!')
-        return self._receiver.sync(request)
-
     def Transmit(self, request_iterator, context):
         if not self._receiver:
             raise NotImplementedError('Method not implemented!')

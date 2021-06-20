@@ -6,6 +6,7 @@ import typing
 import fedlearner.common.common_pb2 as common_pb
 import fedlearner.common.transmitter_service_pb2 as tsmt_pb
 import fedlearner.common.transmitter_service_pb2_grpc as tsmt_grpc
+from fedlearner.data_join.visitors.visitor import Visitor
 from fedlearner.data_join.routine_worker import RoutineWorker
 from fedlearner.data_join.transmitter.utils import _EndSentinel, \
     ProcessException, PostProcessJob, _queue_iter
@@ -13,11 +14,13 @@ from fedlearner.data_join.transmitter.utils import _EndSentinel, \
 
 class Sender:
     def __init__(self,
+                 visitor: Visitor,
                  peer_client: tsmt_grpc.TransmitterWorkerServiceStub,
                  master_client,
                  send_row_num: int,
                  send_queue_len: int = 10,
                  resp_queue_len: int = 10):
+        self._visitor = visitor
         self._peer = peer_client
         self._master = master_client
         self._send_row_num = send_row_num
@@ -58,7 +61,6 @@ class Sender:
             self._threads[k] = threading.Thread(target=v)
             self._threads[k].start()
         self._wait_for_task_finish()
-        self._wait_for_peer_task_finish()
         self._join_threads()
 
     def _routine_cond(self):
@@ -76,15 +78,13 @@ class Sender:
                 self._routine_worker.start_routine()
 
     def _wait_for_task_finish(self):
-        if not self._task_finished and not self._stopped:
+        if not (self._task_finished
+                or self._peer_task_finished
+                or self._stopped):
             with self._condition:
-                while not self._task_finished and not self._stopped:
-                    self._condition.wait()
-
-    def _wait_for_peer_task_finish(self):
-        if not self._peer_task_finished and not self._stopped:
-            with self._condition:
-                while not self._peer_task_finished and not self._stopped:
+                while not (self._task_finished
+                           or self._peer_task_finished
+                           or self._stopped):
                     self._condition.wait()
 
     def wait_for_finish(self):
@@ -118,42 +118,20 @@ class Sender:
             else:
                 self._files = resp.files
                 self._file_idx = resp.file_idx
-                self._peer.Sync(tsmt_pb.SyncRequest(file_idx=self._file_idx[0]))
+                self._visitor.init(resp.file_info)
                 self._task_finished = False
                 self._peer_task_finished = False
                 self._data_finished = False
             self._condition.notify_all()
 
     def _put(self):
-        for file, file_idx, next_idx in zip(self._files,
-                                            self._file_idx,
-                                            self._file_idx[1:] + [-1]):
-            batch_idx = 0
-            while True:
-                if self._stopped:
-                    return
-
-                with self._condition:
-                    payload, file_finished = self._send_process(
-                        file, self._send_row_num, self._send_queue_len)
-                if file_finished:
-                    status = common_pb.Status(
-                        code=common_pb.STATUS_FILE_FINISHED)
-                    self._send_queue.put(tsmt_pb.Request(status=status,
-                                                         file_idx=file_idx,
-                                                         next_idx=next_idx,
-                                                         batch_idx=batch_idx,
-                                                         payload=payload))
-                    break
-                # else file not yet finished
-                batch_idx += 1
-                # queue.put will block if no slot available
-                status = common_pb.Status(code=common_pb.STATUS_SUCCESS)
-                self._send_queue.put(tsmt_pb.Request(status=status,
-                                                     file_idx=file_idx,
-                                                     next_idx=next_idx,
-                                                     batch_idx=batch_idx,
-                                                     payload=payload))
+        if self._data_finished:
+            return
+        for payload, batch_info in self._send_process():
+            if self._stopped:
+                return
+            self._send_queue.put(tsmt_pb.Request(batch_info=batch_info,
+                                                 payload=payload))
         # put a sentinel to tell iterator to stop
         self._send_queue.put(_EndSentinel())
 
@@ -196,20 +174,14 @@ class Sender:
         """
         pass
 
-    def _send_process(self,
-                      file_path: str,
-                      row_num: int,
-                      send_queue_len: int) -> (bytes, bool):
+    def _send_process(self) -> typing.Iterable[bytes, tsmt_pb.BatchInfo]:
         """
-        This method handles file reading and returns the payload.
-        Args:
-            file_path: path to the file to read.
-            row_num: suggested num of lines to read.
-            send_queue_len: len of buffer queue.
+        This method handles file processing payload. This should iterate the
+            visitor and process the content it returns.
 
         Returns:
             a payload bytes,
-            a bool indicating whether the file is finished.
+            a BatchInfo describing this batch.
         """
         raise NotImplementedError('_send_process not implemented.')
 
@@ -244,11 +216,9 @@ class Receiver:
         self._recv_queue_len = recv_queue_len
         self._recv_queue = queue.Queue(recv_queue_len)
         self._recv_thread = threading.Thread(target=self._recv)
-        self._file_idx = -1
         self._batch_idx = 0
         self._condition = threading.Condition()
         self._started = False
-        self._synced = False
         self._data_finished = False
         self._stopped = False
 
@@ -260,29 +230,21 @@ class Receiver:
         return self._stopped or self._data_finished
 
     # RPC
-    def sync(self, request: tsmt_pb.SyncRequest):
-        with self._condition:
-            self._file_idx = request.file_idx
-            self._data_finished = False
-            self._synced = True
-        return tsmt_pb.SyncResponse()
-
-    # RPC
     def transmit(self, request_iterator: typing.Iterable):
-        for r in request_iterator:
-            if self._stopped:
-                break
-            if self._data_finished:
-                raise RuntimeError('The stream has already finished.')
+        # one ongoing transmit at the same time
+        with self._condition:
+            for r in request_iterator:
+                if self._stopped:
+                    break
+                if self._data_finished:
+                    raise RuntimeError('The stream has already finished.')
 
-            # whether this request is the expected next request
-            consecutive = self._check_req_consecutive(r)
-            with self._condition:
                 # Channel assures us there is a subsequence of requests that
-                #   constitutes the original requests sequence, including order,
-                #   so we need to deal with preceded and duplicated requests.
+                #   constitutes the original req sequence, including order,
+                #   so we need to check if it is consecutive.
+                consecutive = self._batch_idx == r.batch_idx
                 try:
-                    payload, process_job = self._recv_process(r, consecutive)
+                    payload, post_job = self._recv_process(r, consecutive)
                 except ProcessException as e:
                     yield tsmt_pb.Response(
                         status=common_pb.Status(
@@ -298,14 +260,10 @@ class Receiver:
                                            payload=payload)
 
                 if consecutive:
-                    self._recv_queue.put((r.status, r.file_idx, process_job))
-                    # if file finished, reset indices
-                    if r.status.code == common_pb.STATUS_FILE_FINISHED:
-                        self._file_idx = r.next_idx
-                        self._batch_idx = 0
-                    else:
-                        self._batch_idx += 1
-        self._recv_queue.put(_EndSentinel())
+                    self._recv_queue.put((r.batch_info, post_job))
+                    self._batch_idx += 1
+
+            self._recv_queue.put(_EndSentinel())
 
     # RPC
     def data_finish(self):
@@ -338,18 +296,14 @@ class Receiver:
 
     def _recv(self):
         while not self._data_finished and not self._stopped:
-            for status, file_idx, job in _queue_iter(self._recv_queue,
-                                                     self._stopped_or_finished):
+            for batch_info, job in _queue_iter(self._recv_queue,
+                                               self._stopped_or_finished):
                 if job:
                     job.run()
-                if status.code == common_pb.STATUS_FILE_FINISHED:
-                    self._peer.RecvFileFinish(
-                        tsmt_pb.RecvFileFinishRequest(file_idx=file_idx))
+                if batch_info.finished:
+                    self._peer.RecvFileFinish(tsmt_pb.RecvFileFinishRequest(
+                        file_idx=batch_info.file_idx))
             self._peer.RecvTaskFinish(tsmt_pb.RecvTaskFinishRequest())
-
-    def _check_req_consecutive(self, req: tsmt_pb.Request):
-        return self._file_idx == req.file_idx \
-               and self._batch_idx == req.batch_idx
 
     def _stop(self, *args, **kwargs):
         """

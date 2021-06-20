@@ -1,11 +1,12 @@
 import logging
+
 import fedlearner.common.transmitter_service_pb2 as tsmt_pb
 
 
 class Visitor(object):
     def __init__(self,
-                 file_info: tsmt_pb.FileInfoList,
-                 batch_size=1):
+                 file_info: tsmt_pb.FileInfoList = None,
+                 batch_size: int = 1):
         self._file_info = file_info
         self._batch_size = batch_size
 
@@ -32,8 +33,7 @@ class Visitor(object):
             logging.info("Visit file %s", self._file_info.files[self._file_idx])
             self._iter = self.create_iter(self._file_info.files[self._file_idx])
         try:
-            items = next(self._iter)
-            return items
+            return next(self._iter)
         except StopIteration:
             self._iter = None
             self._file_idx += 1

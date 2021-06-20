@@ -8,14 +8,15 @@ import fedlearner.common.transmitter_service_pb2 as tsmt_pb
 
 class ParquetVisitor(Visitor):
     def __init__(self,
-                 file_info: typing.List[str],
+                 file_info: tsmt_pb.FileInfoList,
                  batch_size: int,
-                 consume_remain: bool = False,
-                 columns: typing.List[str] = None):
+                 columns: typing.List[str] = None,
+                 consume_remain: bool = False):
         self._consume_remain = consume_remain
         self._columns = columns
         self._batch_idx = 0
         self._current_batch = 0
+        self._current_row = 0
         self._pq_file = None
         self._pq_iter = None
         self._num_full_batch = 0
@@ -42,9 +43,13 @@ class ParquetVisitor(Visitor):
             b = [batch]
             self._batch_idx += 1
             self._current_batch += 1
+            self._current_row += batch.num_rows
             if self._consume_remain and self._has_remain \
                     and self._num_full_batch == self._current_batch:
                 batch2 = next(self._pq_iter)
+                self._current_row += batch2.num_rows
                 b.append(batch2)
-            yield b, tsmt_pb.BatchInfo(file_idx=self._file_idx,
-                                       batch_idx=self._batch_idx)
+            yield b, tsmt_pb.BatchInfo(
+                finished=self.metadata.num_rows == self._current_row,
+                file_idx=self._file_info.idx[self._file_idx],
+                batch_idx=self._batch_idx)
