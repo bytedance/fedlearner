@@ -8,8 +8,8 @@ import fedlearner.common.transmitter_service_pb2 as tsmt_pb
 
 class ParquetVisitor(Visitor):
     def __init__(self,
-                 file_info: tsmt_pb.FileInfoList,
-                 batch_size: int,
+                 file_info: tsmt_pb.FileInfoList = None,
+                 batch_size: int = 1,
                  columns: typing.List[str] = None,
                  consume_remain: bool = False):
         self._consume_remain = consume_remain
