@@ -11,8 +11,8 @@ class Paths:
     METADATA_DIR = os.path.join(os.environ['STORAGE_ROOT_PATH'], 'psu')
 
     @staticmethod
-    def encode_master_meta_path():
-        return os.path.join(Paths.METADATA_DIR, 'master', 'meta.json')
+    def encode_master_meta_path(phase: str):
+        return os.path.join(Paths.METADATA_DIR, phase, 'meta.json')
 
     @staticmethod
     def encode_union_output_paths(output_dir: str):

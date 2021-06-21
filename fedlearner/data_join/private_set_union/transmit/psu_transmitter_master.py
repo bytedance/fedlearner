@@ -18,16 +18,18 @@ from fedlearner.data_join.private_set_union.keys import get_keys
 
 class PSUTransmitterMasterService(psu_grpc.PSUTransmitterMasterServiceServicer):
     def __init__(self,
+                 phase: str,
                  key_type,
                  file_paths: typing.List[str],
                  worker_num: int):
         self._key_info = get_keys(psu_pb.KeyInfo(type=key_type))
         self._file_paths = file_paths
         self._worker_num = worker_num
-        self._meta_path = utils.Paths.encode_master_meta_path()
+        self._meta_path = utils.Paths.encode_master_meta_path(phase)
         self._condition = threading.Condition()
         self._meta = self._get_meta()
         self._signal_buffer = defaultdict(set)
+        self._finished_workers = set()
         super().__init__()
 
     def GetKeys(self, request, context):
@@ -36,8 +38,12 @@ class PSUTransmitterMasterService(psu_grpc.PSUTransmitterMasterServiceServicer):
 
     def AllocateTask(self, request, context):
         if self.data_finished:
+            with self._condition:
+                self._finished_workers.add(request.rank_id)
+                self._condition.notify_all()
             return tsmt_pb.AllocateTaskResponse(
                 status=common_pb.STATUS_NO_MORE_DATA)
+
         rid = request.rank_id
         alloc_files = []
         alloc_idx = []
@@ -47,9 +53,14 @@ class PSUTransmitterMasterService(psu_grpc.PSUTransmitterMasterServiceServicer):
                     continue
                 alloc_files.append(self._file_paths[i])
                 alloc_idx.append(i)
+
         if len(alloc_idx) == 0:
+            with self._condition:
+                self._finished_workers.add(request.rank_id)
+                self._condition.notify_all()
             return tsmt_pb.AllocateTaskResponse(
                 status=common_pb.STATUS_NO_MORE_DATA)
+
         return tsmt_pb.AllocateTaskResponse(status=common_pb.STATUS_SUCCESS,
                                             files=alloc_files,
                                             file_idx=alloc_idx)
@@ -109,6 +120,18 @@ class PSUTransmitterMasterService(psu_grpc.PSUTransmitterMasterServiceServicer):
         with self._condition:
             return len(self._meta['finished']) == len(self._file_paths)
 
+    @property
+    def finished(self):
+        with self._condition:
+            return self.data_finished \
+                   and len(self._finished_workers) == self._worker_num
+
+    def wait_for_finish(self):
+        if not self.finished:
+            with self._condition:
+                while not self.finished:
+                    self._condition.wait()
+
     def _check_file_finished(self, indices: typing.List[int], kind: str):
         assert kind in ('send', 'recv')
         opposite = 'send' if kind == 'recv' else 'recv'
@@ -122,16 +145,18 @@ class PSUTransmitterMasterService(psu_grpc.PSUTransmitterMasterServiceServicer):
                 else:
                     self._signal_buffer[kind].add(idx)
             self._dump_meta(self._meta)
+            self._condition.notify_all()
 
 
 class PSUTransmitterMaster:
     def __init__(self,
                  listen_port: int,
+                 phase: str,
                  key_type,
                  file_paths: typing.List[str],
                  worker_num: int):
-        self._servicer = PSUTransmitterMasterService(key_type, file_paths,
-                                                     worker_num)
+        self._servicer = PSUTransmitterMasterService(phase, key_type,
+                                                     file_paths, worker_num)
         self._listen_port = listen_port
         self._server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
         psu_grpc.add_PSUTransmitterMasterServiceServicer_to_server(
@@ -143,6 +168,9 @@ class PSUTransmitterMaster:
         if not self._started:
             self._server.start()
             self._started = True
+
+    def wait_for_finish(self):
+        self._servicer.wait_for_finish()
 
     def stop(self):
         if self._started:
