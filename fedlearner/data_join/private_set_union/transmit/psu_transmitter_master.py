@@ -3,7 +3,9 @@ import json
 import threading
 import typing
 from collections import defaultdict
+from concurrent import futures
 
+import grpc
 from tensorflow.python.lib.io import file_io
 
 import fedlearner.common.common_pb2 as common_pb
@@ -14,7 +16,7 @@ from fedlearner.data_join.private_set_union import utils
 from fedlearner.data_join.private_set_union.keys import get_keys
 
 
-class TransmitterMaster(psu_grpc.PSUTransmitterMasterServiceServicer):
+class PSUTransmitterMasterService(psu_grpc.PSUTransmitterMasterServiceServicer):
     def __init__(self,
                  key_type,
                  file_paths: typing.List[str],
@@ -26,8 +28,6 @@ class TransmitterMaster(psu_grpc.PSUTransmitterMasterServiceServicer):
         self._condition = threading.Condition()
         self._meta = self._get_meta()
         self._signal_buffer = defaultdict(set)
-        self._started = False
-        self._stopped = False
         super().__init__()
 
     def GetKeys(self, request, context):
@@ -35,6 +35,9 @@ class TransmitterMaster(psu_grpc.PSUTransmitterMasterServiceServicer):
                                       key_info=self._key_info)
 
     def AllocateTask(self, request, context):
+        if self.data_finished:
+            return tsmt_pb.AllocateTaskResponse(
+                status=common_pb.STATUS_NO_MORE_DATA)
         rid = request.rank_id
         alloc_files = []
         alloc_idx = []
@@ -44,10 +47,12 @@ class TransmitterMaster(psu_grpc.PSUTransmitterMasterServiceServicer):
                     continue
                 alloc_files.append(self._file_paths[i])
                 alloc_idx.append(i)
-        return tsmt_pb.AllocateTaskResponse(
-            status=common_pb.STATUS_SUCCESS,
-            files=alloc_files,
-            file_idx=alloc_idx)
+        if len(alloc_idx) == 0:
+            return tsmt_pb.AllocateTaskResponse(
+                status=common_pb.STATUS_NO_MORE_DATA)
+        return tsmt_pb.AllocateTaskResponse(status=common_pb.STATUS_SUCCESS,
+                                            files=alloc_files,
+                                            file_idx=alloc_idx)
 
     def FinishFiles(self, request, context):
         self._check_file_finished(request.file_idx, 'send')
@@ -104,12 +109,6 @@ class TransmitterMaster(psu_grpc.PSUTransmitterMasterServiceServicer):
         with self._condition:
             return len(self._meta['finished']) == len(self._file_paths)
 
-    def wait_for_finished(self):
-        if not self.data_finished and not self._stopped:
-            with self._condition:
-                while not self.data_finished and not self._stopped:
-                    self._condition.wait()
-
     def _check_file_finished(self, indices: typing.List[int], kind: str):
         assert kind in ('send', 'recv')
         opposite = 'send' if kind == 'recv' else 'recv'
@@ -123,3 +122,29 @@ class TransmitterMaster(psu_grpc.PSUTransmitterMasterServiceServicer):
                 else:
                     self._signal_buffer[kind].add(idx)
             self._dump_meta(self._meta)
+
+
+class PSUTransmitterMaster:
+    def __init__(self,
+                 listen_port: int,
+                 key_type,
+                 file_paths: typing.List[str],
+                 worker_num: int):
+        self._servicer = PSUTransmitterMasterService(key_type, file_paths,
+                                                     worker_num)
+        self._listen_port = listen_port
+        self._server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
+        psu_grpc.add_PSUTransmitterMasterServiceServicer_to_server(
+            self._servicer, self._server)
+        self._server.add_insecure_port('[::]:%d' % listen_port)
+        self._started = False
+
+    def run(self):
+        if not self._started:
+            self._server.start()
+            self._started = True
+
+    def stop(self):
+        if self._started:
+            self._server.stop()
+            self._started = False
