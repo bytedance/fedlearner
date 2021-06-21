@@ -146,29 +146,27 @@ class ParquetSetDiffReceiver(Receiver):
         encrypt_req = psu_pb.EncryptTransmitRequest()
         encrypt_req.ParseFromString(req.payload)
         if self._mode == Mode.L:
-            payload = self._decode_func(
+            payload = self._encode_func(self._encrypt_func2(self._decode_func(
                 np.asarray(encrypt_req.doubly_encrypted, np.bytes_)
-            )
-        else:
-            payload = self._decode_func(
-                np.asarray(encrypt_req.triply_encrypted, np.bytes_)
-            )
-        payload = self._encode_func(self._encrypt_func2(payload))
-
-        if consecutive:
-            # OUTPUT_PATH/doubly_encrypted/<file_idx>.parquet
-            file_path = pqu.encode_quadruply_encrypted_file_path(
-                self._output_path, req.file_idx)
-            task = PostProcessJob(self._job_fn, payload, file_path)
-        else:
-            task = None
-        if self._mode == Mode.L:
-            res = psu_pb.DataSyncResponse(
+            )))
+            payload = psu_pb.DataSyncResponse(
                 payload={E3: psu_pb.BytesList(value=payload)}
             ).SerializeToString()
+            task = None  # Nothing to dump
         else:
-            res = None
-        return res, task
+            payload = None  # Noting to return
+            if consecutive:
+                e4 = self._encode_func(self._encrypt_func2(self._decode_func(
+                        np.asarray(encrypt_req.triply_encrypted, np.bytes_)
+                )))
+                # OUTPUT_PATH/doubly_encrypted/<file_idx>.parquet
+                file_path = pqu.encode_quadruply_encrypted_file_path(
+                    self._output_path, req.file_idx)
+                task = PostProcessJob(self._job_fn, e4, file_path)
+            else:
+                task = None
+
+        return payload, task
 
     def _job_fn(self,
                 doubly_encrypted: np.ndarray,

@@ -96,7 +96,7 @@ class PSUDataReloadJob:
             count = data_df.count()
             partition_num = math.ceil(count / partition_size)
 
-        # repartition and save
+        # repartition, sort and save
         data_df \
             .repartition(partition_num, E4) \
             .sortWithinPartitions(E4) \

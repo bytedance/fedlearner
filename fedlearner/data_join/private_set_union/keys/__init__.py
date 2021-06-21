@@ -6,6 +6,6 @@ from fedlearner.data_join.private_set_union.keys.ecc_keys import ECCKeys
 
 def get_keys(key_info: psu_pb.KeyInfo):
     for cls in BaseKeys.__subclasses__():
-        if cls.is_info_matched(key_info):
+        if cls.key_type() == key_info.type:
             return cls(key_info)
     raise ValueError(f'Key type {key_info.type} not registered.')

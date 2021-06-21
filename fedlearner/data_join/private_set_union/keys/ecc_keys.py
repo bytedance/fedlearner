@@ -15,6 +15,10 @@ class ECCKeys(BaseKeys):
         super().__init__(key_info)
         self._key1, self._key2 = self._get_keys()
 
+    @classmethod
+    def key_type(cls):
+        return psu_pb.ECC
+
     def encode(self, item: pr.G2) -> bytes:
         item = bytes(item)
         return base64.b64encode(item)
@@ -51,7 +55,3 @@ class ECCKeys(BaseKeys):
             with gfile.GFile(self._key_path) as f:
                 json.dump(keys, f)
         return key1, key2
-
-    @staticmethod
-    def is_info_matched(key_info: psu_pb.KeyInfo):
-        return key_info.type == psu_pb.ECC

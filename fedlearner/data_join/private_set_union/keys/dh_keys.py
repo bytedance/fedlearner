@@ -27,6 +27,10 @@ class DHKeys(BaseKeys):
         self._mod = gmpy2.mpz(PRIME, base=16)
         self._key1, self._key2 = self._get_keys()
 
+    @classmethod
+    def key_type(cls):
+        return psu_pb.DH
+
     def _get_keys(self):
         if gfile.Exists(self._key_path):
             with gfile.GFile(self._key_path) as f:
@@ -62,7 +66,3 @@ class DHKeys(BaseKeys):
 
     def encrypt_2(self, item: MPZ_TYPE) -> MPZ_TYPE:
         return gmpy2.f_mod(item * self._key2, self._mod)
-
-    @staticmethod
-    def is_info_matched(key_info: psu_pb.KeyInfo):
-        return key_info.type == psu_pb.DH
