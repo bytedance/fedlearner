@@ -1,9 +1,9 @@
-import fedlearner.common.transmitter_service_pb2 as tsmt_pb
+from fedlearner.common import common_pb2 as common_pb
 import fedlearner.common.transmitter_service_pb2_grpc as tsmt_grpc
 from fedlearner.data_join.transmitter.components import Sender, Receiver
 
 
-class TransmitterWorkerServicer(tsmt_grpc.TransmitterWorkerServiceServicer):
+class TransmitterWorker(tsmt_grpc.TransmitterWorkerServiceServicer):
     def __init__(self,
                  receiver: Receiver,
                  sender: Sender):
@@ -21,10 +21,10 @@ class TransmitterWorkerServicer(tsmt_grpc.TransmitterWorkerServiceServicer):
         if not self._sender:
             raise NotImplementedError('Method not implemented!')
         self._sender.set_peer_task_finished()
-        return tsmt_pb.RecvTaskFinishResponse()
+        return common_pb.Status(code=common_pb.StatusCode.STATUS_SUCCESS)
 
     # from SEND to RECV
-    def Transmit(self, request_iterator, context):
+    def TransmitData(self, request_iterator, context):
         if not self._receiver:
             raise NotImplementedError('Method not implemented!')
         return self._receiver.transmit(request_iterator)

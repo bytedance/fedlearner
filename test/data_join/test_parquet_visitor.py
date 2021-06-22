@@ -24,17 +24,16 @@ def _generate_parquet_files(output_dir,
         end_idx = min((i+1) * chunk_size, len(data))
         chunk = data[start_idx:end_idx]
         for value in chunk:
-            for i in range(len(names)):
-                data_dict[names[i]].append(value[i])
+            for j in range(len(names)):
+                data_dict[names[j]].append(value[j])
 
         table = pa.Table.from_pydict(data_dict, schema=schema)
         if not gfile.Exists(os.path.dirname(output_path)):
             gfile.MakeDirs(os.path.dirname(output_path))
         pq.write_table(table, output_path, compression="GZIP")
-        output_files.append(output_path)
-    file_info = tsmt_pb.FileInfoList(files=output_files,
-                                     idx=list(range(len(output_files))))
-    return file_info
+        output_files.append(tsmt_pb.FileInfo(
+            file_path=output_path, idx=i))
+    return output_files
 
 
 class ParquetVisitorTest(unittest.TestCase):
@@ -62,9 +61,14 @@ class ParquetVisitorTest(unittest.TestCase):
 
     def test_read_all(self):
         batch_size = 2
-        visitor = ParquetVisitor(self._input_files, batch_size)
+        visitor = ParquetVisitor(batch_size)
+        visitor.init(self._input_files)
         wanted_value = 0
-        for batch_data, batch_info in visitor:
+        prev_file_idx = 0
+        for batch_data, file_idx, finished in visitor:
+            self.assertEqual(file_idx, prev_file_idx)
+            if finished:
+                prev_file_idx += 1
             self.assertEqual(self._schema, batch_data[0].schema)
             self.assertEqual(batch_data[0].num_rows, batch_size)
             values = batch_data[0].column(self._schema.names[0]).to_pylist()
@@ -79,9 +83,14 @@ class ParquetVisitorTest(unittest.TestCase):
             self._schema.field_by_name("k2"),
             self._schema.field_by_name("k4"),
         ])
-        visitor = ParquetVisitor(self._input_files, batch_size, wanted_columns)
+        visitor = ParquetVisitor(batch_size, wanted_columns)
+        visitor.init(self._input_files)
         wanted_value = 0
-        for batch_data, batch_info in visitor:
+        prev_file_idx = 0
+        for batch_data, file_idx, finished in visitor:
+            self.assertEqual(file_idx, prev_file_idx)
+            if finished:
+                prev_file_idx += 1
             self.assertEqual(wanted_schema, batch_data[0].schema)
             self.assertEqual(batch_data[0].num_rows, batch_size)
             k2_values = batch_data[0].column(wanted_columns[0]).to_pylist()

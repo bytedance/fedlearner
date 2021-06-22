@@ -3,25 +3,22 @@ import typing
 import pyarrow.parquet as pq
 
 from fedlearner.data_join.visitors.visitor import Visitor
-import fedlearner.common.transmitter_service_pb2 as tsmt_pb
 
 
 class ParquetVisitor(Visitor):
     def __init__(self,
-                 file_info: tsmt_pb.FileInfoList = None,
                  batch_size: int = 1,
                  columns: typing.List[str] = None,
                  consume_remain: bool = False):
         self._consume_remain = consume_remain
         self._columns = columns
-        self._batch_idx = 0
         self._current_batch = 0
         self._current_row = 0
         self._pq_file = None
         self._pq_iter = None
         self._num_full_batch = 0
         self._has_remain = 0
-        super(ParquetVisitor, self).__init__(file_info, batch_size)
+        super(ParquetVisitor, self).__init__(batch_size)
 
     @property
     def metadata(self):
@@ -36,12 +33,12 @@ class ParquetVisitor(Visitor):
         self._num_full_batch = self.metadata.num_rows // self._batch_size
         self._has_remain = (self.metadata.num_rows % self._batch_size) > 0
         self._current_batch = 0
+        self._current_row = 0
         return self._batch_iter()
 
     def _batch_iter(self):
         for batch in self._pq_iter:
             b = [batch]
-            self._batch_idx += 1
             self._current_batch += 1
             self._current_row += batch.num_rows
             if self._consume_remain and self._has_remain \
@@ -49,7 +46,5 @@ class ParquetVisitor(Visitor):
                 batch2 = next(self._pq_iter)
                 self._current_row += batch2.num_rows
                 b.append(batch2)
-            yield b, tsmt_pb.BatchInfo(
-                finished=self.metadata.num_rows == self._current_row,
-                file_idx=self._file_info.idx[self._file_idx],
-                batch_idx=self._batch_idx)
+            yield b, self._file_infos[self._file_idx].idx, \
+                  self.metadata.num_rows == self._current_row

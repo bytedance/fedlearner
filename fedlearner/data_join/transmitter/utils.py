@@ -11,20 +11,8 @@ class _EndSentinel:
     pass
 
 
-class PostProcessJob:
-    def __init__(self,
-                 func: typing.Callable,
-                 *args, **kwargs):
-        self._args = args
-        self._kwargs = kwargs
-        self._func = func
-
-    def run(self):
-        self._func(*self._args, **self._kwargs)
-
-
-def _queue_iter(q: queue.Queue, stop_cond):
-    while not stop_cond():
+def _queue_iter(q: queue.Queue):
+    while True:
         # use timeout to check condition rather than blocking continuously.
         # Queue object is thread-safe, no need to use Lock.
         try:

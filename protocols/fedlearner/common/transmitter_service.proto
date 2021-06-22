@@ -14,13 +14,14 @@
  */
 
 syntax = "proto3";
+import "google/protobuf/empty.proto";
 import "fedlearner/common/common.proto";
 
 package fedlearner.common;
 
-message FileInfoList {
-  repeated string files = 1;
-  repeated int64 idx = 2;
+message FileInfo {
+  string file_path = 1;
+  int64 idx = 2;
 }
 
 message BatchInfo {
@@ -30,16 +31,16 @@ message BatchInfo {
 }
 
 message AllocateTaskRequest {
-  int64 rank_id = 1;
+  int64 worker_id = 1;
 }
 
 message AllocateTaskResponse {
   Status status = 1;
-  FileInfoList file_info = 2;
+  repeated FileInfo file_infos = 2;
 }
 
 message FinishFilesRequest {
-  repeated int64 file_idx = 1;
+  repeated int64 file_indices = 1;
 }
 
 message FinishFilesResponse {
@@ -56,36 +57,24 @@ message SyncRequest {
   int64 file_idx = 1;
 }
 
-message SyncResponse {}
-
 message RecvFileFinishRequest {
   int64 file_idx = 1;
 }
 
-message RecvFileFinishResponse {}
-
-message RecvTaskFinishRequest {}
-
-message RecvTaskFinishResponse {}
-
-message DataFinishRequest {}
-
-message DataFinishResponse {}
-
-message Request {
+message TransmitDataRequest {
   BatchInfo batch_info = 1;
-  bytes payload = 5;
+  bytes payload = 2;
 }
 
-message Response {
+message TransmitDataResponse {
   Status status = 1;
   BatchInfo batch_info = 2;
-  bytes payload = 4;
+  bytes payload = 3;
 }
 
 service TransmitterWorkerService {
-  rpc RecvFileFinish(RecvFileFinishRequest) returns (RecvFileFinishResponse) {}
-  rpc RecvTaskFinish(RecvTaskFinishRequest) returns (RecvTaskFinishResponse) {}
-  rpc Transmit(stream Request) returns (stream Response) {}
-  rpc DataFinish(DataFinishRequest) returns (DataFinishResponse) {}
+  rpc RecvFileFinish(RecvFileFinishRequest) returns (Status) {}
+  rpc RecvTaskFinish(google.protobuf.Empty) returns (Status) {}
+  rpc TransmitData(stream TransmitDataRequest) returns (stream TransmitDataResponse) {}
+  rpc DataFinish(google.protobuf.Empty) returns (Status) {}
 }

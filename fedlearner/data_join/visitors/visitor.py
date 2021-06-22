@@ -1,13 +1,13 @@
 import logging
+import typing
 
 import fedlearner.common.transmitter_service_pb2 as tsmt_pb
 
 
 class Visitor(object):
     def __init__(self,
-                 file_info: tsmt_pb.FileInfoList = None,
                  batch_size: int = 1):
-        self._file_info = file_info
+        self._file_infos = []
         self._batch_size = batch_size
 
         self._file_idx = 0
@@ -19,19 +19,22 @@ class Visitor(object):
     def __next__(self):
         return self.next()
 
-    def init(self, file_info: tsmt_pb.FileInfoList):
-        self._file_info = file_info
+    def init(self, file_infos: typing.List[tsmt_pb.FileInfo]):
+        self._file_infos = file_infos
 
     def next(self):
         # override for other usage
         return self._next_internal()
 
     def _next_internal(self):
-        if self._file_idx == len(self._file_info.files):
+        if self._file_idx == len(self._file_infos):
             raise StopIteration
         if not self._iter:
-            logging.info("Visit file %s", self._file_info.files[self._file_idx])
-            self._iter = self.create_iter(self._file_info.files[self._file_idx])
+            logging.info("Visit file %s with index %d",
+                         self._file_infos[self._file_idx].file_path,
+                         self._file_infos[self._file_idx].idx)
+            self._iter = self.create_iter(
+                self._file_infos[self._file_idx].file_path)
         try:
             return next(self._iter)
         except StopIteration:
