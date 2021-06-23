@@ -1,4 +1,3 @@
-import typing
 import logging
 import typing
 
@@ -18,21 +17,21 @@ from fedlearner.data_join.transmitter.utils import PostProcessJob
 from fedlearner.data_join.visitors.parquet_visitor import ParquetVisitor
 
 
-class Mode:
-    L = 'left_diff'
-    R = 'right_diff'
+class SetDiffMode:
+    L = 'l_diff'
+    R = 'r_diff'
 
 
 class ParquetSetDiffSender(Sender):
     def __init__(self,
-                 mode: str,  # left_diff (right - left) or right_diff (l - r)
+                 mode: str,  # l_diff (right - left) or r_diff (l - r)
                  output_path: str,
                  peer_client: tsmt_grpc.TransmitterWorkerServiceStub,
                  master_client,
                  send_row_num: int,
                  send_queue_len: int = 10,
                  resp_queue_len: int = 10):
-        assert mode in (Mode.L, Mode.R)
+        assert mode in (SetDiffMode.L, SetDiffMode.R)
         self._mode = mode
         self._master = master_client
         key_info = self._master.GetKeys(Empty()).key_info
@@ -46,7 +45,7 @@ class ParquetSetDiffSender(Sender):
         self._indices = {}
         self._dumper = None
         # TODO(zhangzihui): accustom for new info
-        if self._mode == Mode.L:
+        if self._mode == SetDiffMode.L:
             self._send_col = E2
             self._resp_col = E3
             self._schema = pa.schema([pa.field(E4, pa.string())])
@@ -74,7 +73,7 @@ class ParquetSetDiffSender(Sender):
 
     def _resp_process(self,
                       resp: tsmt_pb.Response) -> None:
-        if self._mode == Mode.R:
+        if self._mode == SetDiffMode.R:
             # no response needed to process in right diff mode
             if resp.batch_info.finished:
                 self._master.FinishFiles(tsmt_pb.FinishFilesRequest(
@@ -127,7 +126,7 @@ class ParquetSetDiffReceiver(Receiver):
                  master_client,
                  output_path: str,
                  recv_queue_len: int):
-        assert mode in (Mode.L, Mode.R)
+        assert mode in (SetDiffMode.L, SetDiffMode.R)
         self._mode = mode
         key_info = master_client.GetKeys(Empty()).key_info
         self._keys = get_keys(key_info)
@@ -145,7 +144,7 @@ class ParquetSetDiffReceiver(Receiver):
                       consecutive: bool) -> (bytes, [PostProcessJob, None]):
         encrypt_req = psu_pb.EncryptTransmitRequest()
         encrypt_req.ParseFromString(req.payload)
-        if self._mode == Mode.L:
+        if self._mode == SetDiffMode.L:
             payload = self._encode_func(self._encrypt_func2(self._decode_func(
                 np.asarray(encrypt_req.doubly_encrypted, np.bytes_)
             )))
