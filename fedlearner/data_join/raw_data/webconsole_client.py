@@ -17,10 +17,10 @@ import base64
 import enum
 import json
 import logging
-import requests
 import os
-import subprocess
 from http import HTTPStatus
+import subprocess
+import requests
 from kubernetes.client.exceptions import ApiException
 
 
@@ -122,7 +122,7 @@ class WebConsoleClient(object):
     def delete_sparkapplication(self,
                                 name: str) -> dict:
         spark_job_url = os.path.join(self._spark_api_url, name)
-        response = requests.get(url=spark_job_url, headers=self._headers)
+        response = requests.delete(url=spark_job_url, headers=self._headers)
         return json.loads(response.text)
 
 
