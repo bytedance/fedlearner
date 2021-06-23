@@ -22,4 +22,3 @@ class DataKeyword:
 class OutputType:
     RawData = "raw_data"
     DataBlock = "data_block"
-
