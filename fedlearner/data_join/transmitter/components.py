@@ -91,15 +91,15 @@ class Sender(object):
     def _request_task_from_master(self) -> common_pb.Status:
         raise NotImplementedError
 
-    def report_peer_file_finish_to_master(self, file_idx: int) \
-        -> common_pb.Status:
+    def report_peer_file_finish_to_master(self,
+                                          file_idx: int) -> common_pb.Status:
         raise NotImplementedError
 
     def set_peer_task_finished(self):
         self._peer_task_finished.set()
 
     def _data_iterator(self) \
-        -> typing.Iterable[typing.Tuple[bytes, tsmt_pb.BatchInfo]]:
+            -> typing.Iterable[typing.Tuple[bytes, tsmt_pb.BatchInfo]]:
         """
         This method handles file processing payload. This should iterate the
             visitor and process the content it returns.
@@ -184,6 +184,7 @@ class Receiver(object):
     # RPC
     def data_finish(self):
         self._finished.set()
+        self._recv_queue.put(_EndSentinel())
         return common_pb.Status(code=common_pb.StatusCode.STATUS_SUCCESS)
 
     def _recv(self):
@@ -194,7 +195,8 @@ class Receiver(object):
                 if batch_info.finished:
                     self._peer.RecvFileFinish(tsmt_pb.RecvFileFinishRequest(
                         file_idx=batch_info.file_idx))
-            self._peer.RecvTaskFinish(empty_pb2.Empty())
+            if not self._finished.is_set():
+                self._peer.RecvTaskFinish(empty_pb2.Empty())
 
     def _recv_process(self,
                       req: tsmt_pb.TransmitDataRequest,

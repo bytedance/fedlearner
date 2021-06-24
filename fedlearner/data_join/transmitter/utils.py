@@ -14,10 +14,7 @@ def _queue_iter(q: queue.Queue):
     while True:
         # use timeout to check condition rather than blocking continuously.
         # Queue object is thread-safe, no need to use Lock.
-        try:
-            req = q.get(timeout=5)
-            if isinstance(req, _EndSentinel):
-                break
-            yield req
-        except queue.Empty:
-            pass
+        req = q.get()
+        if isinstance(req, _EndSentinel):
+            break
+        yield req
