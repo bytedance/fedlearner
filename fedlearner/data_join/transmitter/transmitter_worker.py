@@ -1,5 +1,5 @@
-from fedlearner.common import common_pb2 as common_pb
 import fedlearner.common.transmitter_service_pb2_grpc as tsmt_grpc
+from fedlearner.common import common_pb2 as common_pb
 from fedlearner.data_join.transmitter.components import Sender, Receiver
 
 

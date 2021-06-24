@@ -38,13 +38,16 @@ class ParquetVisitor(Visitor):
 
     def _batch_iter(self):
         for batch in self._pq_iter:
-            b = [batch]
             self._current_batch += 1
             self._current_row += batch.num_rows
+            batch = batch.to_pydict()
             if self._consume_remain and self._has_remain \
                     and self._num_full_batch == self._current_batch:
                 batch2 = next(self._pq_iter)
                 self._current_row += batch2.num_rows
-                b.append(batch2)
-            yield b, self._file_infos[self._file_idx].idx, \
+                batch2 = batch2.to_pydict()
+                for k in batch.keys():
+                    batch[k].extend(batch2[k])
+            yield batch, \
+                  self._file_infos[self._file_idx].idx, \
                   self.metadata.num_rows == self._current_row

@@ -1,4 +1,3 @@
-import typing
 import queue
 
 

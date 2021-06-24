@@ -21,6 +21,7 @@ class Visitor(object):
 
     def init(self, file_infos: typing.List[tsmt_pb.FileInfo]):
         self._file_infos = file_infos
+        self._file_idx = 0
 
     def next(self):
         # override for other usage

@@ -1,276 +1,188 @@
-import json
-import math
+import functools
 import os
-import threading
 import typing
 import unittest
 
 from tensorflow import gfile
 
-import fedlearner.common.transmitter_service_pb2 as transmitter_pb
-from fedlearner.common.db_client import DBClient
+import fedlearner.common.common_pb2 as common_pb
+import fedlearner.common.transmitter_service_pb2 as tsmt_pb
+import fedlearner.common.transmitter_service_pb2_grpc as tsmt_grpc
+from fedlearner.channel import Channel
 from fedlearner.data_join.transmitter.components import Sender, Receiver
-from fedlearner.data_join.transmitter.transmitter import Transmitter
-from fedlearner.data_join.transmitter.utils import IDX
+from fedlearner.data_join.transmitter.transmitter_worker import \
+    TransmitterWorker
+from fedlearner.data_join.visitors.visitor import Visitor
 
-FILE_NUM = 500
-ROW_NUM = 100
-SEND_ROW_NUM = 480
-
-
-def _get_next_idx(start_idx: IDX,
-                  row_num: int,
-                  file_len: int,
-                  file_num: int):
-    remain_rows = row_num - file_len + start_idx.row_idx
-    next_file = start_idx.file_idx + math.ceil(remain_rows / ROW_NUM)
-    if next_file >= file_num:
-        next_file = file_num - 1
-        next_row = file_len
-    else:
-        if remain_rows <= 0:
-            next_row = start_idx.row_idx + row_num
-        else:
-            next_row = (remain_rows - 1) % ROW_NUM + 1
-    return IDX(next_file, next_row)
+TASK_NUM = 3
+FILE_NUM = 100
+ROW_NUM = 200
+SEND_ROW_NUM = 70
 
 
-def _ground_truth_payload(start_idx: IDX,
-                          row_num: int,
-                          file_len: int,
-                          file_num: int):
+def _ground_truth_payload():
     res = ''
-    current_idx = start_idx
-    while current_idx.file_idx < file_num - 1 or current_idx.row_idx < file_len:
-        next_idx = _get_next_idx(current_idx, row_num, file_len, file_num)
-        res += '{}_{}-{}_{}'.format(current_idx.file_idx,
-                                    current_idx.row_idx,
-                                    next_idx.file_idx,
-                                    next_idx.row_idx)
-        current_idx = next_idx
+    file_idx = 0
+    for _ in range(TASK_NUM):
+        for _ in range(FILE_NUM):
+            for r in range(0, ROW_NUM + SEND_ROW_NUM, SEND_ROW_NUM):
+                res += f'->{file_idx}_{min(r, ROW_NUM)}'
+            file_idx += 1
     return res
+
+
+class TestVisitor(Visitor):
+    def create_iter(self, file_path):
+        file_infos = self._file_infos
+        file_idx = file_infos[self._file_idx].idx
+
+        def _iter():
+            for i in range(0, ROW_NUM + SEND_ROW_NUM, SEND_ROW_NUM):
+                yield min(i, ROW_NUM), file_idx, i >= ROW_NUM
+
+        return _iter()
 
 
 class TestSender(Sender):
     def __init__(self,
                  output_path: str,
-                 meta_path: str,
-                 send_row_num: int,
-                 file_paths: typing.List[str],
-                 root_path: str = None,
-                 start_from_peer: bool = False,
-                 pending_len: int = 10):
+                 peer_client: tsmt_grpc.TransmitterWorkerServiceStub,
+                 send_queue_len: int = 10,
+                 resp_queue_len: int = 10):
         self._output_path = output_path
-        super().__init__(meta_path, send_row_num, file_paths,
-                         root_path, start_from_peer, pending_len)
+        self._task_id = 0
+        self._visitor = TestVisitor()
+        self._batch_idx = 0
+        super().__init__(peer_client, send_queue_len, resp_queue_len)
 
-    def _send_process(self,
-                      root_path: str,
-                      files: typing.List[str],
-                      start_idx: IDX,
-                      row_num: int) -> (bytes, IDX, bool):
-        end_idx = _get_next_idx(start_idx, row_num, ROW_NUM, len(files))
-        payload = '{}_{}-{}_{}'.format(start_idx.file_idx,
-                                       start_idx.row_idx,
-                                       end_idx.file_idx,
-                                       end_idx.row_idx)
-        send_ = os.path.join(self._output_path, 'send.txt')
-        with gfile.GFile(send_, 'a') as f:
-            f.write(payload)
-        return payload.encode(), end_idx, \
-               end_idx == IDX(len(self._meta['files']) - 1, ROW_NUM)
+    def _data_iterator(self) \
+        -> typing.Iterable[typing.Tuple[bytes, tsmt_pb.BatchInfo]]:
+        for batch, f_idx, finished in self._visitor:
+            send_payload_path = os.path.join(self._output_path, 'send.txt')
+            with gfile.GFile(send_payload_path, 'a') as fp:
+                fp.write(f'->{f_idx}_{batch}')
+            yield f'->{f_idx}_{batch}'.encode(), \
+                  tsmt_pb.BatchInfo(finished=finished,
+                                    file_idx=f_idx,
+                                    batch_idx=self._batch_idx)
+            self._batch_idx += 1
 
     def _resp_process(self,
-                      resp: transmitter_pb.Response,
-                      current_idx: IDX) -> IDX:
-        start_idx = IDX(resp.start_file_idx, resp.start_row_idx)
-        end_idx = IDX(resp.end_file_idx, resp.end_row_idx)
-        if end_idx <= current_idx or start_idx > current_idx:
-            return None
-        resp_ = os.path.join(self._output_path, 'resp.txt')
-        with gfile.GFile(resp_, 'a') as f:
-            f.write('{}_{}-{}_{}'.format(current_idx.file_idx,
-                                         current_idx.row_idx,
-                                         end_idx.file_idx,
-                                         end_idx.row_idx))
-        return end_idx
+                      resp: tsmt_pb.TransmitDataResponse) -> None:
+        resp_payload_path = os.path.join(self._output_path, 'resp.txt')
+        with gfile.GFile(resp_payload_path, 'a') as f:
+            f.write(resp.payload.decode())
+
+    def _request_task_from_master(self):
+        if self._task_id < TASK_NUM:
+            file_infos = [
+                tsmt_pb.FileInfo(file_path=f'{i}', idx=i)
+                for i in range(self._task_id * FILE_NUM,
+                               (self._task_id + 1) * FILE_NUM)
+            ]
+            self._visitor.init(file_infos)
+            self._task_id += 1
+            return common_pb.Status(code=common_pb.STATUS_SUCCESS)
+        return common_pb.Status(code=common_pb.STATUS_NO_MORE_DATA)
+
+    def report_peer_file_finish_to_master(self, file_idx: int) \
+        -> common_pb.Status:
+        peer_fin_file_path = os.path.join(self._output_path, 'peer_fin.fxf')
+        with gfile.GFile(peer_fin_file_path, 'a') as f:
+            f.write(f'->{file_idx}')
+        return common_pb.Status(code=common_pb.STATUS_SUCCESS)
 
 
 class TestReceiver(Receiver):
+    def __init__(self, output_path: str,
+                 peer_client: tsmt_grpc.TransmitterWorkerServiceStub,
+                 recv_queue_len: int = 10):
+        self._output_path = output_path
+        super().__init__(peer_client, recv_queue_len)
+
     def _recv_process(self,
-                      req: transmitter_pb.Request,
-                      current_idx: IDX) -> (bytes, IDX):
-        start_idx = IDX(req.start_file_idx, req.start_row_idx)
-        end_idx = IDX(req.end_file_idx, req.end_row_idx)
-        if end_idx <= current_idx or start_idx > current_idx:
-            return req.payload, None
-        recv_ = os.path.join(self._output_path, 'recv.txt')
-        with gfile.GFile(recv_, 'a') as f:
-            f.write('{}_{}-{}_{}'.format(current_idx.file_idx,
-                                         current_idx.row_idx,
-                                         end_idx.file_idx,
-                                         end_idx.row_idx))
-        return req.payload, end_idx
+                      req: tsmt_pb.TransmitDataRequest,
+                      consecutive: bool) -> (bytes, [typing.Callable, None]):
+        def _post_job(payload: bytes, job_output_path: str):
+            with gfile.GFile(job_output_path, 'a') as f_:
+                f_.write(payload.decode())
+
+        recv_payload_path = os.path.join(self._output_path, 'recv.txt')
+        post_output_path = os.path.join(self._output_path, 'post.txt')
+        job = None
+        if consecutive:
+            with gfile.GFile(recv_payload_path, 'a') as f:
+                f.write(req.payload.decode())
+            job = functools.partial(_post_job, req.payload, post_output_path)
+        return req.payload, job
+
+
+class TestTransmitterWorker(TransmitterWorker):
+    def start(self):
+        self._sender.start()
+        self._receiver.start()
+
+    def wait_for_finish(self):
+        self._sender.wait_for_finish()
+        self._receiver.wait_for_finish()
 
 
 class TestStreamTransmit(unittest.TestCase):
     def setUp(self) -> None:
-        self.file_paths = [str(i) for i in range(FILE_NUM)]
         self._test_root = './test_transmitter'
         os.environ['STORAGE_ROOT_PATH'] = self._test_root
-        self._db_client = DBClient('dfs')
         self._mgr1_path = os.path.join(self._test_root, '1')
         self._mgr2_path = os.path.join(self._test_root, '2')
         if gfile.Exists(self._test_root):
             gfile.DeleteRecursively(self._test_root)
         gfile.MakeDirs(self._mgr1_path)
         gfile.MakeDirs(self._mgr2_path)
+        port_1 = 10086
+        port_2 = 10010
+        self._channel_1 = Channel(f'[::]:{port_1}', f'[::]:{port_2}')
+        self._channel_2 = Channel(f'[::]:{port_2}', f'[::]:{port_1}')
+        self._channel_1.connect(False)
+        self._channel_2.connect(False)
+        self._client_1 = tsmt_grpc.TransmitterWorkerServiceStub(self._channel_1)
+        self._client_2 = tsmt_grpc.TransmitterWorkerServiceStub(self._channel_2)
 
     def _transmit(self):
-        self._manager1 = Transmitter(
-            listen_port=10086,
-            remote_address='localhost:10010',
-            receiver=TestReceiver(meta_path='1',
-                                  output_path=self._mgr1_path),
+        self._manager1 = TestTransmitterWorker(
+            receiver=TestReceiver(output_path=self._mgr1_path,
+                                  peer_client=self._client_1),
             sender=TestSender(output_path=self._mgr1_path,
-                              meta_path='1',
-                              send_row_num=SEND_ROW_NUM,
-                              file_paths=self.file_paths,
-                              root_path=self._test_root)
+                              peer_client=self._client_1)
         )
-        self._manager2 = Transmitter(
-            listen_port=10010,
-            remote_address='localhost:10086',
-            receiver=TestReceiver(meta_path='2',
-                                  output_path=self._mgr2_path),
+        self._manager2 = TestTransmitterWorker(
+            receiver=TestReceiver(output_path=self._mgr2_path,
+                                  peer_client=self._client_2),
             sender=TestSender(output_path=self._mgr2_path,
-                              meta_path='2',
-                              send_row_num=SEND_ROW_NUM,
-                              file_paths=self.file_paths,
-                              root_path=self._test_root)
+                              peer_client=self._client_2)
         )
-        thread1 = threading.Thread(target=self._manager1.connect)
-        thread2 = threading.Thread(target=self._manager2.connect)
-        thread1.start()
-        thread2.start()
+        tsmt_grpc.add_TransmitterWorkerServiceServicer_to_server(
+            self._manager1, self._channel_1
+        )
+        tsmt_grpc.add_TransmitterWorkerServiceServicer_to_server(
+            self._manager2, self._channel_2
+        )
+        self._manager1.start()
+        self._manager2.start()
         self._manager1.wait_for_finish()
         self._manager2.wait_for_finish()
-        th1_stop = threading.Thread(target=self._manager1.terminate)
-        th2_stop = threading.Thread(target=self._manager2.terminate)
-        th1_stop.start()
-        th2_stop.start()
-        th1_stop.join()
-        th2_stop.join()
-
-    def _meta_assert(self):
-        assert self._manager1
-        assert self._manager2
-        recv1_meta = json.loads(self._db_client.get_data(
-            self._manager1._receiver._meta_path))
-        recv2_meta = json.loads(self._db_client.get_data(
-            self._manager2._receiver._meta_path))
-        send1_meta = json.loads(self._db_client.get_data(
-            self._manager1._sender._meta_path))
-        send2_meta = json.loads(self._db_client.get_data(
-            self._manager2._sender._meta_path))
-        del recv1_meta['output_path']
-        del recv2_meta['output_path']
-        del send1_meta['root']
-        del send2_meta['root']
-        self.assertEqual(send1_meta, {'file_idx': len(self.file_paths) - 1,
-                                      'row_idx': ROW_NUM,
-                                      'files': self.file_paths,
-                                      'finished': True})
-        self.assertEqual(recv1_meta, recv2_meta)
-        self.assertEqual(send1_meta, send2_meta)
-        self.assertEqual(send1_meta['file_idx'], recv1_meta['file_idx'])
-        self.assertEqual(send1_meta['row_idx'], recv1_meta['row_idx'])
 
     def test_transmit(self):
         self._transmit()
-        self._meta_assert()
-
-        expected_content = _ground_truth_payload(IDX(0, 0), SEND_ROW_NUM,
-                                                 ROW_NUM, FILE_NUM)
-        for file in gfile.ListDirectory(self._mgr1_path):
-            if file.endswith('txt'):
-                with gfile.GFile(os.path.join(self._mgr1_path, file), 'r') as f:
-                    self.assertEqual(f.read(), expected_content)
-        for file in gfile.ListDirectory(self._mgr2_path):
-            if file.endswith('txt'):
-                with gfile.GFile(os.path.join(self._mgr2_path, file), 'r') as f:
-                    self.assertEqual(f.read(), expected_content)
-
-    def test_resume(self):
-        send_meta = {'file_idx': 40,
-                     'row_idx': 60,
-                     'files': self.file_paths,
-                     'finished': False,
-                     'root': self._test_root}
-        # behind send
-        recv1_meta = {'file_idx': 20,
-                      'row_idx': 70,
-                      'finished': False,
-                      'output_path': self._mgr1_path}
-        # in front of send
-        recv2_meta = {'file_idx': 60,
-                      'row_idx': 80,
-                      'finished': False,
-                      'output_path': self._mgr2_path}
-        self._db_client.set_data('1/send', json.dumps(send_meta).encode())
-        self._db_client.set_data('2/send', json.dumps(send_meta).encode())
-        self._db_client.set_data('1/recv', json.dumps(recv1_meta).encode())
-        self._db_client.set_data('2/recv', json.dumps(recv2_meta).encode())
-        self._transmit()
-        self._meta_assert()
-        # recv1 has a staler meta than send2
-        recv1_expected = _ground_truth_payload(IDX(20, 70), SEND_ROW_NUM,
-                                               ROW_NUM, FILE_NUM)
-        # send1 has a staler meta than recv2
-        send1_expected = _ground_truth_payload(IDX(40, 60), SEND_ROW_NUM,
-                                               ROW_NUM, FILE_NUM)
-        # send2 need to send from recv1's initial meta
-        send2_expected = recv1_expected
-
-        recv2_dup_row = (60 - 40) * ROW_NUM + (80 - 60)
-        recv2_remain_row = recv2_dup_row % SEND_ROW_NUM
-        recv2_overflow = SEND_ROW_NUM - recv2_remain_row
-        # from here it receives full request without duplicates
-        recv2_start = _get_next_idx(IDX(60, 80), recv2_overflow,
-                                    ROW_NUM, FILE_NUM)
-        recv2_expected = _ground_truth_payload(recv2_start, SEND_ROW_NUM,
-                                               ROW_NUM, FILE_NUM)
-        recv2_expected = '{}_{}-{}_{}'.format(60, 80,
-                                              recv2_start.file_idx,
-                                              recv2_start.row_idx) \
-                         + recv2_expected
-
-        with open(os.path.join(self._mgr1_path, 'send.txt'), 'r') as f:
-            self.assertEqual(f.read(), send1_expected)
-        with open(os.path.join(self._mgr1_path, 'recv.txt'), 'r') as f:
-            self.assertEqual(f.read(), recv1_expected)
-        with open(os.path.join(self._mgr2_path, 'send.txt'), 'r') as f:
-            self.assertEqual(f.read(), send2_expected)
-        with open(os.path.join(self._mgr2_path, 'recv.txt'), 'r') as f:
-            self.assertEqual(f.read(), recv2_expected)
-
-    def test_add_files(self):
-        self._transmit()
-        self.file_paths.extend(str(i) for i in range(FILE_NUM, 2 * FILE_NUM))
-        self._transmit()
-        self._meta_assert()
-        expected = _ground_truth_payload(
-            IDX(0, 0), SEND_ROW_NUM, ROW_NUM, FILE_NUM)
-        expected = expected + _ground_truth_payload(
-            IDX(FILE_NUM - 1, ROW_NUM), SEND_ROW_NUM, ROW_NUM, 2 * FILE_NUM)
-        for file in gfile.ListDirectory(self._mgr1_path):
-            if file.endswith('txt'):
-                with gfile.GFile(os.path.join(self._mgr1_path, file), 'r') as f:
-                    self.assertEqual(f.read(), expected)
-        for file in gfile.ListDirectory(self._mgr2_path):
-            if file.endswith('txt'):
-                with gfile.GFile(os.path.join(self._mgr2_path, file), 'r') as f:
-                    self.assertEqual(f.read(), expected)
+        expected_payload = _ground_truth_payload()
+        expected_files = '->' + '->'.join(map(str, range(TASK_NUM * FILE_NUM)))
+        for dir_ in (self._mgr1_path, self._mgr2_path):
+            for file in gfile.ListDirectory(dir_):
+                path = os.path.join(dir_, file)
+                if file.endswith('txt'):
+                    with gfile.GFile(path, 'r') as f:
+                        self.assertEqual(f.read(), expected_payload)
+                if file.endswith('fxf'):
+                    with gfile.GFile(path, 'r') as f:
+                        self.assertEqual(f.read(), expected_files)
 
     def tearDown(self) -> None:
         gfile.DeleteRecursively(self._test_root)

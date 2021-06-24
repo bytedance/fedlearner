@@ -4,6 +4,7 @@ import threading
 import typing
 
 from google.protobuf import empty_pb2
+
 import fedlearner.common.common_pb2 as common_pb
 import fedlearner.common.transmitter_service_pb2 as tsmt_pb
 import fedlearner.common.transmitter_service_pb2_grpc as tsmt_grpc
@@ -30,23 +31,24 @@ class Sender(object):
 
     @property
     def finished(self):
-        return self._finished.isSet()
+        return self._finished.is_set()
 
     def start(self):
         self._thread = threading.Thread(target=self._run)
         self._thread.start()
 
-    def wait_for_finished(self):
+    def wait_for_finish(self):
         if not self._thread:
             raise RuntimeError("Sender not started yet")
-        while not self._finished.isSet():
+        while not self._finished.is_set():
             logging.info("Waiting sender to finish...")
             self._finished.wait()
+        logging.info("Sender finished.")
 
     def _run(self):
         while True:
-            resp = self._request_task_from_master()
-            if resp.status == common_pb.STATUS_NO_MORE_DATA:
+            status = self._request_task_from_master()
+            if status.code == common_pb.STATUS_NO_MORE_DATA:
                 self._peer.DataFinish(empty_pb2.Empty())
                 break
             self._local_task_finished.clear()
@@ -58,10 +60,10 @@ class Sender(object):
         self._finished.set()
 
     def _wait_for_task_finish(self):
-        while not self._local_task_finished.isSet():
+        while not self._local_task_finished.is_set():
             logging.info("Waiting local task finished")
             self._local_task_finished.wait()
-        while not self._peer_task_finished.isSet():
+        while not self._peer_task_finished.is_set():
             logging.info("Waiting peer task finished")
             self._peer_task_finished.wait()
 
@@ -86,17 +88,18 @@ class Sender(object):
             self._resp_process(resp)
         self._local_task_finished.set()
 
-    def _request_task_from_master(self):
+    def _request_task_from_master(self) -> common_pb.Status:
         raise NotImplementedError
 
     def report_peer_file_finish_to_master(self, file_idx: int) \
-            -> common_pb.Status:
+        -> common_pb.Status:
         raise NotImplementedError
 
     def set_peer_task_finished(self):
         self._peer_task_finished.set()
 
-    def _data_iterator(self) -> typing.Iterable[bytes, tsmt_pb.BatchInfo]:
+    def _data_iterator(self) \
+        -> typing.Iterable[typing.Tuple[bytes, tsmt_pb.BatchInfo]]:
         """
         This method handles file processing payload. This should iterate the
             visitor and process the content it returns.
@@ -142,7 +145,7 @@ class Receiver(object):
 
     @property
     def finished(self):
-        return self._finished.isSet()
+        return self._finished.is_set()
 
     def start(self):
         self._thread = threading.Thread(target=self._recv)
@@ -151,32 +154,31 @@ class Receiver(object):
     def wait_for_finish(self):
         if not self._thread:
             raise RuntimeError("Sender not started yet")
-        while not self._finished.isSet():
+        while not self._finished.is_set():
             logging.info("Waiting sender to finish...")
             self._finished.wait()
 
     # RPC
     def transmit(self, request_iterator: typing.Iterable):
-        # one ongoing transmit at the same time
         for r in request_iterator:
-            if self._finished.isSet():
+            if self._finished.is_set():
                 raise RuntimeError('The stream has already finished.')
 
             # Channel assures us there is a subsequence of requests that
             #   constitutes the original req sequence, including order,
             #   so we need to check if it is consecutive.
             with self._lock:
-                consecutive = self._batch_idx == r.batch_idx
+                consecutive = self._batch_idx == r.batch_info.batch_idx
                 payload, post_job = self._recv_process(r, consecutive)
                 if consecutive:
                     self._recv_queue.put((r.batch_info, post_job))
                     self._batch_idx += 1
-            status = common_pb.Status()
-            status.MergeFrom(r.status)
-            yield tsmt_pb.TransmitDataResponse(status=status,
-                                               file_idx=r.file_idx,
-                                               batch_idx=r.batch_idx,
-                                               payload=payload)
+                batch_info = tsmt_pb.BatchInfo()
+                batch_info.MergeFrom(r.batch_info)
+            yield tsmt_pb.TransmitDataResponse(
+                status=common_pb.Status(code=common_pb.STATUS_SUCCESS),
+                batch_info=batch_info,
+                payload=payload)
         self._recv_queue.put(_EndSentinel())
 
     # RPC
@@ -185,7 +187,7 @@ class Receiver(object):
         return common_pb.Status(code=common_pb.StatusCode.STATUS_SUCCESS)
 
     def _recv(self):
-        while not self._finished.isSet():
+        while not self._finished.is_set():
             for batch_info, job in _queue_iter(self._recv_queue):
                 if job:
                     job()
@@ -196,7 +198,7 @@ class Receiver(object):
 
     def _recv_process(self,
                       req: tsmt_pb.TransmitDataRequest,
-                      consecutive: bool) -> (bytes, [object, None]):
+                      consecutive: bool) -> (bytes, [typing.Callable, None]):
         """
         This method should handle preceded and duplicated requests properly,
             and NOTE THAT SENDER MAY SEND DUPLICATED REQUESTS EVEN WHEN THE
