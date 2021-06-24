@@ -20,27 +20,29 @@ import "fedlearner/common/transmitter_service.proto";
 
 package fedlearner.common;
 
+enum Role {
+  Left = 0;
+  Right = 1;
+}
+
+enum Phase {
+  Encrypt = 0;
+  Sync = 1;
+  L_Diff = 2;
+  R_Diff = 3;
+  Reload = 4;
+}
+
 enum EncryptionKey {
-  DH = 0;
-  ECC = 1;
-  RSA = 2;
+  BaseKey = 0;
+  DH = 1;
+  ECC = 2;
+  RSA = 3;
 }
 
 message KeyInfo {
   EncryptionKey type = 1;
   string path = 2;
-}
-
-message EncryptTransmitRequest {
-  repeated bytes singly_encrypted = 1;
-  string req_id = 2;
-  int64 job_id = 3;
-}
-
-message EncryptTransmitResponse {
-  repeated bytes triply_encrypted = 1;
-  string req_id = 2;
-  int64 job_id = 3;
 }
 
 message BytesList {
@@ -55,14 +57,92 @@ message DataSyncResponse {
   map<string, BytesList> payload = 1;
 }
 
+message TransitionRequest {
+  Phase curr_phase = 1;
+  Phase next_phase = 2;
+}
+
+message TransitionResponse {
+  Status status = 1;
+  Phase curr_phase = 2;
+  Phase next_phase = 3;
+}
+
+message GetPhaseResponse {
+  Status status = 1;
+  Phase phase = 2;
+}
+
 message GetKeysResponse {
   Status status = 1;
   KeyInfo key_info = 2;
 }
 
+message PSUAllocateTaskRequest {
+  Phase phase = 1;
+  int64 rank_id = 2;
+}
+
+message PSUAllocateTaskResponse {
+  Status status = 1;
+  repeated FileInfo file_info = 2;
+}
+
+message PSUFinishFilesRequest {
+  Phase phase = 1;
+  repeated int64 file_idx = 2;
+}
+
+message PSUFinishFilesResponse {
+  Status status = 1;
+}
+
+service PSUPhaseManagerService {
+  rpc TransitionReady(TransitionRequest) returns (TransitionResponse) {}
+  rpc TransitionDone(TransitionRequest) returns (TransitionResponse) {}
+}
+
 service PSUTransmitterMasterService {
+  rpc GetPhase(google.protobuf.Empty) returns (GetPhaseResponse) {}
   rpc GetKeys(google.protobuf.Empty) returns (GetKeysResponse) {}
-  rpc AllocateTask(AllocateTaskRequest) returns (AllocateTaskResponse) {}
-  rpc FinishFiles(FinishFilesRequest) returns (FinishFilesResponse) {}
-  rpc RecvFinishFiles(FinishFilesRequest) returns (FinishFilesResponse) {}
+  rpc AllocateTask(PSUAllocateTaskRequest) returns (PSUAllocateTaskResponse) {}
+  rpc FinishFiles(PSUFinishFilesRequest) returns (PSUFinishFilesResponse) {}
+  rpc RecvFinishFiles(PSUFinishFilesRequest) returns (PSUFinishFilesResponse) {}
+}
+
+message PSUOptions {
+  string output_path = 1;
+  string join_key = 2;
+}
+
+message EncryptOptions {
+  int64 send_row_num = 1;
+  int64 send_queue_len = 2;
+  int64 recv_queue_len = 3;
+  int64 resp_queue_len = 4;
+}
+
+message SyncOptions {
+  int64 send_row_num = 1;
+  int64 send_queue_len = 2;
+  int64 recv_queue_len = 3;
+  int64 resp_queue_len = 4;
+}
+
+message LDiffOptions {
+  int64 send_row_num = 1;
+  int64 send_queue_len = 2;
+  int64 recv_queue_len = 3;
+  int64 resp_queue_len = 4;
+}
+
+message RDiffOptions {
+  int64 send_row_num = 1;
+  int64 send_queue_len = 2;
+  int64 recv_queue_len = 3;
+  int64 resp_queue_len = 4;
+}
+
+message ReloadOptions {
+
 }

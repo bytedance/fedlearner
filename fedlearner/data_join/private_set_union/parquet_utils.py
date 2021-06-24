@@ -7,11 +7,11 @@ from tensorflow import gfile
 from fedlearner.data_join.private_set_union.utils import E2, E4
 
 
-def encode_doubly_encrypted_file_path(output_path: str, file_id: [int, str]):
+def encode_e2_file_path(output_path: str, file_id: [int, str]):
     return os.path.join(str(output_path), E2, str(file_id) + '.parquet')
 
 
-def encode_quadruply_encrypted_file_path(output_path: str, file_id: [int, str]):
+def encode_e4_file_path(output_path: str, file_id: [int, str]):
     return os.path.join(str(output_path), E4, str(file_id) + '.parquet')
 
 

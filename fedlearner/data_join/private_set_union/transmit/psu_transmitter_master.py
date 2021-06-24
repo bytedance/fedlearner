@@ -70,9 +70,6 @@ class PSUTransmitterMasterService(psu_grpc.PSUTransmitterMasterServiceServicer):
         if request.phase < self._phase:
             return psu_pb.PSUAllocateTaskResponse(
                 status=common_pb.Status(code=common_pb.STATUS_NO_MORE_DATA))
-        elif request.phase > self._phase:
-            return psu_pb.PSUAllocateTaskResponse(
-                status=common_pb.Status(code=common_pb.STATUS_NOT_PROCESSING))
 
         if self.data_finished:
             with self._condition:
@@ -80,13 +77,6 @@ class PSUTransmitterMasterService(psu_grpc.PSUTransmitterMasterServiceServicer):
                 self._condition.notify_all()
             return tsmt_pb.AllocateTaskResponse(
                 status=common_pb.Status(code=common_pb.STATUS_NO_MORE_DATA))
-
-        if not self._transition_done.is_set():
-            # first attempt to allocate in new phase, need to check done
-            # TODO(zhangzihui): more status
-            return tsmt_pb.AllocateTaskResponse(
-                status=common_pb.Status(
-                    code=common_pb.STATUS_WAIT_FOR_SYNCING_CHECKPOINT))
 
         rid = request.rank_id
         alloc_files = []
@@ -340,6 +330,7 @@ class PSUTransmitterMaster:
     def run(self):
         if not self._started:
             self._server.start()
+            self._channel.connect()
             self._started = True
 
     def wait_for_finish(self):
@@ -348,4 +339,5 @@ class PSUTransmitterMaster:
     def stop(self):
         if self._started:
             self._server.stop()
+            self._channel.close()
             self._started = False

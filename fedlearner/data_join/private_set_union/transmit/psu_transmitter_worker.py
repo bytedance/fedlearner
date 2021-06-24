@@ -165,7 +165,7 @@ class PSUTransmitterWorker:
                 need_shuffle=True,
                 peer_client=self._peer,
                 master_client=self._master,
-                send_row_num=self._sync_opt.send_row_num,
+                batch_size=self._sync_opt.send_row_num,
                 consume_remain=True,
                 send_queue_len=self._sync_opt.send_queue_len,
                 resp_queue_len=self._sync_opt.resp_queue_len
