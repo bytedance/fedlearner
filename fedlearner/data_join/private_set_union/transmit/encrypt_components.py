@@ -13,7 +13,7 @@ import fedlearner.common.transmitter_service_pb2_grpc as tsmt_grpc
 import fedlearner.data_join.private_set_union.parquet_utils as pqu
 from fedlearner.data_join.private_set_union import transmit
 from fedlearner.data_join.private_set_union.keys import get_keys
-from fedlearner.data_join.private_set_union.utils import E1, E2, E3, E4
+from fedlearner.data_join.private_set_union.utils import E1, E2, E3, E4, Paths
 from fedlearner.data_join.transmitter.components import Receiver
 from fedlearner.data_join.visitors.parquet_visitor import ParquetVisitor
 
@@ -26,7 +26,6 @@ class _Col:
 class ParquetEncryptSender(transmit.PSUSender):
     def __init__(self,
                  rank_id: int,
-                 output_path: str,
                  batch_size: int,
                  join_key: str,
                  master_client: psu_grpc.PSUTransmitterMasterServiceStub,
@@ -34,7 +33,7 @@ class ParquetEncryptSender(transmit.PSUSender):
                  send_queue_len: int = 10,
                  resp_queue_len: int = 10):
         super().__init__(rank_id=rank_id,
-                         phase=psu_pb.Encrypt,
+                         phase=psu_pb.PSU_Encrypt,
                          visitor=ParquetVisitor(
                              batch_size=batch_size,
                              columns=[join_key, _Col.idx, _Col.job_id],
@@ -43,8 +42,6 @@ class ParquetEncryptSender(transmit.PSUSender):
                          peer_client=peer_client,
                          send_queue_len=send_queue_len,
                          resp_queue_len=resp_queue_len)
-
-        self._output_path = output_path
         self._join_key = join_key
 
         key_info = self._master.GetKeys(Empty()).key_info
@@ -115,8 +112,7 @@ class ParquetEncryptSender(transmit.PSUSender):
         table = pa.Table.from_pydict(mapping=table, schema=self._schema)
 
         # OUTPUT_PATH/quadruply_encrypted/<file_idx>.parquet
-        fp = pqu.encode_e4_file_path(self._output_path,
-                                     resp.batch_info.file_idx)
+        fp = Paths.encode_e4_file_path(resp.batch_info.file_idx)
         # dumper will be renewed if file changed.
         self._dumper = pqu.make_or_update_dumper(self._dumper, fp,
                                                  self._schema, flavor='spark')
@@ -126,7 +122,7 @@ class ParquetEncryptSender(transmit.PSUSender):
             self._dumper = None
             self._master.FinishFiles(psu_pb.PSUFinishFilesRequest(
                 file_idx=[resp.batch_info.file_idx],
-                rank_id=self._rank_id
+                phase=self.phase
             ))
 
 
@@ -134,7 +130,6 @@ class ParquetEncryptReceiver(Receiver):
     def __init__(self,
                  peer_client: tsmt_grpc.TransmitterWorkerServiceStub,
                  master_client,
-                 output_path: str,
                  recv_queue_len: int):
         key_info = master_client.GetKeys(Empty()).key_info
         self._keys = get_keys(key_info)
@@ -144,7 +139,6 @@ class ParquetEncryptReceiver(Receiver):
         self._encrypt_func1 = np.frompyfunc(self._keys.encrypt_1, 1, 1)
         self._encrypt_func2 = np.frompyfunc(self._keys.encrypt_2, 1, 1)
 
-        self._output_path = output_path
         self._dumper = None
         self._schema = pa.schema([pa.field(E2, pa.string())])
         super().__init__(peer_client, recv_queue_len)
@@ -162,9 +156,8 @@ class ParquetEncryptReceiver(Receiver):
             self._encrypt_func2(doubly_encrypted))
 
         if consecutive:
-            # OUTPUT_PATH/doubly_encrypted/<file_idx>.parquet
-            file_path = pqu.encode_e2_file_path(
-                self._output_path, req.batch_info.file_idx)
+            # STORAGE_ROOT/doubly_encrypted/<file_idx>.parquet
+            file_path = Paths.encode_e2_file_path(req.batch_info.file_idx)
             job = functools.partial(self._job_fn, doubly_encrypted,
                                     file_path, req.batch_info.finished)
         else:

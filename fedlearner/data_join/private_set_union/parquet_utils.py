@@ -4,15 +4,9 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 from tensorflow import gfile
 
-from fedlearner.data_join.private_set_union.utils import E2, E4
 
-
-def encode_e2_file_path(output_path: str, file_id: [int, str]):
-    return os.path.join(str(output_path), E2, str(file_id) + '.parquet')
-
-
-def encode_e4_file_path(output_path: str, file_id: [int, str]):
-    return os.path.join(str(output_path), E4, str(file_id) + '.parquet')
+def list_parquet_files(dir_path: str):
+    return [f for f in gfile.ListDirectory(dir_path) if f.endswith('.parquet')]
 
 
 def make_dirs_if_not_exists(file_path: str):

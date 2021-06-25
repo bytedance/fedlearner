@@ -18,11 +18,12 @@ from fedlearner.channel import Channel
 from fedlearner.data_join.private_set_union import utils
 from fedlearner.data_join.private_set_union.keys import get_keys
 
-TRANS_FSM = {psu_pb.Encrypt: psu_pb.Sync,
-             psu_pb.Sync: psu_pb.L_Diff,
-             psu_pb.L_Diff: psu_pb.R_Diff,
-             psu_pb.R_Diff: psu_pb.Reload,
-             psu_pb.Reload: psu_pb.Reload}  # TODO(zhangzihui): Finish Phase?
+# TODO(zhangzihui): Finish Phase?
+TRANS_FSM = {psu_pb.PSU_Encrypt: psu_pb.PSU_Sync,
+             psu_pb.PSU_Sync: psu_pb.PSU_L_Diff,
+             psu_pb.PSU_L_Diff: psu_pb.PSU_R_Diff,
+             psu_pb.PSU_R_Diff: psu_pb.PSU_Reload,
+             psu_pb.PSU_Reload: psu_pb.PSU_Reload}
 
 
 class PSUTransmitterMasterService(psu_grpc.PSUTransmitterMasterServiceServicer):
@@ -31,7 +32,7 @@ class PSUTransmitterMasterService(psu_grpc.PSUTransmitterMasterServiceServicer):
                  ready_event: threading.Event,
                  done_event: threading.Event,
                  peer_client: psu_grpc.PSUPhaseManagerServiceStub,
-                 key_type,
+                 key_type: str,
                  file_paths: typing.List[str],
                  worker_num: int):
         self._peer = peer_client
@@ -39,8 +40,16 @@ class PSUTransmitterMasterService(psu_grpc.PSUTransmitterMasterServiceServicer):
         self._next_phase = self._phase
         self._transition_ready = ready_event
         self._transition_done = done_event
+        self._phase_finished = threading.Event()
 
-        self._key_info = get_keys(psu_pb.KeyInfo(type=key_type))
+        # instantiate keys and get its info, s.t. keys are recorded
+        if key_type not in psu_pb.EncryptionKey.keys():
+            raise ValueError(f'Key type [{key_type}] not recognized.')
+        self._key_info = get_keys(
+            psu_pb.KeyInfo(type=getattr(psu_pb, key_type.title()),
+                           path=utils.Paths.encode_keys_path(key_type))
+        ).key_info
+
         self._file_paths = file_paths
         self._worker_num = worker_num
         self._meta_path = utils.Paths.encode_master_meta_path(phase)
@@ -74,7 +83,7 @@ class PSUTransmitterMasterService(psu_grpc.PSUTransmitterMasterServiceServicer):
         if self.data_finished:
             with self._condition:
                 self._finished_workers.add(request.rank_id)
-                self._condition.notify_all()
+            self._check_phase_finished()
             return tsmt_pb.AllocateTaskResponse(
                 status=common_pb.Status(code=common_pb.STATUS_NO_MORE_DATA))
 
@@ -91,7 +100,7 @@ class PSUTransmitterMasterService(psu_grpc.PSUTransmitterMasterServiceServicer):
         if len(alloc_idx) == 0:
             with self._condition:
                 self._finished_workers.add(request.rank_id)
-                self._condition.notify_all()
+            self._check_phase_finished()
             return tsmt_pb.AllocateTaskResponse(
                 status=common_pb.Status(code=common_pb.STATUS_NO_MORE_DATA))
 
@@ -155,7 +164,11 @@ class PSUTransmitterMasterService(psu_grpc.PSUTransmitterMasterServiceServicer):
                 else:
                     self._signal_buffer[kind].add(idx)
             self._dump_meta(self._meta)
-            self._condition.notify_all()
+            self._check_phase_finished()
+
+    def _check_phase_finished(self):
+        if self.finished:
+            self._phase_finished.set()
 
     @staticmethod
     def decode_meta(json_str: [str, bytes]) -> dict:
@@ -171,18 +184,19 @@ class PSUTransmitterMasterService(psu_grpc.PSUTransmitterMasterServiceServicer):
 
     @property
     def data_finished(self):
-        with self._condition:
-            return len(self._meta['finished']) == len(self._file_paths)
+        return len(self._meta['finished']) == len(self._file_paths)
 
     @property
     def finished(self):
-        with self._condition:
-            return self.data_finished \
-                   and len(self._finished_workers) == self._worker_num
+        return self.data_finished \
+               and len(self._finished_workers) == self._worker_num
 
     def get_phases(self):
         with self._condition:
             return self._phase, self._next_phase
+
+    def wait_for_finish(self):
+        self._phase_finished.wait()
 
     def wait_to_enter_next_phase(self, file_paths: typing.List[str]):
         self.wait_for_finish()
@@ -198,10 +212,14 @@ class PSUTransmitterMasterService(psu_grpc.PSUTransmitterMasterServiceServicer):
             self._transition_done.clear()
         else:
             # peer not ready yet
+            logging.info('[Transmitter]: Waiting peer to be ready for '
+                         'next phase.')
             self._transition_ready.wait()
 
+        # transitioning, lock
         with self._condition:
-            # transitioning, lock
+            logging.info('[Transmitter]: Entering next phase: %s.',
+                         psu_pb.Phase.keys()[self._next_phase])
             self._phase = self._next_phase
             self._file_paths = file_paths
             self._meta_path = utils.Paths.encode_master_meta_path(
@@ -209,6 +227,7 @@ class PSUTransmitterMasterService(psu_grpc.PSUTransmitterMasterServiceServicer):
             self._meta = self._get_meta()
             self._signal_buffer = defaultdict(set)
             self._finished_workers = set()
+            self._phase_finished.clear()
 
         # tell peer we've transitioned and wait for them if needed
         resp = self._peer.TransitionDone(
@@ -220,12 +239,8 @@ class PSUTransmitterMasterService(psu_grpc.PSUTransmitterMasterServiceServicer):
             self._transition_ready.clear()
         else:
             # peer not yet transitioned
+            logging.info('[Transmitter]: Waiting peer to finish')
             self._transition_done.wait()
-
-    def wait_for_finish(self):
-        with self._condition:
-            while not self.finished:
-                self._condition.wait()
 
 
 class PSUPhaseManagerService(psu_grpc.PSUPhaseManagerServiceServicer):
@@ -286,7 +301,7 @@ class PSUTransmitterMaster:
                  remote_address: str,
                  local_listen_port: int,
                  phase: str,
-                 key_type,
+                 key_type: str,
                  file_paths: typing.List[str],
                  worker_num: int):
         # channel and server
@@ -335,6 +350,9 @@ class PSUTransmitterMaster:
 
     def wait_for_finish(self):
         self._local_servicer.wait_for_finish()
+
+    def wait_to_enter_next_phase(self, file_paths):
+        self._local_servicer.wait_to_enter_next_phase(file_paths)
 
     def stop(self):
         if self._started:

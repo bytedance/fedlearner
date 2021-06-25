@@ -12,7 +12,7 @@ import fedlearner.common.transmitter_service_pb2_grpc as tsmt_grpc
 import fedlearner.data_join.private_set_union.parquet_utils as pqu
 from fedlearner.data_join.private_set_union import transmit
 from fedlearner.data_join.private_set_union.keys import get_keys
-from fedlearner.data_join.private_set_union.utils import E2, E3, E4
+from fedlearner.data_join.private_set_union.utils import E2, E3, E4, Paths
 from fedlearner.data_join.transmitter.components import Receiver
 from fedlearner.data_join.visitors.parquet_visitor import ParquetVisitor
 
@@ -26,7 +26,6 @@ class ParquetSetDiffSender(transmit.PSUSender):
     def __init__(self,
                  rank_id: int,
                  mode: str,  # l_diff (right - left) or r_diff (l - r)
-                 output_path: str,
                  peer_client: tsmt_grpc.TransmitterWorkerServiceStub,
                  master_client: psu_grpc.PSUTransmitterMasterServiceStub,
                  batch_size: int,
@@ -38,12 +37,12 @@ class ParquetSetDiffSender(transmit.PSUSender):
             self._send_col = E2
             self._resp_col = E3
             self._schema = pa.schema([pa.field(E4, pa.string())])
-            phase = psu_pb.L_Diff
+            phase = psu_pb.PSU_L_Diff
         else:
             self._send_col = E3
             self._resp_col = None
             self._schema = None
-            phase = psu_pb.R_Diff
+            phase = psu_pb.PSU_R_Diff
 
         super().__init__(rank_id=rank_id,
                          phase=phase,
@@ -63,7 +62,6 @@ class ParquetSetDiffSender(transmit.PSUSender):
         self._encrypt_func1 = np.frompyfunc(self._keys.encrypt_1, 1, 1)
         self._encrypt_func2 = np.frompyfunc(self._keys.encrypt_2, 1, 1)
 
-        self._output_path = output_path
         self._dumper = None
 
     def _data_iterator(self) \
@@ -99,8 +97,7 @@ class ParquetSetDiffSender(transmit.PSUSender):
         }
         table = pa.Table.from_pydict(mapping=table, schema=self._schema)
         # OUTPUT_PATH/quadruply_encrypted/<file_idx>.parquet
-        file_path = pqu.encode_e4_file_path(
-            self._output_path, resp.batch_info.file_idx)
+        file_path = Paths.encode_e4_file_path(resp.batch_info.file_idx)
         # dumper will be renewed if file changed.
         self._dumper = pqu.make_or_update_dumper(
             self._dumper, file_path, self._schema, flavor='spark')
@@ -110,7 +107,7 @@ class ParquetSetDiffSender(transmit.PSUSender):
             self._dumper = None
             self._master.FinishFiles(psu_pb.PSUFinishFilesRequest(
                 file_idx=[resp.batch_info.file_idx],
-                rank_id=self._rank_id
+                phase=self.phase
             ))
 
 
@@ -119,7 +116,6 @@ class ParquetSetDiffReceiver(Receiver):
                  mode: str,
                  peer_client: tsmt_grpc.TransmitterWorkerServiceStub,
                  master_client,
-                 output_path: str,
                  recv_queue_len: int):
         assert mode in (SetDiffMode.L, SetDiffMode.R)
         self._mode = mode
@@ -131,7 +127,6 @@ class ParquetSetDiffReceiver(Receiver):
         self._encrypt_func1 = np.frompyfunc(self._keys.encrypt_1, 1, 1)
         self._encrypt_func2 = np.frompyfunc(self._keys.encrypt_2, 1, 1)
 
-        self._output_path = output_path
         self._dumper = None
         self._schema = pa.schema([pa.field(E4, pa.string())])
         super().__init__(peer_client, recv_queue_len)
@@ -156,8 +151,7 @@ class ParquetSetDiffReceiver(Receiver):
                         np.asarray(sync_req.triply_encrypted, np.bytes_)
                 )))
                 # OUTPUT_PATH/doubly_encrypted/<file_idx>.parquet
-                fp = pqu.encode_e4_file_path(self._output_path,
-                                             req.batch_info.file_idx)
+                fp = Paths.encode_e4_file_path(req.batch_info.file_idx)
                 task = partial(self._job_fn, e4, fp,
                                req.batch_info.finished)
             else:

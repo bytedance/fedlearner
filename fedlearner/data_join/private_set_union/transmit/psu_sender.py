@@ -44,4 +44,4 @@ class PSUSender(Sender):
     def report_peer_file_finish_to_master(self, file_idx: int):
         return self._master.RecvFinishFiles(
             psu_pb.PSUFinishFilesRequest(file_idx=[file_idx],
-                                         rank_id=self._rank_id))
+                                         phase=self.phase))

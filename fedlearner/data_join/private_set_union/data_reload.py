@@ -7,7 +7,7 @@ import fedlearner.common.private_set_union_pb2 as psu_pb
 from fedlearner.common.common import set_logger
 from fedlearner.data_join.private_set_union import spark_utils as spu
 from fedlearner.data_join.private_set_union.keys import get_keys
-from fedlearner.data_join.private_set_union.utils import E3, E4
+from fedlearner.data_join.private_set_union.utils import E3, E4, Paths
 
 
 class _Keys:
@@ -51,14 +51,12 @@ class PSUDataReloadJob:
                      f'partition_size: {self._partition_size}, '
                      f'partition_num: {self._partition_num}')
         self._reload(self._id_dir, self._data_dir, self._diff_dir,
-                     self._output_dir, self._partition_size,
-                     self._partition_num)
+                     self._partition_size, self._partition_num)
 
     def _reload(self,
                 id_dir: str,
                 data_dir: str,
                 diff_dir: str,
-                output_dir: str,
                 partition_size: int = None,
                 partition_num: int = 32) -> None:
         """
@@ -67,7 +65,6 @@ class PSUDataReloadJob:
         Args:
             data_dir: directory to right ids parquet files.
             diff_dir: directory to left ids parquet files.
-            output_dir: output directory to dump set differences.
             partition_size: size of one partition.
             partition_num: num of partition. If partition_size is provided, this
                 will be ignored.
@@ -97,6 +94,7 @@ class PSUDataReloadJob:
             partition_num = math.ceil(count / partition_size)
 
         # repartition, sort and save
+        output_dir = Paths.encode_union_output_path()
         data_df \
             .repartition(partition_num, E4) \
             .sortWithinPartitions(E4) \

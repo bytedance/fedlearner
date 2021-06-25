@@ -4,6 +4,7 @@ import os
 import threading
 import time
 
+import grpc
 from google.protobuf.empty_pb2 import Empty
 
 import fedlearner.common.private_set_union_pb2 as psu_pb
@@ -14,11 +15,11 @@ from fedlearner.channel import Channel
 from fedlearner.data_join.private_set_union import utils
 from fedlearner.data_join.transmitter.components import Sender, Receiver
 from fedlearner.data_join.transmitter.transmitter_worker import \
-    TransmitterWorkerServicer
+    TransmitterWorker
 from fedlearner.proxy.channel import make_insecure_channel, ChannelType
 
 
-class PSUTransmitterWorkerServicer(TransmitterWorkerServicer):
+class PSUTransmitterWorkerServicer(TransmitterWorker):
     def __init__(self,
                  phase,
                  receiver: Receiver,
@@ -42,7 +43,7 @@ class PSUTransmitterWorkerServicer(TransmitterWorkerServicer):
 
 class PSUTransmitterWorker:
     def __init__(self,
-                 role: str,
+                 role,
                  rank_id: int,
                  listen_port: int,
                  remote_address: str,
@@ -51,15 +52,8 @@ class PSUTransmitterWorker:
                  encrypt_options,
                  sync_options,
                  l_diff_options,
-                 r_diff_options,
-                 reload_options):
-        role = role.lower()
-        if role == 'left' or role == 'follower':
-            self._role = psu_pb.Left
-        else:
-            assert role == 'right' or role == 'leader'
-            self._role = psu_pb.Right
-
+                 r_diff_options):
+        self._role = role
         self._rank_id = rank_id
         self._listen_address = "[::]:{}".format(listen_port)
         self._remote_address = remote_address
@@ -70,8 +64,7 @@ class PSUTransmitterWorker:
         self._sync_opt = sync_options
         self._l_diff_opt = l_diff_options
         self._r_diff_opt = r_diff_options
-        self._reload_opt = reload_options
-        self._phase = psu_pb.Encrypt
+        self._phase = psu_pb.PSU_Encrypt
 
         self._condition = threading.Condition()
         self._connected = False
@@ -105,75 +98,82 @@ class PSUTransmitterWorker:
             os._exit(138)  # Tell Scheduler to restart myself
 
     def run(self):
-        resp = self._master.GetPhase(Empty())
-        self._phase = resp.phase
-        if self._phase == psu_pb.Encrypt:
+        while True:
+            try:
+                resp = self._master.GetPhase(Empty())
+                self._phase = resp.phase
+                break
+            except grpc.RpcError as e:
+                logging.info(
+                    '[Transmitter]: Error getting phase from master: %s, '
+                    'sleep 5 secs and retry.', e.details())
+                time.sleep(5)
+
+        if self._phase == psu_pb.PSU_Encrypt:
             self._run_encrypt()
             self.wait_for_finish()
-            self._phase = psu_pb.Sync
+            self._phase = psu_pb.PSU_Sync
             self._wait_for_master()
 
-        if self._phase == psu_pb.Sync:
+        if self._phase == psu_pb.PSU_Sync:
             self._run_sync()
             self.wait_for_finish()
-            self._phase = psu_pb.L_Diff
+            self._phase = psu_pb.PSU_L_Diff
             self._wait_for_master()
 
-        if self._phase == psu_pb.L_Diff:
+        if self._phase == psu_pb.PSU_L_Diff:
             self._run_diff(self._phase)
             self.wait_for_finish()
-            self._phase = psu_pb.R_Diff
+            self._phase = psu_pb.PSU_R_Diff
             self._wait_for_master()
 
-        if self._phase == psu_pb.R_Diff:
+        if self._phase == psu_pb.PSU_R_Diff:
             self._run_diff(self._phase)
             self.wait_for_finish()
-            self._phase = psu_pb.Reload
+            self._phase = psu_pb.PSU_Reload
             self._wait_for_master()
 
     def _run_encrypt(self):
         receiver = transmit.ParquetEncryptReceiver(
             peer_client=self._peer,
             master_client=self._master,
-            output_path=self._options.output_path,
             recv_queue_len=self._encrypt_opt.recv_queue_len
         )
         sender = transmit.ParquetEncryptSender(
-            output_path=self._encrypt_opt.output_path,
+            rank_id=self._rank_id,
+            batch_size=self._encrypt_opt.batch_size,
             peer_client=self._peer,
             master_client=self._master,
-            send_row_num=self._encrypt_opt.send_row_num,
             send_queue_len=self._encrypt_opt.send_queue_len,
             resp_queue_len=self._encrypt_opt.resp_queue_len,
             join_key=self._options.join_key
         )
-        self._config_servicer(psu_pb.Encrypt, receiver, sender)
+        self._config_servicer(psu_pb.PSU_Encrypt, receiver, sender)
 
     def _run_sync(self):
         if self._role == psu_pb.Left:
             receiver = transmit.ParquetSyncReceiver(
                 peer_client=self._peer,
                 master_client=self._master,
-                output_path=self._options.output_path,
                 recv_queue_len=self._sync_opt.recv_queue_len
             )
             sender = None
         else:
             receiver = None
             sender = transmit.ParquetSyncSender(
+                rank_id=self._rank_id,
                 sync_columns=[utils.E2],
                 need_shuffle=True,
                 peer_client=self._peer,
                 master_client=self._master,
-                batch_size=self._sync_opt.send_row_num,
-                consume_remain=True,
+                batch_size=self._sync_opt.batch_size,
                 send_queue_len=self._sync_opt.send_queue_len,
                 resp_queue_len=self._sync_opt.resp_queue_len
             )
-        self._config_servicer(psu_pb.Sync, receiver, sender)
+        self._config_servicer(psu_pb.PSU_Sync, receiver, sender)
 
     def _run_diff(self, phase):
-        if phase == psu_pb.L_Diff:
+        if phase == psu_pb.PSU_L_Diff:
             mode = transmit.SetDiffMode.L
             opt = self._l_diff_opt
         else:
@@ -183,11 +183,11 @@ class PSUTransmitterWorker:
         if self._role == psu_pb.Left:
             receiver = None
             sender = transmit.ParquetSetDiffSender(
+                rank_id=self._rank_id,
                 mode=mode,
-                output_path=opt.output_path,
                 peer_client=self._peer,
                 master_client=self._master,
-                send_row_num=opt.send_row_num,
+                batch_size=opt.batch_size,
                 send_queue_len=opt.send_queue_len,
                 resp_queue_len=opt.resp_queue_len
             )
@@ -196,7 +196,6 @@ class PSUTransmitterWorker:
                 mode=mode,
                 peer_client=self._peer,
                 master_client=self._master,
-                output_path=opt.output_path,
                 recv_queue_len=opt.recv_queue_len
             )
             sender = None
@@ -229,9 +228,9 @@ class PSUTransmitterWorker:
         if self._sender:
             self._sender.wait_for_finish()
 
-    def _wait_for_master(self, wait_time=10):
+    def _wait_for_master(self, wait_time=30):
         resp = self._master.GetPhase(Empty())
-        while not resp.phase < self._phase:
+        while resp.phase < self._phase:
             logging.info('[Transmitter]: Master still in {} phase. '
                          'Worker phase: {}. Waiting...'
                          .format(psu_pb.Phase.keys()[resp.phase],

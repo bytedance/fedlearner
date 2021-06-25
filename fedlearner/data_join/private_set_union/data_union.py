@@ -102,7 +102,7 @@ class ParquetDataUnionJob:
             .filter(col(l_col) is None) \
             .select(col(r_col).alias(E2))
 
-        r_output_dir, l_output_dir = Paths.encode_union_output_paths(output_dir)
+        r_output_dir, l_output_dir = Paths.encode_diff_output_paths()
         # if specify partition size, calculate the num of partitions
         if partition_size:
             # count() is fast in the event of parquet files

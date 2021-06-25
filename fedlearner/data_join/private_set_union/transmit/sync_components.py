@@ -10,7 +10,7 @@ import fedlearner.common.transmitter_service_pb2 as tsmt_pb
 import fedlearner.common.transmitter_service_pb2_grpc as tsmt_grpc
 import fedlearner.data_join.private_set_union.parquet_utils as pqu
 from fedlearner.data_join.private_set_union import transmit
-from fedlearner.data_join.private_set_union.utils import E2
+from fedlearner.data_join.private_set_union.utils import E2, Paths
 from fedlearner.data_join.transmitter.components import Receiver
 from fedlearner.data_join.visitors.parquet_visitor import ParquetVisitor
 
@@ -21,12 +21,12 @@ class ParquetSyncSender(transmit.PSUSender):
                  sync_columns: typing.List,
                  need_shuffle: bool,
                  master_client: psu_grpc.PSUTransmitterMasterServiceStub,
-                 peer_client: transmit.PSUTransmitterWorkerServicer,
+                 peer_client: tsmt_grpc.TransmitterWorkerServiceStub,
                  batch_size: int,
                  send_queue_len: int = 10,
                  resp_queue_len: int = 10):
         super().__init__(rank_id=rank_id,
-                         phase=psu_pb.Sync,
+                         phase=psu_pb.PSU_Sync,
                          visitor=ParquetVisitor(batch_size=batch_size,
                                                 columns=sync_columns,
                                                 consume_remain=True),
@@ -35,7 +35,7 @@ class ParquetSyncSender(transmit.PSUSender):
                          send_queue_len=send_queue_len,
                          resp_queue_len=resp_queue_len)
         self._rank_id = rank_id
-        self.phase = psu_pb.Sync
+        self.phase = psu_pb.PSU_Sync
         self._columns = sync_columns
         self._need_shuffle = need_shuffle
 
@@ -62,11 +62,9 @@ class ParquetSyncSender(transmit.PSUSender):
     def _resp_process(self,
                       resp: tsmt_pb.TransmitDataResponse) -> None:
         if resp.batch_info.finished:
-            self._dumper.close()
-            self._dumper = None
             self._master.FinishFiles(psu_pb.PSUFinishFilesRequest(
                 file_idx=[resp.batch_info.file_idx],
-                rank_id=self._rank_id
+                phase=self.phase
             ))
 
 
@@ -74,10 +72,8 @@ class ParquetSyncReceiver(Receiver):
     def __init__(self,
                  peer_client: tsmt_grpc.TransmitterWorkerServiceStub,
                  master_client,
-                 output_path: str,
                  recv_queue_len: int):
         self._master = master_client
-        self._output_path = output_path
         self._dumper = None
         self._schema = pa.schema([pa.field(E2, pa.string())])
         super().__init__(peer_client, recv_queue_len)
@@ -90,8 +86,7 @@ class ParquetSyncReceiver(Receiver):
             sync_req = psu_pb.DataSyncRequest()
             sync_req.ParseFromString(req.payload)
             # OUTPUT_PATH/doubly_encrypted/<file_idx>.parquet
-            fp = pqu.encode_e2_file_path(self._output_path,
-                                         req.batch_info.file_idx)
+            fp = Paths.encode_e2_file_path(req.batch_info.file_idx)
             return functools.partial(
                 self._job_fn, sync_req[E2].value, fp, req.batch_info.finished)
         return None

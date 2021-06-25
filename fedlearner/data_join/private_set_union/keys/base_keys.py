@@ -4,7 +4,7 @@ import fedlearner.common.private_set_union_pb2 as psu_pb
 
 class BaseKeys:
     def __init__(self, key_info: psu_pb.KeyInfo):
-        self._key_info = key_info
+        self.key_info = key_info
         self._key_path = key_info.path
 
     @classmethod
