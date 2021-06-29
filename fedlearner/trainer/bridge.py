@@ -325,14 +325,15 @@ class Bridge(object):
     def _data_block_handler(self, request):
         assert self._data_block_handler_fn is not None, \
             "[Bridge] receive DataBlockMessage but no handler registered."
-        if self._data_block_handler_fn(request):
-            fl_logging.info("[Bridge] succeeded to load data block %s",
-                         request.block_id)
-            return tws2_pb.LoadDataBlockResponse(
-                status=common_pb.Status(code=common_pb.STATUS_SUCCESS)
-            )
-        fl_logging.info("[Bridge] failed to load data block %s",
-                        request.block_id)
+        with self._condition:
+            if self._data_block_handler_fn(request):
+                fl_logging.info("[Bridge] succeeded to load data block %s",
+                             request.block_id)
+                return tws2_pb.LoadDataBlockResponse(
+                    status=common_pb.Status(code=common_pb.STATUS_SUCCESS)
+                )
+            fl_logging.info("[Bridge] failed to load data block %s",
+                            request.block_id)
         return tws2_pb.LoadDataBlockResponse(
             status=common_pb.Status(code=common_pb.STATUS_INVALID_DATA_BLOCK)
         )

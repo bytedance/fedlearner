@@ -33,6 +33,11 @@ class DataBlockLoader(object):
             self._bridge.register_data_block_handler(self._data_block_handler)
 
     def _data_block_handler(self, msg):
+        if self._count > msg.count:
+            fl_logging.warn('DataBlock: ignore repeated datablock "%s" at %d',
+                msg.block_id, msg.count)
+            return True
+
         fl_logging.info('DataBlock: recv "%s" at %d', msg.block_id, msg.count)
         assert self._count == msg.count
         if not msg.block_id:
