@@ -3,6 +3,8 @@ import logging
 import math
 import os
 
+from pyspark.sql.functions import rand, monotonically_increasing_id
+
 import fedlearner.common.private_set_union_pb2 as psu_pb
 from fedlearner.common.common import set_logger
 from fedlearner.data_join.private_set_union import spark_utils as spu
@@ -69,24 +71,51 @@ class PSUDataReloadJob:
             partition_num: num of partition. If partition_size is provided, this
                 will be ignored.
         """
+        # id_df is the E4 id of each row
         id_df = self._spark.read \
             .option('recursiveFileLookup', 'true') \
             .option('pathGlobFilter', '*.parquet') \
             .parquet(id_dir)
+        # data_df is the original data
         data_df = self._spark.read \
             .option('recursiveFileLookup', 'true') \
             .option('pathGlobFilter', '*.parquet') \
             .parquet(data_dir)
         assert id_df.count() == data_df.count()
+        # diff_df is the set difference
         diff_df = self._spark.read \
             .option('recursiveFileLookup', 'true') \
             .option('pathGlobFilter', '*.parquet') \
             .parquet(diff_dir) \
-            .select(self._encrypt_udf(E3).alias(E3))
+            .select(E4) \
+            .orderBy(rand())
 
+        # ======== Sample Rows to Fake Data ========
+        data_len = data_df.count()
+        diff_len = diff_df.count()
+        # sample 5% more data s.t. there are enough rows
+        sample_rate = diff_len / data_len * 1.05
+        # loop until there are enough rows
+        while True:
+            if sample_rate > 1.:
+                sample_df = data_df.sample(True, sample_rate).limit(diff_len)
+            else:
+                sample_df = data_df.sample(False, sample_rate).limit(diff_len)
+            if sample_df.count() == data_len:
+                break
+            sample_rate *= 1.05
+        sample_df = sample_df \
+            .withColumn('_row_', monotonically_increasing_id())
+        diff_df = diff_df \
+            .withColumn('_row_', monotonically_increasing_id())
+        sample_df = sample_df \
+            .join(diff_df, ['_row_']) \
+            .drop('_row_')
+
+        # ======== Reload ========
         data_df = data_df \
             .join(id_df, ['_index', '_job_id'], 'left_outer') \
-            .join(diff_df, [E4], 'full')
+            .join(sample_df, [E4], 'full')
 
         if partition_size:
             # count() is fast in the event of parquet files

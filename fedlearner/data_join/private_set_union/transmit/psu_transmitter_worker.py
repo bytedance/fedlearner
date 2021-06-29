@@ -229,11 +229,16 @@ class PSUTransmitterWorker:
             self._sender.wait_for_finish()
 
     def _wait_for_master(self, wait_time=30):
-        resp = self._master.GetPhase(Empty())
-        while resp.phase < self._phase:
-            logging.info('[Transmitter]: Master still in {} phase. '
-                         'Worker phase: {}. Waiting...'
-                         .format(psu_pb.Phase.keys()[resp.phase],
-                                 psu_pb.Phase.keys()[self._phase]))
+        while True:
+            try:
+                resp = self._master.GetPhase(Empty())
+                if resp.phase == self._phase:
+                    break
+                logging.info('[Transmitter]: Master still in {} phase. '
+                             'Worker phase: {}. Waiting...'
+                             .format(psu_pb.Phase.keys()[resp.phase],
+                                     psu_pb.Phase.keys()[self._phase]))
+            except grpc.RpcError as e:
+                logging.warning('[Transmitter]: Error getting master phase: %s',
+                                e.details())
             time.sleep(wait_time)
-            resp = self._master.GetPhase(Empty())
