@@ -240,15 +240,6 @@ class FLEstimator(object):
             update_ops.extend(model._train_ops)
             eval_op = tf.group(*update_ops)
 
-            # Also track the global step
-            if tf.GraphKeys.GLOBAL_STEP in eval_dict:
-                raise ValueError(
-                    'Metric with name `global_step` is not allowed, because '
-                    'Estimator already defines a default metric with the '
-                    'same name.')
-            eval_dict[tf.GraphKeys.GLOBAL_STEP] = \
-                tf.train.get_or_create_global_step()
-
             # Prepare hooks
             all_hooks = []
             if spec.evaluation_hooks:
