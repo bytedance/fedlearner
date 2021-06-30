@@ -48,21 +48,27 @@ class _TriggerHook(tf.train.SessionRunHook):
         self._trigger_fn = trigger_fn
 
     def begin(self):
-        self._global_step_tensor = tf.train.get_or_create_global_step()
+        self._global_step_tensor = tf.train.get_global_step()
         self._last_triggered_time = None
         self._last_triggered_step = None
 
     def after_create_session(self, session, coord):
-        global_step = session.run(self._global_step_tensor)
+        global_step = 0
+        if self._global_step_tensor:
+            global_step = session.run(self._global_step_tensor)
         self._trigger(global_step)
 
     def after_run(self, run_context, run_values):
-        global_step = run_context.session.run(self._global_step_tensor)
+        global_step = 0
+        if self._global_step_tensor:
+            global_step = run_context.session.run(self._global_step_tensor)
         if self._should_trigger(global_step):
             self._trigger(global_step)
 
     def end(self, session):
-        global_step = session.run(self._global_step_tensor)
+        global_step = 0
+        if self._global_step_tensor:
+            global_step = session.run(self._global_step_tensor)
         self._trigger(global_step)
 
     def _should_trigger(self, global_step):
