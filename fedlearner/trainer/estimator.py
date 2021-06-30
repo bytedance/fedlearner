@@ -115,6 +115,9 @@ class FLModel(object):
             if grad is not None:
                 self.send(n + '_grad', grad)
 
+        if not global_step:
+            global_step = tf.train.get_or_create_global_step()
+
         if grads_and_vars[len(recv_grads):]:
             train_op = optimizer.apply_gradients(
                 grads_and_vars[len(recv_grads):],
