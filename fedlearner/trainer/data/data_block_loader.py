@@ -77,7 +77,6 @@ class DataBlockLoader(object):
         dataset = tf.data.Dataset.from_generator(gen, tf.string)
         dataset = tf.data.TFRecordDataset(dataset)
         dataset = dataset.batch(self._batch_size, drop_remainder=True)
-        dataset = dataset.prefetch(1)
         return dataset
 
     def make_batch_iterator(self):

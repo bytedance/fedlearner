@@ -169,6 +169,7 @@ class FLEstimator(object):
 
     def _get_features_and_labels_from_input_fn(self, input_fn, mode):
         dataset = input_fn(self._bridge, self._trainer_master)
+        dataset.prefetch(4)
         features, labels = dataset.make_one_shot_iterator().get_next()
         return features, labels
 
