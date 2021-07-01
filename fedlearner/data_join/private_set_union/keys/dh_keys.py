@@ -47,7 +47,7 @@ class DHKeys(BaseKeys):
             keys = {'key1': key1.digits(62),
                     'key2': key2.digits(62)}
             gfile.MakeDirs(os.path.dirname(self._key_path))
-            with gfile.GFile(self._key_path) as f:
+            with gfile.GFile(self._key_path, 'w') as f:
                 json.dump(keys, f)
         return key1, key2
 

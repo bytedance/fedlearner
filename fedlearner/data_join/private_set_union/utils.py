@@ -8,31 +8,31 @@ E4 = 'quadruply_encrypted'
 
 
 class Paths:
-    @property
-    def base_dir(self) -> str:
+    @staticmethod
+    def base_dir() -> str:
         return os.path.join(os.environ['STORAGE_ROOT_PATH'], 'psu')
 
     @staticmethod
     def encode_master_meta_path(phase: str):
-        return os.path.join(str(Paths.base_dir), phase, 'meta.json')
+        return os.path.join(Paths.base_dir(), phase, 'meta.json')
 
     @staticmethod
     def encode_diff_output_paths():
-        right = os.path.join(str(Paths.base_dir), 'right_diff')
-        left = os.path.join(str(Paths.base_dir), 'left_diff')
+        right = os.path.join(Paths.base_dir(), 'right_diff')
+        left = os.path.join(Paths.base_dir(), 'left_diff')
         return right, left
 
     @staticmethod
     def encode_union_output_path():
-        return os.path.join(str(Paths.base_dir), 'union')
+        return os.path.join(Paths.base_dir(), 'union')
 
     @staticmethod
     def encode_keys_path(key_type: str):
-        return os.path.join(str(Paths.base_dir), 'keys', key_type)
+        return os.path.join(Paths.base_dir(), 'keys', key_type)
 
     @staticmethod
     def encode_e2_dir():
-        return os.path.join(str(Paths.base_dir), E2)
+        return os.path.join(Paths.base_dir(), E2)
 
     @staticmethod
     # encrypt phase & sync phase output path
@@ -41,7 +41,7 @@ class Paths:
 
     @staticmethod
     def encode_e4_dir():
-        return os.path.join(str(Paths.base_dir), E4)
+        return os.path.join(Paths.base_dir(), E4)
 
     @staticmethod
     # encrypt phase output path

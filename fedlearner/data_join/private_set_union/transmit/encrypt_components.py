@@ -11,10 +11,10 @@ import fedlearner.common.private_set_union_pb2_grpc as psu_grpc
 import fedlearner.common.transmitter_service_pb2 as tsmt_pb
 import fedlearner.common.transmitter_service_pb2_grpc as tsmt_grpc
 import fedlearner.data_join.private_set_union.parquet_utils as pqu
-from fedlearner.data_join.private_set_union import transmit
 from fedlearner.data_join.private_set_union.keys import get_keys
+from fedlearner.data_join.private_set_union.transmit.base_components import \
+    PSUSender, PSUReceiver
 from fedlearner.data_join.private_set_union.utils import E1, E2, E3, E4, Paths
-from fedlearner.data_join.transmitter.components import Receiver
 from fedlearner.data_join.visitors.parquet_visitor import ParquetVisitor
 
 
@@ -23,7 +23,7 @@ class _Col:
     job_id = '_job_id'
 
 
-class ParquetEncryptSender(transmit.PSUSender):
+class ParquetEncryptSender(PSUSender):
     def __init__(self,
                  rank_id: int,
                  batch_size: int,
@@ -68,11 +68,11 @@ class ParquetEncryptSender(transmit.PSUSender):
             #   independent of <join_key>.
             _index = np.asarray(batch[_Col.idx])
             # hash and encrypt join keys using private key 1
-            singly_encrypted = self._encode_func(self._encrypt_func1(
+            e1_enc = self._encode_func(self._encrypt_func1(
                 self._hash_func(np.asarray(batch[self._join_key]))
             ))
             # in-place shuffle
-            unison = np.c_[_index, singly_encrypted]
+            unison = np.c_[_index, e1_enc]
             np.random.shuffle(unison)
             # record the original indices for data merging in the future
             req_id = uuid.uuid4().hex.encode()
@@ -100,15 +100,15 @@ class ParquetEncryptSender(transmit.PSUSender):
             self._indices.pop(sync_res.payload['req_id'].value[0]),
             dtype=np.long
         )
-        quadruply_encrypted = self._encrypt_func2(self._decode_func(
-            np.asarray(sync_res.payload[E3].value)
+        e4_enc = self._encode_func(self._encrypt_func2(
+            self._decode_func(np.asarray(sync_res.payload[E3].value))
         ))
 
         # construct a table and dump
         table = {_Col.idx: _index,
                  _Col.job_id: [int(sync_res.payload[_Col.job_id].value[0])
                                for _ in range(len(_index))],
-                 E4: quadruply_encrypted}
+                 E4: e4_enc}
         table = pa.Table.from_pydict(mapping=table, schema=self._schema)
 
         # OUTPUT_PATH/quadruply_encrypted/<file_idx>.parquet
@@ -126,11 +126,11 @@ class ParquetEncryptSender(transmit.PSUSender):
             ))
 
 
-class ParquetEncryptReceiver(Receiver):
+class ParquetEncryptReceiver(PSUReceiver):
     def __init__(self,
                  peer_client: tsmt_grpc.TransmitterWorkerServiceStub,
                  master_client,
-                 recv_queue_len: int):
+                 recv_queue_len: int = 10):
         key_info = master_client.GetKeys(Empty()).key_info
         self._keys = get_keys(key_info)
         self._hash_func = np.frompyfunc(self._keys.hash, 1, 1)
@@ -138,10 +138,9 @@ class ParquetEncryptReceiver(Receiver):
         self._decode_func = np.frompyfunc(self._keys.decode, 1, 1)
         self._encrypt_func1 = np.frompyfunc(self._keys.encrypt_1, 1, 1)
         self._encrypt_func2 = np.frompyfunc(self._keys.encrypt_2, 1, 1)
-
-        self._dumper = None
-        self._schema = pa.schema([pa.field(E2, pa.string())])
-        super().__init__(peer_client, recv_queue_len)
+        super().__init__(schema=pa.schema([pa.field(E2, pa.string())]),
+                         peer_client=peer_client,
+                         recv_queue_len=recv_queue_len)
 
     def _recv_process(self,
                       req: tsmt_pb.TransmitDataRequest,
@@ -149,39 +148,24 @@ class ParquetEncryptReceiver(Receiver):
         sync_req = psu_pb.DataSyncRequest()
         sync_req.ParseFromString(req.payload)
 
-        doubly_encrypted = self._encrypt_func1(self._decode_func(
+        e2 = self._encrypt_func1(self._decode_func(
             np.asarray(sync_req.payload[E1].value, np.bytes_))
         )
-        triply_encrypted = self._encode_func(
-            self._encrypt_func2(doubly_encrypted))
+        e3_enc = self._encode_func(self._encrypt_func2(e2))
 
         if consecutive:
             # STORAGE_ROOT/doubly_encrypted/<file_idx>.parquet
             file_path = Paths.encode_e2_file_path(req.batch_info.file_idx)
-            job = functools.partial(self._job_fn, doubly_encrypted,
-                                    file_path, req.batch_info.finished)
+            job = functools.partial(self._job_fn, E2, e2, file_path,
+                                    req.batch_info.finished, self._encode_func)
         else:
             job = None
 
         res = psu_pb.DataSyncResponse(
             payload={
-                E3: psu_pb.BytesList(value=triply_encrypted),
+                E3: psu_pb.BytesList(value=e3_enc),
                 'req_id': sync_req.payload['req_id'],
                 _Col.job_id: sync_req.payload[_Col.job_id]
             }
         )
         return res.SerializeToString(), job
-
-    def _job_fn(self,
-                doubly_encrypted: np.ndarray,
-                file_path: str,
-                finished: bool):
-        self._dumper = pqu.make_or_update_dumper(
-            self._dumper, file_path, self._schema, flavor='spark')
-        table = pa.Table.from_pydict(
-            mapping={E2: self._encode_func(doubly_encrypted)},
-            schema=self._schema)
-        self._dumper.write_table(table)
-        if finished:
-            self._dumper.close()
-            self._dumper = None

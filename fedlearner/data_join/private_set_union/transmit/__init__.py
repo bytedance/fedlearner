@@ -1,6 +1,5 @@
 from fedlearner.data_join.private_set_union.transmit.encrypt_components \
     import ParquetEncryptSender, ParquetEncryptReceiver
-from fedlearner.data_join.private_set_union.transmit.psu_sender import PSUSender
 from fedlearner.data_join.private_set_union.transmit.psu_transmitter_master \
     import (PSUTransmitterMaster, PSUTransmitterMasterService,
             PSUPhaseManagerService)

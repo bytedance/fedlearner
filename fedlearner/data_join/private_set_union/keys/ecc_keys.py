@@ -52,6 +52,6 @@ class ECCKeys(BaseKeys):
             keys = {'key1': base64.b64encode(bytes(key1)).decode(),
                     'key2': base64.b64encode(bytes(key2)).decode()}
             gfile.MakeDirs(os.path.dirname(self._key_path))
-            with gfile.GFile(self._key_path) as f:
+            with gfile.GFile(self._key_path, 'w') as f:
                 json.dump(keys, f)
         return key1, key2

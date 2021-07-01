@@ -10,10 +10,10 @@ import fedlearner.common.private_set_union_pb2_grpc as psu_grpc
 import fedlearner.common.transmitter_service_pb2 as tsmt_pb
 import fedlearner.common.transmitter_service_pb2_grpc as tsmt_grpc
 import fedlearner.data_join.private_set_union.parquet_utils as pqu
-from fedlearner.data_join.private_set_union import transmit
 from fedlearner.data_join.private_set_union.keys import get_keys
+from fedlearner.data_join.private_set_union.transmit.base_components import \
+    PSUSender, PSUReceiver
 from fedlearner.data_join.private_set_union.utils import E2, E3, E4, Paths
-from fedlearner.data_join.transmitter.components import Receiver
 from fedlearner.data_join.visitors.parquet_visitor import ParquetVisitor
 
 
@@ -22,7 +22,7 @@ class SetDiffMode:
     R = 'r_diff'
 
 
-class ParquetSetDiffSender(transmit.PSUSender):
+class ParquetSetDiffSender(PSUSender):
     def __init__(self,
                  rank_id: int,
                  mode: str,  # l_diff (right - left) or r_diff (l - r)
@@ -68,7 +68,8 @@ class ParquetSetDiffSender(transmit.PSUSender):
             -> typing.Iterable[typing.Tuple[bytes, tsmt_pb.BatchInfo]]:
         for batch, file_idx, file_finished in self._visitor:
             payload = psu_pb.DataSyncRequest(payload={
-                self._send_col: psu_pb.BytesList(value=batch[self._send_col])
+                self._send_col: psu_pb.BytesList(
+                    value=list(map(str.encode, batch[self._send_col])))
             })
             yield payload.SerializeToString(), \
                   tsmt_pb.BatchInfo(finished=file_finished,
@@ -83,7 +84,7 @@ class ParquetSetDiffSender(transmit.PSUSender):
             if resp.batch_info.finished:
                 self._master.FinishFiles(psu_pb.PSUFinishFilesRequest(
                     file_idx=[resp.batch_info.file_idx],
-                    rank_id=self._rank_id
+                    phase=self.phase
                 ))
             return
 
@@ -111,12 +112,12 @@ class ParquetSetDiffSender(transmit.PSUSender):
             ))
 
 
-class ParquetSetDiffReceiver(Receiver):
+class ParquetSetDiffReceiver(PSUReceiver):
     def __init__(self,
                  mode: str,
                  peer_client: tsmt_grpc.TransmitterWorkerServiceStub,
                  master_client,
-                 recv_queue_len: int):
+                 recv_queue_len: int = 10):
         assert mode in (SetDiffMode.L, SetDiffMode.R)
         self._mode = mode
         key_info = master_client.GetKeys(Empty()).key_info
@@ -126,10 +127,9 @@ class ParquetSetDiffReceiver(Receiver):
         self._decode_func = np.frompyfunc(self._keys.decode, 1, 1)
         self._encrypt_func1 = np.frompyfunc(self._keys.encrypt_1, 1, 1)
         self._encrypt_func2 = np.frompyfunc(self._keys.encrypt_2, 1, 1)
-
-        self._dumper = None
-        self._schema = pa.schema([pa.field(E4, pa.string())])
-        super().__init__(peer_client, recv_queue_len)
+        super().__init__(schema=pa.schema([pa.field(E4, pa.string())]),
+                         peer_client=peer_client,
+                         recv_queue_len=recv_queue_len)
 
     def _recv_process(self,
                       req: tsmt_pb.TransmitDataRequest,
@@ -147,28 +147,14 @@ class ParquetSetDiffReceiver(Receiver):
         else:
             payload = None  # Noting to return
             if consecutive:
-                e4 = self._encode_func(self._encrypt_func2(self._decode_func(
-                        np.asarray(sync_req.triply_encrypted, np.bytes_)
-                )))
+                e4 = self._encrypt_func2(self._decode_func(
+                        np.asarray(sync_req.payload[E3].value, np.bytes_)
+                ))
                 # OUTPUT_PATH/doubly_encrypted/<file_idx>.parquet
                 fp = Paths.encode_e4_file_path(req.batch_info.file_idx)
-                task = partial(self._job_fn, e4, fp,
-                               req.batch_info.finished)
+                task = partial(self._job_fn, E4, e4, fp,
+                               req.batch_info.finished, self._encode_func)
             else:
                 task = None
 
         return payload, task
-
-    def _job_fn(self,
-                doubly_encrypted: np.ndarray,
-                file_path: str,
-                finished: bool):
-        self._dumper = pqu.make_or_update_dumper(
-            self._dumper, file_path, self._schema, flavor='spark')
-        table = pa.Table.from_pydict(
-            mapping={'doubly_encrypted': self._encode_func(doubly_encrypted)},
-            schema=self._schema)
-        self._dumper.write_table(table)
-        if finished:
-            self._dumper.close()
-            self._dumper = None

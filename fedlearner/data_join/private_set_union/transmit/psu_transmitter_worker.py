@@ -10,8 +10,8 @@ from google.protobuf.empty_pb2 import Empty
 import fedlearner.common.private_set_union_pb2 as psu_pb
 import fedlearner.common.private_set_union_pb2_grpc as psu_grpc
 import fedlearner.common.transmitter_service_pb2_grpc as tsmt_grpc
-import fedlearner.data_join.private_set_union.transmit as transmit
 from fedlearner.channel import Channel
+from fedlearner.data_join.private_set_union import transmit
 from fedlearner.data_join.private_set_union import utils
 from fedlearner.data_join.transmitter.components import Sender, Receiver
 from fedlearner.data_join.transmitter.transmitter_worker import \
@@ -154,7 +154,6 @@ class PSUTransmitterWorker:
         if self._role == psu_pb.Left:
             receiver = transmit.ParquetSyncReceiver(
                 peer_client=self._peer,
-                master_client=self._master,
                 recv_queue_len=self._sync_opt.recv_queue_len
             )
             sender = None
