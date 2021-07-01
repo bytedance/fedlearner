@@ -16,6 +16,7 @@
 
 import argparse
 import logging
+import sys
 from google.protobuf import text_format
 
 from fedlearner.common import data_portal_service_pb2 as dp_pb
@@ -79,16 +80,22 @@ if __name__ == "__main__":
         kvstore.set_data(kvstore_key, text_format.\
             MessageToString(portal_manifest))
     else:  # validation parameter consistency
-        if portal_manifest.data_portal_type != data_portal_type or \
-            portal_manifest.output_partition_num != args.output_partition_num \
-            or portal_manifest.input_file_wildcard != args.input_file_wildcard \
-            or portal_manifest.input_base_dir != args.input_base_dir \
-            or portal_manifest.output_base_dir != args.output_base_dir or \
-            portal_manifest.raw_data_publish_dir != args.raw_data_publish_dir:
-            logging.fatal("Parameters of the job changed which is forbidden, "
-                          "you should create a new job to do this")
-            exit(-1)
-
+        passed = True
+        parameter_pairs = [
+            (portal_manifest.data_portal_type, data_portal_type),
+            (portal_manifest.output_partition_num, args.output_partition_num),
+            (portal_manifest.input_file_wildcard, args.input_file_wildcard),
+            (portal_manifest.input_base_dir, args.input_base_dir),
+            (portal_manifest.output_base_dir, args.output_base_dir),
+            (portal_manifest.raw_data_publish_dir, args.raw_data_publish_dir)
+        ]
+        for old, new in parameter_pairs:
+            if old != new:
+                logging.fatal(
+                    "Parameters of the job changed (%s vs %s) which is "
+                    "forbidden, you should create a new job to do this",
+                    old, new)
+                sys.exit(-1)
 
     options = dp_pb.DataPotraMasterlOptions(
         use_mock_etcd=use_mock_etcd,
