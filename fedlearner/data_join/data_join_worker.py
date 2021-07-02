@@ -232,7 +232,11 @@ class DataJoinWorkerService(object):
         data_source = self._sync_data_source()
         self._data_source_name = data_source.data_source_meta.name
         self._listen_port = listen_port
-        self._server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
+        self._server = grpc.server(
+            futures.ThreadPoolExecutor(max_workers=10),
+            options=[('grpc.max_send_message_length', 2**31-1),
+                     ('grpc.max_receive_message_length', 2**31-1)])
+
         peer_channel = make_insecure_channel(
                 peer_addr, ChannelType.REMOTE,
                 options=[('grpc.max_send_message_length', 2**31-1),
