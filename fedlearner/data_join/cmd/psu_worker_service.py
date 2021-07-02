@@ -1,10 +1,11 @@
 import argparse
 
 import fedlearner.common.private_set_union_pb2 as psu_pb
+import fedlearner.common.private_set_union_pb2_grpc as psu_grpc
 from fedlearner.common.common import set_logger
 from fedlearner.data_join.private_set_union.transmit import PSUTransmitterWorker
-from fedlearner.data_join.private_set_union import parquet_utils as pqu
-from fedlearner.data_join.private_set_union.utils import Paths
+from fedlearner.proxy.channel import make_insecure_channel, ChannelType
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='PSUMasterService cmd.')
@@ -70,12 +71,19 @@ if __name__ == "__main__":
     else:
         role = psu_pb.Right
 
+    master_channel = make_insecure_channel(
+        args.master_address, ChannelType.INTERNAL,
+        options=[('grpc.max_send_message_length', 2 ** 31 - 1),
+                 ('grpc.max_receive_message_length', 2 ** 31 - 1)]
+    )
+    master = psu_grpc.PSUTransmitterMasterServiceStub(master_channel)
+
     worker = PSUTransmitterWorker(
         role=role,
         rank_id=args.rank_id,
         listen_port=args.listen_port,
         remote_address=args.remote_address,
-        master_address=args.master_address,
+        master_client=master,
         psu_options=psu_pb.PSUOptions(
             join_key=args.join_key
         ),
@@ -102,6 +110,6 @@ if __name__ == "__main__":
             send_queue_len=args.r_diff_send_queue_len or args.send_queue_len,
             recv_queue_len=args.r_diff_recv_queue_len or args.recv_queue_len,
             resp_queue_len=args.r_diff_resp_queue_len or args.sync_queue_len
-        ),
+        )
     )
     worker.run()

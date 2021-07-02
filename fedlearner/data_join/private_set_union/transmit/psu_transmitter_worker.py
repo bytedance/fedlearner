@@ -1,7 +1,6 @@
 import gc
 import logging
 import os
-import threading
 import time
 
 import grpc
@@ -16,10 +15,9 @@ from fedlearner.data_join.private_set_union import utils
 from fedlearner.data_join.transmitter.components import Sender, Receiver
 from fedlearner.data_join.transmitter.transmitter_worker import \
     TransmitterWorker
-from fedlearner.proxy.channel import make_insecure_channel, ChannelType
 
 
-class PSUTransmitterWorkerServicer(TransmitterWorker):
+class PSUTransmitterWorkerService(TransmitterWorker):
     def __init__(self,
                  phase,
                  receiver: Receiver,
@@ -35,7 +33,6 @@ class PSUTransmitterWorkerServicer(TransmitterWorker):
                         phase,
                         receiver: Receiver,
                         sender: Sender):
-        assert phase in psu_pb.Phase.values()
         self.phase = phase
         self._receiver = receiver
         self._sender = sender
@@ -47,7 +44,7 @@ class PSUTransmitterWorker:
                  rank_id: int,
                  listen_port: int,
                  remote_address: str,
-                 master_address: str,
+                 master_client: psu_grpc.PSUTransmitterMasterServiceStub,
                  psu_options,
                  encrypt_options,
                  sync_options,
@@ -66,35 +63,22 @@ class PSUTransmitterWorker:
         self._r_diff_opt = r_diff_options
         self._phase = psu_pb.PSU_Encrypt
 
-        self._condition = threading.Condition()
-        self._connected = False
-        self._terminated = False
-        self._peer_terminated = False
-
         # channel
         self._channel = Channel(
             self._listen_address, self._remote_address, token=self._token)
         self._channel.subscribe(self._channel_callback)
-        master_channel = make_insecure_channel(
-            master_address, ChannelType.INTERNAL,
-            options=[('grpc.max_send_message_length', 2 ** 31 - 1),
-                     ('grpc.max_receive_message_length', 2 ** 31 - 1)]
-        )
 
         # client & server
-        self._master = psu_grpc.PSUTransmitterMasterServiceStub(master_channel)
+        self._master = master_client
         self._peer = tsmt_grpc.TransmitterWorkerServiceStub(self._channel)
         self._servicer = self._sender = self._receiver = None
 
-    def _channel_callback(self, channel, event):
-        if event == Channel.Event.PEER_CLOSED:
-            with self._condition:
-                self._peer_terminated = True
-                self._condition.notify_all()
+    @staticmethod
+    def _channel_callback(channel, event):
         if event == Channel.Event.ERROR:
             err = channel.error()
-            logging.fatal("[Bridge] suicide due to channel exception: %s, "
-                          "may be caused by peer restart", repr(err))
+            logging.fatal('[Transmitter] suicide due to channel exception: %s, '
+                          'may be caused by peer restart', repr(err))
             os._exit(138)  # Tell Scheduler to restart myself
 
     def run(self):
@@ -108,30 +92,32 @@ class PSUTransmitterWorker:
                     '[Transmitter]: Error getting phase from master: %s, '
                     'sleep 5 secs and retry.', e.details())
                 time.sleep(5)
-
+        self._channel.connect()
         if self._phase == psu_pb.PSU_Encrypt:
             self._run_encrypt()
-            self.wait_for_finish()
+            self._wait_for_finish()
             self._phase = psu_pb.PSU_Sync
             self._wait_for_master()
 
         if self._phase == psu_pb.PSU_Sync:
             self._run_sync()
-            self.wait_for_finish()
+            self._wait_for_finish()
             self._phase = psu_pb.PSU_L_Diff
             self._wait_for_master()
 
         if self._phase == psu_pb.PSU_L_Diff:
             self._run_diff(self._phase)
-            self.wait_for_finish()
+            self._wait_for_finish()
             self._phase = psu_pb.PSU_R_Diff
             self._wait_for_master()
 
         if self._phase == psu_pb.PSU_R_Diff:
             self._run_diff(self._phase)
-            self.wait_for_finish()
+            self._wait_for_finish()
             self._phase = psu_pb.PSU_Reload
             self._wait_for_master()
+
+        self._channel.close()
 
     def _run_encrypt(self):
         receiver = transmit.ParquetEncryptReceiver(
@@ -205,13 +191,12 @@ class PSUTransmitterWorker:
                          new_receiver: Receiver,
                          new_sender: Sender):
         if not self._servicer:
-            self._servicer = PSUTransmitterWorkerServicer(
+            self._servicer = PSUTransmitterWorkerService(
                 phase, new_receiver, new_sender)
             tsmt_grpc.add_TransmitterWorkerServiceServicer_to_server(
                 self._servicer, self._channel)
-            self._channel.connect()
         else:  # new phase is guaranteed to be greater than that of servicer
-            self.wait_for_finish()
+            self._wait_for_finish()
             self._servicer.enter_new_phase(phase, new_receiver, new_sender)
         self._receiver = new_receiver
         self._sender = new_sender
@@ -221,13 +206,13 @@ class PSUTransmitterWorker:
         if self._sender:
             self._sender.start()
 
-    def wait_for_finish(self):
+    def _wait_for_finish(self):
         if self._receiver:
             self._receiver.wait_for_finish()
         if self._sender:
             self._sender.wait_for_finish()
 
-    def _wait_for_master(self, wait_time=30):
+    def _wait_for_master(self, wait_time=15):
         while True:
             try:
                 resp = self._master.GetPhase(Empty())

@@ -28,7 +28,7 @@ TRANS_FSM = {psu_pb.PSU_Encrypt: psu_pb.PSU_Sync,
 
 class PSUTransmitterMasterService(psu_grpc.PSUTransmitterMasterServiceServicer):
     def __init__(self,
-                 phase: str,
+                 phase,
                  ready_event: threading.Event,
                  done_event: threading.Event,
                  peer_client: psu_grpc.PSUPhaseManagerServiceStub,
@@ -36,39 +36,38 @@ class PSUTransmitterMasterService(psu_grpc.PSUTransmitterMasterServiceServicer):
                  file_paths: typing.List[str],
                  worker_num: int):
         self._peer = peer_client
-        self._phase = getattr(psu_pb, phase.title())
+        self._phase = phase
         self._next_phase = self._phase
         self._transition_ready = ready_event
         self._transition_done = done_event
+        self._transition_done.set()
         self._phase_finished = threading.Event()
+        self._condition = threading.Condition()
 
         # instantiate keys and get its info, s.t. keys are recorded
         if key_type not in psu_pb.EncryptionKey.keys():
             raise ValueError(f'Key type [{key_type}] not recognized.')
         self._key_info = get_keys(
-            psu_pb.KeyInfo(type=getattr(psu_pb, key_type.title()),
+            psu_pb.KeyInfo(type=getattr(psu_pb, key_type),
                            path=utils.Paths.encode_keys_path(key_type))
         ).key_info
 
         self._file_paths = file_paths
         self._worker_num = worker_num
-        self._meta_path = utils.Paths.encode_master_meta_path(phase)
+        self._meta_path = utils.Paths.encode_master_meta_path(
+            psu_pb.Phase.keys()[phase]
+        )
         self._meta = self._get_meta()
 
-        self._condition = threading.Condition()
         self._signal_buffer = defaultdict(set)
         self._finished_workers = set()
         super().__init__()
 
     def GetPhase(self, request, context):
-        if not self._transition_done.is_set():
-            # TODO(zhangzihui): more status
+        with self._condition:
             return psu_pb.GetPhaseResponse(
-                status=common_pb.Status(
-                    code=common_pb.STATUS_WAIT_FOR_SYNCING_CHECKPOINT))
-        return psu_pb.GetPhaseResponse(
-            status=common_pb.Status(code=common_pb.STATUS_SUCCESS),
-            phase=self._phase)
+                status=common_pb.Status(code=common_pb.STATUS_SUCCESS),
+                phase=self._phase)
 
     def GetKeys(self, request, context):
         return psu_pb.GetKeysResponse(
@@ -88,26 +87,24 @@ class PSUTransmitterMasterService(psu_grpc.PSUTransmitterMasterServiceServicer):
                 status=common_pb.Status(code=common_pb.STATUS_NO_MORE_DATA))
 
         rid = request.rank_id
-        alloc_files = []
-        alloc_idx = []
+        file_infos = []
         with self._condition:
             for i in range(rid, len(self._file_paths), self._worker_num):
                 if i in self._meta['finished']:
                     continue
-                alloc_files.append(self._file_paths[i])
-                alloc_idx.append(i)
+                file_infos.append(tsmt_pb.FileInfo(
+                    file_path=self._file_paths[i], idx=i))
 
-        if len(alloc_idx) == 0:
+        if len(file_infos) == 0:
             with self._condition:
                 self._finished_workers.add(request.rank_id)
             self._check_phase_finished()
-            return tsmt_pb.AllocateTaskResponse(
+            return psu_pb.PSUAllocateTaskResponse(
                 status=common_pb.Status(code=common_pb.STATUS_NO_MORE_DATA))
 
-        return tsmt_pb.AllocateTaskResponse(
+        return psu_pb.PSUAllocateTaskResponse(
             status=common_pb.Status(code=common_pb.STATUS_SUCCESS),
-            files=alloc_files,
-            file_idx=alloc_idx)
+            file_infos=file_infos)
 
     def FinishFiles(self, request, context):
         self._check_file_finished(request.phase, request.file_idx, 'send')
@@ -146,6 +143,7 @@ class PSUTransmitterMasterService(psu_grpc.PSUTransmitterMasterServiceServicer):
     def _dump_meta(self, meta: dict) -> None:
         assert meta
         with self._condition:
+            file_io.recursive_create_dir(os.path.dirname(self._meta_path))
             file_io.atomic_write_string_to_file(self._meta_path,
                                                 self.encode_meta(meta))
 
@@ -173,7 +171,7 @@ class PSUTransmitterMasterService(psu_grpc.PSUTransmitterMasterServiceServicer):
     @staticmethod
     def decode_meta(json_str: [str, bytes]) -> dict:
         meta = json.loads(json_str)
-        meta['finished'] = set(meta['finish'])
+        meta['finished'] = set(meta['finished'])
         return meta
 
     @staticmethod
@@ -207,7 +205,7 @@ class PSUTransmitterMasterService(psu_grpc.PSUTransmitterMasterServiceServicer):
             next_phase=self._next_phase
         ))
         if resp.curr_phase == self._phase \
-                and resp.next_phase == self._next_phase:
+            and resp.next_phase == self._next_phase:
             self._transition_ready.set()
             self._transition_done.clear()
         else:
@@ -283,10 +281,11 @@ class PSUPhaseManagerService(psu_grpc.PSUPhaseManagerServiceServicer):
     def TransitionDone(self, request, context):
         peer_phase = request.curr_phase
         peer_next = request.next_phase
+        # get_phases will be blocked if transitioning
         curr_phase, next_phase = self._master.get_phases()
         # if waiting for peer finish, set done and clear ready
         if peer_phase == peer_next == curr_phase == next_phase \
-                and self._transition_ready.is_set():
+            and self._transition_ready.is_set():
             self._transition_done.set()
             self._transition_ready.clear()
         return psu_pb.TransitionResponse(
@@ -300,7 +299,7 @@ class PSUTransmitterMaster:
                  remote_listen_port: int,
                  remote_address: str,
                  local_listen_port: int,
-                 phase: str,
+                 phase,
                  key_type: str,
                  file_paths: typing.List[str],
                  worker_num: int):
@@ -356,6 +355,6 @@ class PSUTransmitterMaster:
 
     def stop(self):
         if self._started:
-            self._server.stop()
+            self._server.stop(None)
             self._channel.close()
             self._started = False

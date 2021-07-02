@@ -11,13 +11,9 @@ from tensorflow import gfile
 import fedlearner.common.common_pb2 as common_pb
 import fedlearner.common.private_set_union_pb2 as psu_pb
 import fedlearner.common.transmitter_service_pb2 as tsmt_pb
-import fedlearner.common.transmitter_service_pb2_grpc as tsmt_grpc
-from fedlearner.channel.channel import Channel
 from fedlearner.data_join.private_set_union import transmit
 from fedlearner.data_join.private_set_union.keys import DHKeys
 from fedlearner.data_join.private_set_union.utils import E2, E3, E4, Paths
-from fedlearner.data_join.transmitter.transmitter_worker import \
-    TransmitterWorker
 
 NUM_JOBS = 3
 NUM_FILES = 5
@@ -31,7 +27,12 @@ class Addr:
 
 
 class MockMaster:
-    def __init__(self, file_paths: typing.List[str], phase, keys: DHKeys):
+    def __init__(self,
+                 trans_event: threading.Event,
+                 file_paths: typing.List[str],
+                 phase,
+                 keys: DHKeys):
+        self._eve = trans_event
         self._file_paths = file_paths
         self._phase = phase
         self._alloc = False
@@ -48,7 +49,7 @@ class MockMaster:
             key_info=self._keys.key_info)
 
     def AllocateTask(self, request):
-        if not self._alloc:
+        if not self._alloc and self._file_paths:
             self._alloc = True
             return psu_pb.PSUAllocateTaskResponse(
                 status=common_pb.Status(code=common_pb.STATUS_SUCCESS),
@@ -56,6 +57,7 @@ class MockMaster:
                                             idx=i)
                            for i in range(len(self._file_paths))]
             )
+        self._eve.set()
         return psu_pb.PSUAllocateTaskResponse(
             status=common_pb.Status(code=common_pb.STATUS_NO_MORE_DATA))
 
@@ -67,28 +69,15 @@ class MockMaster:
         return tsmt_pb.FinishFilesResponse(
             status=common_pb.Status(code=common_pb.STATUS_SUCCESS))
 
-
-class TestTransmitterWorker(TransmitterWorker):
-    def start(self):
-        if self._sender:
-            self._sender.start()
-        if self._receiver:
-            self._receiver.start()
-
-    def wait_for_finish(self):
-        if self._sender:
-            self._sender.wait_for_finish()
-        if self._receiver:
-            self._receiver.wait_for_finish()
-
-    def new_sender_receiver(self, sender, receiver):
-        self._sender = sender
-        self._receiver = receiver
+    def enter_next_phase(self, phase, file_paths):
+        self._phase = phase
+        self._file_paths = file_paths
+        self._alloc = False
 
 
-class TestPSUTransmitComponents(unittest.TestCase):
+class TestPSUWorker(unittest.TestCase):
     def setUp(self) -> None:
-        self._test_root = './test_psu_transmit_components'
+        self._test_root = './test_psu_transmit_worker'
         os.environ['STORAGE_ROOT_PATH'] = self._test_root
         schema = pa.schema([pa.field('x', pa.string()),
                             pa.field(E2, pa.string()),
@@ -118,116 +107,117 @@ class TestPSUTransmitComponents(unittest.TestCase):
                                                         schema=schema))
                 writer.close()
                 self._file_paths.append(file_path)
-        self._ch1 = Channel(f'[::]:{Addr.w1r}', f'[::]:{Addr.w2r}')
-        self._ch2 = Channel(f'[::]:{Addr.w2r}', f'[::]:{Addr.w1r}')
-        self._ch1.connect(False)
-        self._ch2.connect(False)
-        self._peer1 = tsmt_grpc.TransmitterWorkerServiceStub(self._ch1)
-        self._peer2 = tsmt_grpc.TransmitterWorkerServiceStub(self._ch2)
         self._keys = DHKeys(psu_pb.KeyInfo(type=psu_pb.DH,
                                            path=Paths.encode_keys_path('DH')))
-        self._manager1 = TestTransmitterWorker(None, None)
-        self._manager2 = TestTransmitterWorker(None, None)
-        tsmt_grpc.add_TransmitterWorkerServiceServicer_to_server(self._manager1,
-                                                                 self._ch1)
-        tsmt_grpc.add_TransmitterWorkerServiceServicer_to_server(self._manager2,
-                                                                 self._ch2)
-
-    def _build_master(self, phase):
-        self._master1 = MockMaster(self._file_paths, phase, self._keys)
-        self._master2 = MockMaster(self._file_paths, phase, self._keys)
-
-    def _build_and_run(self,
-                       sender1,
-                       sender2,
-                       receiver1,
-                       receiver2):
-        self._manager1.new_sender_receiver(sender1, receiver1)
-        self._manager2.new_sender_receiver(sender2, receiver2)
-        thread1 = threading.Thread(target=self._manager1.start)
-        thread2 = threading.Thread(target=self._manager2.start)
-        thread1.start()
-        thread2.start()
-        self._manager1.wait_for_finish()
-        self._manager2.wait_for_finish()
-        thread1.join()
-        thread2.join()
-
-    def test_encrypt_transmit(self):
-        self._build_master(psu_pb.PSU_Encrypt)
-        self._build_and_run(
-            sender1=transmit.ParquetEncryptSender(
-                rank_id=1,
+        self._eve1 = threading.Event()
+        self._master1 = MockMaster(self._eve1, self._file_paths,
+                                   psu_pb.PSU_Encrypt, self._keys)
+        self._worker1 = transmit.PSUTransmitterWorker(
+            role=psu_pb.Left,
+            rank_id=1,
+            listen_port=Addr.w2r,
+            remote_address=f'[::]:{Addr.w1r}',
+            master_client=self._master1,
+            psu_options=psu_pb.PSUOptions(
+                join_key='x'
+            ),
+            encrypt_options=psu_pb.EncryptOptions(
                 batch_size=SEND_ROW_NUM,
-                join_key='x',
-                master_client=self._master1,
-                peer_client=self._peer1
+                send_queue_len=5,
+                recv_queue_len=5,
+                resp_queue_len=5
             ),
-            receiver1=None,
-            sender2=None,
-            receiver2=transmit.ParquetEncryptReceiver(
-                peer_client=self._peer2,
-                master_client=self._master2
+            sync_options=psu_pb.SyncOptions(
+                batch_size=SEND_ROW_NUM,
+                send_queue_len=5,
+                recv_queue_len=5,
+                resp_queue_len=5,
+            ),
+            l_diff_options=psu_pb.LDiffOptions(
+                batch_size=SEND_ROW_NUM,
+                send_queue_len=5,
+                recv_queue_len=5,
+                resp_queue_len=5
+            ),
+            r_diff_options=psu_pb.RDiffOptions(
+                batch_size=SEND_ROW_NUM,
+                send_queue_len=5,
+                recv_queue_len=5,
+                resp_queue_len=5
             )
         )
+        self._eve2 = threading.Event()
+        self._master2 = MockMaster(self._eve2, [],
+                                   psu_pb.PSU_Encrypt, self._keys)
+        self._worker2 = transmit.PSUTransmitterWorker(
+            role=psu_pb.Right,
+            rank_id=1,
+            listen_port=Addr.w1r,
+            remote_address=f'[::]:{Addr.w2r}',
+            master_client=self._master2,
+            psu_options=psu_pb.PSUOptions(
+                join_key='x'
+            ),
+            encrypt_options=psu_pb.EncryptOptions(
+                batch_size=SEND_ROW_NUM,
+                send_queue_len=5,
+                recv_queue_len=5,
+                resp_queue_len=5
+            ),
+            sync_options=psu_pb.SyncOptions(
+                batch_size=SEND_ROW_NUM,
+                send_queue_len=5,
+                recv_queue_len=5,
+                resp_queue_len=5,
+            ),
+            l_diff_options=psu_pb.LDiffOptions(
+                batch_size=SEND_ROW_NUM,
+                send_queue_len=5,
+                recv_queue_len=5,
+                resp_queue_len=5
+            ),
+            r_diff_options=psu_pb.RDiffOptions(
+                batch_size=SEND_ROW_NUM,
+                send_queue_len=5,
+                recv_queue_len=5,
+                resp_queue_len=5
+            )
+        )
+
+    def test_psu_transmit_worker(self):
+        th1 = threading.Thread(target=self._worker1.run)
+        th2 = threading.Thread(target=self._worker2.run)
+        th1.start()
+        th2.start()
+        self._wait_for_phase(self._eve1)
         self._encrypt_sort_and_compare()
+        gfile.DeleteRecursively(Paths.encode_e4_dir())
+        gfile.DeleteRecursively(Paths.encode_e2_dir())
+        self._eve2.clear()
+        self._master1.enter_next_phase(psu_pb.PSU_Sync, [])
+        self._master2.enter_next_phase(psu_pb.PSU_Sync, self._file_paths)
 
-    def test_sync_transmit(self):
-        self._build_master(psu_pb.PSU_Sync)
-        self._build_and_run(
-            sender1=transmit.ParquetSyncSender(
-                rank_id=1,
-                sync_columns=[E2],
-                need_shuffle=True,
-                master_client=self._master1,
-                peer_client=self._peer1,
-                batch_size=SEND_ROW_NUM
-            ),
-            receiver1=None,
-            sender2=None,
-            receiver2=transmit.ParquetSyncReceiver(
-                peer_client=self._peer2,
-            )
-        )
+        self._wait_for_phase(self._eve2)
         self._sync_sort_and_compare()
+        gfile.DeleteRecursively(Paths.encode_e2_dir())
+        self._master1.enter_next_phase(psu_pb.PSU_L_Diff, self._file_paths)
+        self._master2.enter_next_phase(psu_pb.PSU_L_Diff, [])
 
-    def test_diff_transmit(self):
-        self._build_master(psu_pb.PSU_L_Diff)
-        self._build_and_run(
-            sender1=transmit.ParquetSetDiffSender(
-                rank_id=1,
-                mode=transmit.SetDiffMode.L,
-                peer_client=self._peer1,
-                master_client=self._master1,
-                batch_size=SEND_ROW_NUM
-            ),
-            receiver1=None,
-            sender2=None,
-            receiver2=transmit.ParquetSetDiffReceiver(
-                mode=transmit.SetDiffMode.L,
-                peer_client=self._peer2,
-                master_client=self._master2
-            )
-        )
+        self._wait_for_phase(self._eve1)
         self._l_diff_sort_and_compare()
+        gfile.DeleteRecursively(Paths.encode_e4_dir())
+        self._master1.enter_next_phase(psu_pb.PSU_R_Diff, self._file_paths)
+        self._master2.enter_next_phase(psu_pb.PSU_R_Diff, [])
 
-        self._build_master(psu_pb.PSU_R_Diff)
-        self._build_and_run(
-            sender1=transmit.ParquetSetDiffSender(
-                rank_id=1,
-                mode=transmit.SetDiffMode.R,
-                peer_client=self._peer1,
-                master_client=self._master1,
-                batch_size=SEND_ROW_NUM
-            ),
-            receiver1=None,
-            sender2=None,
-            receiver2=transmit.ParquetSetDiffReceiver(
-                mode=transmit.SetDiffMode.R,
-                peer_client=self._peer2,
-                master_client=self._master2
-            )
-        )
+        self._wait_for_phase(self._eve1)
+        self._r_diff_sort_and_compare()
+        self._master1.enter_next_phase(psu_pb.PSU_Reload, self._file_paths)
+        self._master2.enter_next_phase(psu_pb.PSU_Reload, [])
+
+    @staticmethod
+    def _wait_for_phase(event: threading.Event):
+        event.wait()
+        event.clear()
 
     def _encrypt_sort_and_compare(self):
         for i in range(NUM_FILES * NUM_JOBS):
@@ -307,8 +297,6 @@ class TestPSUTransmitComponents(unittest.TestCase):
     def tearDown(self) -> None:
         if gfile.Exists(self._test_root):
             gfile.DeleteRecursively(self._test_root)
-        self._ch1.close(False)
-        self._ch2.close()
 
 
 if __name__ == '__main__':

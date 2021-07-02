@@ -26,11 +26,11 @@ enum Role {
 }
 
 enum Phase {
-  Encrypt = 0;
-  Sync = 1;
-  L_Diff = 2;
-  R_Diff = 3;
-  Reload = 4;
+  PSU_Encrypt = 0;
+  PSU_Sync = 1;
+  PSU_L_Diff = 2;
+  PSU_R_Diff = 3;
+  PSU_Reload = 4;
 }
 
 enum EncryptionKey {
@@ -85,7 +85,7 @@ message PSUAllocateTaskRequest {
 
 message PSUAllocateTaskResponse {
   Status status = 1;
-  repeated FileInfo file_info = 2;
+  repeated FileInfo file_infos = 2;
 }
 
 message PSUFinishFilesRequest {
@@ -111,33 +111,32 @@ service PSUTransmitterMasterService {
 }
 
 message PSUOptions {
-  string output_path = 1;
-  string join_key = 2;
+  string join_key = 1;
 }
 
 message EncryptOptions {
-  int64 send_row_num = 1;
+  int64 batch_size = 1;
   int64 send_queue_len = 2;
   int64 recv_queue_len = 3;
   int64 resp_queue_len = 4;
 }
 
 message SyncOptions {
-  int64 send_row_num = 1;
+  int64 batch_size = 1;
   int64 send_queue_len = 2;
   int64 recv_queue_len = 3;
   int64 resp_queue_len = 4;
 }
 
 message LDiffOptions {
-  int64 send_row_num = 1;
+  int64 batch_size = 1;
   int64 send_queue_len = 2;
   int64 recv_queue_len = 3;
   int64 resp_queue_len = 4;
 }
 
 message RDiffOptions {
-  int64 send_row_num = 1;
+  int64 batch_size = 1;
   int64 send_queue_len = 2;
   int64 recv_queue_len = 3;
   int64 resp_queue_len = 4;

@@ -42,7 +42,7 @@ class PSUSender(Sender):
             psu_pb.PSUAllocateTaskRequest(rank_id=self._rank_id,
                                           phase=self.phase))
         if resp.status.code != common_pb.STATUS_NO_MORE_DATA:
-            self._visitor.init(resp.file_info)
+            self._visitor.init(resp.file_infos)
         return resp.status
 
     def report_peer_file_finish_to_master(self, file_idx: int):
