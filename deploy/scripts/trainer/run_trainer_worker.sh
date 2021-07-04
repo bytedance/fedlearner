@@ -71,7 +71,6 @@ import json
 cluster_spec = json.loads('$CLUSTER_SPEC')['clusterSpec']
 print(len(cluster_spec.get('Worker', [])))
 """`
-  LOCAL_WORKER_RANK=$((WORKER_RANK+NUM_WORKER))
   # rewrite tensorflow ClusterSpec for compatibility
   # master port 50051 is used for fedlearner master server, so rewrite to 50052
   # worker port 50051 is used for fedlearner worker server, so rewrite to 50052
@@ -105,15 +104,20 @@ fi
 
 server_port=$(normalize_env_to_args "--server-port" "$PORT1")
 
-python main.py --worker \
-    --is-local-worker \
-    --application-id="$APPLICATION_ID" \
-    --master-addr="$MASTER_HOST:50051" \
-    --cluster-spec="$CLUSTER_SPEC" \
-    --worker-rank="$LOCAL_WORKER_RANK" \
-    $mode $batch_size \
-    $sparse_estimator $learning_rate > /app/local_worker.log 2>&1 &
-local_worker_pid=$!
+local_worker_pids=()
+for IDX in $(seq 1 $LOCAL_WORKER_MULTIPLIER); do
+  LOCAL_WORKER_RANK=`python -c "print($WORKER_RANK + $NUM_WORKER * $IDX)"`
+  echo "Start local worker ${LOCAL_WORKER_RANK}"
+  python main.py --worker \
+      --local-worker \
+      --application-id="$APPLICATION_ID" \
+      --master-addr="$MASTER_HOST:50051" \
+      --cluster-spec="$CLUSTER_SPEC" \
+      --worker-rank="$LOCAL_WORKER_RANK" \
+      $mode $batch_size \
+      $sparse_estimator $learning_rate > /app/local_worker_$LOCAL_WORKER_RANK.log 2>&1 &
+  local_worker_pids+=$!
+done
 
 python main.py --worker \
     --application-id="$APPLICATION_ID" \
@@ -125,4 +129,6 @@ python main.py --worker \
     $server_port $mode $batch_size \
     $sparse_estimator $learning_rate
 
-wait $local_worker_pid
+for pid in ${local_worker_pids[@]}; do
+    wait $pid
+done
