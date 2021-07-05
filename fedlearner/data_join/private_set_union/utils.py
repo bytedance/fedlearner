@@ -1,6 +1,5 @@
 import os
 
-
 E1 = 'singly_encrypted'
 E2 = 'doubly_encrypted'
 E3 = 'triply_encrypted'
@@ -38,6 +37,15 @@ class Paths:
     # encrypt phase & sync phase output path
     def encode_e2_file_path(file_id: [int, str]):
         return os.path.join(Paths.encode_e2_dir(), str(file_id) + '.parquet')
+
+    @staticmethod
+    def encode_sync_dir():
+        return os.path.join(Paths.base_dir(), E2 + '_sync')
+
+    @staticmethod
+    # encrypt phase & sync phase output path
+    def encode_sync_file_path(file_id: [int, str]):
+        return os.path.join(Paths.encode_sync_dir(), str(file_id) + '.parquet')
 
     @staticmethod
     def encode_e4_dir():

@@ -53,9 +53,9 @@ class MockMaster:
             self._alloc = True
             return psu_pb.PSUAllocateTaskResponse(
                 status=common_pb.Status(code=common_pb.STATUS_SUCCESS),
-                file_info=[tsmt_pb.FileInfo(file_path=self._file_paths[i],
-                                            idx=i)
-                           for i in range(len(self._file_paths))]
+                file_infos=[tsmt_pb.FileInfo(file_path=self._file_paths[i],
+                                             idx=i)
+                            for i in range(len(self._file_paths))]
             )
         self._eve.set()
         return psu_pb.PSUAllocateTaskResponse(
@@ -199,7 +199,7 @@ class TestPSUWorker(unittest.TestCase):
 
         self._wait_for_phase(self._eve2)
         self._sync_sort_and_compare()
-        gfile.DeleteRecursively(Paths.encode_e2_dir())
+        gfile.DeleteRecursively(Paths.encode_sync_dir())
         self._master1.enter_next_phase(psu_pb.PSU_L_Diff, self._file_paths)
         self._master2.enter_next_phase(psu_pb.PSU_L_Diff, [])
 
@@ -231,7 +231,7 @@ class TestPSUWorker(unittest.TestCase):
                 .read(columns=[E2]) \
                 .to_pydict()
             # d stands for double, q stands for quadruple
-            unison = [[i, d.encode(), q.encode()] for i, d, q in
+            unison = [[i, d, q] for i, d, q in
                       zip(sf['_index'], rf[E2], sf[E4])]
             unison.sort(key=lambda x: x[0])
             unison = [[item[1], item[2]] for item in unison]
@@ -251,7 +251,7 @@ class TestPSUWorker(unittest.TestCase):
 
     def _sync_sort_and_compare(self):
         for i in range(NUM_JOBS * NUM_FILES):
-            fp = Paths.encode_e2_file_path(i)
+            fp = Paths.encode_sync_file_path(i)
             rf = sorted(pq
                         .ParquetFile(fp)
                         .read(columns=[E2])
@@ -275,7 +275,7 @@ class TestPSUWorker(unittest.TestCase):
                 .to_pydict()[E2]
             original = sorted(self._keys.encode(self._keys.encrypt_2(
                 self._keys.encrypt_2(self._keys.decode(item))
-            )).decode() for item in original)
+            )) for item in original)
             self.assertEqual(rf, original)
 
     def _r_diff_sort_and_compare(self):
@@ -291,7 +291,7 @@ class TestPSUWorker(unittest.TestCase):
                 .to_pydict()[E3]
             original = sorted(self._keys.encode(
                 self._keys.encrypt_2(self._keys.decode(item))
-            ).decode() for item in original)
+            ) for item in original)
             self.assertEqual(rf, original)
 
     def tearDown(self) -> None:

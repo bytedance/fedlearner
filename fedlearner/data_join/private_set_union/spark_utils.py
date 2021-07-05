@@ -4,7 +4,28 @@ import os
 
 from pyspark import SparkFiles
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import udf
+
+from fedlearner.data_join.private_set_union.utils import E2
+
+
+class Keys:
+    # reload args
+    e4_dir = 'e4_dir'
+    data_dir = 'data_dir'
+    diff_dir = 'diff_dir'
+    output_path = 'output_path'
+
+    # union args
+    left_dir = 'left_dir'
+    right_dir = 'right_dir'
+    l_diff_output_dir = 'l_diff_output_path'
+    r_diff_output_dir = 'r_diff_output_path'
+    encryption_key_type = 'encryption_key_type'
+    encryption_key_path = 'encryption_key_path'
+
+    # common args
+    partition_size = 'partition_size'
+    partition_num = 'partition_num'
 
 
 def start_spark(app_name='my_spark_app',
@@ -42,15 +63,3 @@ def get_config(config_filename):
     else:
         config_dict = None
     return config_dict
-
-
-def make_udf(keys):
-    # use the second key to encrypt the set differences
-    assert keys
-
-    @udf
-    def _udf(item: [str, bytes]):
-        item = keys.encode(keys.encrypt_2(keys.decode(item)))
-        return item
-
-    return _udf

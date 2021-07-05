@@ -45,16 +45,16 @@ message KeyInfo {
   string path = 2;
 }
 
-message BytesList {
-  repeated bytes value = 1;
+message StringList {
+  repeated string value = 1;
 }
 
 message DataSyncRequest {
-  map<string, BytesList> payload = 1;
+  map<string, StringList> payload = 1;
 }
 
 message DataSyncResponse {
-  map<string, BytesList> payload = 1;
+  map<string, StringList> payload = 1;
 }
 
 message TransitionRequest {

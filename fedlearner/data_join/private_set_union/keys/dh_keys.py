@@ -51,10 +51,10 @@ class DHKeys(BaseKeys):
                 json.dump(keys, f)
         return key1, key2
 
-    def encode(self, item: MPZ_TYPE) -> bytes:
-        return item.digits(62).encode()
+    def encode(self, item: MPZ_TYPE) -> str:
+        return item.digits(62)
 
-    def decode(self, item: bytes) -> MPZ_TYPE:
+    def decode(self, item: str) -> MPZ_TYPE:
         return gmpy2.mpz(item, base=62)
 
     def hash(self, item: [bytes, str, int]) -> MPZ_TYPE:

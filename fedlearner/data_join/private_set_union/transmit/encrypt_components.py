@@ -75,15 +75,12 @@ class ParquetEncryptSender(PSUSender):
             unison = np.c_[_index, e1_enc]
             np.random.shuffle(unison)
             # record the original indices for data merging in the future
-            req_id = uuid.uuid4().hex.encode()
+            req_id = uuid.uuid4().hex
             self._indices[req_id] = unison[:, 0].astype(np.long).tobytes()
             payload = psu_pb.DataSyncRequest(
-                payload={
-                    E1: psu_pb.BytesList(value=unison[:, 1]),
-                    _Col.job_id: psu_pb.BytesList(value=[str(job_id).encode()]),
-                    'req_id': psu_pb.BytesList(value=[req_id])
-                }
-            )
+                payload={E1: psu_pb.StringList(value=unison[:, 1]),
+                         _Col.job_id: psu_pb.StringList(value=[str(job_id)]),
+                         'req_id': psu_pb.StringList(value=[req_id])})
             yield payload.SerializeToString(), \
                   tsmt_pb.BatchInfo(finished=file_finished,
                                     file_idx=file_idx,
@@ -162,10 +159,8 @@ class ParquetEncryptReceiver(PSUReceiver):
             job = None
 
         res = psu_pb.DataSyncResponse(
-            payload={
-                E3: psu_pb.BytesList(value=e3_enc),
-                'req_id': sync_req.payload['req_id'],
-                _Col.job_id: sync_req.payload[_Col.job_id]
-            }
+            payload={E3: psu_pb.StringList(value=e3_enc),
+                     'req_id': sync_req.payload['req_id'],
+                     _Col.job_id: sync_req.payload[_Col.job_id]}
         )
         return res.SerializeToString(), job

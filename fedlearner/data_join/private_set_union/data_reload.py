@@ -1,64 +1,46 @@
 import argparse
 import logging
 import math
-import os
 
-from pyspark.sql.functions import rand, monotonically_increasing_id
+from pyspark.sql.functions import monotonically_increasing_id
 
-import fedlearner.common.private_set_union_pb2 as psu_pb
 from fedlearner.common.common import set_logger
-from fedlearner.data_join.private_set_union import spark_utils as spu
-from fedlearner.data_join.private_set_union.keys import get_keys
-from fedlearner.data_join.private_set_union.utils import E3, E4, Paths
+from fedlearner.data_join.private_set_union.spark_utils import start_spark, Keys
+from fedlearner.data_join.private_set_union.utils import E4
 
 
-class _Keys:
-    id_dir = 'id_dir'
-    data_dir = 'data_dir'
-    diff_dir = 'diff_dir'
-    output_path = 'output_path'
-    partition_size = 'partition_size'
-    partition_num = 'partition_num'
-    encryption_keys = 'encryption_key'
-
-
-class PSUDataReloadJob:
+class SparkDataReload:
     def __init__(self,
-                 config_file: str = "config.json",
+                 config: dict,
                  jar_packages: str = None):
-        self._spark = spu.start_spark(app_name='PSU_DataUnion',
-                                      jar_packages=jar_packages,
-                                      files=[config_file])
-        self._config = spu.get_config(os.path.basename(config_file))
-        self._id_dir = self._config[_Keys.id_dir]
-        self._data_dir = self._config[_Keys.data_dir]
-        self._diff_dir = self._config[_Keys.diff_dir]
-        self._output_dir = self._config[_Keys.output_path]
-        self._partition_size = self._config.get(_Keys.partition_size, None)
-        self._partition_num = self._config.get(_Keys.partition_num, 32)
-        keys = self._config[_Keys.encryption_keys]
-        key_info = psu_pb.KeyInfo()
-        key_info.ParseFromString(keys)
-        self._keys = get_keys(key_info)
-        self._encrypt_udf = spu.make_udf(self._keys)
+        self._spark = start_spark(app_name='PSU_DataReload',
+                                  jar_packages=jar_packages)
+        self._config = config
 
     def run(self, config: dict = None):
         config = config or self._config
         assert config
+        id_dir = config[Keys.e4_dir]
+        data_dir = config[Keys.data_dir]
+        diff_dir = config[Keys.diff_dir]
+        output_dir = config[Keys.output_path]
+        partition_size = config.get(Keys.partition_size, None)
+        partition_num = config.get(Keys.partition_num, 32)
 
         logging.info(f'Run Spark Data Reload with args: '
-                     f'data_dir: {self._data_dir}, '
-                     f'diff_dir: {self._diff_dir}, '
-                     f'output_dir: {self._output_dir}, '
-                     f'partition_size: {self._partition_size}, '
-                     f'partition_num: {self._partition_num}')
-        self._reload(self._id_dir, self._data_dir, self._diff_dir,
-                     self._partition_size, self._partition_num)
+                     f'data_dir: {data_dir}, '
+                     f'diff_dir: {diff_dir}, '
+                     f'output_dir: {output_dir}, '
+                     f'partition_size: {partition_size}, '
+                     f'partition_num: {partition_num}')
+        self._reload(id_dir, data_dir, diff_dir, output_dir,
+                     partition_size, partition_num)
 
     def _reload(self,
                 id_dir: str,
                 data_dir: str,
                 diff_dir: str,
+                output_dir: str,
                 partition_size: int = None,
                 partition_num: int = 32) -> None:
         """
@@ -71,7 +53,7 @@ class PSUDataReloadJob:
             partition_num: num of partition. If partition_size is provided, this
                 will be ignored.
         """
-        # id_df is the E4 id of each row
+        # id_df is the E4 id of each row, containing `_job_id` & `_index`
         id_df = self._spark.read \
             .option('recursiveFileLookup', 'true') \
             .option('pathGlobFilter', '*.parquet') \
@@ -87,8 +69,7 @@ class PSUDataReloadJob:
             .option('recursiveFileLookup', 'true') \
             .option('pathGlobFilter', '*.parquet') \
             .parquet(diff_dir) \
-            .select(E4) \
-            .orderBy(rand())
+            .select(E4)
 
         # ======== Sample Rows to Fake Data ========
         data_len = data_df.count()
@@ -101,7 +82,7 @@ class PSUDataReloadJob:
                 sample_df = data_df.sample(True, sample_rate).limit(diff_len)
             else:
                 sample_df = data_df.sample(False, sample_rate).limit(diff_len)
-            if sample_df.count() == data_len:
+            if sample_df.count() == diff_len:
                 break
             sample_rate *= 1.05
         sample_df = sample_df \
@@ -115,7 +96,8 @@ class PSUDataReloadJob:
         # ======== Reload ========
         data_df = data_df \
             .join(id_df, ['_index', '_job_id'], 'left_outer') \
-            .join(sample_df, [E4], 'full')
+            .union(sample_df) \
+            .drop('_index', '_job_id')
 
         if partition_size:
             # count() is fast in the event of parquet files
@@ -123,11 +105,11 @@ class PSUDataReloadJob:
             partition_num = math.ceil(count / partition_size)
 
         # repartition, sort and save
-        output_dir = Paths.encode_union_output_path()
         data_df \
             .repartition(partition_num, E4) \
             .sortWithinPartitions(E4) \
             .write \
+            .option("compression", "gzip") \
             .mode('overwrite') \
             .parquet(output_dir)
 
@@ -137,12 +119,25 @@ class PSUDataReloadJob:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('--config', '-c', type=str, default="config.json")
-    parser.add_argument('--packages', type=str, default="")
+    parser.add_argument(f'--{Keys.e4_dir}', '-e', type=str)
+    parser.add_argument(f'--{Keys.data_dir}', '-dt', type=str)
+    parser.add_argument(f'--{Keys.diff_dir}', '-df', type=str)
+    parser.add_argument(f'--{Keys.output_path}', '-o', type=str)
+    parser.add_argument(f'--{Keys.partition_size}', '-ps', type=int)
+    parser.add_argument(f'--{Keys.partition_num}', '-pn', type=int)
+    parser.add_argument('--packages', type=str, default='')
     args = parser.parse_args()
     set_logger()
 
     packages = args.packages.split(",")
-    processor = PSUDataReloadJob(args.config, packages)
+    cfg = {k: getattr(args, k, None) for k in (Keys.e4_dir,
+                                               Keys.data_dir,
+                                               Keys.diff_dir,
+                                               Keys.output_path,
+                                               Keys.partition_size,
+                                               Keys.partition_num,
+                                               Keys.encryption_key_type,
+                                               Keys.encryption_key_path)}
+    processor = SparkDataReload(cfg, packages)
     processor.run()
     processor.stop()

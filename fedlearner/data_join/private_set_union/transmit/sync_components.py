@@ -41,14 +41,13 @@ class ParquetSyncSender(PSUSender):
     def _data_iterator(self) \
             -> typing.Iterable[typing.Tuple[bytes, tsmt_pb.BatchInfo]]:
         for batch, file_idx, file_finished in self._visitor:
-            batch = {col: np.asarray(batch[col]).astype(np.bytes_)
-                     for col in self._columns}
+            batch = {col: np.asarray(batch[col]) for col in self._columns}
             if self._need_shuffle:
                 p = np.random.permutation(len(batch[self._columns[0]]))
                 for col in self._columns:
                     batch[col] = batch[col][p]
             payload = psu_pb.DataSyncRequest(
-                payload={col: psu_pb.BytesList(value=batch[col])
+                payload={col: psu_pb.StringList(value=batch[col])
                          for col in self._columns}
             )
             yield payload.SerializeToString(), \
@@ -81,8 +80,8 @@ class ParquetSyncReceiver(PSUReceiver):
         if consecutive:
             sync_req = psu_pb.DataSyncRequest()
             sync_req.ParseFromString(req.payload)
-            # OUTPUT_PATH/doubly_encrypted/<file_idx>.parquet
-            fp = Paths.encode_e2_file_path(req.batch_info.file_idx)
+            # OUTPUT_PATH/doubly_encrypted_sync/<file_idx>.parquet
+            fp = Paths.encode_sync_file_path(req.batch_info.file_idx)
             return None, functools.partial(
                 self._job_fn, E2, sync_req.payload[E2].value,
                 fp, req.batch_info.finished, None)

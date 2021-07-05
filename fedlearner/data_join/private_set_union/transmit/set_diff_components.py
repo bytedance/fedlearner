@@ -67,10 +67,11 @@ class ParquetSetDiffSender(PSUSender):
     def _data_iterator(self) \
             -> typing.Iterable[typing.Tuple[bytes, tsmt_pb.BatchInfo]]:
         for batch, file_idx, file_finished in self._visitor:
-            payload = psu_pb.DataSyncRequest(payload={
-                self._send_col: psu_pb.BytesList(
-                    value=list(map(str.encode, batch[self._send_col])))
-            })
+            payload = psu_pb.DataSyncRequest(
+                payload={
+                    self._send_col: psu_pb.StringList(
+                        value=batch[self._send_col])
+                })
             yield payload.SerializeToString(), \
                   tsmt_pb.BatchInfo(finished=file_finished,
                                     file_idx=file_idx,
@@ -141,7 +142,7 @@ class ParquetSetDiffReceiver(PSUReceiver):
                 np.asarray(sync_req.payload[E2].value, np.bytes_)
             )))
             payload = psu_pb.DataSyncResponse(
-                payload={E3: psu_pb.BytesList(value=payload)}
+                payload={E3: psu_pb.StringList(value=payload)}
             ).SerializeToString()
             task = None  # Nothing to dump
         else:

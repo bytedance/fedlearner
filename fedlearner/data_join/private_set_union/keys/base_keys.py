@@ -11,10 +11,10 @@ class BaseKeys:
     def key_type(cls):
         return psu_pb.BaseKey
 
-    def encode(self, item: typing.Any) -> bytes:
+    def encode(self, item: typing.Any) -> str:
         raise NotImplementedError
 
-    def decode(self, item: bytes) -> typing.Any:
+    def decode(self, item: str) -> typing.Any:
         raise NotImplementedError
 
     def hash(self, item: [bytes, str, int]) -> typing.Any:

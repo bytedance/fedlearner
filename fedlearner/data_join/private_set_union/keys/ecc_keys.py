@@ -19,11 +19,11 @@ class ECCKeys(BaseKeys):
     def key_type(cls):
         return psu_pb.ECC
 
-    def encode(self, item: pr.G2) -> bytes:
+    def encode(self, item: pr.G2) -> str:
         item = bytes(item)
-        return base64.b64encode(item)
+        return base64.b64encode(item).decode()
 
-    def decode(self, item: bytes) -> pr.G2:
+    def decode(self, item: str) -> pr.G2:
         item = base64.b64decode(item)
         return pr.G2(item)
 
