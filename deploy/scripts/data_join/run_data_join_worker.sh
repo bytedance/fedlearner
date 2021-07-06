@@ -53,6 +53,8 @@ if [ -n "$JOIN_KEY_MAPPER" ]; then
     join_key_mapper=$(normalize_env_to_args '--join_key_mapper' "${mapper[0]}")
 fi
 
+sleep 86400;
+
 python -m fedlearner.data_join.cmd.data_join_worker_service \
     $PEER_ADDR \
     $MASTER_POD_NAMES \
