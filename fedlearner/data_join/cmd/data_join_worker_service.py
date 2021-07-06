@@ -15,6 +15,7 @@
 # coding: utf-8
 
 import argparse
+import time
 
 import tensorflow
 
@@ -145,7 +146,9 @@ if __name__ == "__main__":
                     compressed_type=args.data_block_compressed_type
                 )
         )
+
     worker_srv = DataJoinWorkerService(args.listen_port, args.peer_addr,
                                        args.master_addr, args.rank_id,
                                        args.kvstore_type, worker_options)
+    import pdb; pdb.set_trace()
     worker_srv.run()
