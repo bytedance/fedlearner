@@ -177,7 +177,8 @@ class ExampleJoiner(object):
             self._data_block_builder.set_data_block_manager(
                     self._data_block_manager
                 )
-        self._data_block_builder.set_follower_restart_index(
+        if self._data_block_builder:
+            self._data_block_builder.set_follower_restart_index(
                 self._follower_restart_index
             )
         return self._data_block_builder
