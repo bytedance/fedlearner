@@ -156,6 +156,7 @@ class ExampleJoiner(object):
                 logging.warning("leader visitor finished")
             try:
                 self._follower_visitor.seek(meta.follower_restart_index)
+                self._follower_restart_index = meta.follower_restart_index
             except StopIteration:
                 logging.warning("follower visitor finished")
         else:
