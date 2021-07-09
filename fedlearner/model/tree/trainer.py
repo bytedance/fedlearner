@@ -217,7 +217,8 @@ def read_data(file_type, filename, require_example_ids, require_labels,
 
     features = []
     cat_features = []
-    def to_float(x): float(x if x != '' else 'nan')
+    def to_float(x):
+        float(x if x != '' else 'nan')
     for line in reader:
         if file_type == 'tfrecord':
             line = parse_tfrecord(line)
@@ -297,7 +298,8 @@ def read_data_dir(file_ext, file_type, path, require_example_ids,
 def train(args, booster):
     X, cat_X, X_names, cat_X_names, y, example_ids, _ = read_data_dir(
         args.file_ext, args.file_type, args.data_path, args.verify_example_ids,
-        args.role != 'follower', args.ignore_fields, args.cat_fields, args.label_field)
+        args.role != 'follower', args.ignore_fields, args.cat_fields,
+        args.label_field)
 
     if args.validation_data_path:
         val_X, val_cat_X, val_X_names, val_cat_X_names, val_y, \
@@ -362,7 +364,7 @@ def test_one_file(args, bridge, booster, data_file, output_file):
         X, cat_X, X_names, cat_X_names, y, example_ids, raw_ids = \
             read_data(
                 args.file_type, data_file, args.verify_example_ids,
-                False, args.ignore_fields, args.cat_fields)
+                False, args.ignore_fields, args.cat_fields, args.label_field)
 
     pred = booster.batch_predict(
         X,
