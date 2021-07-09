@@ -142,6 +142,10 @@ def create_argument_parser():
                         type=bool,
                         default=False,
                         help='Whether to enable packing grad and hess')
+    parser.add_argument('--label-field',
+                        type=str,
+                        default='label',
+                        help='selected label name')
 
     return parser
 
@@ -177,8 +181,8 @@ def extract_field(field_names, field_name, required):
     return None
 
 
-def read_data(file_type, filename, require_example_ids,
-              require_labels, ignore_fields, cat_fields):
+def read_data(file_type, filename, require_example_ids, require_labels,
+              ignore_fields, cat_fields, label_field):
     logging.debug('Reading data file from %s', filename)
 
     if file_type == 'tfrecord':
@@ -196,10 +200,10 @@ def read_data(file_type, filename, require_example_ids,
     raw_ids = extract_field(
         field_names, 'raw_id', False)
     labels = extract_field(
-        field_names, 'label', require_labels)
+        field_names, label_field, require_labels)
 
     ignore_fields = set(filter(bool, ignore_fields.strip().split(',')))
-    ignore_fields.update(['example_id', 'raw_id', 'label'])
+    ignore_fields.update(['example_id', 'raw_id', label_field])
     cat_fields = set(filter(bool, cat_fields.strip().split(',')))
     for name in cat_fields:
         assert name in field_names, "cat_field %s missing"%name
@@ -213,6 +217,7 @@ def read_data(file_type, filename, require_example_ids,
 
     features = []
     cat_features = []
+    def to_float(x): float(x if x != '' else 'nan')
     for line in reader:
         if file_type == 'tfrecord':
             line = parse_tfrecord(line)
@@ -221,8 +226,8 @@ def read_data(file_type, filename, require_example_ids,
         if raw_ids is not None:
             raw_ids.append(str(line['raw_id']))
         if labels is not None:
-            labels.append(float(line['label']))
-        features.append([float(line[i]) for i in cont_columns])
+            labels.append(float(line[label_field]))
+        features.append([to_float(line[i]) for i in cont_columns])
         cat_features.append([int(line[i]) for i in cat_columns])
 
     features = np.array(features, dtype=np.float)
@@ -235,11 +240,11 @@ def read_data(file_type, filename, require_example_ids,
 
 
 def read_data_dir(file_ext, file_type, path, require_example_ids,
-                  require_labels, ignore_fields, cat_fields):
+                  require_labels, ignore_fields, cat_fields, label_field):
     if not tf.io.gfile.isdir(path):
         return read_data(
             file_type, path, require_example_ids,
-            require_labels, ignore_fields, cat_fields)
+            require_labels, ignore_fields, cat_fields, label_field)
 
     files = []
     for dirname, _, filenames in tf.io.gfile.walk(path):
@@ -255,8 +260,8 @@ def read_data_dir(file_ext, file_type, path, require_example_ids,
     for fullname in files:
         ifeatures, icat_features, icont_columns, icat_columns, \
             ilabels, iexample_ids, iraw_ids = read_data(
-                file_type, fullname, require_example_ids,
-                require_labels, ignore_fields, cat_fields
+                file_type, fullname, require_example_ids, require_labels,
+                ignore_fields, cat_fields, label_field
             )
         if features is None:
             features = ifeatures
@@ -292,7 +297,7 @@ def read_data_dir(file_ext, file_type, path, require_example_ids,
 def train(args, booster):
     X, cat_X, X_names, cat_X_names, y, example_ids, _ = read_data_dir(
         args.file_ext, args.file_type, args.data_path, args.verify_example_ids,
-        args.role != 'follower', args.ignore_fields, args.cat_fields)
+        args.role != 'follower', args.ignore_fields, args.cat_fields, args.label_field)
 
     if args.validation_data_path:
         val_X, val_cat_X, val_X_names, val_cat_X_names, val_y, \
@@ -300,7 +305,7 @@ def train(args, booster):
             read_data_dir(
                 args.file_ext, args.file_type, args.validation_data_path,
                 args.verify_example_ids, args.role != 'follower',
-                args.ignore_fields, args.cat_fields)
+                args.ignore_fields, args.cat_fields, args.label_field)
         assert X_names == val_X_names, \
             "Train data and validation data must have same features"
         assert cat_X_names == val_cat_X_names, \
