@@ -81,6 +81,9 @@ if __name__ == "__main__":
             MessageToString(portal_manifest))
     else:  # validation parameter consistency
         passed = True
+        portal_manifest = \
+            text_format.Parse(portal_manifest, dp_pb.DataPortalManifest(),
+                              allow_unknown_field=True)
         parameter_pairs = [
             (portal_manifest.data_portal_type, data_portal_type),
             (portal_manifest.output_partition_num, args.output_partition_num),
