@@ -17,10 +17,6 @@ dependencies:
 - name: elastic-stack
   version: 2.0.0
   condition: elastic-stack.enabled
-- name: argo
-  repository: https://argoproj.github.io/argo-helm
-  version: 0.9.4
-  condition: argo.enabled
 - name: mysql
   repository: ""
   version: 8.0.22
