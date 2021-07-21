@@ -29,6 +29,7 @@ from cityhash import CityHash32
 
 from fedlearner.common import data_join_service_pb2 as dj_pb
 from fedlearner.common import data_portal_service_pb2 as dp_pb
+from fedlearner.common import common_pb2 as cpb
 from fedlearner.data_join.data_portal_worker import DataPortalWorker
 from fedlearner.data_join.raw_data_iter_impl.tf_record_iter import TfExampleItem
 from fedlearner.data_join import common
@@ -82,7 +83,7 @@ class TestDataPortalWorker(unittest.TestCase):
         for partition_id in range(self._input_partition_num):
             example_id = self._generate_one_partition(
                 partition_id, example_id, self._partition_item_num, raw_data_iter)
-        
+
         with gfile.GFile(success_flag_fpath, 'w') as fh:
             fh.write('')
 
@@ -175,7 +176,7 @@ class TestDataPortalWorker(unittest.TestCase):
         map_task.partition_id = 0
         map_task.task_name = 'map_part_{}'.format(map_task.partition_id)
         map_task.part_field = 'example_id'
-        map_task.data_portal_type = dp_pb.DataPortalType.Streaming
+        map_task.data_portal_type = cpb.DataSourceType.Streaming
         for partition_id in range(self._input_partition_num):
             map_task.fpaths.append(self._get_input_fpath(partition_id))
 

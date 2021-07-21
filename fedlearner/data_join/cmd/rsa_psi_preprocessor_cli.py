@@ -25,6 +25,7 @@ from fedlearner.common import common_pb2 as common_pb
 from fedlearner.common import data_join_service_pb2 as dj_pb
 from fedlearner.common.common import set_logger
 from fedlearner.data_join.rsa_psi.rsa_psi_preprocessor import RsaPsiPreProcessor
+from fedlearner.data_join.rsa_psi import rsa_psi_helper as rph
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Rsa Psi Preprocessor!')
@@ -43,7 +44,7 @@ if __name__ == "__main__":
     parser.add_argument('--input_file_subscribe_dir', type=str, default='',
                         help='if the use appoint the args, then will '\
                              'ignore input file paths and input dir')
-    parser.add_argument('--output_file_dir', type=str, required=True,
+    parser.add_argument('--output_base_dir', type=str, required=True,
                         help='the directory to store the result of processor')
     parser.add_argument('--raw_data_publish_dir', type=str, required=True,
                         help='the mysql base dir to publish new raw data')
@@ -110,9 +111,15 @@ if __name__ == "__main__":
             raise RuntimeError("no input files for preprocessor")
     rsa_key_pem = args.rsa_key_pem
     if rsa_key_pem is None or len(rsa_key_pem) == 0:
-        assert args.rsa_key_path is not None
-        with gfile.GFile(args.rsa_key_path, 'rb') as f:
-            rsa_key_pem = f.read()
+        if args.rsa_key_path is None:
+            assert args.master_addr is not None
+            rsa_key_pem = rph.load_rsa_key_from_master(args.output_base_dir)
+            assert rsa_key_pem is not None, \
+                "Can't read rsa key from master after 30s"
+        else:
+            assert args.rsa_key_path is not None
+            with gfile.GFile(args.rsa_key_path, 'rb') as f:
+                rsa_key_pem = f.read()
     offload_processor_number = args.preprocessor_offload_processor_number
     if offload_processor_number < 0:
         offload_processor_number = int(os.environ.get('CPU_LIMIT', '2')) - 1
@@ -123,7 +130,7 @@ if __name__ == "__main__":
             rsa_key_pem=rsa_key_pem,
             input_file_paths=list(set(all_fpaths)),
             input_file_subscribe_dir=args.input_file_subscribe_dir,
-            output_file_dir=args.output_file_dir,
+            output_file_dir=os.path.join(args.output_base_dir, "psi_output"),
             raw_data_publish_dir=args.raw_data_publish_dir,
             partition_id=args.partition_id,
             leader_rsa_psi_signer_addr=args.leader_rsa_psi_signer_addr,

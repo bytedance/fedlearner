@@ -19,22 +19,12 @@ import logging
 import os
 import rsa
 
-import tensorflow_io # pylint: disable=unused-import
-from tensorflow.compat.v1 import gfile
-
 from fedlearner.common.common import set_logger
-from fedlearner.data_join import common
-
-def dump_rsa_key_as_pem(output_dir, key, fname):
-    tmp_fpath = common.gen_tmp_fpath(output_dir)
-    with gfile.GFile(tmp_fpath, 'w') as wf:
-        wf.write(key.save_pkcs1())
-    key_fpath = os.path.join(output_dir, fname)
-    gfile.Rename(tmp_fpath, key_fpath)
+from fedlearner.data_join.psi import rsa_psi_helper as rph
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Rsa Key Generator')
-    parser.add_argument('-l', '--rsa_lenght', type=int, required=True,
+    parser.add_argument('-l', '--rsa_length', type=int, required=True,
                         default=1024, help='the bit length for rsa key')
     parser.add_argument('-o', '--output_directory', type=str,
                         default=os.getcwd(),
@@ -45,11 +35,11 @@ if __name__ == "__main__":
     args = parser.parse_args()
     set_logger()
 
-    pub_key, prv_key = rsa.newkeys(args.rsa_lenght)
+    pub_key, prv_key = rsa.newkeys(args.rsa_length)
     pub_fname = args.key_prefix + '.pub'
-    dump_rsa_key_as_pem(args.output_directory, pub_key, pub_fname)
+    rph.dump_rsa_key_as_pem(args.output_directory, pub_key, pub_fname)
     prv_fname = args.key_prefix
-    dump_rsa_key_as_pem(args.output_directory, prv_key, args.key_prefix)
+    rph.dump_rsa_key_as_pem(args.output_directory, prv_key, args.key_prefix)
     logging.info('Success dump rsa psi public key: %s\n privat key: %s',
                  os.path.join(args.output_directory, pub_fname),
                  os.path.join(args.output_directory, prv_fname))

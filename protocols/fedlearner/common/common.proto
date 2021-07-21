@@ -63,3 +63,8 @@ message DataSource {
   DataSourceState state = 4;
   string raw_data_sub_dir = 5;
 }
+
+enum DataSourceType {
+  PSI = 0;
+  Streaming = 1;
+}

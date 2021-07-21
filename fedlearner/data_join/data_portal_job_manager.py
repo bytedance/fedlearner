@@ -24,6 +24,7 @@ import tensorflow_io # pylint: disable=unused-import
 from tensorflow.compat.v1 import gfile
 
 from fedlearner.common import data_portal_service_pb2 as dp_pb
+from fedlearner.common import common_pb2 as cpb
 
 from fedlearner.data_join import common
 from fedlearner.data_join.raw_data_publisher import RawDataPublisher
@@ -79,7 +80,7 @@ class DataPortalJobManager(object):
                     return False, self._create_map_task(rank_id, partition_id)
                 if self._all_job_part_mapped() and \
                         (self._portal_manifest.data_portal_type ==
-                                dp_pb.DataPortalType.Streaming):
+                                cpb.DataSourceType.Streaming):
                     partition_id = self._try_to_alloc_part(
                             rank_id,
                             dp_pb.PartState.kIdMapped,
@@ -183,10 +184,10 @@ class DataPortalJobManager(object):
 
     def _get_part_field(self):
         portal_mainifest = self._sync_portal_manifest()
-        if portal_mainifest.data_portal_type == dp_pb.DataPortalType.PSI:
+        if portal_mainifest.data_portal_type == cpb.DataSourceType.PSI:
             return 'raw_id'
         assert portal_mainifest.data_portal_type == \
-                dp_pb.DataPortalType.Streaming
+                cpb.DataSourceType.Streaming
         return 'example_id'
 
     def _create_reduce_task(self, rank_id, partition_id):
@@ -481,7 +482,7 @@ class DataPortalJobManager(object):
 
     def _is_job_part_finished(self, job_part):
         assert self._portal_manifest is not None
-        if self._portal_manifest.data_portal_type == dp_pb.DataPortalType.PSI:
+        if self._portal_manifest.data_portal_type == cpb.DataSourceType.PSI:
             return job_part.part_state == dp_pb.PartState.kIdMapped
         return job_part.part_state == dp_pb.PartState.kEventTimeReduced
 
@@ -498,7 +499,7 @@ class DataPortalJobManager(object):
     def _publish_raw_data(self, job_id):
         portal_manifest = self._sync_portal_manifest()
         output_dir = None
-        if portal_manifest.data_portal_type == dp_pb.DataPortalType.PSI:
+        if portal_manifest.data_portal_type == cpb.DataSourceType.PSI:
             output_dir = common.portal_map_output_dir(
                     portal_manifest.output_base_dir, job_id
                 )
@@ -513,7 +514,7 @@ class DataPortalJobManager(object):
                 fnames = [f for f in gfile.ListDirectory(dpath)
                           if f.endswith(common.RawDataFileSuffix)]
             publish_fpaths = []
-            if portal_manifest.data_portal_type == dp_pb.DataPortalType.PSI:
+            if portal_manifest.data_portal_type == cpb.DataSourceType.PSI:
                 publish_fpaths = self._publish_psi_raw_data(partition_id,
                                                             dpath, fnames)
             else:
