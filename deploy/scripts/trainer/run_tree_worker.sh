@@ -48,6 +48,7 @@ use_streaming=$(normalize_env_to_args "--use-streaming" "$USE_STREAMING")
 send_scores_to_follower=$(normalize_env_to_args "--send-scores-to-follower" "$SEND_SCORES_TO_FOLLOWER")
 send_metrics_to_follower=$(normalize_env_to_args "--send-metrics-to-follower" "$SEND_METRICS_TO_FOLLOWER")
 enable_packing=$(normalize_env_to_args "--enable-packing" "$ENABLE_PACKING")
+label_field=$(normalize_env_to_args "--label-field" "$LABEL_FIELD")
 
 
 python -m fedlearner.model.tree.trainer \
@@ -66,4 +67,4 @@ python -m fedlearner.model.tree.trainer \
     $max_depth $l2_regularization $max_bins \
     $num_parallel $verify_example_ids $ignore_fields \
     $cat_fields $use_streaming $send_scores_to_follower \
-    $send_metrics_to_follower $enable_packing
+    $send_metrics_to_follower $enable_packing $label_field
