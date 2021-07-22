@@ -22,6 +22,8 @@ import logging
 import collections
 import grpc
 
+from fedlearner.common import common
+
 EGRESS_URL = os.environ.get('EGRESS_URL', None)
 EGRESS_HOST = os.environ.get('EGRESS_HOST', None)
 EGRESS_DOMAIN = os.environ.get('EGRESS_DOMAIN', None)
@@ -139,5 +141,41 @@ def make_insecure_channel(address,
 
     if mode == ChannelType.INTERNAL:
         return grpc.insecure_channel(address, options, compression)
+
+    raise Exception("UNKNOWN Channel by uuid %s" % address)
+
+def make_secure_channel(address,
+                        mode=ChannelType.INTERNAL,
+                        options=None,
+                        compression=None):
+    use_tls, creds = common.use_tls()
+    assert use_tls, "In-consistant TLS enabling"
+    tls_creds = grpc.ssl_channel_credentials(creds[0], creds[1], creds[2])
+    if check_address_valid(address):
+        return grpc.secure_channel(address, tls_creds, options, compression)
+
+    if mode == ChannelType.REMOTE:
+        if not EGRESS_URL:
+            logging.error("EGRESS_URL is invalid,"
+                          "not found in environment variable.")
+            return grpc.secure_channel(address, tls_creds, options, compression)
+
+        options = list(options) if options else list()
+
+        logging.debug("EGRESS_URL is [%s]", EGRESS_URL)
+        if EGRESS_HOST:
+            options.append(('grpc.default_authority', EGRESS_HOST))
+            if EGRESS_DOMAIN:
+                address = address + '.' + EGRESS_DOMAIN
+            header_adder = header_adder_interceptor('x-host', address)
+            channel = grpc.secure_channel(
+                EGRESS_URL, tls_creds, options, compression)
+            return grpc.intercept_channel(channel, header_adder)
+
+        options.append(('grpc.default_authority', address))
+        return grpc.secure_channel(EGRESS_URL, tls_creds, options, compression)
+
+    if mode == ChannelType.INTERNAL:
+        return grpc.secure_channel(address, tls_creds, options, compression)
 
     raise Exception("UNKNOWN Channel by uuid %s" % address)

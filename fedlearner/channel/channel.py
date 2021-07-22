@@ -22,9 +22,10 @@ import enum
 from concurrent import futures
 
 import grpc
-from fedlearner.common import fl_logging, stats
+from fedlearner.common import fl_logging, stats, common
 from fedlearner.channel import channel_pb2, channel_pb2_grpc
-from fedlearner.proxy.channel import make_insecure_channel, ChannelType
+from fedlearner.proxy.channel import make_insecure_channel, \
+    make_secure_channel, ChannelType
 from fedlearner.channel.client_interceptor import ClientInterceptor
 from fedlearner.channel.server_interceptor import ServerInterceptor
 
@@ -175,16 +176,27 @@ class Channel():
 
         # channel
         self._remote_address = remote_address
-        self._channel = make_insecure_channel(
-            self._remote_address,
-            mode=ChannelType.REMOTE,
-            options=(
-                ('grpc.max_send_message_length', -1),
-                ('grpc.max_receive_message_length', -1),
-                ('grpc.max_reconnect_backoff_ms', 1000),
-            ),
-            compression=compression
+        options = (
+            ('grpc.max_send_message_length', -1),
+            ('grpc.max_receive_message_length', -1),
+            ('grpc.max_reconnect_backoff_ms', 1000),
         )
+        use_tls, creds = common.use_tls()
+        if use_tls:
+            self._channel = make_secure_channel(
+                self._remote_address,
+                mode=ChannelType.REMOTE,
+                options=options,
+                compression=compression
+            )
+        else:
+            self._channel = make_insecure_channel(
+                self._remote_address,
+                mode=ChannelType.REMOTE,
+                options=options,
+                compression=compression
+            )
+
         self._channel_interceptor = ClientInterceptor(
             identifier=self._identifier,
             retry_interval=self._retry_interval,
@@ -207,10 +219,17 @@ class Channel():
             ),
             interceptors=(self._server_interceptor,),
             compression=compression)
-        self._server.add_insecure_port(self._listen_address)
 
         # channel client & server
         self._channel_call = channel_pb2_grpc.ChannelStub(self._channel)
+        if use_tls:
+            server_credentials = grpc.ssl_server_credentials(
+                ((creds[1], creds[2]), ), creds[0], True)
+            self._server.add_secure_port(
+                self._listen_address, server_credentials)
+        else:
+            self._server.add_insecure_port(self._listen_address)
+
         channel_pb2_grpc.add_ChannelServicer_to_server(
             Channel._Servicer(self), self._server)
 
