@@ -80,9 +80,6 @@ etcd:
   persistence:
     storageClass: nfs
 
-argo:
-  enabled: true
-
 sparkoperator:
   enabled: false
 
