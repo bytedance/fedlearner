@@ -25,3 +25,7 @@ dependencies:
   repository: ""
   version: 4.8.2
   condition: etcd.enabled
+- name: sparkoperator
+  repository: http://storage.googleapis.com/kubernetes-charts-incubator
+  version: 0.8.4
+  condition: sparkoperator.enabled
