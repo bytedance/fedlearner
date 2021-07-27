@@ -30,8 +30,7 @@
 
 #include <grpcpp/grpcpp.h>
 #include <grpcpp/security/credentials.h>
-#include <grpc/grpc_security.h>
-//#include <grpcpp/security/tls_certificate_provider.h>
+#include <grpcpp/security/tls_certificate_provider.h>
 #include <grpcpp/security/tls_credentials_options.h>
 #include <grpcpp/security/server_credentials.h>
 
@@ -80,11 +79,6 @@ class library_engine {
   private:
     void* handle;
     char* error;
-};
-
-struct IdentityKeyCertPair {
-	std::string private_key;
-	std::string certificate_chain;
 };
 
 }  // namespace sgx

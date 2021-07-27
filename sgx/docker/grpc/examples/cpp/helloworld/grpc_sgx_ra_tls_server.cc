@@ -25,7 +25,7 @@ namespace sgx {
 #define PEM_END_CRT             "-----END CERTIFICATE-----\n"
 
 // Server side is required to use a provider, because server always needs to use identity certs.
-std::vector<grpc::sgx::IdentityKeyCertPair> get_server_identity_key_cert_pairs() {
+std::vector<grpc::experimental::IdentityKeyCertPair> get_server_identity_key_cert_pairs() {
   mbedtls_x509_crt srvcert;
   mbedtls_pk_context pkey;
 
@@ -55,11 +55,11 @@ std::vector<grpc::sgx::IdentityKeyCertPair> get_server_identity_key_cert_pairs()
     throw std::runtime_error(std::string("mbedtls_pem_write_buffer failed\n\n"));
   };
 
-  grpc::sgx::IdentityKeyCertPair key_cert_pair;
+  grpc::experimental::IdentityKeyCertPair key_cert_pair;
   key_cert_pair.private_key = std::string((char*) private_key_pem);
   key_cert_pair.certificate_chain = std::string((char*) cert_pem);
 
-  std::vector<grpc::sgx::IdentityKeyCertPair> identity_key_cert_pairs;
+  std::vector<grpc::experimental::IdentityKeyCertPair> identity_key_cert_pairs;
   identity_key_cert_pairs.emplace_back(key_cert_pair);
 
   // mbedtls_printf("Server key:\n%s\n", private_key_pem);
@@ -71,21 +71,7 @@ std::vector<grpc::sgx::IdentityKeyCertPair> get_server_identity_key_cert_pairs()
   return identity_key_cert_pairs;
 };
 
-std::shared_ptr<grpc::ServerCredentials> SslServerCredentials() {
-  auto creds = get_server_identity_key_cert_pairs();
-  grpc::SslServerCredentialsOptions ssl_opts;
-  grpc::SslServerCredentialsOptions::PemKeyCertPair p = {
-	creds[0].private_key, creds[0].certificate_chain
-  };
-  ssl_opts.pem_key_cert_pairs.push_back(p);
-  //ssl_opts.pem_root_certs = get_file_content(root_cert);
-
-  return ::grpc::SslServerCredentials(ssl_opts);
-}
-
-/*
 std::shared_ptr<grpc::ServerCredentials> TlsServerCredentials() {
-  auto creds = get_server_identity_key_cert_pairs();
   auto certificate_provider =
       std::make_shared<grpc::experimental::StaticDataCertificateProvider>(
           get_server_identity_key_cert_pairs());
@@ -97,7 +83,6 @@ std::shared_ptr<grpc::ServerCredentials> TlsServerCredentials() {
   options.watch_identity_key_cert_pairs();
   return grpc::experimental::TlsServerCredentials(options);
 };
-*/
 
 }  // namespace sgx
 }  // namespace grpc

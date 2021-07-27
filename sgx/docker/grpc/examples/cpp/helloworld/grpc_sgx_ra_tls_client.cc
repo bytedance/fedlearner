@@ -16,11 +16,7 @@
  *
  */
 
-#include <cassert> 
 #include "grpc_sgx_ra_tls_utils.h"
-#include "grpc_sgx_ra_tls.h"
-using namespace std;
-using namespace ::grpc_impl::experimental;
 
 namespace grpc {
 namespace sgx {
@@ -40,7 +36,7 @@ class TlsServerAuthorizationCheck;
 static int (*ra_tls_verify_callback_f)(uint8_t* der_crt, size_t der_crt_size) = nullptr;
 
 static std::shared_ptr<TlsServerAuthorizationCheck> server_authorization_check = nullptr;
-static std::shared_ptr<::grpc_impl::experimental::TlsServerAuthorizationCheckConfig> server_authorization_check_config = nullptr;
+static std::shared_ptr<grpc::experimental::TlsServerAuthorizationCheckConfig> server_authorization_check_config = nullptr;
 
 static library_engine helper_sgx_urts_lib("libsgx_urts.so", RTLD_NOW | RTLD_GLOBAL);
 static library_engine ra_tls_verify_lib("libra_tls_verify_dcap.so", RTLD_LAZY);
@@ -145,8 +141,8 @@ void ra_tls_verify_init() {
 
 // test/cpp/client/credentials_test.cc : class TestTlsServerAuthorizationCheck
 class TlsServerAuthorizationCheck
-    : public grpc_impl::experimental::TlsServerAuthorizationCheckInterface {
-  int Schedule(grpc_impl::experimental::TlsServerAuthorizationCheckArg* arg) override {
+    : public grpc::experimental::TlsServerAuthorizationCheckInterface {
+  int Schedule(grpc::experimental::TlsServerAuthorizationCheckArg* arg) override {
     GPR_ASSERT(arg != nullptr);
 
     char cert_pem[16000];
@@ -166,7 +162,7 @@ class TlsServerAuthorizationCheck
     }
   }
 
-  void Cancel(grpc_impl::experimental::TlsServerAuthorizationCheckArg* arg) override {
+  void Cancel(grpc::experimental::TlsServerAuthorizationCheckArg* arg) override {
     GPR_ASSERT(arg != nullptr);
     arg->set_status(GRPC_STATUS_PERMISSION_DENIED);
     arg->set_error_details("cancelled");
@@ -180,34 +176,14 @@ std::shared_ptr<grpc::ChannelCredentials> TlsCredentials(
 
   ra_tls_verify_init();
 
-  //grpc::experimental::TlsChannelCredentialsOptions options;
-
-  //options.set_server_verification_option(GRPC_TLS_SKIP_ALL_SERVER_VERIFICATION);
-  grpc_tls_credentials_options* options = grpc_tls_credentials_options_create();
-  GPR_ASSERT(options != nullptr);
-  grpc_tls_credentials_options_set_server_verification_option(
-		        options, GRPC_TLS_SKIP_ALL_SERVER_VERIFICATION);
-
+  grpc::experimental::TlsChannelCredentialsOptions options;
+  options.set_server_verification_option(GRPC_TLS_SKIP_ALL_SERVER_VERIFICATION);
   server_authorization_check = std::make_shared<TlsServerAuthorizationCheck>();
-
-  server_authorization_check_config = std::make_shared<::grpc_impl::experimental::TlsServerAuthorizationCheckConfig>(
+  server_authorization_check_config = std::make_shared<grpc::experimental::TlsServerAuthorizationCheckConfig>(
           server_authorization_check);
-  //options.set_server_authorization_check_config(server_authorization_check_config);
-  grpc_tls_credentials_options_set_server_authorization_check_config(
-		           options, server_authorization_check_config->c_config());
+  options.set_server_authorization_check_config(server_authorization_check_config);
 
-  auto key_materials = make_shared<grpc_impl::experimental::TlsKeyMaterialsConfig>();
-  key_materials->set_key_materials("", vector<grpc_impl::experimental::TlsKeyMaterialsConfig::PemKeyCertPair>());
-  auto watcher = shared_ptr<TestTlsCredentialReload>();
-  auto watch_config = shared_ptr<TlsCredentialReloadConfig>(new TlsCredentialReloadConfig(dynamic_pointer_cast<TlsCredentialReloadInterface>(watcher)));
-  auto opt = grpc_impl::experimental::TlsCredentialsOptions(
-		  GRPC_SSL_DONT_REQUEST_CLIENT_CERTIFICATE, //Default
-		  GRPC_TLS_SKIP_ALL_SERVER_VERIFICATION,
-		  key_materials,
-		  watch_config,
-		  server_authorization_check_config
-		  );
-  return grpc::experimental::TlsCredentials(opt);
+  return grpc::experimental::TlsCredentials(options);
 };
 
 std::shared_ptr<grpc::Channel> CreateSecureChannel(string target_str, std::shared_ptr<grpc::ChannelCredentials> channel_creds) {

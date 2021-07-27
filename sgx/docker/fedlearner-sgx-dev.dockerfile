@@ -93,9 +93,7 @@ RUN mkdir -p ${INSTALL_PREFIX} \
     && sh cmake-linux.sh -- --skip-license --prefix=${INSTALL_PREFIX} \
     && rm cmake-linux.sh
 
-#RUN git clone --recurse-submodules -b v1.38.1 https://github.com/grpc/grpc ${GRPC_PATH}
-RUN git clone https://github.com/grpc/grpc ${GRPC_PATH}
-RUN cd ${GRPC_PATH} && git checkout b54a5b338637f92bfcf4b0bc05e0f57a5fd8fadd && git submodule update --init
+RUN git clone --recurse-submodules -b v1.38.1 https://github.com/grpc/grpc ${GRPC_PATH}
 COPY grpc ${GRPC_PATH}
 
 RUN cd ${GRPC_PATH} \

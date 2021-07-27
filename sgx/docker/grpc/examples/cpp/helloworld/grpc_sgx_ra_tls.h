@@ -21,14 +21,8 @@
 
 #include <memory>
 
-#include <grpcpp/grpcpp.h>
 #include <grpcpp/security/credentials.h>
 #include <grpcpp/security/server_credentials.h>
-
-typedef struct ::grpc_impl::experimental::TlsCredentialReloadInterface
-    TlsCredentialReloadInterface;
-typedef class ::grpc_impl::experimental::TlsCredentialReloadArg
-    TlsCredentialReloadArg;
 
 namespace grpc {
 namespace sgx {
@@ -39,25 +33,7 @@ std::shared_ptr<grpc::ChannelCredentials> TlsCredentials(
 
 std::shared_ptr<grpc::Channel> CreateSecureChannel(string, std::shared_ptr<grpc::ChannelCredentials>);
 
-std::shared_ptr<grpc::ServerCredentials> SslServerCredentials();
-
-class TestTlsCredentialReload : public TlsCredentialReloadInterface {
-	int Schedule(TlsCredentialReloadArg* arg) override {
-		//GPR_ASSERT(arg != nullptr);
-		//struct TlsKeyMaterialsConfig::PemKeyCertPair pair3 = {"private_key3",
-		//	"cert_chain3"};
-		//arg->set_pem_root_certs("new_pem_root_certs");
-		//arg->add_pem_key_cert_pair(pair3);
-		//arg->set_status(GRPC_SSL_CERTIFICATE_CONFIG_RELOAD_NEW);
-		return 0;
-	}
-
-	void Cancel(TlsCredentialReloadArg* arg) override {
-		GPR_ASSERT(arg != nullptr);
-		arg->set_status(GRPC_SSL_CERTIFICATE_CONFIG_RELOAD_FAIL);
-		arg->set_error_details("cancelled");
-	}
-};
+std::shared_ptr<grpc::ServerCredentials> TlsServerCredentials();
 
 }  // namespace sgx
 }  // namespace grpc

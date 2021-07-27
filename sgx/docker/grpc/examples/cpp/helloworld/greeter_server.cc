@@ -64,7 +64,7 @@ void RunServer() {
   std::shared_ptr<grpc::ServerCredentials> creds = nullptr;
 
   if (args.ssl) {
-    creds = std::move(grpc::sgx::SslServerCredentials());
+    creds = std::move(grpc::sgx::TlsServerCredentials());
   } else {
     creds = std::move(grpc::InsecureServerCredentials());
   }

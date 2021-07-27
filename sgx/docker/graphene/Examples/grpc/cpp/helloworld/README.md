@@ -28,5 +28,8 @@ kill %%
 
 make run &
 
-./grpc-client -mr_enclave=xxxxxxxxxxxxx -mr_signer=xxxxxxxxxxxxx -isv_prod_id=x -isv_svn=x
+# get mre and mrs
+graphene-sgx-get-token --sig grpc-server.sig
+
+./grpc-client -mre=xxxxxxxxxxxxx -mrs=xxxxxxxxxxxxx -isv_prod_id=x -isv_svn=x
 ```
