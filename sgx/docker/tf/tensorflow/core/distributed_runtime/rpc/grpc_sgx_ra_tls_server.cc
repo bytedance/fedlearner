@@ -76,7 +76,7 @@ std::shared_ptr<grpc::ServerCredentials> TlsServerCredentials() {
       std::make_shared<grpc::experimental::StaticDataCertificateProvider>(
           get_server_identity_key_cert_pairs());
   grpc::experimental::TlsServerCredentialsOptions options(certificate_provider);
-  //options.set_certificate_provider(certificate_provider);
+  options.set_certificate_provider(certificate_provider);
   options.set_root_cert_name("root_cert_name");
   options.set_identity_cert_name("identity_cert_name");
   options.set_cert_request_type(GRPC_SSL_DONT_REQUEST_CLIENT_CERTIFICATE);

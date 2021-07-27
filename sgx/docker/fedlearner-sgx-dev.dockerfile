@@ -16,6 +16,7 @@ RUN apt-get update \
         python3-pip \
         python3-dev \
         git \
+	zlib1g-dev \
         wget
 
 # Intel SGX
@@ -93,8 +94,7 @@ RUN mkdir -p ${INSTALL_PREFIX} \
     && sh cmake-linux.sh -- --skip-license --prefix=${INSTALL_PREFIX} \
     && rm cmake-linux.sh
 
-RUN git clone --recurse-submodules -b v1.38.1 https://github.com/grpc/grpc ${GRPC_PATH}
-COPY grpc ${GRPC_PATH}
+RUN git clone --recurse-submodules -b v1.36.0 https://github.com/grpc/grpc ${GRPC_PATH}
 
 RUN cd ${GRPC_PATH} \
     && pip3 install --upgrade pip setuptools==44.1.1 \
@@ -104,9 +104,34 @@ COPY grpc/build_install.sh ${GRPC_PATH}
 RUN ${GRPC_PATH}/build_install.sh
 
 COPY graphene ${GRAPHENEDIR}
-COPY fedlearner ${FEDLEARNER_PATH}
-#COPY grpc ${GRPC_PATH}
+#COPY fedlearner ${FEDLEARNER_PATH}
+COPY grpc ${GRPC_PATH}
 COPY configs /
+
+# tensorflow
+ENV BAZEL_VERSION=3.1.0
+RUN apt install unzip -y
+RUN wget "https://github.com/bazelbuild/bazel/releases/download/${BAZEL_VERSION}/bazel_${BAZEL_VERSION}-linux-x86_64.deb" \
+ && dpkg -i bazel_*.deb
+
+## deps 
+RUN pip install numpy keras_preprocessing 
+RUN ln -s  /usr/bin/python3.6 /usr/bin/python
+
+ENV TF_VERSION=v2.4.2
+ENV TF_BUILD_PATH=/tf/src
+ENV TF_BUILD_OUTPUT=/tf/output
+RUN git clone --recurse-submodules -b ${TF_VERSION} https://github.com/tensorflow/tensorflow ${TF_BUILD_PATH}
+
+# git apply diff
+COPY tf ${TF_BUILD_PATH} 
+RUN cd ${TF_BUILD_PATH} && git apply sgx_tls_sample.diff
+
+## mbedtls
+#RUN cd ${TF_BUILD_PATH} && ./build.sh
+#
+#RUN cd ${TF_BUILD_PATH} && bazel build -c opt //tensorflow/tools/pip_package:build_pip_package
+#RUN cd ${TF_BUILD_PATH} && bazel-bin/tensorflow/tools/pip_package/build_pip_package ${TF_BUILD_OUTPUT} && pip install ${TF_BUILD_OUTPUT}/tensorflow-*-cp36-cp36m-linux_x86_64.whl 
 
 # Temp setup script
 RUN chmod +x /root/setup.sh \
