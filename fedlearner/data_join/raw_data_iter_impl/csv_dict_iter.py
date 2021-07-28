@@ -50,7 +50,7 @@ class CsvItem(RawDataIter.Item):
 
     def __getattr__(self, item):
         if item not in self._features and common.ALLOWED_FIELDS[item].must:
-            logging.warning("%s misses field %s:%s",
+            logging.debug("%s misses field %s:%s",
                             self.__class__.__name__,
                             item, common.ALLOWED_FIELDS[item])
         value = self._features.get(item,
