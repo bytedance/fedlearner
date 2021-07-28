@@ -49,9 +49,7 @@ class CsvItem(RawDataIter.Item):
         return cls(row)
 
     def __getattr__(self, item):
-        missed = False
         if item not in self._features and common.ALLOWED_FIELDS[item].must:
-            missed = True
             logging.warning("%s misses field %s:%s",
                             self.__class__.__name__,
                             item, common.ALLOWED_FIELDS[item])
@@ -59,7 +57,7 @@ class CsvItem(RawDataIter.Item):
                                    common.ALLOWED_FIELDS[item].default_value)
         # csv doesn't support bytes and int
         field = common.ALLOWED_FIELDS[item]
-        if field.type == bytes && not missed:
+        if field.type == bytes and not isinstance(value, str):
             return value.encode()
         if field.type == int:
             return int(value)
