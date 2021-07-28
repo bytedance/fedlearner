@@ -57,7 +57,8 @@ class CsvItem(RawDataIter.Item):
                                    common.ALLOWED_FIELDS[item].default_value)
         # csv doesn't support bytes and int
         field = common.ALLOWED_FIELDS[item]
-        if field.type == bytes and not isinstance(value, str):
+        # value is b'' if field not exist'
+        if field.type == bytes and isinstance(value, str):
             return value.encode()
         if field.type == int:
             return int(value)
