@@ -368,6 +368,7 @@ def test_one_file(args, bridge, booster, data_file, output_file):
 
     if y is not None:
         metrics = booster.loss.metrics(pred, y)
+        booster.iter_metrics_handler(metrics, 'eval')
     else:
         metrics = {}
     logging.info("Test metrics: %s", metrics)
