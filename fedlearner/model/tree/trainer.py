@@ -313,7 +313,7 @@ def train(args, booster):
         assert cat_X_names == val_cat_X_names, \
             "Train data and validation data must have same features"
     else:
-        val_X = val_cat_X = X_names = val_y = val_example_ids = None
+        val_X = val_cat_X = val_y = val_example_ids = None
 
     if args.output_path:
         tf.io.gfile.makedirs(os.path.dirname(args.output_path))
@@ -375,6 +375,7 @@ def test_one_file(args, bridge, booster, data_file, output_file):
 
     if y is not None:
         metrics = booster.loss.metrics(pred, y)
+        booster.iter_metrics_handler(metrics, 'eval')
     else:
         metrics = {}
     logging.info("Test metrics: %s", metrics)

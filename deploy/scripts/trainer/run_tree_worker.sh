@@ -26,6 +26,10 @@ if [[ -z "${DATA_PATH}" && -n "${DATA_SOURCE}" ]]; then
     export DATA_PATH="${STORAGE_ROOT_PATH}/data_source/${DATA_SOURCE}/data_block"
 fi
 
+if [[ -z "${LOAD_MODEL_PATH}" && -n "${LOAD_MODEL_NAME}" ]]; then
+  export LOAD_MODEL_PATH="${STORAGE_ROOT_PATH}/job_output/${LOAD_MODEL_NAME}/exported_models"
+fi
+
 mode=$(normalize_env_to_args "--mode" "$MODE")
 data_path=$(normalize_env_to_args "--data-path" "$DATA_PATH")
 validation_data_path=$(normalize_env_to_args "--validation-data-path" "$VALIDATION_DATA_PATH")
