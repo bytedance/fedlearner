@@ -42,6 +42,11 @@ service:
   type: ClusterIP
   port: 1990
 
+publicService:
+  enabled: false
+  podPort: 1989
+  nodePort: 30200
+
 ingress:
   enabled: true
   ingressPrefix: "fedlearner-webconsole-v2"
