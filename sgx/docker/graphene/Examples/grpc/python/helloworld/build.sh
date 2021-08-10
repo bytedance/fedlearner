@@ -1,7 +1,7 @@
 set -e
 
-cp -r /home/host-home/0400h/cloud-tee/fedlearner/docker/grpc/* ${GRPC_PATH}
-cp -r /home/host-home/0400h/cloud-tee/fedlearner/docker/graphene/* ${GRAPHENEDIR}
+# cp -r /home/host-home/0400h/cloud-tee/fedlearner/docker/grpc/* ${GRPC_PATH}
+# cp -r /home/host-home/0400h/cloud-tee/fedlearner/docker/graphene/* ${GRAPHENEDIR}
 
 export HELLO_PATH=${GRPC_PATH}/examples/python/helloworld
 
