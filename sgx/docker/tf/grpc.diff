@@ -1,0 +1,148 @@
+diff --git a/./home/host-home/siyuan/grpc-b54a5b338637f92bfcf4b0bc05e0f57a5fd8fadd/bazel/generate_cc.bzl b/./com_github_grpc_grpc/bazel/generate_cc.bzl
+index 484959e..81d52fd 100644
+--- a/./home/host-home/siyuan/grpc-b54a5b338637f92bfcf4b0bc05e0f57a5fd8fadd/bazel/generate_cc.bzl
++++ b/./com_github_grpc_grpc/bazel/generate_cc.bzl
+@@ -140,6 +140,7 @@ def generate_cc_impl(ctx):
+         outputs = out_files,
+         executable = ctx.executable._protoc,
+         arguments = arguments,
++        use_default_shell_env = True,
+     )
+ 
+     return struct(files = depset(out_files))
+diff --git a/./home/host-home/siyuan/grpc-b54a5b338637f92bfcf4b0bc05e0f57a5fd8fadd/include/grpc/grpc_security.h b/./com_github_grpc_grpc/include/grpc/grpc_security.h
+index 67af986..f92705f 100644
+--- a/./home/host-home/siyuan/grpc-b54a5b338637f92bfcf4b0bc05e0f57a5fd8fadd/include/grpc/grpc_security.h
++++ b/./com_github_grpc_grpc/include/grpc/grpc_security.h
+@@ -925,6 +925,8 @@ struct grpc_tls_server_authorization_check_arg {
+   const char* target_name;
+   const char* peer_cert;
+   const char* peer_cert_full_chain;
++  char** subject_alternative_names;
++  size_t subject_alternative_names_size;
+   grpc_status_code status;
+   const char* error_details;
+   grpc_tls_server_authorization_check_config* config;
+diff --git a/./home/host-home/siyuan/grpc-b54a5b338637f92bfcf4b0bc05e0f57a5fd8fadd/src/core/lib/security/security_connector/tls/tls_security_connector.cc b/./com_github_grpc_grpc/src/core/lib/security/security_connector/tls/tls_security_connector.cc
+index 3cd83ae..e597acb 100644
+--- a/./home/host-home/siyuan/grpc-b54a5b338637f92bfcf4b0bc05e0f57a5fd8fadd/src/core/lib/security/security_connector/tls/tls_security_connector.cc
++++ b/./com_github_grpc_grpc/src/core/lib/security/security_connector/tls/tls_security_connector.cc
+@@ -23,6 +23,8 @@
+ #include <stdbool.h>
+ #include <string.h>
+ 
++#include "absl/strings/str_cat.h"
++
+ #include <grpc/grpc.h>
+ #include <grpc/support/alloc.h>
+ #include <grpc/support/log.h>
+@@ -178,8 +180,19 @@ void TlsChannelSecurityConnector::check_peer(
+   }
+   *auth_context =
+       grpc_ssl_peer_to_auth_context(&peer, GRPC_TLS_TRANSPORT_SECURITY_TYPE);
++  // **********
+   const TlsCredentials* creds =
+       static_cast<const TlsCredentials*>(channel_creds());
++  if (creds->options().server_verification_option() == GRPC_TLS_SERVER_VERIFICATION) {
++    /* Do the default host name check if specifying the target name. */
++    error = internal::TlsCheckHostName(target_name, &peer);
++    if (error != GRPC_ERROR_NONE) {
++      grpc_core::ExecCtx::Run(DEBUG_LOCATION, on_peer_checked, error);
++      tsi_peer_destruct(&peer);
++      return;
++    }
++  }
++  // **********
+   const grpc_tls_server_authorization_check_config* config =
+       creds->options().server_authorization_check_config();
+   /* If server authorization config is not null, use it to perform
+@@ -214,6 +227,41 @@ void TlsChannelSecurityConnector::check_peer(
+                 : check_arg_->peer_cert_full_chain;
+         gpr_free(peer_pem_chain);
+       }
++      // *****************
++      // TODO(zhenlian) - This should be cleaned up as part of the custom
++      // verification changes. Fill in the subject alternative names
++      std::vector<char*> subject_alternative_names;
++      for (size_t i = 0; i < peer.property_count; i++) {
++        const tsi_peer_property* prop = &peer.properties[i];
++        if (strcmp(prop->name,
++                   TSI_X509_SUBJECT_ALTERNATIVE_NAME_PEER_PROPERTY) == 0) {
++          char* san = new char[prop->value.length + 1];
++          memcpy(san, prop->value.data, prop->value.length);
++          san[prop->value.length] = '\0';
++          subject_alternative_names.emplace_back(san);
++        }
++      }
++      if (check_arg_->subject_alternative_names != nullptr) {
++        for (size_t i = 0; i < check_arg_->subject_alternative_names_size;
++             ++i) {
++          delete[] check_arg_->subject_alternative_names[i];
++        }
++        delete[] check_arg_->subject_alternative_names;
++      }
++      check_arg_->subject_alternative_names_size =
++          subject_alternative_names.size();
++      if (subject_alternative_names.empty()) {
++        check_arg_->subject_alternative_names = nullptr;
++      } else {
++        check_arg_->subject_alternative_names =
++            new char*[check_arg_->subject_alternative_names_size];
++        for (size_t i = 0; i < check_arg_->subject_alternative_names_size;
++             ++i) {
++          check_arg_->subject_alternative_names[i] =
++              subject_alternative_names[i];
++        }
++      }
++      // *****************
+       int callback_status = config->Schedule(check_arg_);
+       /* Server authorization check is handled asynchronously. */
+       if (callback_status) {
+@@ -551,4 +599,19 @@ grpc_security_status TlsServerSecurityConnector::RefreshHandshakerFactory() {
+   }
+ }
+ 
++namespace internal {
++
++grpc_error* TlsCheckHostName(const char* peer_name, const tsi_peer* peer) {
++  /* Check the peer name if specified. */
++  if (peer_name != nullptr && !grpc_ssl_host_matches_name(peer, peer_name)) {
++    return GRPC_ERROR_CREATE_FROM_COPIED_STRING(
++        absl::StrCat("Peer name ", peer_name, " is not in peer certificate")
++            .c_str());
++  }
++  return GRPC_ERROR_NONE;
++}
++
++}  // namespace internal
++
+ }  // namespace grpc_core
++
+diff --git a/./home/host-home/siyuan/grpc-b54a5b338637f92bfcf4b0bc05e0f57a5fd8fadd/src/core/lib/security/security_connector/tls/tls_security_connector.h b/./com_github_grpc_grpc/src/core/lib/security/security_connector/tls/tls_security_connector.h
+index 825ffe7..7716733 100644
+--- a/./home/host-home/siyuan/grpc-b54a5b338637f92bfcf4b0bc05e0f57a5fd8fadd/src/core/lib/security/security_connector/tls/tls_security_connector.h
++++ b/./com_github_grpc_grpc/src/core/lib/security/security_connector/tls/tls_security_connector.h
+@@ -20,7 +20,7 @@
+ #define GRPC_CORE_LIB_SECURITY_SECURITY_CONNECTOR_TLS_TLS_SECURITY_CONNECTOR_H
+ 
+ #include <grpc/support/port_platform.h>
+-
++#include <vector>
+ #include "src/core/lib/gprpp/sync.h"
+ #include "src/core/lib/security/context/security_context.h"
+ #include "src/core/lib/security/credentials/tls/grpc_tls_credentials_options.h"
+@@ -151,6 +151,14 @@ grpc_status_code TlsFetchKeyMaterials(
+     const grpc_tls_credentials_options& options, bool server_config,
+     grpc_ssl_certificate_config_reload_status* status);
+ 
++namespace internal {
++
++// TlsCheckHostName checks if |peer_name| matches the identity information
++// contained in |peer|. This is AKA hostname check.
++grpc_error* TlsCheckHostName(const char* peer_name, const tsi_peer* peer);
++
++}  // namespace internal
++
+ }  // namespace grpc_core
+ 
+ #endif /* GRPC_CORE_LIB_SECURITY_SECURITY_CONNECTOR_TLS_TLS_SECURITY_CONNECTOR_H \
