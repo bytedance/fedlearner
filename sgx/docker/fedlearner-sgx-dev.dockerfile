@@ -4,7 +4,7 @@ FROM ubuntu:18.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-#COPY configs/etc/apt/sources.list /etc/apt/sources.list
+# COPY configs/etc/apt/sources.list /etc/apt/sources.list
 
 # Add steps here to set up dependencies
 RUN apt-get update \
@@ -16,7 +16,7 @@ RUN apt-get update \
         python3-pip \
         python3-dev \
         git \
-	zlib1g-dev \
+        zlib1g-dev \
         wget
 
 # Intel SGX
@@ -94,7 +94,8 @@ RUN mkdir -p ${INSTALL_PREFIX} \
     && sh cmake-linux.sh -- --skip-license --prefix=${INSTALL_PREFIX} \
     && rm cmake-linux.sh
 
-RUN git clone --recurse-submodules -b v1.36.0 https://github.com/grpc/grpc ${GRPC_PATH}
+# RUN git clone --recurse-submodules -b v1.36.0 https://github.com/grpc/grpc ${GRPC_PATH}
+RUN git clone --recurse-submodules -b v1.38.1 https://github.com/grpc/grpc ${GRPC_PATH}
 
 RUN cd ${GRPC_PATH} \
     && pip3 install --upgrade pip setuptools==44.1.1 \
@@ -104,7 +105,7 @@ COPY grpc/build_install.sh ${GRPC_PATH}
 RUN ${GRPC_PATH}/build_install.sh
 
 COPY graphene ${GRAPHENEDIR}
-#COPY fedlearner ${FEDLEARNER_PATH}
+# COPY fedlearner ${FEDLEARNER_PATH}
 COPY grpc ${GRPC_PATH}
 COPY configs /
 

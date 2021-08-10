@@ -18,10 +18,8 @@
 
 #include "getopt.hpp"
 
-#include "grpc_sgx_ra_tls.h"
-
 #include <grpcpp/grpcpp.h>
-#include <grpcpp/security/credentials.h>
+#include <grpcpp/security/sgx/grpc_sgx_ra_tls.h>
 
 #ifdef BAZEL_BUILD
 #include "examples/protos/helloworld.grpc.pb.h"
@@ -43,8 +41,8 @@ struct argparser {
   argparser() {
     server_address = getarg("localhost:50051", "-t", "--target");
     ssl = getarg(true, "-ssl", "--ssl");
-    mr_enclave = getarg("0", "-mre", "--mrenclave");
-    mr_signer = getarg("0", "-mrs", "--mrsigner");
+    mr_enclave = getarg("0", "-mre", "--mr_enclave");
+    mr_signer = getarg("0", "-mrs", "--mr_signer");
     isv_prod_id = getarg("0", "-id", "--isv_prod_id");
     isv_svn = getarg("0", "-svn", "--isv_svn");
   };
@@ -92,7 +90,8 @@ void run_client() {
   std::shared_ptr<grpc::Channel> channel = nullptr;
   if (args.ssl) {
     auto cred = grpc::sgx::TlsCredentials(args.mr_enclave, args.mr_signer, args.isv_prod_id, args.isv_svn);
-    channel = std::move(grpc::sgx::CreateSecureChannel(args.server_address, cred));
+    channel = std::move(grpc::CreateChannel(args.server_address, cred));
+    // channel = std::move(grpc::sgx::CreateSecureChannel(args.server_address, cred));
   } else {
     auto cred = grpc::InsecureChannelCredentials();
     channel = std::move(grpc::CreateChannel(args.server_address, cred));

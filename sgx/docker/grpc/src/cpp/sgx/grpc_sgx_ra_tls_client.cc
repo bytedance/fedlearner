@@ -23,12 +23,11 @@ namespace sgx {
 
 /*
 RA-TLS: on client, only need to register ra_tls_verify_callback() for cert verification
-  1. convert cert form pem format to der format
-  2. extract SGX quote from "quote" OID extension from crt
-  3. compare public key's hash from cert against quote's report_data
-  4. prepare user-supplied verification parameter "allow outdated TCB"
-  5. call into libsgx_dcap_quoteverify to verify ECDSA/based SGX quote
-  6. verify all measurements from the SGX quote
+  1. extract SGX quote from "quote" OID extension from crt
+  2. compare public key's hash from cert against quote's report_data
+  3. prepare user-supplied verification parameter "allow outdated TCB"
+  4. call into libsgx_dcap_quoteverify to verify ECDSA/based SGX quote
+  5. verify all measurements from the SGX quote
 */
 
 class TlsServerAuthorizationCheck;
@@ -41,72 +40,72 @@ static std::shared_ptr<grpc::experimental::TlsServerAuthorizationCheckConfig> se
 static library_engine helper_sgx_urts_lib("libsgx_urts.so", RTLD_NOW | RTLD_GLOBAL);
 static library_engine ra_tls_verify_lib("libra_tls_verify_dcap.so", RTLD_LAZY);
 
-static char g_expected_mrenclave[32];
-static char g_expected_mrsigner[32];
+static char g_expected_mr_enclave[32];
+static char g_expected_mr_signer[32];
 static char g_expected_isv_prod_id[2];
 static char g_expected_isv_svn[2];
 
-static bool g_verify_mrenclave   = true;
-static bool g_verify_mrsigner    = true;
-static bool g_verify_isv_prod_id = true;
-static bool g_verify_isv_svn     = true;
+static bool g_verify_mr_enclave   = true;
+static bool g_verify_mr_signer    = true;
+static bool g_verify_isv_prod_id  = true;
+static bool g_verify_isv_svn      = true;
 
 static pthread_mutex_t g_print_lock;
 
-void parse_args(const char* s_mrenclave, const char* s_mrsigner, const char* s_isv_prod_id, const char* s_isv_svn) {
-  if (parse_hex(s_mrenclave, g_expected_mrenclave, sizeof(g_expected_mrenclave)) < 0) {
-    mbedtls_printf("Cannot parse MRENCLAVE!\n");
+void parse_args(const char* s_mr_enclave, const char* s_mr_signer, const char* s_isv_prod_id, const char* s_isv_svn) {
+  if (parse_hex(s_mr_enclave, g_expected_mr_enclave, sizeof(g_expected_mr_enclave)) < 0) {
+    grpc_printf("Cannot parse mr_enclave!\n");
     return;
   }
 
-  if (parse_hex(s_mrsigner, g_expected_mrsigner, sizeof(g_expected_mrsigner)) < 0) {
-    mbedtls_printf("Cannot parse MRSIGNER!\n");
+  if (parse_hex(s_mr_signer, g_expected_mr_signer, sizeof(g_expected_mr_signer)) < 0) {
+    grpc_printf("Cannot parse mr_signer!\n");
     return;
   }
 
   errno = 0;
   uint16_t isv_prod_id = (uint16_t)strtoul(s_isv_prod_id, NULL, 10);
   if (errno) {
-      mbedtls_printf("Cannot parse ISV_PROD_ID!\n");
-      return;
+    grpc_printf("Cannot parse isv_prod_id!\n");
+    return;
   }
   memcpy(g_expected_isv_prod_id, &isv_prod_id, sizeof(isv_prod_id));
 
   errno = 0;
   uint16_t isv_svn = (uint16_t)strtoul(s_isv_svn, NULL, 10);
   if (errno) {
-      mbedtls_printf("Cannot parse ISV_SVN\n");
-      return;
+    grpc_printf("Cannot parse isv_svn\n");
+    return;
   }
   memcpy(g_expected_isv_svn, &isv_svn, sizeof(isv_svn));
 }
 
 // RA-TLS: our own callback to verify SGX measurements
-int ra_tls_verify_measurements_callback(const char* mrenclave, const char* mrsigner,
+int ra_tls_verify_measurements_callback(const char* mr_enclave, const char* mr_signer,
                                         const char* isv_prod_id, const char* isv_svn) {
-    assert(mrenclave && mrsigner && isv_prod_id && isv_svn);
+    assert(mr_enclave && mr_signer && isv_prod_id && isv_svn);
 
     pthread_mutex_lock(&g_print_lock);
 
-    mbedtls_printf("MRENCLAVE\n"); 
-    mbedtls_printf("    |- Expect :    "); hexdump_mem(g_expected_mrenclave, 32);
-    mbedtls_printf("    |- Get    :    "); hexdump_mem(mrenclave, 32);
-    mbedtls_printf("MRSIGNER\n");
-    mbedtls_printf("    |- Expect :    "); hexdump_mem(g_expected_mrsigner, 32);
-    mbedtls_printf("    |- Get    :    "); hexdump_mem(mrsigner, 32);
-    mbedtls_printf("ISV_PROD_ID\n");
-    mbedtls_printf("    |- Expect :    %hu\n", *((uint16_t*)g_expected_isv_prod_id));
-    mbedtls_printf("    |- Get    :    %hu\n", *((uint16_t*)isv_prod_id));
-    mbedtls_printf("ISV_SVN\n");
-    mbedtls_printf("    |- Expect :    %hu\n", *((uint16_t*)g_expected_isv_svn));
-    mbedtls_printf("    |- Get    :    %hu\n", *((uint16_t*)isv_svn));
+    grpc_printf("mr_enclave\n"); 
+    grpc_printf("    |- Expect :    "); hexdump_mem(g_expected_mr_enclave, 32);
+    grpc_printf("    |- Get    :    "); hexdump_mem(mr_enclave, 32);
+    grpc_printf("mr_signer\n");
+    grpc_printf("    |- Expect :    "); hexdump_mem(g_expected_mr_signer, 32);
+    grpc_printf("    |- Get    :    "); hexdump_mem(mr_signer, 32);
+    grpc_printf("isv_prod_id\n");
+    grpc_printf("    |- Expect :    %hu\n", *((uint16_t*)g_expected_isv_prod_id));
+    grpc_printf("    |- Get    :    %hu\n", *((uint16_t*)isv_prod_id));
+    grpc_printf("isv_svn\n");
+    grpc_printf("    |- Expect :    %hu\n", *((uint16_t*)g_expected_isv_svn));
+    grpc_printf("    |- Get    :    %hu\n", *((uint16_t*)isv_svn));
 
     bool status = true;
-    if (status && g_verify_mrenclave && memcmp(mrenclave, g_expected_mrenclave, sizeof(g_expected_mrenclave))) {
+    if (status && g_verify_mr_enclave && memcmp(mr_enclave, g_expected_mr_enclave, sizeof(g_expected_mr_enclave))) {
       status = false;
     }
 
-    if (status && g_verify_mrsigner && memcmp(mrsigner, g_expected_mrsigner, sizeof(g_expected_mrsigner))) {
+    if (status && g_verify_mr_signer && memcmp(mr_signer, g_expected_mr_signer, sizeof(g_expected_mr_signer))) {
       status = false;
     }
 
@@ -119,11 +118,11 @@ int ra_tls_verify_measurements_callback(const char* mrenclave, const char* mrsig
     }
 
     if (status) {
-      mbedtls_printf("Quote Verify\n    |- Result :    Success\n");
+      grpc_printf("quote Verify\n    |- Result :    Success\n");
       pthread_mutex_unlock(&g_print_lock);
       return 0;
     } else {
-      mbedtls_printf("Quote Verify\n    |- Result :    Failed\n");
+      grpc_printf("quote Verify\n    |- Result :    Failed\n");
       pthread_mutex_unlock(&g_print_lock);
       return -1;
     }
@@ -132,11 +131,34 @@ int ra_tls_verify_measurements_callback(const char* mrenclave, const char* mrsig
 void ra_tls_verify_init() {
   ra_tls_verify_callback_f = reinterpret_cast<int (*)(uint8_t* der_crt, size_t der_crt_size)>(ra_tls_verify_lib.get_func("ra_tls_verify_callback_der"));
 
-  auto ra_tls_set_measurement_callback_f = reinterpret_cast<void (*)(int (*f_cb)(const char *mrenclave,
-                                                                                 const char *mrsigner,
+  auto ra_tls_set_measurement_callback_f = reinterpret_cast<void (*)(int (*f_cb)(const char *mr_enclave,
+                                                                                 const char *mr_signer,
                                                                                  const char *isv_prod_id,
                                                                                  const char *isv_svn))>(ra_tls_verify_lib.get_func("ra_tls_set_measurement_callback"));
   (*ra_tls_set_measurement_callback_f)(ra_tls_verify_measurements_callback);
+}
+
+int server_auth_check_schedule(void* /* config_user_data */,
+                               grpc_tls_server_authorization_check_arg* arg) {
+  char der_crt[16000] = "";
+  std::string str = arg->peer_cert;
+  str.copy(der_crt, str.length(), 0);
+  // memcpy(der_crt, arg->peer_cert, strlen(arg->peer_cert));
+
+  // char der_crt[16000] = TEST_CRT_PEM;
+  // grpc_printf("%s\n", der_crt);
+
+  int ret = (*ra_tls_verify_callback_f)(reinterpret_cast<uint8_t *>(der_crt), 16000);
+
+  if (ret != 0) {
+    grpc_printf("something went wrong while verifying quote\n");
+    arg->success = 0;
+    arg->status = GRPC_STATUS_UNAUTHENTICATED;
+  } else {
+    arg->success = 1;
+    arg->status = GRPC_STATUS_OK;
+  }
+  return 0; /* synchronous check */
 }
 
 // test/cpp/client/credentials_test.cc : class TestTlsServerAuthorizationCheck
@@ -145,21 +167,24 @@ class TlsServerAuthorizationCheck
   int Schedule(grpc::experimental::TlsServerAuthorizationCheckArg* arg) override {
     GPR_ASSERT(arg != nullptr);
 
-    char cert_pem[16000];
+    char der_crt[16000] = "";
     auto peer_cert_buf = arg->peer_cert();
-    peer_cert_buf.copy(cert_pem, peer_cert_buf.length(), 0);
+    peer_cert_buf.copy(der_crt, peer_cert_buf.length(), 0);
 
-    int ret = (*ra_tls_verify_callback_f)(reinterpret_cast<uint8_t *>(cert_pem), 16000);
+    // char der_crt[16000] = TEST_CRT_PEM;
+    // grpc_printf("%s\n", der_crt);
+
+    int ret = (*ra_tls_verify_callback_f)(reinterpret_cast<uint8_t *>(der_crt), 16000);
+
     if (ret != 0) {
-      mbedtls_printf("something went wrong while verifying quote");
+      grpc_printf("something went wrong while verifying quote\n");
       arg->set_success(0);
       arg->set_status(GRPC_STATUS_UNAUTHENTICATED);
-      return 0;
     } else {
       arg->set_success(1);
       arg->set_status(GRPC_STATUS_OK);
-      return 0;
     }
+    return 0; /* synchronous check */
   }
 
   void Cancel(grpc::experimental::TlsServerAuthorizationCheckArg* arg) override {
@@ -170,9 +195,9 @@ class TlsServerAuthorizationCheck
 };
 
 std::shared_ptr<grpc::ChannelCredentials> TlsCredentials(
-    const char* mrenclave, const char* mrsigner,
+    const char* mr_enclave, const char* mr_signer,
     const char* isv_prod_id, const char* isv_svn) {
-  parse_args(mrenclave, mrsigner, isv_prod_id, isv_svn);
+  parse_args(mr_enclave, mr_signer, isv_prod_id, isv_svn);
 
   ra_tls_verify_init();
 

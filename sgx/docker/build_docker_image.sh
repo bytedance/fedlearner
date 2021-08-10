@@ -8,9 +8,8 @@ else
 fi
 
 # You can remove build-arg http_proxy and https_proxy if your network doesn't need it
-#no_proxy="localhost,127.0.0.0/1"
-#proxy_server="" # your http proxy server
-#proxy_server="http://child-prc.intel.com:913"
+# no_proxy="localhost,127.0.0.0/1"
+# proxy_server="" # your http proxy server
 proxy_server="http://bj-rd-proxy.byted.org:3128"
 
 DOCKER_BUILDKIT=0 docker build \
