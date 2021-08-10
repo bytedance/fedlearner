@@ -125,7 +125,8 @@ RUN git clone --recurse-submodules -b ${TF_VERSION} https://github.com/tensorflo
 
 # git apply diff
 COPY tf ${TF_BUILD_PATH} 
-RUN cd ${TF_BUILD_PATH} && git apply sgx_tls_sample.diff
+# RUN cd ${TF_BUILD_PATH} && git apply sgx_tls_sample.diff
+RUN cd ${TF_BUILD_PATH} && git apply grpc.diff
 
 ## mbedtls
 #RUN cd ${TF_BUILD_PATH} && ./build.sh
