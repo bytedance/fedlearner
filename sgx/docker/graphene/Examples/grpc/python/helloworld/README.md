@@ -29,7 +29,5 @@ kill %%
 make run &
 
 # get mre and mrs
-graphene-sgx-get-token --sig grpc-server.sig
-
-./grpc-client -id=x -svn=x -mrs=xxxxxxxxxxxxx -mre=xxxxxxxxxxxxx
+python3 ./grpc-client.py -id=x -svn=x -mrs=xxxxxxxxxxxxx -mre=xxxxxxxxxxxxx
 ```

@@ -18,10 +18,8 @@
 
 #include "getopt.hpp"
 
-#include "grpc_sgx_ra_tls.h"
-
 #include <grpcpp/grpcpp.h>
-#include <grpcpp/security/server_credentials.h>
+#include <grpcpp/security/sgx/grpc_sgx_ra_tls.h>
 #include <grpcpp/ext/proto_server_reflection_plugin.h>
 
 #ifdef BAZEL_BUILD

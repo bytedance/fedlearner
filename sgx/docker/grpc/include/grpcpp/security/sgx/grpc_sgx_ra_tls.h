@@ -27,11 +27,22 @@
 namespace grpc {
 namespace sgx {
 
+void parse_args(const char * mr_enclave, const char * mr_signer,
+                const char * isv_prod_id, const char * isv_svn);
+
+void ra_tls_verify_init();
+
+int server_auth_check_schedule(void* /* config_user_data */,
+                               grpc_tls_server_authorization_check_arg* arg);
+
 std::shared_ptr<grpc::ChannelCredentials> TlsCredentials(
-    const char* mrenclave, const char* mrsigner,
+    const char* mr_enclave, const char* mr_signer,
     const char* isv_prod_id, const char* isv_svn);
 
-std::shared_ptr<grpc::Channel> CreateSecureChannel(string, std::shared_ptr<grpc::ChannelCredentials>);
+std::shared_ptr<grpc::Channel> CreateSecureChannel(
+    string target_str, std::shared_ptr<grpc::ChannelCredentials> channel_creds);
+
+std::vector<std::string> get_server_key_cert();
 
 std::shared_ptr<grpc::ServerCredentials> TlsServerCredentials();
 

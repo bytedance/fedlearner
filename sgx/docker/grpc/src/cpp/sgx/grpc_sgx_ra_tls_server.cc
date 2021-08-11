@@ -25,7 +25,7 @@ namespace sgx {
 #define PEM_END_CRT             "-----END CERTIFICATE-----\n"
 
 // Server side is required to use a provider, because server always needs to use identity certs.
-std::vector<grpc::experimental::IdentityKeyCertPair> get_server_identity_key_cert_pairs() {
+std::vector<std::string> get_server_key_cert() {
   mbedtls_x509_crt srvcert;
   mbedtls_pk_context pkey;
 
@@ -55,28 +55,36 @@ std::vector<grpc::experimental::IdentityKeyCertPair> get_server_identity_key_cer
     throw std::runtime_error(std::string("mbedtls_pem_write_buffer failed\n\n"));
   };
 
-  grpc::experimental::IdentityKeyCertPair key_cert_pair;
-  key_cert_pair.private_key = std::string((char*) private_key_pem);
-  key_cert_pair.certificate_chain = std::string((char*) cert_pem);
+  std::vector<std::string> key_cert;
+  key_cert.emplace_back(std::string((char*) private_key_pem));
+  key_cert.emplace_back(std::string((char*) cert_pem));
 
-  std::vector<grpc::experimental::IdentityKeyCertPair> identity_key_cert_pairs;
-  identity_key_cert_pairs.emplace_back(key_cert_pair);
-
-  // mbedtls_printf("Server key:\n%s\n", private_key_pem);
-  // mbedtls_printf("Server crt:\n%s\n", cert_pem);
+  // grpc_printf("Server key:\n%s\n", private_key_pem);
+  // grpc_printf("Server crt:\n%s\n", cert_pem);
 
   mbedtls_x509_crt_free(&srvcert);
   mbedtls_pk_free(&pkey);
 
-  return identity_key_cert_pairs;
+  return key_cert;
 };
+
+std::vector<grpc::experimental::IdentityKeyCertPair> get_server_identity_key_cert_pairs(std::vector<std::string> key_cert) {
+  grpc::experimental::IdentityKeyCertPair key_cert_pair;
+  key_cert_pair.private_key = key_cert[0];
+  key_cert_pair.certificate_chain = key_cert[1];
+
+  std::vector<grpc::experimental::IdentityKeyCertPair> identity_key_cert_pairs;
+  identity_key_cert_pairs.emplace_back(key_cert_pair);
+
+  return identity_key_cert_pairs;
+}
 
 std::shared_ptr<grpc::ServerCredentials> TlsServerCredentials() {
   auto certificate_provider =
       std::make_shared<grpc::experimental::StaticDataCertificateProvider>(
-          get_server_identity_key_cert_pairs());
+          get_server_identity_key_cert_pairs(get_server_key_cert()));
   grpc::experimental::TlsServerCredentialsOptions options(certificate_provider);
-  //options.set_certificate_provider(certificate_provider);
+  // options.set_certificate_provider(certificate_provider);
   options.set_root_cert_name("root_cert_name");
   options.set_identity_cert_name("identity_cert_name");
   options.set_cert_request_type(GRPC_SSL_DONT_REQUEST_CLIENT_CERTIFICATE);

@@ -23,8 +23,9 @@ namespace sgx {
 
 void hexdump_mem(const void* data, size_t size) {
   uint8_t* ptr = (uint8_t*)data;
-  for (size_t i = 0; i < size; i++)
-      printf("%02x", ptr[i]);
+  for (size_t i = 0; i < size; i++) {
+    printf("%02x", ptr[i]);
+  }
   printf("\n");
 }
 
@@ -54,9 +55,9 @@ library_engine::~library_engine() {
 
 void library_engine::open(const char* file, int mode) {
   handle = dlopen(file, mode);
-  if (!handle) {
-    mbedtls_printf("Failed to open lib %s", file);
-    throw std::runtime_error(std::string("dlopen error\n"));
+  error = dlerror();
+  if (error != nullptr || handle == nullptr) {
+    throw std::runtime_error("dlopen " + std::string(file) + " error, " + std::string(error));
   }
 }
 
@@ -72,7 +73,7 @@ void* library_engine::get_func(const char* name) {
   auto func = dlsym(handle, name);
   error = dlerror();
   if (error != nullptr || func == nullptr) {
-    throw std::runtime_error(std::string(std::string(error)+"\n"));
+    throw std::runtime_error("dlsym " + std::string(name) + " error, " + std::string(error));
     return nullptr;
   } else {
     return func;

@@ -1,14 +1,9 @@
 set -e
 
 export BUILD_TYPE=Debug
-
-export MBEDTLS_PATH=${GRAPHENEDIR}/Examples/ra-tls-mbedtls
 export HELLO_PATH=${GRPC_PATH}/examples/cpp/helloworld
 
-# Build ra-tls-mbedtls
-if [ ! -d "${MBEDTLS_PATH}/mbedtls" ]; then
-    ${MBEDTLS_PATH}/build_install.sh
-fi
+${GRPC_PATH}/build_cpp.sh
 
 # build c++ example
 cd ${HELLO_PATH}
