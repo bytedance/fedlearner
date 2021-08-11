@@ -43,7 +43,7 @@ service:
   port: 1990
 
 publicService:
-  enabled: false
+  enabled: true
   podPort: 1989
   nodePort: 30200
 

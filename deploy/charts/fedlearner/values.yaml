@@ -22,22 +22,12 @@ fedlearner-apiserver:
     pullPolicy: IfNotPresent
 
 fedlearner-web-console:
-  image:
-    repository: fedlearner/fedlearner-web-console
-    tag: "v1.5-rc2"
-    pullPolicy: IfNotPresent
-
-  ingress:
-    enabled: true
-
-  extraVolumeMounts:
-  - name: data
-    mountPath: /data
-
-  extraVolumes:
-  - name: data
-    persistentVolumeClaim:
-      claimName: pvc-fedlearner-default
+  enabled: false
 
 fedlearner-web-console-v2:
-  enabled: false
+  enabled: true
+  image:
+    repository: fedlearner/fedlearner-web-console-v2
+    pullPolicy: IfNotPresent
+    # Overrides the image tag whose default is the chart appVersion.
+    tag: "v2-rc1"

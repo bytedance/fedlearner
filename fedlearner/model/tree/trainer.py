@@ -218,7 +218,7 @@ def read_data(file_type, filename, require_example_ids, require_labels,
     features = []
     cat_features = []
     def to_float(x):
-        float(x if x != '' else 'nan')
+        return float(x if x != '' else 'nan')
     for line in reader:
         if file_type == 'tfrecord':
             line = parse_tfrecord(line)
