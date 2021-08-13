@@ -15,6 +15,7 @@ RUN apt-get update \
         libtool \
         python3-pip \
         python3-dev \
+        unzip \
         git \
 	zlib1g-dev \
         wget
@@ -65,6 +66,7 @@ RUN cd ${GRAPHENEDIR} \
     && ninja -C build \
     && ninja -C build install
 
+
 # Translate runtime symlinks to files
 RUN for f in $(find ${GRAPHENEDIR}/Runtime -type l); do cp --remove-destination $(realpath $f) $f; done
 
@@ -94,23 +96,30 @@ RUN mkdir -p ${INSTALL_PREFIX} \
     && sh cmake-linux.sh -- --skip-license --prefix=${INSTALL_PREFIX} \
     && rm cmake-linux.sh
 
-RUN git clone --recurse-submodules -b v1.36.0 https://github.com/grpc/grpc ${GRPC_PATH}
+#RUN git clone --recurse-submodules -b v1.36.0 https://github.com/grpc/grpc ${GRPC_PATH}
+RUN git clone https://github.com/grpc/grpc ${GRPC_PATH}
+RUN cd ${GRPC_PATH} && git checkout b54a5b338637f92bfcf4b0bc05e0f57a5fd8fadd && git submodule update --init 
 
 RUN cd ${GRPC_PATH} \
     && pip3 install --upgrade pip setuptools==44.1.1 \
     && pip3 install -r requirements.txt
 
-COPY grpc/build_install.sh ${GRPC_PATH}
-RUN ${GRPC_PATH}/build_install.sh
 
 COPY graphene ${GRAPHENEDIR}
 #COPY fedlearner ${FEDLEARNER_PATH}
 COPY grpc ${GRPC_PATH}
 COPY configs /
 
+# Temp setup script
+RUN chmod +x /root/setup.sh \
+    && /root/setup.sh
+
+
+COPY grpc/build_install.sh ${GRPC_PATH}
+RUN ${GRPC_PATH}/build_install.sh
+
 # tensorflow
 ENV BAZEL_VERSION=3.1.0
-RUN apt install unzip -y
 RUN wget "https://github.com/bazelbuild/bazel/releases/download/${BAZEL_VERSION}/bazel_${BAZEL_VERSION}-linux-x86_64.deb" \
  && dpkg -i bazel_*.deb
 
@@ -125,18 +134,14 @@ RUN git clone --recurse-submodules -b ${TF_VERSION} https://github.com/tensorflo
 
 # git apply diff
 COPY tf ${TF_BUILD_PATH} 
-# RUN cd ${TF_BUILD_PATH} && git apply sgx_tls_sample.diff
-RUN cd ${TF_BUILD_PATH} && git apply grpc.diff
+#RUN cd ${TF_BUILD_PATH} && git apply sgx_tls_sample.diff
+#RUN cd ${TF_BUILD_PATH} && git apply grpc.diff
 
 ## mbedtls
 #RUN cd ${TF_BUILD_PATH} && ./build.sh
 #
 #RUN cd ${TF_BUILD_PATH} && bazel build -c opt //tensorflow/tools/pip_package:build_pip_package
 #RUN cd ${TF_BUILD_PATH} && bazel-bin/tensorflow/tools/pip_package/build_pip_package ${TF_BUILD_OUTPUT} && pip install ${TF_BUILD_OUTPUT}/tensorflow-*-cp36-cp36m-linux_x86_64.whl 
-
-# Temp setup script
-RUN chmod +x /root/setup.sh \
-    && /root/setup.sh
 
 # https://askubuntu.com/questions/93457/how-do-i-enable-or-disable-apport
 RUN echo "enabled=0" > /etc/default/apport

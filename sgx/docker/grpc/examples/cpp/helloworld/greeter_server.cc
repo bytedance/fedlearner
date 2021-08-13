@@ -16,13 +16,12 @@
  *
  */
 
-#include "getopt.hpp"
-
-#include "grpc_sgx_ra_tls.h"
+#include <iostream>
+#include <memory>
+#include <string>
 
 #include <grpcpp/grpcpp.h>
 #include <grpcpp/security/server_credentials.h>
-#include <grpcpp/ext/proto_server_reflection_plugin.h>
 
 #ifdef BAZEL_BUILD
 #include "examples/protos/helloworld.grpc.pb.h"
@@ -30,55 +29,58 @@
 #include "helloworld.grpc.pb.h"
 #endif
 
-using helloworld::Greeter;
-using helloworld::HelloReply;
+#include "getopt.hpp"
+#include "grpc_sgx_ra_tls.h"
+
+using grpc::Server;
+using grpc::ServerBuilder;
+using grpc::ServerContext;
+using grpc::Status;
 using helloworld::HelloRequest;
+using helloworld::HelloReply;
+using helloworld::Greeter;
 
 struct argparser {
-  bool ssl;
-  std::string server_address;
-  argparser() {
-    ssl = getarg(true, "-ssl", "--ssl");
-    server_address = getarg("0.0.0.0:50051", "-host", "--host");
-  };
+	bool ssl;
+	std::string server_address;
+	argparser() {
+		ssl = getarg(true, "-ssl", "--ssl");
+		server_address = getarg("0.0.0.0:50051", "-host", "--host");
+	};
 };
+
 
 // Logic and data behind the server's behavior.
 class GreeterServiceImpl final : public Greeter::Service {
-  grpc::Status SayHello(grpc::ServerContext* context, const HelloRequest* request, HelloReply* reply) override {
+  Status SayHello(ServerContext* context, const HelloRequest* request,
+                  HelloReply* reply) override {
     std::string prefix("Hello ");
     reply->set_message(prefix + request->name());
-    return grpc::Status::OK;
+    return Status::OK;
   }
 };
 
 void RunServer() {
   argparser args;
-
   GreeterServiceImpl service;
 
-  grpc::EnableDefaultHealthCheckService(true);
-  grpc::reflection::InitProtoReflectionServerBuilderPlugin();
-
-  grpc::ServerBuilder builder;
+  ServerBuilder builder;
+  // Listen on the given address without any authentication mechanism.
   std::shared_ptr<grpc::ServerCredentials> creds = nullptr;
-
   if (args.ssl) {
     creds = std::move(grpc::sgx::TlsServerCredentials());
   } else {
     creds = std::move(grpc::InsecureServerCredentials());
   }
-
+  
   GPR_ASSERT(creds.get() != nullptr);
-
-  // Listen on the given address.
   builder.AddListeningPort(args.server_address, creds);
-
   // Register "service" as the instance through which we'll communicate with
   // clients. In this case it corresponds to an *synchronous* service.
   builder.RegisterService(&service);
+  std::cout << "BuildAndStart" << std::endl;
   // Finally assemble the server.
-  std::unique_ptr<grpc::Server> server(builder.BuildAndStart());
+  std::unique_ptr<Server> server(builder.BuildAndStart());
   std::cout << "SSL enable: " << args.ssl << ", Server listening on " << args.server_address << std::endl;
 
   // Wait for the server to shutdown. Note that some other thread must be

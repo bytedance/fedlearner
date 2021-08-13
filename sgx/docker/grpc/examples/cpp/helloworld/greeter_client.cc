@@ -16,12 +16,11 @@
  *
  */
 
-#include "getopt.hpp"
-
-#include "grpc_sgx_ra_tls.h"
+#include <iostream>
+#include <memory>
+#include <string>
 
 #include <grpcpp/grpcpp.h>
-#include <grpcpp/security/credentials.h>
 
 #ifdef BAZEL_BUILD
 #include "examples/protos/helloworld.grpc.pb.h"
@@ -29,30 +28,36 @@
 #include "helloworld.grpc.pb.h"
 #endif
 
-using helloworld::Greeter;
-using helloworld::HelloReply;
+#include "getopt.hpp"
+#include "grpc_sgx_ra_tls.h"
+
+using grpc::Channel;
+using grpc::ClientContext;
+using grpc::Status;
 using helloworld::HelloRequest;
+using helloworld::HelloReply;
+using helloworld::Greeter;
 
 struct argparser {
-  bool ssl;
-  std::string server_address;
-  const char * mr_enclave;
-  const char * mr_signer;
-  const char * isv_prod_id;
-  const char * isv_svn;
-  argparser() {
-    server_address = getarg("localhost:50051", "-t", "--target");
-    ssl = getarg(true, "-ssl", "--ssl");
-    mr_enclave = getarg("0", "-mre", "--mrenclave");
-    mr_signer = getarg("0", "-mrs", "--mrsigner");
-    isv_prod_id = getarg("0", "-id", "--isv_prod_id");
-    isv_svn = getarg("0", "-svn", "--isv_svn");
-  };
+    bool ssl;
+    std::string server_address;
+    const char * mr_enclave;
+    const char * mr_signer;
+    const char * isv_prod_id;
+    const char * isv_svn;
+    argparser() {
+        server_address = getarg("localhost:50051", "-t", "--target");
+        ssl = getarg(true, "-ssl", "--ssl");
+        mr_enclave = getarg("0", "-mre", "--mrenclave");
+        mr_signer = getarg("0", "-mrs", "--mrsigner");
+        isv_prod_id = getarg("0", "-id", "--isv_prod_id");
+        isv_svn = getarg("0", "-svn", "--isv_svn");
+    };
 };
 
 class GreeterClient {
  public:
-  GreeterClient(std::shared_ptr<grpc::Channel> channel)
+  GreeterClient(std::shared_ptr<Channel> channel)
       : stub_(Greeter::NewStub(channel)) {}
 
   // Assembles the client's payload, sends it and presents the response back
@@ -67,10 +72,10 @@ class GreeterClient {
 
     // Context for the client. It could be used to convey extra information to
     // the server and/or tweak certain RPC behaviors.
-    grpc::ClientContext context;
+    ClientContext context;
 
     // The actual RPC.
-    grpc::Status status = stub_->SayHello(&context, request, &reply);
+    Status status = stub_->SayHello(&context, request, &reply);
 
     // Act upon its status.
     if (status.ok()) {
@@ -86,27 +91,25 @@ class GreeterClient {
   std::unique_ptr<Greeter::Stub> stub_;
 };
 
-void run_client() {
+int main(int argc, char** argv) {
+  // Instantiate the client. It requires a channel, out of which the actual RPCs
+  // are created. This channel models a connection to an endpoint (in this case,
+  // localhost at port 50051). We indicate that the channel isn't authenticated
+  // (use of InsecureChannelCredentials()).
   argparser args;
-
   std::shared_ptr<grpc::Channel> channel = nullptr;
   if (args.ssl) {
-    auto cred = grpc::sgx::TlsCredentials(args.mr_enclave, args.mr_signer, args.isv_prod_id, args.isv_svn);
-    channel = std::move(grpc::sgx::CreateSecureChannel(args.server_address, cred));
+      auto cred = grpc::sgx::TlsCredentials(args.mr_enclave, args.mr_signer, args.isv_prod_id, args.isv_svn);
+      channel = std::move(grpc::sgx::CreateSecureChannel(args.server_address, cred));
   } else {
-    auto cred = grpc::InsecureChannelCredentials();
-    channel = std::move(grpc::CreateChannel(args.server_address, cred));
+      auto cred = grpc::InsecureChannelCredentials();
+      channel = std::move(grpc::CreateChannel(args.server_address, cred));
   }
 
   GreeterClient greeter(channel);
-
   std::string user("world");
   std::string reply = greeter.SayHello(user);
   std::cout << "Greeter received: " << reply << std::endl;
-};
-
-int main(int argc, char** argv) {
-  run_client();
 
   return 0;
 }
