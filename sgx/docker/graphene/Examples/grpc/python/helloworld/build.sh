@@ -18,4 +18,6 @@ cp ${HELLO_PATH}/helloworld_pb2_grpc.py .
 make clean
 make
 
-ls -l /usr/lib/x86_64-linux-gnu/libsgx_dcap_quoteverify.s*
+ls -l /usr/lib/x86_64-linux-gnu/libsgx_dcap_quoteverify.so*
+ls -l /usr/lib/x86_64-linux-gnu/libdcap_quoteprov.so*
+ls -l /usr/lib/x86_64-linux-gnu/libsgx_default_qcnl_wrapper.so*

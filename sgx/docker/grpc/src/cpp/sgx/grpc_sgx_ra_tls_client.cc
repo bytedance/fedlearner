@@ -141,9 +141,7 @@ void ra_tls_verify_init() {
 int server_auth_check_schedule(void* /* config_user_data */,
                                grpc_tls_server_authorization_check_arg* arg) {
   char der_crt[16000] = "";
-  std::string str = arg->peer_cert;
-  str.copy(der_crt, str.length(), 0);
-  // memcpy(der_crt, arg->peer_cert, strlen(arg->peer_cert));
+  memcpy(der_crt, arg->peer_cert, strlen(arg->peer_cert));
 
   // char der_crt[16000] = TEST_CRT_PEM;
   // grpc_printf("%s\n", der_crt);

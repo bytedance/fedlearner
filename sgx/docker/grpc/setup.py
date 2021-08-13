@@ -165,7 +165,7 @@ BUILD_WITH_SYSTEM_RE2 = _env_bool_value('GRPC_PYTHON_BUILD_SYSTEM_RE2', 'False')
 # of GCC (we require >4.9) but still uses old-enough libstdc++ symbols.
 # TODO(jtattermusch): remove this workaround once issues with crosscompiler version are resolved.
 BUILD_WITH_STATIC_LIBSTDCXX = _env_bool_value(
-    'GRPC_PYTHON_BUILD_WITH_STATIC_LIBSTDCXX', 'True')
+    'GRPC_PYTHON_BUILD_WITH_STATIC_LIBSTDCXX', 'False')
 
 # For local development use only: This skips building gRPC Core and its
 # dependencies, including protobuf and boringssl. This allows "incremental"

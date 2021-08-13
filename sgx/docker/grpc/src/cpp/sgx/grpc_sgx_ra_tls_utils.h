@@ -84,6 +84,7 @@ class library_engine {
 };
 
 /*
+// Format of pem crt
 #define TEST_CRT_PEM                                                      \
   "-----BEGIN CERTIFICATE-----\r\n"                                       \
   "MIIW4TCCFUmgAwIBAgIBATANBgkqhkiG9w0BAQsFADA6MQ4wDAYDVQQDDAVSQVRM\r\n"  \

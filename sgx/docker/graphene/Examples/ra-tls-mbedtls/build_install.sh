@@ -26,6 +26,8 @@ whereis libmbedcrypto libmbedtls libmbedx509
 whereis libsgx_util libsgx_dcap_quoteverify libdcap_quoteprov.so.*
 whereis libra_tls_attest libra_tls_verify_dcap libra_tls_verify_epid libra_tls_verify_dcap_graphene
 
-ls -l /usr/lib/x86_64-linux-gnu/libsgx_dcap_quoteverify.s*
+ls -l /usr/lib/x86_64-linux-gnu/libsgx_dcap_quoteverify.so*
+ls -l /usr/lib/x86_64-linux-gnu/libdcap_quoteprov.so*
+ls -l /usr/lib/x86_64-linux-gnu/libsgx_default_qcnl_wrapper.so*
 
 cd -

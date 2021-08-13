@@ -101,8 +101,8 @@ RUN cd ${GRPC_PATH} \
     && pip3 install --upgrade pip setuptools==44.1.1 \
     && pip3 install -r requirements.txt
 
-COPY grpc/build_install.sh ${GRPC_PATH}
-RUN ${GRPC_PATH}/build_install.sh
+COPY grpc/build_cpp.sh ${GRPC_PATH}
+COPY grpc/build_python.sh ${GRPC_PATH}
 
 COPY graphene ${GRAPHENEDIR}
 # COPY fedlearner ${FEDLEARNER_PATH}
