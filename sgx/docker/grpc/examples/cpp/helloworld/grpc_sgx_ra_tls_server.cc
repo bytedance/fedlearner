@@ -128,38 +128,10 @@ class TestTlsServerAuthorizationCheck
 };
 
 std::shared_ptr<grpc::ServerCredentials> TlsServerCredentials() {
-    using namespace ::grpc_impl::experimental;
-    auto key_pair = get_cred_key_pair();
+  using namespace ::grpc_impl::experimental;
+  auto key_pair = get_cred_key_pair();
 
-    auto provider = GetCredentialsProvider(key_pair.private_key, key_pair.cert_chain);
-
-    //struct TlsKeyMaterialsConfig::PemKeyCertPair pair = { key_pair.private_key.c_str(),
-    //    key_pair.cert_chain.c_str()};
-    //struct TlsKeyMaterialsConfig::PemKeyCertPair pair = { "aaaaa",
-    //    "bbbb"};
-    /*
-    std::vector<TlsKeyMaterialsConfig::PemKeyCertPair> pair_list = {pair};
-    std::shared_ptr<TlsKeyMaterialsConfig> key_materials_config(
-          new TlsKeyMaterialsConfig());
-    key_materials_config->set_key_materials("pem_root_certs", pair_list);
-
-  std::shared_ptr<TestTlsCredentialReload> test_credential_reload(
-         new TestTlsCredentialReload());
-  std::shared_ptr<TlsCredentialReloadConfig> credential_reload_config(
-          new TlsCredentialReloadConfig(test_credential_reload));
-
-  std::shared_ptr<TestTlsServerAuthorizationCheck>
-      test_server_authorization_check(new TestTlsServerAuthorizationCheck());
-  std::shared_ptr<TlsServerAuthorizationCheckConfig>
-      server_authorization_check_config(new TlsServerAuthorizationCheckConfig(
-                  test_server_authorization_check));
-
-  TlsCredentialsOptions options(
-          //GRPC_SSL_DONT_REQUEST_CLIENT_CERTIFICATE,
-          GRPC_SSL_REQUEST_CLIENT_CERTIFICATE_AND_VERIFY,
-          GRPC_TLS_SKIP_ALL_SERVER_VERIFICATION,
-          key_materials_config, credential_reload_config, nullptr);
-                */
+  auto provider = GetCredentialsProvider(key_pair.private_key, key_pair.cert_chain);
   auto server_creds = provider->GetServerCredentials(kTlsCredentialsType);
   auto processor = std::shared_ptr<AuthMetadataProcessor>();
   server_creds->SetAuthMetadataProcessor(processor);
