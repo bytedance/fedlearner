@@ -82,7 +82,7 @@ class DefaultCredentialsProvider : public CredentialsProvider {
       grpc::experimental::AltsCredentialsOptions alts_opts;
       return grpc::experimental::AltsCredentials(alts_opts);
     } else if (type == grpc::sgx::kTlsCredentialsType) {
-      SslCredentialsOptions ssl_opts = {"", "", ""}; //TODO
+      SslCredentialsOptions ssl_opts; //TODO
       args->SetSslTargetNameOverride("RATLS");
       return grpc::SslCredentials(ssl_opts);
     } else if (type == grpc::sgx::kGoogleDefaultCredentialsType) {

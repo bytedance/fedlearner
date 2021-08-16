@@ -17,8 +17,6 @@
  */
 
 #include <cassert>
-#include <fstream>
-#include <sstream>
 #include "grpc_sgx_ra_tls_utils.h"
 
 namespace grpc {
@@ -34,8 +32,6 @@ RA-TLS: on client, only need to register ra_tls_verify_callback() for cert verif
   6. verify all measurements from the SGX quote
 */
 
-#define PEM_BEGIN_CRT           "-----BEGIN CERTIFICATE-----\n"
-#define PEM_END_CRT             "-----END CERTIFICATE-----\n"
 class TlsServerAuthorizationCheck;
 
 static int (*ra_tls_verify_callback_f)(uint8_t* der_crt, size_t der_crt_size) = nullptr;
@@ -213,14 +209,6 @@ class TestTlsCredentialReload : public TlsCredentialReloadInterface {
     }
 };
 
-std::string get_file_content(const char* filename) {
-    std::ifstream file(filename);
-    std::stringstream buffer;
-    buffer << file.rdbuf();
-    file.close();
-    return buffer.str();
-}
-
 std::shared_ptr<grpc::ChannelCredentials> TlsCredentials(
         const char* mrenclave, const char* mrsigner,
         const char* isv_prod_id, const char* isv_svn) {
@@ -228,33 +216,31 @@ std::shared_ptr<grpc::ChannelCredentials> TlsCredentials(
 
     ra_tls_verify_init();
 
-    auto cakey = get_file_content("/tmp/cacert.pem");
-    auto private_key = get_file_content("/tmp/userkey.pem");
-    auto cert_chain = get_file_content("/tmp/usercert.pem");
+    server_authorization_check = std::make_shared<TlsServerAuthorizationCheck>();
+    server_authorization_check_config = std::make_shared<grpc_impl::experimental::TlsServerAuthorizationCheckConfig>(
+              server_authorization_check);
+    grpc_impl::experimental::TlsCredentialsOptions options(
+        GRPC_SSL_DONT_REQUEST_CLIENT_CERTIFICATE,
+        GRPC_TLS_SKIP_ALL_SERVER_VERIFICATION,
+        nullptr,
+        nullptr,
+        server_authorization_check_config
+    );
 
-    struct TlsKeyMaterialsConfig::PemKeyCertPair pair = {
-        private_key, cert_chain,
-    };
+    return grpc_impl::experimental::TlsCredentials(options);
 
-    std::vector<TlsKeyMaterialsConfig::PemKeyCertPair> pair_list = {pair};
-    std::shared_ptr<TlsKeyMaterialsConfig> key_materials_config(
-            new TlsKeyMaterialsConfig());
-    key_materials_config->set_key_materials(cakey, pair_list);
+    /*
+    grpc_tls_credentials_options* options = grpc_tls_credentials_options_create();
+    grpc_tls_credentials_options_set_server_verification_option(options, GRPC_TLS_SKIP_ALL_SERVER_VERIFICATION);
 
     server_authorization_check = std::make_shared<TlsServerAuthorizationCheck>();
     server_authorization_check_config = std::make_shared<grpc_impl::experimental::TlsServerAuthorizationCheckConfig>(
-            server_authorization_check);
-    grpc_impl::experimental::TlsCredentialsOptions options(
-            GRPC_SSL_DONT_REQUEST_CLIENT_CERTIFICATE,
-            GRPC_TLS_SKIP_ALL_SERVER_VERIFICATION, key_materials_config,
-            nullptr, server_authorization_check_config);
-
-    //options.set_server_verification_option(GRPC_TLS_SKIP_ALL_SERVER_VERIFICATION);
-    //server_authorization_check_config = std::make_shared<grpc_impl::experimental::TlsServerAuthorizationCheckConfig>(
-    //        server_authorization_check);
-    //options.set_server_authorization_check_config(server_authorization_check_config);
-
-    return grpc_impl::experimental::TlsCredentials(options);
+              server_authorization_check);
+    grpc_tls_credentials_options_set_server_authorization_check_config(options, server_authorization_check_config);
+    grpc_channel_credentials* creds = grpc_tls_credentials_create(options);
+    return std::shared_ptr<grpc::ChannelCredentials>(
+            new ::grpc::SecureChannelCredentials(std::move(creds)));
+    */
 };
 
 std::shared_ptr<grpc::Channel> CreateSecureChannel(string target_str, std::shared_ptr<grpc::ChannelCredentials> channel_creds) {

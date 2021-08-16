@@ -28,10 +28,8 @@
 
 #include <dlfcn.h>
 
-#include <grpc/grpc_security.h>
-#include <grpc/support/alloc.h>
-#include <grpc/support/string_util.h>
 #include <grpcpp/grpcpp.h>
+#include <grpc/grpc_security.h>
 #include <grpcpp/security/credentials.h>
 #include <grpcpp/security/tls_credentials_options.h>
 #include <grpcpp/security/server_credentials.h>

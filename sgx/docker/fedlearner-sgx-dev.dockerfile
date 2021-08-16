@@ -98,7 +98,7 @@ RUN mkdir -p ${INSTALL_PREFIX} \
 
 #RUN git clone --recurse-submodules -b v1.36.0 https://github.com/grpc/grpc ${GRPC_PATH}
 RUN git clone https://github.com/grpc/grpc ${GRPC_PATH}
-RUN cd ${GRPC_PATH} && git checkout b54a5b338637f92bfcf4b0bc05e0f57a5fd8fadd && git submodule update --init 
+RUN cd ${GRPC_PATH} && git checkout b54a5b338637f92bfcf4b0bc05e0f57a5fd8fadd && git submodule update --init
 
 RUN cd ${GRPC_PATH} \
     && pip3 install --upgrade pip setuptools==44.1.1 \
@@ -114,9 +114,8 @@ COPY configs /
 RUN chmod +x /root/setup.sh \
     && /root/setup.sh
 
-
 COPY grpc/build_install.sh ${GRPC_PATH}
-RUN ${GRPC_PATH}/build_install.sh
+RUN cd ${GRPC_PATH} && git apply grpc_skip_client_sanity_check.diff && ${GRPC_PATH}/build_install.sh
 
 # tensorflow
 ENV BAZEL_VERSION=3.1.0
