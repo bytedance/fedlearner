@@ -29,8 +29,8 @@
 #include <dlfcn.h>
 
 #include <grpcpp/grpcpp.h>
+#include <grpc/grpc_security.h>
 #include <grpcpp/security/credentials.h>
-#include <grpcpp/security/tls_certificate_provider.h>
 #include <grpcpp/security/tls_credentials_options.h>
 #include <grpcpp/security/server_credentials.h>
 

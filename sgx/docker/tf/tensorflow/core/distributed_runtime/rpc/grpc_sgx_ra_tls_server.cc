@@ -16,7 +16,11 @@
  *
  */
 
+#include <grpc/support/log.h>
+#include <grpc/support/sync.h>
+#include <grpcpp/security/server_credentials.h>
 #include "grpc_sgx_ra_tls_utils.h"
+#include "grpc_sgx_credentials_provider.h"
 
 namespace grpc {
 namespace sgx {
@@ -24,9 +28,10 @@ namespace sgx {
 #define PEM_BEGIN_CRT           "-----BEGIN CERTIFICATE-----\n"
 #define PEM_END_CRT             "-----END CERTIFICATE-----\n"
 
+
 // Server side is required to use a provider, because server always needs to use identity certs.
-std::vector<grpc::experimental::IdentityKeyCertPair> get_server_identity_key_cert_pairs() {
-  mbedtls_x509_crt srvcert;
+::grpc_impl::experimental::TlsKeyMaterialsConfig::PemKeyCertPair get_cred_key_pair() {
+        mbedtls_x509_crt srvcert;
   mbedtls_pk_context pkey;
 
   mbedtls_x509_crt_init(&srvcert);
@@ -55,33 +60,82 @@ std::vector<grpc::experimental::IdentityKeyCertPair> get_server_identity_key_cer
     throw std::runtime_error(std::string("mbedtls_pem_write_buffer failed\n\n"));
   };
 
-  grpc::experimental::IdentityKeyCertPair key_cert_pair;
-  key_cert_pair.private_key = std::string((char*) private_key_pem);
-  key_cert_pair.certificate_chain = std::string((char*) cert_pem);
+  auto private_key = std::string((char*) private_key_pem);
+  auto certificate_chain = std::string((char*) cert_pem);
 
-  std::vector<grpc::experimental::IdentityKeyCertPair> identity_key_cert_pairs;
-  identity_key_cert_pairs.emplace_back(key_cert_pair);
+  ::grpc_impl::experimental::TlsKeyMaterialsConfig::PemKeyCertPair pkcp = {private_key,
+      certificate_chain};
 
-  // mbedtls_printf("Server key:\n%s\n", private_key_pem);
-  // mbedtls_printf("Server crt:\n%s\n", cert_pem);
+  mbedtls_printf("Server key:\n%s\n", private_key_pem);
+  mbedtls_printf("Server crt:\n%s\n", cert_pem);
 
   mbedtls_x509_crt_free(&srvcert);
   mbedtls_pk_free(&pkey);
+  return pkcp;
+}
 
-  return identity_key_cert_pairs;
+typedef class ::grpc_impl::experimental::TlsKeyMaterialsConfig
+TlsKeyMaterialsConfig;
+typedef class ::grpc_impl::experimental::TlsCredentialReloadArg
+TlsCredentialReloadArg;
+typedef struct ::grpc_impl::experimental::TlsCredentialReloadInterface
+TlsCredentialReloadInterface;
+typedef class ::grpc_impl::experimental::TlsServerAuthorizationCheckArg
+TlsServerAuthorizationCheckArg;
+typedef struct ::grpc_impl::experimental::TlsServerAuthorizationCheckInterface
+TlsServerAuthorizationCheckInterface;
+
+class TestTlsCredentialReload : public TlsCredentialReloadInterface {
+    int Schedule(TlsCredentialReloadArg* arg) override {
+        std::cout << "000" << std::endl;
+        if (!arg->is_pem_key_cert_pair_list_empty()) {
+            arg->set_status(GRPC_SSL_CERTIFICATE_CONFIG_RELOAD_UNCHANGED);
+            return 0;
+        }
+        std::cout << "11" << std::endl;
+        GPR_ASSERT(arg != nullptr);
+        auto key_pair = get_cred_key_pair();
+        struct TlsKeyMaterialsConfig::PemKeyCertPair pair3 = { key_pair.private_key.c_str(),
+            key_pair.cert_chain.c_str()};
+        std::cout << "12" << std::endl;
+        arg->set_pem_root_certs("new_pem_root_certs");
+        arg->add_pem_key_cert_pair(pair3);
+        std::cout << "13" << std::endl;
+        arg->set_status(GRPC_SSL_CERTIFICATE_CONFIG_RELOAD_NEW);
+        return 0;
+    }
+
+    void Cancel(TlsCredentialReloadArg* arg) override {
+        GPR_ASSERT(arg != nullptr);
+        arg->set_status(GRPC_SSL_CERTIFICATE_CONFIG_RELOAD_FAIL);
+        arg->set_error_details("cancelled");
+    }
+};
+
+
+class TestTlsServerAuthorizationCheck
+: public TlsServerAuthorizationCheckInterface {
+    int Schedule(TlsServerAuthorizationCheckArg* arg) override {
+        GPR_ASSERT(arg != nullptr);
+        return 0;
+    }
+
+    void Cancel(TlsServerAuthorizationCheckArg* arg) override {
+        GPR_ASSERT(arg != nullptr);
+        arg->set_status(GRPC_STATUS_PERMISSION_DENIED);
+        arg->set_error_details("cancelled");
+    }
 };
 
 std::shared_ptr<grpc::ServerCredentials> TlsServerCredentials() {
-  auto certificate_provider =
-      std::make_shared<grpc::experimental::StaticDataCertificateProvider>(
-          get_server_identity_key_cert_pairs());
-  grpc::experimental::TlsServerCredentialsOptions options(certificate_provider);
-  options.set_certificate_provider(certificate_provider);
-  options.set_root_cert_name("root_cert_name");
-  options.set_identity_cert_name("identity_cert_name");
-  options.set_cert_request_type(GRPC_SSL_DONT_REQUEST_CLIENT_CERTIFICATE);
-  options.watch_identity_key_cert_pairs();
-  return grpc::experimental::TlsServerCredentials(options);
+  using namespace ::grpc_impl::experimental;
+  auto key_pair = get_cred_key_pair();
+
+  auto provider = GetCredentialsProvider(key_pair.private_key, key_pair.cert_chain);
+  auto server_creds = provider->GetServerCredentials(kTlsCredentialsType);
+  auto processor = std::shared_ptr<AuthMetadataProcessor>();
+  server_creds->SetAuthMetadataProcessor(processor);
+  return server_creds;
 };
 
 }  // namespace sgx

@@ -133,14 +133,13 @@ RUN git clone --recurse-submodules -b ${TF_VERSION} https://github.com/tensorflo
 
 # git apply diff
 COPY tf ${TF_BUILD_PATH} 
-#RUN cd ${TF_BUILD_PATH} && git apply sgx_tls_sample.diff
-#RUN cd ${TF_BUILD_PATH} && git apply grpc.diff
+RUN cd ${TF_BUILD_PATH} && git apply sgx_tls_sample.diff
 
-## mbedtls
-#RUN cd ${TF_BUILD_PATH} && ./build.sh
-#
-#RUN cd ${TF_BUILD_PATH} && bazel build -c opt //tensorflow/tools/pip_package:build_pip_package
-#RUN cd ${TF_BUILD_PATH} && bazel-bin/tensorflow/tools/pip_package/build_pip_package ${TF_BUILD_OUTPUT} && pip install ${TF_BUILD_OUTPUT}/tensorflow-*-cp36-cp36m-linux_x86_64.whl 
+# mbedtls
+RUN cd ${TF_BUILD_PATH} && ./build.sh
+
+RUN cd ${TF_BUILD_PATH} && bazel build -c opt //tensorflow/tools/pip_package:build_pip_package
+RUN cd ${TF_BUILD_PATH} && bazel-bin/tensorflow/tools/pip_package/build_pip_package ${TF_BUILD_OUTPUT} && pip install ${TF_BUILD_OUTPUT}/tensorflow-*-cp36-cp36m-linux_x86_64.whl 
 
 # https://askubuntu.com/questions/93457/how-do-i-enable-or-disable-apport
 RUN echo "enabled=0" > /etc/default/apport
