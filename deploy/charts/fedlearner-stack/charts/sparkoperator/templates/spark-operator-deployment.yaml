@@ -19,7 +19,7 @@ spec:
   selector:
     matchLabels:
       app.kubernetes.io/name: {{ include "sparkoperator.name" . }}
-      app.kubernetes.io/version: {{ .Values.operatorVersion }}
+      app.kubernetes.io/version: {{ .Values.image.tag }}
   strategy:
     type: Recreate
   template:
@@ -37,7 +37,7 @@ spec:
     {{- end }}
       labels:
         app.kubernetes.io/name: {{ include "sparkoperator.name" . }}
-        app.kubernetes.io/version: {{ .Values.operatorVersion }}
+        app.kubernetes.io/version: {{ .Values.image.tag }}
     spec:
       serviceAccountName: {{ include "sparkoperator.serviceAccountName" . }}
       imagePullSecrets:
@@ -50,8 +50,8 @@ spec:
       {{- end }}
       containers:
       - name: sparkoperator
-        image: {{ .Values.operatorImageName }}:{{ .Values.operatorVersion }}
-        imagePullPolicy: {{ .Values.imagePullPolicy }}
+        image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
+        imagePullPolicy: {{ .Values.image.pullPolicy}}
         {{- if .Values.securityContext }}
         securityContext:
           {{- range $securityPolicy, $value := .Values.securityContext }}

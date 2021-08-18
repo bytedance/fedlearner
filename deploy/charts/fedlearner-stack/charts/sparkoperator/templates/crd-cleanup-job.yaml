@@ -27,8 +27,8 @@ spec:
 {{ toYaml .Values.imagePullSecrets | trim | indent 8 }}
       containers:
         - name: delete-sparkapp-crd
-          image: {{ .Values.operatorImageName }}:{{ .Values.operatorVersion }}
-          imagePullPolicy: {{ .Values.imagePullPolicy }}
+          image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
+          imagePullPolicy: {{ .Values.image.pullPolicy}}
           {{- if .Values.securityContext }}
           securityContext:
             {{- range $securityPolicy, $value := .Values.securityContext }}
@@ -45,8 +45,8 @@ spec:
           -H \"Content-Type: application/json\" \
           https://kubernetes.default.svc/apis/apiextensions.k8s.io/v1beta1/customresourcedefinitions/sparkapplications.sparkoperator.k8s.io"
         - name: delete-scheduledsparkapp-crd
-          image: {{ .Values.operatorImageName }}:{{ .Values.operatorVersion }}
-          imagePullPolicy: {{ .Values.imagePullPolicy }}
+          image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
+          imagePullPolicy: {{ .Values.image.pullPolicy}}
           {{- if .Values.securityContext }}
           securityContext:
             {{- range $securityPolicy, $value := .Values.securityContext }}
