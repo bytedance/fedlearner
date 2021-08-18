@@ -1,6 +1,4 @@
-#!/bin/bash
-
-# Copyright 2020 The FedLearner Authors. All Rights Reserved.
+# Copyright 2021 The FedLearner Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,12 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-set -ex
+# coding: utf-8
+import unittest
+from fedlearner.common.hooks import parse_and_call_fn
 
-source /app/deploy/scripts/pre_start_hook.sh || true
+class HooksTest(unittest.TestCase):
+    def test_parse_and_call_fn(self):
+        with self.assertRaises((RuntimeError)):
+            parse_and_call_fn('something_you_cannot_understand')
+        self.assertEqual(parse_and_call_fn('test.common.for_test_hooks:test'), 1)
 
-echo "Reset the ROLE=$ROLE as follower"
-export ROLE=follower
-data_join_master_cmd=/app/deploy/scripts/data_join/run_data_join_master.sh
-echo "launched data join leader master"
-exec ${data_join_master_cmd}
+
+if __name__ == '__main__':
+    unittest.main()
