@@ -94,9 +94,7 @@ COPY sgx/fedlearner ${FEDLEARNER_PATH}
 COPY sgx/grpc ${GRPC_PATH}
 COPY sgx/configs /
 
-# Temp setup script
-RUN chmod +x /root/setup.sh \
-    && /root/setup.sh
+RUN openssl genrsa -3 -out ${SGX_SIGNER_KEY} 3072
 
 COPY sgx/grpc/build_install.sh ${GRPC_PATH}
 RUN cd ${GRPC_PATH} && git apply grpc_skip_client_sanity_check.diff && ${GRPC_PATH}/build_install.sh
