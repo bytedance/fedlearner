@@ -1,6 +1,4 @@
-#!/bin/bash
-
-# Copyright 2020 The FedLearner Authors. All Rights Reserved.
+# Copyright 2021 The FedLearner Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,12 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-set -ex
-
-source /app/deploy/scripts/pre_start_hook.sh || true
-
-echo "Reset the ROLE=$ROLE as follower"
-export ROLE=follower
-data_join_master_cmd=/app/deploy/scripts/data_join/run_data_join_master.sh
-echo "launched data join leader master"
-exec ${data_join_master_cmd}
+# coding: utf-8
+def test():
+    return 1

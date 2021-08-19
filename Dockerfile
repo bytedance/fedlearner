@@ -7,6 +7,7 @@ RUN apt-get -y update \
     && apt-get -y install libgmp-dev \
     && apt-get -y install libmpfr-dev \
     && apt-get -y install libmpc-dev \
+    && apt-get -y install krb5-user \
     && rm -rf /var/lib/apt/lists/* 
 
 RUN pip install --upgrade pip \
