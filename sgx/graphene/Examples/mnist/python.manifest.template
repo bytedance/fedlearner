@@ -1,0 +1,131 @@
+# Python manifest example
+
+libos.entrypoint = "file:{{ entrypoint }}"
+
+loader.pal_internal_mem_size = "200M"
+
+# Path to the library OS
+loader.preload = "file:{{ graphene.libos }}"
+
+# Graphene log level
+loader.log_level = "{{ log_level }}"
+# loader.log_file = "{{ log_file }}"
+
+# Read application arguments directly from the command line. Don't use this on production!
+loader.insecure__use_cmdline_argv = 1
+
+# Environment variables for Python
+loader.env.LD_LIBRARY_PATH = "{{ python.stdlib }}/lib:/lib:{{ arch_libdir }}:/usr/lib:/usr/{{ arch_libdir }}"
+loader.env.tensorflow_session_parallelism = "{{ session_parallelism }}"
+loader.env.tensorflow_intra_op_parallelism = "{{ intra_op_parallelism }}"
+loader.env.tensorflow_inter_op_parallelism = "{{ inter_op_parallelism }}"
+loader.env.OMP_NUM_THREADS = "{{ OMP_NUM_THREADS }}"
+loader.env.MKL_NUM_THREADS = "{{ MKL_NUM_THREADS }}"
+
+# Allow for injecting SIGTERM signal from the host.
+sys.enable_sigterm_injection = 1
+
+# Mounted FSes. The following "chroot" FSes mount a part of the host FS into the
+# guest. Other parts of the host FS will not be available in the guest.
+
+# Default glibc files, mounted from the Runtime directory in GRAPHENEDIR.
+fs.mount.lib.type = "chroot"
+fs.mount.lib.path = "/lib"
+fs.mount.lib.uri = "file:{{ graphene.runtimedir() }}"
+
+# Host-level libraries (e.g., /lib/x86_64-linux-gnu) required by the Python executable
+fs.mount.lib2.type = "chroot"
+fs.mount.lib2.path = "{{ arch_libdir }}"
+fs.mount.lib2.uri = "file:{{ arch_libdir }}"
+
+# Host-level directory (/usr) required by the Python executable
+fs.mount.usr.type = "chroot"
+fs.mount.usr.path = "/usr"
+fs.mount.usr.uri = "file:/usr"
+
+# Mount $PYTHONHOME
+fs.mount.pyhome.type = "chroot"
+fs.mount.pyhome.path = "{{ python.stdlib }}"
+fs.mount.pyhome.uri = "file:{{ python.stdlib }}"
+
+# Mount $PYTHONDISTHOME
+fs.mount.pydisthome.type = "chroot"
+fs.mount.pydisthome.path = "{{ python.distlib }}"
+fs.mount.pydisthome.uri = "file:{{ python.distlib }}"
+
+# Mount /tmp
+fs.mount.tmp.type = "chroot"
+fs.mount.tmp.path = "/tmp"
+fs.mount.tmp.uri = "file:/tmp"
+
+# Mount /etc
+fs.mount.etc.type = "chroot"
+fs.mount.etc.path = "/etc"
+fs.mount.etc.uri = "file:/etc"
+
+# SGX general options
+
+# Set the virtual memory size of the SGX enclave. For SGX v1, the enclave
+# size must be specified during signing. If Python needs more virtual memory
+# than the enclave size, Graphene will not be able to allocate it.
+sgx.enclave_size = "32G"
+
+# Graphene creates stacks of 256KB by default. It is not enough for SciPy/NumPy
+# packages, e.g., libopenblas dependency assumes more than 512KB-sized stacks.
+sys.stack.size = "16M"
+
+# Set the maximum number of enclave threads. For SGX v1, the number of enclave
+# TCSes must be specified during signing, so the application cannot use more
+# threads than the number of TCSes. Note that Graphene also creates an internal
+# thread for handling inter-process communication (IPC), and potentially another
+# thread for asynchronous events. Therefore, the actual number of threads that
+# the application can create is (sgx.thread_num - 2).
+sgx.thread_num = 1024
+
+sgx.nonpie_binary = 1
+
+sgx.remote_attestation = 0
+
+# SGX trusted libraries
+
+sgx.trusted_files.python = "file:{{ entrypoint }}"
+
+sgx.trusted_files.runtime = "file:{{ graphene.runtimedir() }}/"
+sgx.trusted_files.arch_libdir = "file:{{ arch_libdir }}/"
+sgx.trusted_files.usr_arch_libdir = "file:/usr/{{ arch_libdir }}/"
+sgx.trusted_files.python_dir = "file:{{ python.stdlib }}/"
+sgx.trusted_files.dist = "file:{{ python.distlib }}/"
+
+# etc files required by Python
+sgx.trusted_files.mimetypes = "file:/etc/mime.types"
+sgx.trusted_files.defapport = "file:/etc/default/apport"
+
+# Name Service Switch (NSS) and getaddrinfo(3) configuration files
+sgx.allowed_files.nsswitch = "file:/etc/nsswitch.conf"
+sgx.allowed_files.ethers = "file:/etc/ethers"
+sgx.allowed_files.hosts = "file:/etc/hosts"
+sgx.allowed_files.group = "file:/etc/group"
+sgx.allowed_files.passwd = "file:/etc/passwd"
+sgx.allowed_files.gaiconf = "file:/etc/gai.conf"
+sgx.allowed_files.hostconf = "file:/etc/host.conf"
+sgx.allowed_files.resolv = "file:/etc/resolv.conf"
+sgx.allowed_files.proc_stat = "file:/proc/stat"
+
+# SGX untrusted (allowed) files/directories
+sgx.allowed_files.tmp = "file:/tmp"
+
+# Project Configure
+
+fs.mount.keras.type = "chroot"
+fs.mount.keras.path = "/root/.keras/keras.json"
+fs.mount.keras.uri = "file:/root/.keras/keras.json"
+
+sgx.allowed_files.project_project_py36dist = "file:/usr/local/lib/python3.6/dist-packages"
+sgx.allowed_files.project_keras = "file:/root/.keras/keras.json"
+sgx.allowed_files.project_model = "file:model"
+sgx.allowed_files.project_data = "file:data"
+sgx.allowed_files.tensorflow_io = "file:tensorflow_io.py"
+
+sgx.trusted_files.project_makedata = "file:make_data.py"
+sgx.trusted_files.project_leader = "file:leader.py"
+sgx.trusted_files.project_follower = "file:follower.py"

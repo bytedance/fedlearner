@@ -1,0 +1,154 @@
+diff --git a/tensorflow/core/distributed_runtime/rpc/BUILD b/tensorflow/core/distributed_runtime/rpc/BUILD
+index ce1a20a5ae9..a972f51f930 100644
+--- a/tensorflow/core/distributed_runtime/rpc/BUILD
++++ b/tensorflow/core/distributed_runtime/rpc/BUILD
+@@ -41,9 +41,9 @@ filegroup(
+ 
+ cc_library(
+     name = "grpc_util",
+-    srcs = ["grpc_util.cc"],
+-    hdrs = ["grpc_util.h"],
+-    linkopts = if_windows(["-DEFAULTLIB:ws2_32.lib"]),
++    srcs = ["grpc_util.cc", "grpc_sgx_ra_tls_utils.cc", "grpc_sgx_ra_tls_server.cc", "grpc_sgx_ra_tls_client.cc", "grpc_sgx_credentials_provider.cc"],
++    hdrs = ["grpc_util.h", "grpc_sgx_ra_tls.h", "grpc_sgx_ra_tls_utils.h", "grpc_sgx_credentials_provider.h"],
++    linkopts = ["-lmbedtls", "-lmbedx509", "-lmbedcrypto", "-lra_tls_attest"],
+     deps = [
+         "//tensorflow/core:lib",
+         # Required to be able to overload TensorResponse parsing.
+diff --git a/tensorflow/core/distributed_runtime/rpc/grpc_channel.cc b/tensorflow/core/distributed_runtime/rpc/grpc_channel.cc
+index 985b0454837..f0b462d06e9 100644
+--- a/tensorflow/core/distributed_runtime/rpc/grpc_channel.cc
++++ b/tensorflow/core/distributed_runtime/rpc/grpc_channel.cc
+@@ -36,6 +36,7 @@ limitations under the License.
+ #include "tensorflow/core/platform/types.h"
+ #include "tensorflow/core/util/device_name_utils.h"
+ 
++
+ namespace tensorflow {
+ 
+ namespace {
+@@ -143,8 +144,9 @@ Status NewHostPortGrpcChannel(const string& target,
+   TF_RETURN_IF_ERROR(ValidateHostPortPair(target));
+ 
+   ::grpc::ChannelArguments args = GetChannelArguments(rpc_options);
++  auto cred = GetChannelCredentials();
+   *channel_pointer = ::grpc::CreateCustomChannel(
+-      "dns:///" + target, ::grpc::InsecureChannelCredentials(), args);
++          "dns:///" + target, cred, args);
+   return Status::OK();
+ }
+ 
+diff --git a/tensorflow/core/distributed_runtime/rpc/grpc_rpc_factory.cc b/tensorflow/core/distributed_runtime/rpc/grpc_rpc_factory.cc
+index bcb98baaeb9..6a3d5b6031c 100644
+--- a/tensorflow/core/distributed_runtime/rpc/grpc_rpc_factory.cc
++++ b/tensorflow/core/distributed_runtime/rpc/grpc_rpc_factory.cc
+@@ -161,7 +161,7 @@ GrpcRPCFactory::ChannelPtr GrpcRPCFactory::CreateChannelForAddress(
+   // (sometimes default) 20s.
+   args.SetInt(GRPC_ARG_MAX_RECONNECT_BACKOFF_MS, 1000);
+   return ::grpc::CreateCustomChannel(
+-      /*target=*/address, ::grpc::InsecureChannelCredentials(), args);
++      /*target=*/address, GetChannelCredentials(), args);
+ }
+ 
+ void GrpcRPCFactory::CreateCall(const Tensor& request_t, const bool try_rpc,
+diff --git a/tensorflow/core/distributed_runtime/rpc/grpc_server_lib.cc b/tensorflow/core/distributed_runtime/rpc/grpc_server_lib.cc
+index fb925e51497..2dbe6b3ba32 100644
+--- a/tensorflow/core/distributed_runtime/rpc/grpc_server_lib.cc
++++ b/tensorflow/core/distributed_runtime/rpc/grpc_server_lib.cc
+@@ -506,7 +506,7 @@ const string GrpcServer::target() const {
+ 
+ std::shared_ptr<::grpc::ServerCredentials> GrpcServer::GetServerCredentials(
+     const ServerDef& server_def) const {
+-  return ::grpc::InsecureServerCredentials();
++  return GetCredentials();
+ }
+ 
+ ChannelCreationFunction GrpcServer::GetChannelCreationFunction() const {
+diff --git a/tensorflow/core/distributed_runtime/rpc/grpc_util.cc b/tensorflow/core/distributed_runtime/rpc/grpc_util.cc
+index 98e05b64aad..fd1118d2956 100644
+--- a/tensorflow/core/distributed_runtime/rpc/grpc_util.cc
++++ b/tensorflow/core/distributed_runtime/rpc/grpc_util.cc
+@@ -16,6 +16,7 @@ limitations under the License.
+ #include "tensorflow/core/distributed_runtime/rpc/grpc_util.h"
+ #include "tensorflow/core/distributed_runtime/tensor_coding.h"
+ #include "tensorflow/core/lib/random/random.h"
++#include "tensorflow/core/distributed_runtime/rpc/grpc_sgx_ra_tls.h"
+ 
+ namespace tensorflow {
+ 
+@@ -128,4 +129,24 @@ bool GrpcMaybeParseProto(grpc::ByteBuffer* src, tstring* dst) {
+   return true;
+ }
+ 
++std::shared_ptr<::grpc::ServerCredentials> GetCredentials() {
++    const char* secure = std::getenv("TF_OPTIONAL_TLS_ENABLE");
++    if (secure) {
++        return ::grpc::sgx::TlsServerCredentials();
++    }
++    return ::grpc::InsecureServerCredentials();
++
++}
++
++std::shared_ptr<::grpc::ChannelCredentials> GetChannelCredentials() {
++    const char* secure = std::getenv("TF_OPTIONAL_TLS_ENABLE");
++    if (secure) {
++       const char* mr_enclave = std::getenv("MR_ENCLAVE");
++       const char* mr_signer = std::getenv("MR_SIGNER");
++       const char* isv_prod_id = std::getenv("ISV_PROD_ID");
++       const char* isv_svn = std::getenv("ISV_SVN");
++       return ::grpc::sgx::TlsCredentials(mr_enclave, mr_signer, isv_prod_id, isv_svn);
++    }
++    return ::grpc::InsecureChannelCredentials();
++}
+ }  // namespace tensorflow
+diff --git a/tensorflow/core/distributed_runtime/rpc/grpc_util.h b/tensorflow/core/distributed_runtime/rpc/grpc_util.h
+index aed798217cb..aa70e94971a 100644
+--- a/tensorflow/core/distributed_runtime/rpc/grpc_util.h
++++ b/tensorflow/core/distributed_runtime/rpc/grpc_util.h
+@@ -133,7 +133,9 @@ bool GrpcMaybeParseProto(::grpc::ByteBuffer* src, string* dst);
+ 
+ // Copy grpc buffer src to tstring *dst.
+ bool GrpcMaybeParseProto(::grpc::ByteBuffer* src, tstring* dst);
++std::shared_ptr<::grpc::ServerCredentials> GetCredentials();
+ 
++std::shared_ptr<::grpc::ChannelCredentials> GetChannelCredentials();
+ }  // namespace tensorflow
+ 
+ #endif  // TENSORFLOW_CORE_DISTRIBUTED_RUNTIME_RPC_GRPC_UTIL_H_
+diff --git a/tensorflow/workspace.bzl b/tensorflow/workspace.bzl
+index d6237e10439..8a7f0e7db64 100755
+--- a/tensorflow/workspace.bzl
++++ b/tensorflow/workspace.bzl
+@@ -650,7 +650,7 @@ def tf_repositories(path_prefix = "", tf_repo_name = ""):
+     # WARNING: make sure ncteisen@ and vpai@ are cc-ed on any CL to change the below rule
+     tf_http_archive(
+         name = "com_github_grpc_grpc",
+-        sha256 = "b956598d8cbe168b5ee717b5dafa56563eb5201a947856a6688bbeac9cac4e1f",
++        sha256 = "b6783a2724cdfe2826ea92477812fddcf329f9b6e403f27a3b0194e7994cd29e",
+         strip_prefix = "grpc-b54a5b338637f92bfcf4b0bc05e0f57a5fd8fadd",
+         system_build_file = clean_dep("//third_party/systemlibs:grpc.BUILD"),
+         patch_file = clean_dep("//third_party/grpc:generate_cc_env_fix.patch"),
+@@ -664,8 +664,9 @@ def tf_repositories(path_prefix = "", tf_repo_name = ""):
+             "//third_party/systemlibs:grpc.bazel.protobuf.bzl": "bazel/protobuf.bzl",
+         },
+         urls = [
+-            "https://storage.googleapis.com/mirror.tensorflow.org/github.com/grpc/grpc/archive/b54a5b338637f92bfcf4b0bc05e0f57a5fd8fadd.tar.gz",
+-            "https://github.com/grpc/grpc/archive/b54a5b338637f92bfcf4b0bc05e0f57a5fd8fadd.tar.gz",
++            #"https://storage.googleapis.com/mirror.tensorflow.org/github.com/grpc/grpc/archive/b54a5b338637f92bfcf4b0bc05e0f57a5fd8fadd.tar.gz",
++            #"https://github.com/grpc/grpc/archive/b54a5b338637f92bfcf4b0bc05e0f57a5fd8fadd.tar.gz",
++            "http://10.137.27.200:8000/b54a5b338637f92bfcf4b0bc05e0f57a5fd8fadd.tar.gz",
+         ],
+     )
+ 
+diff --git a/third_party/repo.bzl b/third_party/repo.bzl
+index ef729b5223d..4c59a0ef201 100644
+--- a/third_party/repo.bzl
++++ b/third_party/repo.bzl
+@@ -16,6 +16,7 @@
+ 
+ _SINGLE_URL_WHITELIST = depset([
+     "arm_compiler",
++    "com_github_grpc_grpc",
+ ])
+ 
+ def _is_windows(ctx):
