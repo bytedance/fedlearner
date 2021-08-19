@@ -1,6 +1,7 @@
-operatorImageName: gcr.io/spark-operator/spark-operator
-operatorVersion: v1beta2-1.2.0-3.0.0
-imagePullPolicy: IfNotPresent
+image:
+  repository: registry.cn-beijing.aliyuncs.com/fedlearner/spark-operator
+  pullPolicy: IfNotPresent
+  tag: v1beta2-1.2.0-3.0.0
 imagePullSecrets: []
 
 rbac:
