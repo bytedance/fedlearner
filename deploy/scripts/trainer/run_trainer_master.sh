@@ -18,6 +18,7 @@ set -ex
 
 export CUDA_VISIBLE_DEVICES=
 source /app/deploy/scripts/hdfs_common.sh || true
+source /app/deploy/scripts/pre_start_hook.sh || true
 source /app/deploy/scripts/env_to_args.sh
 
 mode=$(normalize_env_to_args "--mode" "$MODE")

@@ -27,8 +27,8 @@ spec:
 {{ toYaml .Values.imagePullSecrets | trim | indent 8 }}
       containers:
       - name: clean-secret
-        image: {{ .Values.operatorImageName }}:{{ .Values.operatorVersion }}
-        imagePullPolicy: {{ .Values.imagePullPolicy }}
+        image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
+        imagePullPolicy: {{ .Values.image.pullPolicy}}
         {{- if .Values.securityContext }}
         securityContext:
           {{- range $securityPolicy, $value := .Values.securityContext }}
