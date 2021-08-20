@@ -70,7 +70,7 @@ def set_level(level):
     _logger.setLevel(level_)
 
 def _kwargs_add_stack_level(kwargs):
-    kwargs["stacklevel"] = kwargs.get("stacklevel", 1) + 1
+    #kwargs["stacklevel"] = kwargs.get("stacklevel", 1) + 1
     return kwargs
 
 def critical(msg, *args, **kwargs):

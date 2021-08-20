@@ -1,5 +1,5 @@
-tensorflow>=2.4,<2.5
-tensorflow-io>=0.13,<0.18
+tensorflow==2.4.2
+tensorflow_io==0.17.1
 setuptools==41.0.0
 pylint==2.4.4
 jinja2
