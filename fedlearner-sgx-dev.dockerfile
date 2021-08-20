@@ -130,6 +130,8 @@ RUN ln -s  /usr/bin/python3.6 /usr/bin/python
 RUN pip3 install --upgrade pip setuptools \
     && pip3 install -r ${FEDLEARNER_PATH}/requirements.txt
 RUN ${FEDLEARNER_PATH}/sgx/fedlearner/build_install.sh
+# uninstall tensorflow_io, mock it
+RUN pip uninstall -y tensorflow-io
 
 # https://askubuntu.com/questions/93457/how-do-i-enable-or-disable-apport
 RUN echo "enabled=0" > /etc/default/apport
