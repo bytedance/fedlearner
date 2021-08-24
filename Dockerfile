@@ -4,6 +4,7 @@ WORKDIR /app
 COPY . /app
 
 RUN apt-get -y update \
+    && apt-get -y install cron \
     && apt-get -y install libgmp-dev \
     && apt-get -y install libmpfr-dev \
     && apt-get -y install libmpc-dev \
