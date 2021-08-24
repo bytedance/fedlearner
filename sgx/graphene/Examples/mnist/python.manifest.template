@@ -9,7 +9,6 @@ loader.preload = "file:{{ graphene.libos }}"
 
 # Graphene log level
 loader.log_level = "{{ log_level }}"
-# loader.log_file = "{{ log_file }}"
 
 # Read application arguments directly from the command line. Don't use this on production!
 loader.insecure__use_cmdline_argv = 1
@@ -125,6 +124,7 @@ sgx.allowed_files.project_keras = "file:/root/.keras/keras.json"
 sgx.allowed_files.project_model = "file:model"
 sgx.allowed_files.project_data = "file:data"
 sgx.allowed_files.tensorflow_io = "file:tensorflow_io.py"
+sgx.allowed_files.custom_env = "file:custom_env"
 
 sgx.trusted_files.project_makedata = "file:make_data.py"
 sgx.trusted_files.project_leader = "file:leader.py"

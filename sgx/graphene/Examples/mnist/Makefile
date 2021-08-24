@@ -19,12 +19,6 @@ else
 GRAPHENE_LOG_LEVEL = error
 endif
 
-ifeq ($(ROLE),1)
-GRAPHENE_LOG_FILE = leader-graphene-sgx.log
-else
-GRAPHENE_LOG_FILE = follower-graphene-sgx.log
-endif
-
 .PHONY: all
 all: python.manifest
 ifeq ($(SGX),1)
@@ -34,7 +28,6 @@ endif
 python.manifest: python.manifest.template
 	graphene-manifest \
 		-Dlog_level=$(GRAPHENE_LOG_LEVEL) \
-		-Dlog_file=$(GRAPHENE_LOG_FILE) \
 		-Darch_libdir=$(ARCH_LIBDIR) \
 		-Dsession_parallelism=$(session_parallelism) \
 		-Dintra_op_parallelism=$(intra_op_parallelism) \
