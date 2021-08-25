@@ -50,8 +50,11 @@ class Validator(object):
             try:
                 example = tf.train.Example()
                 example.ParseFromString(raw_data)
-                example_dict = \
+                org_dict = \
                     convert_tf_example_to_dict(example)
+                example_dict = {}
+                for key, val in org_dict.items():
+                    example_dict[key] = val[0] if len(val) == 1 else val
                 if not self._check(example_dict):
                     return False
             except Exception as e:  # pylint: disable=broad-except
