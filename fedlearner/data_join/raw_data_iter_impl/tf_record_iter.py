@@ -34,6 +34,7 @@ class TfExampleItem(RawDataIter.Item):
         self._parse_example_error = False
         example = self._parse_example(record_str)
         dic = common.convert_tf_example_to_dict(example)
+        # should not be list for data block
         new_dict = {}
         for key, val in dic.items():
             new_dict[key] = val[0] if len(val) == 1 else val
