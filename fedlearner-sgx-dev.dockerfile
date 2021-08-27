@@ -70,34 +70,35 @@ RUN cd ${GRAPHENEDIR} \
 # Translate runtime symlinks to files
 RUN for f in $(find ${GRAPHENEDIR}/Runtime -type l); do cp --remove-destination $(realpath $f) $f; done
 
-# GRPC
-ENV GRPC_PATH=/grpc
+## GRPC
+#ENV GRPC_PATH=/grpc
 ENV INSTALL_PREFIX=/usr/local
 ENV LD_LIBRARY_PATH=${INSTALL_PREFIX}/lib:${LD_LIBRARY_PATH}
 ENV PATH=${INSTALL_PREFIX}/bin:${LD_LIBRARY_PATH}:${PATH}
 
-RUN mkdir -p ${INSTALL_PREFIX} \
-    && wget -q -O cmake-linux.sh https://github.com/Kitware/CMake/releases/download/v3.19.6/cmake-3.19.6-Linux-x86_64.sh \
-    && sh cmake-linux.sh -- --skip-license --prefix=${INSTALL_PREFIX} \
-    && rm cmake-linux.sh
+#RUN mkdir -p ${INSTALL_PREFIX} \
+#    && wget -q -O cmake-linux.sh https://github.com/Kitware/CMake/releases/download/v3.19.6/cmake-3.19.6-Linux-x86_64.sh \
+#    && sh cmake-linux.sh -- --skip-license --prefix=${INSTALL_PREFIX} \
+#    && rm cmake-linux.sh
+#
+##RUN git clone --recurse-submodules -b v1.36.0 https://github.com/grpc/grpc ${GRPC_PATH}
+#RUN git clone https://github.com/grpc/grpc ${GRPC_PATH}
+#RUN cd ${GRPC_PATH} && git checkout b54a5b338637f92bfcf4b0bc05e0f57a5fd8fadd && git submodule update --init
+#
+#RUN cd ${GRPC_PATH} \
+#    && pip3 install --upgrade pip setuptools==44.1.1 \
+#    && pip3 install -r requirements.txt
 
-#RUN git clone --recurse-submodules -b v1.36.0 https://github.com/grpc/grpc ${GRPC_PATH}
-RUN git clone https://github.com/grpc/grpc ${GRPC_PATH}
-RUN cd ${GRPC_PATH} && git checkout b54a5b338637f92bfcf4b0bc05e0f57a5fd8fadd && git submodule update --init
-
-RUN cd ${GRPC_PATH} \
-    && pip3 install --upgrade pip setuptools==44.1.1 \
-    && pip3 install -r requirements.txt
-
+RUN pip3 install --upgrade pip setuptools==44.1.1
 COPY sgx/graphene ${GRAPHENEDIR}
 COPY sgx/fedlearner ${FEDLEARNER_PATH}
-COPY sgx/grpc ${GRPC_PATH}
+#COPY sgx/grpc ${GRPC_PATH}
 COPY sgx/configs /
 
 RUN openssl genrsa -3 -out ${SGX_SIGNER_KEY} 3072
 
-COPY sgx/grpc/build_install.sh ${GRPC_PATH}
-RUN cd ${GRPC_PATH} && git apply grpc_skip_client_sanity_check.diff && ${GRPC_PATH}/build_install.sh
+#COPY sgx/grpc/build_install.sh ${GRPC_PATH}
+#RUN cd ${GRPC_PATH} && git apply grpc_skip_client_sanity_check.diff && ${GRPC_PATH}/build_install.sh
 
 # tensorflow
 ENV BAZEL_VERSION=3.1.0
@@ -106,27 +107,27 @@ RUN wget "https://github.com/bazelbuild/bazel/releases/download/${BAZEL_VERSION}
 
 ## deps 
 RUN pip install numpy keras_preprocessing 
+RUN ln -s  /usr/bin/python3.6 /usr/bin/python
 
 ENV TF_VERSION=v2.4.2
 ENV TF_BUILD_PATH=/tf/src
 ENV TF_BUILD_OUTPUT=/tf/output
 RUN git clone --recurse-submodules -b ${TF_VERSION} https://github.com/tensorflow/tensorflow ${TF_BUILD_PATH}
 
-# git apply diff
+## git apply diff
 COPY sgx/tf ${TF_BUILD_PATH} 
 RUN cd ${TF_BUILD_PATH} && git apply sgx_tls_sample.diff
 
-# mbedtls
+## mbedtls
 RUN cd ${TF_BUILD_PATH} && ./build.sh
 
 RUN cd ${TF_BUILD_PATH} && bazel build -c opt //tensorflow/tools/pip_package:build_pip_package
 RUN cd ${TF_BUILD_PATH} && bazel-bin/tensorflow/tools/pip_package/build_pip_package ${TF_BUILD_OUTPUT} && pip install ${TF_BUILD_OUTPUT}/tensorflow-*-cp36-cp36m-linux_x86_64.whl 
 
-## Fedlearner
+# Fedlearner
 ENV FEDLEARNER_PATH=/fedlearner
 RUN apt-get install -y libgmp-dev libmpfr-dev libmpc-dev libmysqlclient-dev
 COPY . ${FEDLEARNER_PATH}
-RUN ln -s  /usr/bin/python3.6 /usr/bin/python
 RUN pip3 install --upgrade pip setuptools \
     && pip3 install -r ${FEDLEARNER_PATH}/requirements.txt
 RUN ${FEDLEARNER_PATH}/sgx/fedlearner/build_install.sh

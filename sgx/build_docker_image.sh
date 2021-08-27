@@ -1,6 +1,8 @@
 #!/bin/bash
 set -e
 
+cd ..
+
 if  [ ! -n "$1" ] ; then
     tag=latest
 else

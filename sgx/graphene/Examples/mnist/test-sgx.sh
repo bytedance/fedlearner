@@ -16,7 +16,7 @@ function make_custom_env() {
     echo "TF_OPTIONAL_TLS_ENABLE=on" > $custom_env 
     echo "MR_ENCLAVE=`get_env mr_enclave`" >> $custom_env
     echo "MR_SIGNER=`get_env mr_signer`" >> $custom_env
-    echo "ISV_PROD_ID_=`get_env isv_prod_id`" >> $custom_env
+    echo "ISV_PROD_ID=`get_env isv_prod_id`" >> $custom_env
     echo "ISV_SVN=`get_env isv_svn`" >> $custom_env
 
 #    echo "DEBUG=0" >> $custom_env
