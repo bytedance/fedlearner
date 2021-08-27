@@ -85,6 +85,8 @@ extraVolumes:
     persistentVolumeClaim:
       claimName: pvc-fedlearner-default
 
+hook: ""
+
 cluster:
   env:
     KIBANA_HOST: fedlearner-stack-kibana
@@ -103,3 +105,4 @@ cluster:
     DB_HOST: fedlearner-stack-mariadb
     DB_PORT: 3306
     DB_DATABASE: fedlearner
+
