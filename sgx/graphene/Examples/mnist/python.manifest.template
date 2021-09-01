@@ -83,7 +83,7 @@ sgx.thread_num = 1024
 
 sgx.nonpie_binary = 1
 
-sgx.remote_attestation = 0
+sgx.remote_attestation = 1
 
 # SGX trusted libraries
 
