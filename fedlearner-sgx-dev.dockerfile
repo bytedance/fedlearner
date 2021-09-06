@@ -122,10 +122,10 @@ RUN cd ${TF_BUILD_PATH} && git apply sgx_tls_sample.diff
 RUN cd ${TF_BUILD_PATH} && ./build.sh
 
 RUN cd ${TF_BUILD_PATH} && bazel build -c opt //tensorflow/tools/pip_package:build_pip_package
-RUN cd ${TF_BUILD_PATH} && bazel-bin/tensorflow/tools/pip_package/build_pip_package ${TF_BUILD_OUTPUT} && pip install ${TF_BUILD_OUTPUT}/tensorflow-*-cp36-cp36m-linux_x86_64.whl 
 
 # Fedlearner
 ENV FEDLEARNER_PATH=/fedlearner
+RUN apt-get update
 RUN apt-get install -y libgmp-dev libmpfr-dev libmpc-dev libmysqlclient-dev
 COPY . ${FEDLEARNER_PATH}
 RUN pip3 install --upgrade pip setuptools \
@@ -133,6 +133,11 @@ RUN pip3 install --upgrade pip setuptools \
 RUN ${FEDLEARNER_PATH}/sgx/fedlearner/build_install.sh
 # uninstall tensorflow_io, mock it
 RUN pip uninstall -y tensorflow-io
+RUN pip uninstall -y tensorflow
+
+# re-install tensorflow
+RUN cd ${TF_BUILD_PATH} && bazel-bin/tensorflow/tools/pip_package/build_pip_package ${TF_BUILD_OUTPUT} && pip install ${TF_BUILD_OUTPUT}/tensorflow-*-cp36-cp36m-linux_x86_64.whl
+RUN cd ${FEDLEARNER_PATH} && make op && cp ./cc/embedding.so /usr/local/lib/python3.6/dist-packages/cc
 
 # https://askubuntu.com/questions/93457/how-do-i-enable-or-disable-apport
 RUN echo "enabled=0" > /etc/default/apport

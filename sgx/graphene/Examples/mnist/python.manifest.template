@@ -71,7 +71,7 @@ sgx.enclave_size = "32G"
 
 # Graphene creates stacks of 256KB by default. It is not enough for SciPy/NumPy
 # packages, e.g., libopenblas dependency assumes more than 512KB-sized stacks.
-sys.stack.size = "16M"
+sys.stack.size = "128M"
 
 # Set the maximum number of enclave threads. For SGX v1, the number of enclave
 # TCSes must be specified during signing, so the application cannot use more
@@ -79,7 +79,7 @@ sys.stack.size = "16M"
 # thread for handling inter-process communication (IPC), and potentially another
 # thread for asynchronous events. Therefore, the actual number of threads that
 # the application can create is (sgx.thread_num - 2).
-sgx.thread_num = 1024
+sgx.thread_num = 512
 
 sgx.nonpie_binary = 1
 
@@ -94,6 +94,9 @@ sgx.trusted_files.arch_libdir = "file:{{ arch_libdir }}/"
 sgx.trusted_files.usr_arch_libdir = "file:/usr/{{ arch_libdir }}/"
 sgx.trusted_files.python_dir = "file:{{ python.stdlib }}/"
 sgx.trusted_files.dist = "file:{{ python.distlib }}/"
+
+# python local library
+sgx.allowed_files.pylib = "file:/usr/local/lib/python3.6/dist-packages"
 
 # etc files required by Python
 sgx.trusted_files.mimetypes = "file:/etc/mime.types"
@@ -130,3 +133,5 @@ sgx.trusted_files.project_makedata = "file:make_data.py"
 sgx.trusted_files.project_leader = "file:leader.py"
 sgx.trusted_files.project_follower = "file:follower.py"
 sgx.trusted_files.project_trainer = "file:train.py"
+sgx.allowed_files.etc_certs = "file:/etc/ssl/certs"
+sgx.allowed_files.ssl_config = "file:/usr/lib/ssl"

@@ -87,20 +87,16 @@ TlsServerAuthorizationCheckInterface;
 
 class TestTlsCredentialReload : public TlsCredentialReloadInterface {
     int Schedule(TlsCredentialReloadArg* arg) override {
-        std::cout << "000" << std::endl;
         if (!arg->is_pem_key_cert_pair_list_empty()) {
             arg->set_status(GRPC_SSL_CERTIFICATE_CONFIG_RELOAD_UNCHANGED);
             return 0;
         }
-        std::cout << "11" << std::endl;
         GPR_ASSERT(arg != nullptr);
         auto key_pair = get_cred_key_pair();
         struct TlsKeyMaterialsConfig::PemKeyCertPair pair3 = { key_pair.private_key.c_str(),
             key_pair.cert_chain.c_str()};
-        std::cout << "12" << std::endl;
         arg->set_pem_root_certs("new_pem_root_certs");
         arg->add_pem_key_cert_pair(pair3);
-        std::cout << "13" << std::endl;
         arg->set_status(GRPC_SSL_CERTIFICATE_CONFIG_RELOAD_NEW);
         return 0;
     }

@@ -6,7 +6,7 @@ export CUDA_VISIBLE_DEVICES=""
 
 rm -rf model # data
 
-python make_data.py
+#python make_data.py
 
 unset http_proxy https_proxy
 

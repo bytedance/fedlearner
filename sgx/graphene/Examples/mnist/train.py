@@ -54,7 +54,7 @@ def main(_):
         # The MonitoredTrainingSession takes care of session initialization,
         # restoring from a checkpoint, saving to a checkpoint, and closing when done
         # or an error occurs.
-        config = tf.ConfigProto(intra_op_parallelism_threads=1, inter_op_parallelism_threads=1, session_inter_op_thread_pool=0); 
+        config = tf.ConfigProto(intra_op_parallelism_threads=2, inter_op_parallelism_threads=2);
         with tf.train.MonitoredTrainingSession(master="grpc://" + worker_hosts[FLAGS.task_index],
                                                is_chief=(FLAGS.task_index==0), # 我们制定task_index为0的任务为主任务，用于负责变量初始化、做checkpoint、保存summary和复原
                                                checkpoint_dir="/tmp/tf_train_logs",

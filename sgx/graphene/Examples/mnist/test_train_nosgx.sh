@@ -22,17 +22,17 @@ function make_custom_env() {
     echo "DEBUG=0" >> $custom_env
     echo "parallel_num_threads=2" >> $custom_env
     echo "session_parallelism=0" >> $custom_env
-    echo "intra_op_parallelism=2" >> $custom_env
-    echo "inter_op_parallelism=2" >> $custom_env
-    echo "OMP_NUM_THREADS=2" >> $custom_env
-    echo "MKL_NUM_THREADS=2" >> $custom_env
+    echo "intra_op_parallelism=${parallel_num_threads}" >> $custom_env
+    echo "inter_op_parallelism=${parallel_num_threads}" >> $custom_env
+    echo "OMP_NUM_THREADS=${parallel_num_threads}" >> $custom_env
+    echo "MKL_NUM_THREADS=${parallel_num_threads}" >> $custom_env
 }
 
-make_custom_env
 
 alias logfilter="grep -v \"FUTEX\|measured\|memory entry\|cleaning up\|async event\|shim_exit\""
 
->ps0-graphene-python.log
->worker0-graphene-python.log
-taskset -c 0-3 graphene-sgx python -u train.py --task_index=0 --job_name=ps --loglevel=debug 2>&1 | logfilter | tee -a ps0-graphene-python.log & 
-taskset -c 4-7 graphene-sgx python -u train.py --task_index=0 --job_name=worker --loglevel=debug 2>&1 | logfilter | tee -a worker0-graphene-python.log &
+python -u train.py --task_index=0 --job_name=ps --loglevel=debug 2>&1 | logfilter | tee -a ps0-graphene-python.log & 
+#python -u train.py --task_index=1 --job_name=ps --loglevel=debug 2>&1 | logfilter | tee -a ps1-graphene-python.log & 
+python -u train.py --task_index=0 --job_name=worker --loglevel=debug 2>&1 | logfilter | tee -a worker0-graphene-python.log &
+#python -u train.py --task_index=1 --job_name=worker --loglevel=debug 2>&1 | logfilter | tee -a worker1-graphene-python.log &
+

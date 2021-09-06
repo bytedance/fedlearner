@@ -32,8 +32,8 @@ class ClusterServer():
 
     def _create_tf_server(self, cluster_spec):
         self._tf_config = tf.ConfigProto()
-        self._tf_config.inter_op_parallelism_threads = 64
-        self._tf_config.intra_op_parallelism_threads = 64
+        self._tf_config.inter_op_parallelism_threads = 4
+        self._tf_config.intra_op_parallelism_threads = 4
         self._tf_config.experimental \
             .share_session_state_in_clusterspec_propagation = True
         self._tf_config.rpc_options.compression_algorithm = "gzip"
