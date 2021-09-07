@@ -131,7 +131,7 @@ class Channel():
                  listen_address,
                  remote_address,
                  token=None,
-                 max_workers=16,
+                 max_workers=2,
                  compression=grpc.Compression.Gzip,
                  heartbeat_timeout=120,
                  retry_interval=2,

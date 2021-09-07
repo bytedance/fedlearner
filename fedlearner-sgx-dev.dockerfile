@@ -33,7 +33,8 @@ RUN apt-get install -y libsgx-dcap-ql-dev libsgx-dcap-default-qpl libsgx-dcap-qu
 
 # Graphene
 ENV GRAPHENEDIR=/graphene
-ENV GRAPHENE_VERSION=2fdb529f81e839ef1d9638362c2c02a4e34af79f
+#ENV GRAPHENE_VERSION=2fdb529f81e839ef1d9638362c2c02a4e34af79f
+ENV GRAPHENE_VERSION=master
 # ENV GRAPHENE_VERSION=master
 ENV ISGX_DRIVER_PATH=${GRAPHENEDIR}/Pal/src/host/Linux-SGX/linux-sgx-driver
 ENV SGX_SIGNER_KEY=${GRAPHENEDIR}/Pal/src/host/Linux-SGX/signer/enclave-key.pem

@@ -13,7 +13,7 @@ function get_env() {
 }
 
 function make_custom_env() {
-    echo "TF_OPTIONAL_TLS_ENABLE=on" > $custom_env 
+    echo "TF_GRPC_TLS_ENABLE=on" > $custom_env 
     echo "MR_ENCLAVE=`get_env mr_enclave`" >> $custom_env
     echo "MR_SIGNER=`get_env mr_signer`" >> $custom_env
     echo "ISV_PROD_ID=`get_env isv_prod_id`" >> $custom_env

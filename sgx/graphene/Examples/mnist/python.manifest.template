@@ -2,13 +2,14 @@
 
 libos.entrypoint = "file:{{ entrypoint }}"
 
-loader.pal_internal_mem_size = "200M"
+loader.pal_internal_mem_size = "2G"
 
 # Path to the library OS
 loader.preload = "file:{{ graphene.libos }}"
 
 # Graphene log level
 loader.log_level = "{{ log_level }}"
+loader.log_file = "/tmp/fl.log"
 
 # Read application arguments directly from the command line. Don't use this on production!
 loader.insecure__use_cmdline_argv = 1
@@ -81,9 +82,9 @@ sys.stack.size = "128M"
 # the application can create is (sgx.thread_num - 2).
 sgx.thread_num = 512
 
-sgx.nonpie_binary = 1
+sgx.nonpie_binary = true
 
-sgx.remote_attestation = 1
+sgx.remote_attestation = true
 
 # SGX trusted libraries
 
@@ -99,7 +100,7 @@ sgx.trusted_files.dist = "file:{{ python.distlib }}/"
 sgx.allowed_files.pylib = "file:/usr/local/lib/python3.6/dist-packages"
 
 # etc files required by Python
-sgx.trusted_files.mimetypes = "file:/etc/mime.types"
+sgxgtrusted_files.mimetypes = "file:/etc/mime.types"
 sgx.trusted_files.defapport = "file:/etc/default/apport"
 
 # Name Service Switch (NSS) and getaddrinfo(3) configuration files
