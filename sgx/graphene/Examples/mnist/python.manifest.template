@@ -12,7 +12,8 @@ loader.log_level = "{{ log_level }}"
 loader.log_file = "/tmp/fl.log"
 
 # Read application arguments directly from the command line. Don't use this on production!
-loader.insecure__use_cmdline_argv = 1
+loader.insecure__use_cmdline_argv = true 
+loader.insecure__use_host_env = true 
 
 # Environment variables for Python
 loader.env.LD_LIBRARY_PATH = "{{ python.stdlib }}/lib:/lib:{{ arch_libdir }}:/usr/lib:/usr/{{ arch_libdir }}"

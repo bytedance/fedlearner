@@ -13,25 +13,24 @@ function get_env() {
 }
 
 function make_custom_env() {
-    echo "TF_GRPC_TLS_ENABLE=on" > $custom_env 
-    echo "MR_ENCLAVE=`get_env mr_enclave`" >> $custom_env
-    echo "MR_SIGNER=`get_env mr_signer`" >> $custom_env
-    echo "ISV_PROD_ID=`get_env isv_prod_id`" >> $custom_env
-    echo "ISV_SVN=`get_env isv_svn`" >> $custom_env
+    export TF_GRPC_TLS_ENABLE=on
+    export MR_ENCLAVE=`get_env mr_enclave`
+    export MR_SIGNER=`get_env mr_signer`
+    export ISV_PROD_ID=`get_env isv_prod_id`
+    export ISV_SVN=`get_env isv_svn`
     # make no sense right now
-    echo "DEBUG=0" >> $custom_env
-    echo "parallel_num_threads=2" >> $custom_env
-    echo "session_parallelism=0" >> $custom_env
-    echo "intra_op_parallelism=2" >> $custom_env
-    echo "inter_op_parallelism=2" >> $custom_env
-    echo "OMP_NUM_THREADS=2" >> $custom_env
-    echo "MKL_NUM_THREADS=2" >> $custom_env
+    export parallel_num_threads=2
+    export session_parallelism=0
+    export intra_op_parallelism=2
+    export inter_op_parallelism=2
+    export OMP_NUM_THREADS=2
+    export MKL_NUM_THREADS=2
 }
 
+make_custom_env
 
 ROLE=$1
 if [ "$ROLE" == "data" ]; then
-    make_custom_env
     rm -rf data
     python make_data.py
 fi

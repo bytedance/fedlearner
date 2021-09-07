@@ -27,16 +27,6 @@ parser.add_argument('--batch-size', type=int, default=256,
 
 args = parser.parse_args()
 
-with open("custom_env") as f:
-    line = f.readline()
-    while line:
-        kv = line.split("=")
-        if len(kv) == 2:
-            os.environ[kv[0]] = kv[1].strip()
-        line = f.readline(); 
-
-print(os.environ)
-
 def input_fn(bridge, trainer_master):
     dataset = flt.data.DataBlockLoader(args.batch_size, ROLE,
         bridge, trainer_master).make_dataset()

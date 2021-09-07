@@ -30,6 +30,7 @@ os.makedirs(os.path.join(current_dir, 'data/follower'))
 
 
 (x, y), _ = tf.keras.datasets.mnist.load_data()
+
 x = x.reshape(x.shape[0], -1).astype(np.float32) / 255.0
 y = y.astype(np.int64)
 
