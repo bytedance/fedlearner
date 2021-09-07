@@ -346,6 +346,7 @@ class _TrainerMaster(tm_grpc.TrainerMasterServiceServicer):
                             output_dir=self._summary_path,
                             save_secs=self._summary_save_secs,
                             save_steps=self._summary_save_steps,
+                            scaffold=session_creator._scaffold,
                         )
                     )
             noop = tf.no_op()
