@@ -16,7 +16,7 @@ index ce1a20a5ae9..a972f51f930 100644
          "//tensorflow/core:lib",
          # Required to be able to overload TensorResponse parsing.
 diff --git a/tensorflow/core/distributed_runtime/rpc/grpc_channel.cc b/tensorflow/core/distributed_runtime/rpc/grpc_channel.cc
-index 985b0454837..631a80523df 100644
+index 985b0454837..f0b462d06e9 100644
 --- a/tensorflow/core/distributed_runtime/rpc/grpc_channel.cc
 +++ b/tensorflow/core/distributed_runtime/rpc/grpc_channel.cc
 @@ -36,6 +36,7 @@ limitations under the License.
@@ -37,15 +37,6 @@ index 985b0454837..631a80523df 100644
 +          "dns:///" + target, cred, args);
    return Status::OK();
  }
- 
-@@ -298,7 +300,7 @@ class SparseGrpcChannelCache : public CachingGrpcChannelCache {
-       : job_id_(job_id),
-         host_ports_(host_ports),
-         channel_func_(std::move(channel_func)) {
--    LOG(INFO) << "Initialize GrpcChannelCache for job " << ToString();
-+    LOG(INFO) << "Initialize GrpcChannelCache for job 111111 " << ToString();
-   }
-   ~SparseGrpcChannelCache() override {}
  
 diff --git a/tensorflow/core/distributed_runtime/rpc/grpc_rpc_factory.cc b/tensorflow/core/distributed_runtime/rpc/grpc_rpc_factory.cc
 index bcb98baaeb9..6a3d5b6031c 100644
@@ -74,7 +65,7 @@ index fb925e51497..2dbe6b3ba32 100644
  
  ChannelCreationFunction GrpcServer::GetChannelCreationFunction() const {
 diff --git a/tensorflow/core/distributed_runtime/rpc/grpc_util.cc b/tensorflow/core/distributed_runtime/rpc/grpc_util.cc
-index 98e05b64aad..91b6a056003 100644
+index 98e05b64aad..fd1118d2956 100644
 --- a/tensorflow/core/distributed_runtime/rpc/grpc_util.cc
 +++ b/tensorflow/core/distributed_runtime/rpc/grpc_util.cc
 @@ -16,6 +16,7 @@ limitations under the License.
@@ -85,15 +76,13 @@ index 98e05b64aad..91b6a056003 100644
  
  namespace tensorflow {
  
-@@ -128,4 +129,29 @@ bool GrpcMaybeParseProto(grpc::ByteBuffer* src, tstring* dst) {
+@@ -128,4 +129,24 @@ bool GrpcMaybeParseProto(grpc::ByteBuffer* src, tstring* dst) {
    return true;
  }
  
 +std::shared_ptr<::grpc::ServerCredentials> GetCredentials() {
-+    const char* secure = std::getenv("TF_GRPC_TLS_ENABLE");
-+    LOG(INFO) << "GetCredentials";
++    const char* secure = std::getenv("TF_OPTIONAL_TLS_ENABLE");
 +    if (secure) {
-+        LOG(INFO) << "Secure mode: " << string(secure);
 +        return ::grpc::sgx::TlsServerCredentials();
 +    }
 +    return ::grpc::InsecureServerCredentials();
@@ -101,15 +90,12 @@ index 98e05b64aad..91b6a056003 100644
 +}
 +
 +std::shared_ptr<::grpc::ChannelCredentials> GetChannelCredentials() {
-+    const char* secure = std::getenv("TF_GRPC_TLS_ENABLE");
-+    LOG(INFO) << "GetCredentials";
++    const char* secure = std::getenv("TF_OPTIONAL_TLS_ENABLE");
 +    if (secure) {
-+       LOG(INFO) << "Secure mode: " << string(secure);
 +       const char* mr_enclave = std::getenv("MR_ENCLAVE");
 +       const char* mr_signer = std::getenv("MR_SIGNER");
 +       const char* isv_prod_id = std::getenv("ISV_PROD_ID");
 +       const char* isv_svn = std::getenv("ISV_SVN");
-+       LOG(INFO) << "\tSecure Params: " << string(mr_enclave) << "\n\t\t" << string(mr_signer);
 +       return ::grpc::sgx::TlsCredentials(mr_enclave, mr_signer, isv_prod_id, isv_svn);
 +    }
 +    return ::grpc::InsecureChannelCredentials();
