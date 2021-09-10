@@ -34,7 +34,7 @@ RUN apt-get install -y libsgx-dcap-ql-dev libsgx-dcap-default-qpl libsgx-dcap-qu
 # Graphene
 ENV GRAPHENEDIR=/graphene
 #ENV GRAPHENE_VERSION=2fdb529f81e839ef1d9638362c2c02a4e34af79f
-ENV GRAPHENE_VERSION=master
+ENV GRAPHENE_VERSION=pf_rename
 # ENV GRAPHENE_VERSION=master
 ENV ISGX_DRIVER_PATH=${GRAPHENEDIR}/Pal/src/host/Linux-SGX/linux-sgx-driver
 ENV SGX_SIGNER_KEY=${GRAPHENEDIR}/Pal/src/host/Linux-SGX/signer/enclave-key.pem
@@ -48,7 +48,8 @@ RUN apt-get install -y gawk bison meson python3-click python3-jinja2 golang
 RUN apt-get install -y libcurl4-openssl-dev libprotobuf-c-dev python3-protobuf protobuf-c-compiler
 RUN pip3 install toml>=0.10
 
-RUN git clone https://github.com/oscarlab/graphene.git ${GRAPHENEDIR} \
+#RUN git clone https://github.com/oscarlab/graphene.git ${GRAPHENEDIR} \
+RUN git clone https://github.com/svenkata9/graphene.git ${GRAPHENEDIR} \
     && cd ${GRAPHENEDIR} \
     && git checkout ${GRAPHENE_VERSION}
 

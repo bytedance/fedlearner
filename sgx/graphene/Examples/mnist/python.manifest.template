@@ -1,19 +1,24 @@
 # Python manifest example
 
-libos.entrypoint = "file:{{ entrypoint }}"
+libos.entrypoint = "{{ entrypoint }}"
 
-loader.pal_internal_mem_size = "2G"
+loader.pal_internal_mem_size = "200M"
 
 # Path to the library OS
 loader.preload = "file:{{ graphene.libos }}"
 
 # Graphene log level
 loader.log_level = "{{ log_level }}"
-loader.log_file = "/tmp/fl.log"
+#loader.log_file = "/tmp/fl.log"
 
 # Read application arguments directly from the command line. Don't use this on production!
 loader.insecure__use_cmdline_argv = true 
 loader.insecure__use_host_env = true 
+
+# prorotected_file encryption
+sgx.protected_files_key = "ffeeddccbbaa99887766554433221100"
+loader.env.SECRET_PROVISION_CONSTRUCTOR = "1"
+loader.env.SECRET_PROVISION_SET_PF_KEY = "1"
 
 # Environment variables for Python
 loader.env.LD_LIBRARY_PATH = "{{ python.stdlib }}/lib:/lib:{{ arch_libdir }}:/usr/lib:/usr/{{ arch_libdir }}"
@@ -84,39 +89,20 @@ sys.stack.size = "128M"
 sgx.thread_num = 512
 
 sgx.nonpie_binary = true
-
 sgx.remote_attestation = true
 
 # SGX trusted libraries
 
-sgx.trusted_files.python = "file:{{ entrypoint }}"
 
-sgx.trusted_files.runtime = "file:{{ graphene.runtimedir() }}/"
-sgx.trusted_files.arch_libdir = "file:{{ arch_libdir }}/"
-sgx.trusted_files.usr_arch_libdir = "file:/usr/{{ arch_libdir }}/"
-sgx.trusted_files.python_dir = "file:{{ python.stdlib }}/"
-sgx.trusted_files.dist = "file:{{ python.distlib }}/"
 
 # python local library
-sgx.allowed_files.pylib = "file:/usr/local/lib/python3.6/dist-packages"
 
 # etc files required by Python
 sgxgtrusted_files.mimetypes = "file:/etc/mime.types"
-sgx.trusted_files.defapport = "file:/etc/default/apport"
 
 # Name Service Switch (NSS) and getaddrinfo(3) configuration files
-sgx.allowed_files.nsswitch = "file:/etc/nsswitch.conf"
-sgx.allowed_files.ethers = "file:/etc/ethers"
-sgx.allowed_files.hosts = "file:/etc/hosts"
-sgx.allowed_files.group = "file:/etc/group"
-sgx.allowed_files.passwd = "file:/etc/passwd"
-sgx.allowed_files.gaiconf = "file:/etc/gai.conf"
-sgx.allowed_files.hostconf = "file:/etc/host.conf"
-sgx.allowed_files.resolv = "file:/etc/resolv.conf"
-sgx.allowed_files.proc_stat = "file:/proc/stat"
 
 # SGX untrusted (allowed) files/directories
-sgx.allowed_files.tmp = "file:/tmp"
 
 # Project Configure
 
@@ -124,16 +110,46 @@ fs.mount.keras.type = "chroot"
 fs.mount.keras.path = "/root/.keras/keras.json"
 fs.mount.keras.uri = "file:/root/.keras/keras.json"
 
-sgx.allowed_files.project_project_py36dist = "file:/usr/local/lib/python3.6/dist-packages"
-sgx.allowed_files.project_keras = "file:/root/.keras/keras.json"
-sgx.allowed_files.project_model = "file:model"
-sgx.allowed_files.project_data = "file:data"
-sgx.allowed_files.tensorflow_io = "file:tensorflow_io.py"
-sgx.allowed_files.custom_env = "file:custom_env"
+sgx.trusted_files = [
+  "file:{{ entrypoint }}",
+  "file:{{ graphene.runtimedir() }}/",
+  "file:{{ arch_libdir }}/",
+  "file:/usr/{{ arch_libdir }}/",
+  "file:{{ python.stdlib }}/",
+  "file:{{ python.distlib }}/",
+  "file:make_data.py",
+  "file:leader.py",
+  "file:follower.py",
+  "file:/etc/mime.types",
+  "file:/etc/default/apport",
+]
 
-sgx.trusted_files.project_makedata = "file:make_data.py"
-sgx.trusted_files.project_leader = "file:leader.py"
-sgx.trusted_files.project_follower = "file:follower.py"
-sgx.trusted_files.project_trainer = "file:train.py"
-sgx.allowed_files.etc_certs = "file:/etc/ssl/certs"
-sgx.allowed_files.ssl_config = "file:/usr/lib/ssl"
+sgx.allowed_files = [
+  "file:/usr/local/lib/python3.6/dist-packages",
+  "file:/usr/lib/python3.6",
+  "file:/usr/lib/python3",
+  "file:/etc/nsswitch.conf",
+  "file:/etc/ethers",
+  "file:/etc/hosts",
+  "file:/etc/group",
+  "file:/etc/passwd",
+  "file:/etc/gai.conf",
+  "file:/etc/host.conf",
+  "file:/etc/resolv.conf",
+  "file:/proc/stat",
+  "file:/tmp",
+  "file:/usr/local/lib/python3.6/dist-packages",
+  "file:/root/.keras/keras.json",
+  "file:data",
+  "file:tensorflow_io.py",
+  "file:custom_env",
+  "file:/etc/ssl/certs",
+  "file:/usr/lib/ssl",
+  "file:/usr/bin/ld",
+  "file:/usr/bin/gcc",
+  "file:/usr/bin/objdump",
+]
+
+sgx.protected_files = [
+  "file:model",
+]
