@@ -24,6 +24,19 @@ metadata:
 {{ $serverSnippet | indent 6 }}
     {{- end }}
   {{- end }}
+{{- if semverCompare ">=1.19-0" .Capabilities.KubeVersion.GitVersion -}}
+spec:
+  rules:
+  - http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: fedlearner-proxy
+            port:
+              number: {{ .Values.ingress.port }}
+{{- else -}}
 spec:
   rules:
     - host: {{ .Values.ingress.host | quote }}
@@ -33,4 +46,6 @@ spec:
             backend:
               serviceName: fedlearner-proxy
               servicePort: {{ .Values.ingress.port }}
+{{- end }}
+
 {{- end }}
