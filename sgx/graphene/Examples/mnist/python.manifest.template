@@ -122,6 +122,7 @@ sgx.trusted_files = [
   "file:follower.py",
   "file:/etc/mime.types",
   "file:/etc/default/apport",
+  "file:/etc/sgx_default_qcnl.conf"
 ]
 
 sgx.allowed_files = [

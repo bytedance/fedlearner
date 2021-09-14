@@ -81,7 +81,7 @@ index 98e05b64aad..fd1118d2956 100644
  }
  
 +std::shared_ptr<::grpc::ServerCredentials> GetCredentials() {
-+    const char* secure = std::getenv("TF_OPTIONAL_TLS_ENABLE");
++    const char* secure = std::getenv("TF_GRPC_TLS_ENABLE");
 +    if (secure) {
 +        return ::grpc::sgx::TlsServerCredentials();
 +    }
@@ -90,7 +90,7 @@ index 98e05b64aad..fd1118d2956 100644
 +}
 +
 +std::shared_ptr<::grpc::ChannelCredentials> GetChannelCredentials() {
-+    const char* secure = std::getenv("TF_OPTIONAL_TLS_ENABLE");
++    const char* secure = std::getenv("TF_GRPC_TLS_ENABLE");
 +    if (secure) {
 +       const char* mr_enclave = std::getenv("MR_ENCLAVE");
 +       const char* mr_signer = std::getenv("MR_SIGNER");

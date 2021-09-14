@@ -10,6 +10,7 @@ rm -rf model # data
 
 unset http_proxy https_proxy
 
+python -m fedlearner.trainer.parameter_server localhost:40051 & 
 python -u leader.py --local-addr=localhost:50051                       \
                     --peer-addr=localhost:50052                        \
                     --data-path=data/leader                            \
@@ -17,10 +18,12 @@ python -u leader.py --local-addr=localhost:50051                       \
                     --export-path=model/leader/saved_model             \
                     --save-checkpoint-steps=10                         \
                     --epoch-num=2                                      \
+                    --cluster-spec='{"clusterSpec":{"PS":["localhost:40051"]}}'          \
                     --loglevel=info &
 
 sleep 5s
 
+python -m fedlearner.trainer.parameter_server localhost:40061 & 
 python -u follower.py --local-addr=localhost:50052                     \
                       --peer-addr=localhost:50051                      \
                       --data-path=data/follower                        \
@@ -28,6 +31,7 @@ python -u follower.py --local-addr=localhost:50052                     \
                       --export-path=model/follower/saved_model         \
                       --save-checkpoint-steps=10                       \
                       --epoch-num=2                                    \
+                      --cluster-spec='{"clusterSpec":{"PS":["localhost:40061"]}}'          \
                       --loglevel=info &
 
 wait
