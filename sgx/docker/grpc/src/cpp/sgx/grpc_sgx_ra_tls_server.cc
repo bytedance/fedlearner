@@ -33,11 +33,14 @@ std::vector<std::string> get_server_key_cert() {
   mbedtls_pk_init(&pkey);
 
   library_engine ra_tls_attest_lib("libra_tls_attest.so", RTLD_LAZY);
-  auto ra_tls_create_key_and_crt_f = reinterpret_cast<int (*)(mbedtls_pk_context*, mbedtls_x509_crt*)>(ra_tls_attest_lib.get_func("ra_tls_create_key_and_crt"));
+  auto ra_tls_create_key_and_crt_f =
+    reinterpret_cast<int (*)(mbedtls_pk_context*, mbedtls_x509_crt*)>(
+      ra_tls_attest_lib.get_func("ra_tls_create_key_and_crt"));
 
   int ret = (*ra_tls_create_key_and_crt_f)(&pkey, &srvcert);
   if (ret != 0) {
-      throw std::runtime_error(std::string("ra_tls_create_key_and_crt failed and returned %d\n\n", ret));
+    throw std::runtime_error(
+      std::string("ra_tls_create_key_and_crt_f error: %s\n", mbedtls_high_level_strerr(ret)));
   }
 
   unsigned char private_key_pem[16000], cert_pem[16000];
@@ -45,14 +48,16 @@ std::vector<std::string> get_server_key_cert() {
 
   ret = mbedtls_pk_write_key_pem(&pkey, private_key_pem, 16000);
   if (ret != 0) {
-    throw std::runtime_error(std::string("something went wrong while extracting private key\n\n"));
+    throw std::runtime_error(
+      std::string("mbedtls_pk_write_key_pem error: %s\n", mbedtls_high_level_strerr(ret)));
   }
 
   ret = mbedtls_pem_write_buffer(PEM_BEGIN_CRT, PEM_END_CRT,
                                  srvcert.raw.p, srvcert.raw.len,
                                  cert_pem, 16000, &olen);
   if (ret != 0) {
-    throw std::runtime_error(std::string("mbedtls_pem_write_buffer failed\n\n"));
+    throw std::runtime_error(
+      std::string("mbedtls_pem_write_buffer error: %s\n", mbedtls_high_level_strerr(ret)));
   };
 
   std::vector<std::string> key_cert;
@@ -68,7 +73,8 @@ std::vector<std::string> get_server_key_cert() {
   return key_cert;
 };
 
-std::vector<grpc::experimental::IdentityKeyCertPair> get_server_identity_key_cert_pairs(std::vector<std::string> key_cert) {
+std::vector<grpc::experimental::IdentityKeyCertPair> get_server_identity_key_cert_pairs(
+    std::vector<std::string> key_cert) {
   grpc::experimental::IdentityKeyCertPair key_cert_pair;
   key_cert_pair.private_key = key_cert[0];
   key_cert_pair.certificate_chain = key_cert[1];

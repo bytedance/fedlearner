@@ -30,7 +30,7 @@ namespace sgx {
 void parse_args(const char * mr_enclave, const char * mr_signer,
                 const char * isv_prod_id, const char * isv_svn);
 
-void ra_tls_verify_init();
+void ra_tls_verify_init(bool in_enclave);
 
 int server_auth_check_schedule(void* /* config_user_data */,
                                grpc_tls_server_authorization_check_arg* arg);

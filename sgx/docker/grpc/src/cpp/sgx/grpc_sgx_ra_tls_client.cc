@@ -37,8 +37,8 @@ static int (*ra_tls_verify_callback_f)(uint8_t* der_crt, size_t der_crt_size) = 
 static std::shared_ptr<TlsServerAuthorizationCheck> server_authorization_check = nullptr;
 static std::shared_ptr<grpc::experimental::TlsServerAuthorizationCheckConfig> server_authorization_check_config = nullptr;
 
-static library_engine helper_sgx_urts_lib("libsgx_urts.so", RTLD_NOW | RTLD_GLOBAL);
-static library_engine ra_tls_verify_lib("libra_tls_verify_dcap.so", RTLD_LAZY);
+static class library_engine helper_sgx_urts_lib;
+static class library_engine ra_tls_verify_lib;
 
 static char g_expected_mr_enclave[32];
 static char g_expected_mr_signer[32];
@@ -128,13 +128,24 @@ int ra_tls_verify_measurements_callback(const char* mr_enclave, const char* mr_s
     }
 }
 
-void ra_tls_verify_init() {
-  ra_tls_verify_callback_f = reinterpret_cast<int (*)(uint8_t* der_crt, size_t der_crt_size)>(ra_tls_verify_lib.get_func("ra_tls_verify_callback_der"));
+void ra_tls_verify_init(bool in_enclave = true) {
+  if (in_enclave) {
+    ra_tls_verify_lib.open("libra_tls_verify_dcap_graphene.so", RTLD_LAZY);
+  } else {
+    helper_sgx_urts_lib.open("libsgx_urts.so", RTLD_NOW | RTLD_GLOBAL);
+    ra_tls_verify_lib.open("libra_tls_verify_dcap.so", RTLD_LAZY);
+  }
 
-  auto ra_tls_set_measurement_callback_f = reinterpret_cast<void (*)(int (*f_cb)(const char *mr_enclave,
-                                                                                 const char *mr_signer,
-                                                                                 const char *isv_prod_id,
-                                                                                 const char *isv_svn))>(ra_tls_verify_lib.get_func("ra_tls_set_measurement_callback"));
+  ra_tls_verify_callback_f =
+    reinterpret_cast<int (*)(uint8_t* der_crt, size_t der_crt_size)>(
+      ra_tls_verify_lib.get_func("ra_tls_verify_callback_der"));
+
+  auto ra_tls_set_measurement_callback_f =
+    reinterpret_cast<void (*)(int (*f_cb)(const char *mr_enclave,
+                                          const char *mr_signer,
+                                          const char *isv_prod_id,
+                                          const char *isv_svn))>(
+      ra_tls_verify_lib.get_func("ra_tls_set_measurement_callback"));
   (*ra_tls_set_measurement_callback_f)(ra_tls_verify_measurements_callback);
 }
 
@@ -149,7 +160,7 @@ int server_auth_check_schedule(void* /* config_user_data */,
   int ret = (*ra_tls_verify_callback_f)(reinterpret_cast<uint8_t *>(der_crt), 16000);
 
   if (ret != 0) {
-    grpc_printf("something went wrong while verifying quote\n");
+    grpc_printf("ra_tls_verify_callback_f error: %s\n", mbedtls_high_level_strerr(ret));
     arg->success = 0;
     arg->status = GRPC_STATUS_UNAUTHENTICATED;
   } else {
@@ -173,9 +184,8 @@ class TlsServerAuthorizationCheck
     // grpc_printf("%s\n", der_crt);
 
     int ret = (*ra_tls_verify_callback_f)(reinterpret_cast<uint8_t *>(der_crt), 16000);
-
     if (ret != 0) {
-      grpc_printf("something went wrong while verifying quote\n");
+      grpc_printf("ra_tls_verify_callback_f error: %s\n", mbedtls_high_level_strerr(ret));
       arg->set_success(0);
       arg->set_status(GRPC_STATUS_UNAUTHENTICATED);
     } else {
@@ -197,19 +207,20 @@ std::shared_ptr<grpc::ChannelCredentials> TlsCredentials(
     const char* isv_prod_id, const char* isv_svn) {
   parse_args(mr_enclave, mr_signer, isv_prod_id, isv_svn);
 
-  ra_tls_verify_init();
+  ra_tls_verify_init(true);
 
   grpc::experimental::TlsChannelCredentialsOptions options;
   options.set_server_verification_option(GRPC_TLS_SKIP_ALL_SERVER_VERIFICATION);
   server_authorization_check = std::make_shared<TlsServerAuthorizationCheck>();
-  server_authorization_check_config = std::make_shared<grpc::experimental::TlsServerAuthorizationCheckConfig>(
-          server_authorization_check);
+  server_authorization_check_config =
+    std::make_shared<grpc::experimental::TlsServerAuthorizationCheckConfig>(server_authorization_check);
   options.set_server_authorization_check_config(server_authorization_check_config);
 
   return grpc::experimental::TlsCredentials(options);
 };
 
-std::shared_ptr<grpc::Channel> CreateSecureChannel(string target_str, std::shared_ptr<grpc::ChannelCredentials> channel_creds) {
+std::shared_ptr<grpc::Channel> CreateSecureChannel(
+    string target_str, std::shared_ptr<grpc::ChannelCredentials> channel_creds) {
   GPR_ASSERT(channel_creds.get() != nullptr);
   auto channel_args = grpc::ChannelArguments();
   channel_args.SetSslTargetNameOverride("RATLS");

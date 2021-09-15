@@ -130,7 +130,7 @@ cdef extern from "grpcpp/security/sgx/grpc_sgx_ra_tls.h" namespace "grpc::sgx":
     const char *, const char *, const char *, const char *);
 
 cdef extern from "grpcpp/security/sgx/grpc_sgx_ra_tls.h" namespace "grpc::sgx":
-  cdef void sgx_ra_tls_verify_init "grpc::sgx::ra_tls_verify_init"();
+  cdef void sgx_ra_tls_verify_init "grpc::sgx::ra_tls_verify_init"(bool);
 
 cdef extern from "grpcpp/security/sgx/grpc_sgx_ra_tls.h" namespace "grpc::sgx":
   cdef int sgx_server_auth_check_schedule "grpc::sgx::server_auth_check_schedule"(

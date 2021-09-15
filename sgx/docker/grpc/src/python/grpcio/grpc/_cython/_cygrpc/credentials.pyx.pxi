@@ -446,7 +446,7 @@ cdef class SGXChannelCredentials(ChannelCredentials):
                 const char* s_isv_prod_id,
                 const char* s_isv_svn):
     sgx_parse_args(s_mr_enclave, s_mr_signer, s_isv_prod_id, s_isv_svn)
-    sgx_ra_tls_verify_init()
+    sgx_ra_tls_verify_init(1)
     self.c_options = grpc_tls_credentials_options_create()
     grpc_tls_credentials_options_set_server_verification_option(
       self.c_options, GRPC_TLS_SKIP_ALL_SERVER_VERIFICATION)
