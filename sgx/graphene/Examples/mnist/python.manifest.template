@@ -9,7 +9,6 @@ loader.preload = "file:{{ graphene.libos }}"
 
 # Graphene log level
 loader.log_level = "{{ log_level }}"
-#loader.log_file = "/tmp/fl.log"
 
 # Read application arguments directly from the command line. Don't use this on production!
 loader.insecure__use_cmdline_argv = true 
@@ -22,11 +21,6 @@ loader.env.SECRET_PROVISION_SET_PF_KEY = "1"
 
 # Environment variables for Python
 loader.env.LD_LIBRARY_PATH = "{{ python.stdlib }}/lib:/lib:{{ arch_libdir }}:/usr/lib:/usr/{{ arch_libdir }}"
-loader.env.tensorflow_session_parallelism = "{{ session_parallelism }}"
-loader.env.tensorflow_intra_op_parallelism = "{{ intra_op_parallelism }}"
-loader.env.tensorflow_inter_op_parallelism = "{{ inter_op_parallelism }}"
-loader.env.OMP_NUM_THREADS = "{{ OMP_NUM_THREADS }}"
-loader.env.MKL_NUM_THREADS = "{{ MKL_NUM_THREADS }}"
 
 # Allow for injecting SIGTERM signal from the host.
 sys.enable_sigterm_injection = 1
@@ -86,30 +80,16 @@ sys.stack.size = "128M"
 # thread for handling inter-process communication (IPC), and potentially another
 # thread for asynchronous events. Therefore, the actual number of threads that
 # the application can create is (sgx.thread_num - 2).
-sgx.thread_num = 512
+sgx.thread_num = 512 
 
 sgx.nonpie_binary = true
 sgx.remote_attestation = true
-
-# SGX trusted libraries
-
-
-
-# python local library
-
-# etc files required by Python
-sgxgtrusted_files.mimetypes = "file:/etc/mime.types"
-
-# Name Service Switch (NSS) and getaddrinfo(3) configuration files
-
-# SGX untrusted (allowed) files/directories
-
-# Project Configure
 
 fs.mount.keras.type = "chroot"
 fs.mount.keras.path = "/root/.keras/keras.json"
 fs.mount.keras.uri = "file:/root/.keras/keras.json"
 
+# SGX trusted libraries
 sgx.trusted_files = [
   "file:{{ entrypoint }}",
   "file:{{ graphene.runtimedir() }}/",
@@ -121,8 +101,8 @@ sgx.trusted_files = [
   "file:leader.py",
   "file:follower.py",
   "file:/etc/mime.types",
-  "file:/etc/default/apport",
-  "file:/etc/sgx_default_qcnl.conf"
+  "file:train.py",
+  "file:/etc/default/apport"
 ]
 
 sgx.allowed_files = [
@@ -143,12 +123,12 @@ sgx.allowed_files = [
   "file:/root/.keras/keras.json",
   "file:data",
   "file:tensorflow_io.py",
-  "file:custom_env",
   "file:/etc/ssl/certs",
   "file:/usr/lib/ssl",
   "file:/usr/bin/ld",
   "file:/usr/bin/gcc",
   "file:/usr/bin/objdump",
+  "file:/etc/sgx_default_qcnl.conf"
 ]
 
 sgx.protected_files = [

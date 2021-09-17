@@ -109,7 +109,7 @@ class DefaultCredentialsProvider : public CredentialsProvider {
       return grpc::experimental::AltsServerCredentials(alts_opts);
     } else if (type == grpc::sgx::kTlsCredentialsType) {
       SslServerCredentialsOptions ssl_opts;
-      ssl_opts.pem_root_certs = "";
+      ssl_opts.pem_root_certs = "root_cert_name";
       if (!custom_server_key_.empty() && !custom_server_cert_.empty()) {
         SslServerCredentialsOptions::PemKeyCertPair pkcp = {
             custom_server_key_, custom_server_cert_};
@@ -119,7 +119,7 @@ class DefaultCredentialsProvider : public CredentialsProvider {
                                                             custom_server_cert_};
         ssl_opts.pem_key_cert_pairs.push_back(pkcp);
       }
-      return SslServerCredentials(ssl_opts);
+	  return SslServerCredentials(ssl_opts);
     } else {
       std::unique_lock<std::mutex> lock(mu_);
       auto it(std::find(added_secure_type_names_.begin(),

@@ -145,6 +145,7 @@ set(hw_proto_srcs "${CMAKE_CURRENT_BINARY_DIR}/helloworld.pb.cc")
 set(hw_proto_hdrs "${CMAKE_CURRENT_BINARY_DIR}/helloworld.pb.h")
 set(hw_grpc_srcs "${CMAKE_CURRENT_BINARY_DIR}/helloworld.grpc.pb.cc")
 set(hw_grpc_hdrs "${CMAKE_CURRENT_BINARY_DIR}/helloworld.grpc.pb.h")
+
 add_custom_command(
       OUTPUT "${hw_proto_srcs}" "${hw_proto_hdrs}" "${hw_grpc_srcs}" "${hw_grpc_hdrs}"
       COMMAND ${_PROTOBUF_PROTOC}
@@ -160,7 +161,7 @@ include_directories("${CMAKE_CURRENT_BINARY_DIR}")
 
 # Targets greeter_[async_](client|server)
 foreach(_target
-  greeter_client greeter_server)
+  greeter_client greeter_server greeter_async_client greeter_async_server streaming_server streaming_client)
   add_executable(${_target} "${_target}.cc" "grpc_sgx_ra_tls_client.cc" "grpc_sgx_ra_tls_server.cc" "grpc_sgx_ra_tls_utils.cc" "grpc_sgx_credentials_provider.cc"
     ${hw_proto_srcs}
     ${hw_grpc_srcs})

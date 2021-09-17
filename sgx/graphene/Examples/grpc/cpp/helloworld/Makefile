@@ -31,7 +31,9 @@ endif
 .PHONY: all
 all: grpc-server.manifest
 ifeq ($(SGX),1)
-all: grpc-server.manifest.sgx grpc-server.sig grpc-server.token
+all: grpc-server.manifest.sgx grpc-server.token grpc-server.sig \
+		grpc-async-server.manifest.sgx grpc-async-server.token grpc-async-server.sig \
+		streaming-server.manifest.sgx streaming-server.token streaming-server.sig
 endif
 
 include $(GRAPHENEDIR)/Scripts/Makefile.configs
@@ -42,7 +44,7 @@ include $(GRAPHENEDIR)/Scripts/Makefile.configs
 # under Graphene / Graphene-SGX. We create grpc-server.manifest (to be run under
 # non-SGX Graphene) by simply replacing variables in the template file via sed.
 
-grpc-server.manifest: grpc-server.manifest.template
+%.manifest: %.manifest.template
 	graphene-manifest \
 		-Dlog_level=$(GRAPHENE_LOG_LEVEL) \
 		-Darch_libdir=$(ARCH_LIBDIR) \
@@ -58,19 +60,16 @@ grpc-server.manifest: grpc-server.manifest.template
 # "redis-server"). EINITTOKEN must be generated on the machine where the application will run, not
 # where it was built.
 
-# Make on Ubuntu <= 20.04 doesn't support "Rules with Grouped Targets" (`&:`),
-# we need to hack around.
-grpc-server.sig grpc-server.manifest.sgx: sgx_outputs
-	@:
-
-.INTERMEDIATE: sgx_outputs
-sgx_outputs: grpc-server.manifest
+%.manifest.sgx: %.manifest
 	graphene-sgx-sign \
 		--key $(SGX_SIGNER_KEY) \
-		--manifest grpc-server.manifest \
-		--output grpc-server.manifest.sgx
+		--manifest $< \
+		--output $@ 
 
-grpc-server.token: grpc-server.sig
+%.sig: %.manifest.sgx
+	@echo "go, go, go\n"
+
+%.token: %.sig
 	graphene-sgx-get-token --output $@ --sig $<
 
 ############################## RUNNING TESTS ##################################

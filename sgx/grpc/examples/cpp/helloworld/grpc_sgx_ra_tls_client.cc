@@ -152,7 +152,7 @@ class TlsServerAuthorizationCheck
 
         int ret = (*ra_tls_verify_callback_f)(reinterpret_cast<uint8_t *>(cert_pem), 16000);
         if (ret != 0) {
-            mbedtls_printf("something went wrong while verifying quote");
+            mbedtls_printf("something went wrong while verifying quote, error: %s\n", mbedtls_high_level_strerr(ret));
             arg->set_success(0);
             arg->set_status(GRPC_STATUS_UNAUTHENTICATED);
             return 0;
