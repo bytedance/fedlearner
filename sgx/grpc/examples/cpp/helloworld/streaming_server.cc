@@ -67,6 +67,7 @@ class GreeterServiceImpl final : public Greeter::Service {
     HelloRequest request;
     while (stream->Read(&request)) {
       HelloReply response;
+	  std::cout << "reading " << request.name() << std::endl;
       response.set_message(get_value_from_map(request.name().c_str()));
       stream->Write(response);
     }
@@ -84,7 +85,6 @@ struct argparser {
 };
 
 void RunServer() {
-  std::string server_address("0.0.0.0:50051");
   GreeterServiceImpl service;
 
   argparser args;
@@ -97,13 +97,13 @@ void RunServer() {
 	  creds = std::move(grpc::InsecureServerCredentials());
   }
 
-  builder.AddListeningPort(server_address, creds);
+  builder.AddListeningPort(args.server_address, creds);
   // Register "service" as the instance through which we'll communicate with
   // clients. In this case, it corresponds to an *synchronous* service.
   builder.RegisterService(&service);
   // Finally assemble the server.
   std::unique_ptr<Server> server(builder.BuildAndStart());
-  std::cout << "Server listening on " << server_address << std::endl;
+  std::cout << "Server listening on " << args.server_address << std::endl;
 
   // Wait for the server to shutdown. Note that some other thread must be
   // responsible for shutting down the server for this call to ever return.

@@ -70,7 +70,9 @@ class GreeterClient {
     // Context for the client. It could be used to convey extra information to
     // the server and/or tweak certain RPC behaviors.
     ClientContext context;
+	std::cout << "get value begin" << std::endl;
     auto stream = stub_->GetValues(&context);
+	std::cout << "get value end" << std::endl;
     for (const auto& key : keys) {
       // Key we are sending to the server.
       HelloRequest request;
@@ -111,17 +113,19 @@ int main(int argc, char** argv) {
 	}
 
   grpc::ChannelArguments cargs;
+  std::cout << "connecting"  << std::endl;
   std::vector<
       std::unique_ptr<grpc::experimental::ClientInterceptorFactoryInterface>>
       interceptor_creators;
   interceptor_creators.push_back(std::unique_ptr<CachingInterceptorFactory>(
       new CachingInterceptorFactory()));
   auto channel = grpc::experimental::CreateCustomChannelWithInterceptors(
-      "localhost:50051", creds, cargs,
-      std::move(interceptor_creators));
+      args.server_address, creds, cargs, std::move(interceptor_creators));
+  std::cout << "channel"  << std::endl;
   GreeterClient client(channel);
   std::vector<std::string> keys = {"key1", "key2", "key3", "key4",
                                    "key5", "key1", "key2", "key4"};
+  std::cout << "get values"  << std::endl;
   client.GetValues(keys);
 
   return 0;
