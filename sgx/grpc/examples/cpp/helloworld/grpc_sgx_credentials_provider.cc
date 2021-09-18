@@ -109,7 +109,7 @@ class DefaultCredentialsProvider : public CredentialsProvider {
       return grpc::experimental::AltsServerCredentials(alts_opts);
     } else if (type == grpc::sgx::kTlsCredentialsType) {
       SslServerCredentialsOptions ssl_opts;
-      ssl_opts.pem_root_certs = "root_cert_name";
+      ssl_opts.pem_root_certs = custom_server_cert_;
       if (!custom_server_key_.empty() && !custom_server_cert_.empty()) {
         SslServerCredentialsOptions::PemKeyCertPair pkcp = {
             custom_server_key_, custom_server_cert_};

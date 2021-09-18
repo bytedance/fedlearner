@@ -74,55 +74,6 @@ namespace sgx {
   return pkcp;
 }
 
-typedef class ::grpc_impl::experimental::TlsKeyMaterialsConfig
-TlsKeyMaterialsConfig;
-typedef class ::grpc_impl::experimental::TlsCredentialReloadArg
-TlsCredentialReloadArg;
-typedef struct ::grpc_impl::experimental::TlsCredentialReloadInterface
-TlsCredentialReloadInterface;
-typedef class ::grpc_impl::experimental::TlsServerAuthorizationCheckArg
-TlsServerAuthorizationCheckArg;
-typedef struct ::grpc_impl::experimental::TlsServerAuthorizationCheckInterface
-TlsServerAuthorizationCheckInterface;
-
-class TestTlsCredentialReload : public TlsCredentialReloadInterface {
-    int Schedule(TlsCredentialReloadArg* arg) override {
-        if (!arg->is_pem_key_cert_pair_list_empty()) {
-            arg->set_status(GRPC_SSL_CERTIFICATE_CONFIG_RELOAD_UNCHANGED);
-            return 0;
-        }
-        GPR_ASSERT(arg != nullptr);
-        auto key_pair = get_cred_key_pair();
-        struct TlsKeyMaterialsConfig::PemKeyCertPair pair3 = { key_pair.private_key.c_str(),
-            key_pair.cert_chain.c_str()};
-        arg->set_pem_root_certs("new_pem_root_certs");
-        arg->add_pem_key_cert_pair(pair3);
-        arg->set_status(GRPC_SSL_CERTIFICATE_CONFIG_RELOAD_NEW);
-        return 0;
-    }
-
-    void Cancel(TlsCredentialReloadArg* arg) override {
-        GPR_ASSERT(arg != nullptr);
-        arg->set_status(GRPC_SSL_CERTIFICATE_CONFIG_RELOAD_FAIL);
-        arg->set_error_details("cancelled");
-    }
-};
-
-
-class TestTlsServerAuthorizationCheck
-: public TlsServerAuthorizationCheckInterface {
-    int Schedule(TlsServerAuthorizationCheckArg* arg) override {
-        GPR_ASSERT(arg != nullptr);
-        return 0;
-    }
-
-    void Cancel(TlsServerAuthorizationCheckArg* arg) override {
-        GPR_ASSERT(arg != nullptr);
-        arg->set_status(GRPC_STATUS_PERMISSION_DENIED);
-        arg->set_error_details("cancelled");
-    }
-};
-
 std::shared_ptr<grpc::ServerCredentials> TlsServerCredentials() {
   using namespace ::grpc_impl::experimental;
   auto key_pair = get_cred_key_pair();
