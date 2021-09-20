@@ -89,8 +89,10 @@ class GreeterClient {
     if (!status.ok()) {
       std::cout << status.error_code() << ": " << status.error_message()
                 << std::endl;
-      std::cout << "RPC failed";
-    }
+      std::cout << "RPC failed\n";
+    } else {
+		std::cout << "RPC success!" << std::endl;
+	}
   }
 
  private:

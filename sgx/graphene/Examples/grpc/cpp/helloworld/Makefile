@@ -33,7 +33,8 @@ all: grpc-server.manifest
 ifeq ($(SGX),1)
 all: grpc-server.manifest.sgx grpc-server.token grpc-server.sig \
 		grpc-async-server.manifest.sgx grpc-async-server.token grpc-async-server.sig \
-		streaming-server.manifest.sgx streaming-server.token streaming-server.sig
+		streaming-server.manifest.sgx streaming-server.token streaming-server.sig  \
+		streaming-client.manifest.sgx streaming-client.token streaming-client.sig
 endif
 
 include $(GRAPHENEDIR)/Scripts/Makefile.configs
