@@ -124,7 +124,7 @@ index d6237e10439..8a7f0e7db64 100755
      tf_http_archive(
          name = "com_github_grpc_grpc",
 -        sha256 = "b956598d8cbe168b5ee717b5dafa56563eb5201a947856a6688bbeac9cac4e1f",
-+        sha256 = "b6783a2724cdfe2826ea92477812fddcf329f9b6e403f27a3b0194e7994cd29e",
++        sha256 = "651b578841bc76ce50d0046eef8b4b1cdd22049b3a635547d31ca8b28eb829c8",
          strip_prefix = "grpc-b54a5b338637f92bfcf4b0bc05e0f57a5fd8fadd",
          system_build_file = clean_dep("//third_party/systemlibs:grpc.BUILD"),
          patch_file = clean_dep("//third_party/grpc:generate_cc_env_fix.patch"),

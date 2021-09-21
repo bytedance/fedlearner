@@ -15,3 +15,55 @@ index 701fd3b150..0826d05933 100644
    return new TlsCredentials(
        grpc_core::RefCountedPtr<grpc_tls_credentials_options>(options));
  }
+diff --git a/src/core/lib/security/security_connector/alts/alts_security_connector.cc b/src/core/lib/security/security_connector/alts/alts_security_connector.cc
+index 1274edb6e6..cdfe9834dd 100644
+--- a/src/core/lib/security/security_connector/alts/alts_security_connector.cc
++++ b/src/core/lib/security/security_connector/alts/alts_security_connector.cc
+@@ -108,6 +108,8 @@ class grpc_alts_channel_security_connector final
+                        grpc_auth_context* /*auth_context*/,
+                        grpc_closure* /*on_call_host_checked*/,
+                        grpc_error** error) override {
++	*error = GRPC_ERROR_NONE;
++	return true;
+     if (host.empty() || host != target_name_) {
+       *error = GRPC_ERROR_CREATE_FROM_STATIC_STRING(
+           "ALTS call host does not match target name");
+diff --git a/src/core/lib/security/security_connector/local/local_security_connector.cc b/src/core/lib/security/security_connector/local/local_security_connector.cc
+index 6fb770d7ad..61f454509e 100644
+--- a/src/core/lib/security/security_connector/local/local_security_connector.cc
++++ b/src/core/lib/security/security_connector/local/local_security_connector.cc
+@@ -186,6 +186,8 @@ class grpc_local_channel_security_connector final
+                        grpc_auth_context* /*auth_context*/,
+                        grpc_closure* /*on_call_host_checked*/,
+                        grpc_error** error) override {
++	*error = GRPC_ERROR_NONE;
++	return true;
+     if (host.empty() || host != target_name_) {
+       *error = GRPC_ERROR_CREATE_FROM_STATIC_STRING(
+           "local call host does not match target name");
+diff --git a/src/core/lib/security/security_connector/ssl/ssl_security_connector.cc b/src/core/lib/security/security_connector/ssl/ssl_security_connector.cc
+index 13b0dd59a0..a60637b7c2 100644
+--- a/src/core/lib/security/security_connector/ssl/ssl_security_connector.cc
++++ b/src/core/lib/security/security_connector/ssl/ssl_security_connector.cc
+@@ -190,6 +190,8 @@ class grpc_ssl_channel_security_connector final
+                        grpc_auth_context* auth_context,
+                        grpc_closure* /*on_call_host_checked*/,
+                        grpc_error** error) override {
++	*error = GRPC_ERROR_NONE;
++	return true;
+     grpc_security_status status = GRPC_SECURITY_ERROR;
+     tsi_peer peer = grpc_shallow_peer_from_ssl_auth_context(auth_context);
+     if (grpc_ssl_host_matches_name(&peer, host)) status = GRPC_SECURITY_OK;
+diff --git a/src/core/lib/security/security_connector/ssl_utils.cc b/src/core/lib/security/security_connector/ssl_utils.cc
+index 2c2d706673..6c62e73040 100644
+--- a/src/core/lib/security/security_connector/ssl_utils.cc
++++ b/src/core/lib/security/security_connector/ssl_utils.cc
+@@ -169,6 +169,8 @@ bool grpc_ssl_check_call_host(grpc_core::StringView host,
+                               grpc_auth_context* auth_context,
+                               grpc_closure* /*on_call_host_checked*/,
+                               grpc_error** error) {
++  *error = GRPC_ERROR_NONE;
++  return true;
+   grpc_security_status status = GRPC_SECURITY_ERROR;
+   tsi_peer peer = grpc_shallow_peer_from_ssl_auth_context(auth_context);
+   if (grpc_ssl_host_matches_name(&peer, host)) status = GRPC_SECURITY_OK;

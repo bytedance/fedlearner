@@ -41,11 +41,8 @@ static std::shared_ptr<grpc_impl::experimental::TlsServerAuthorizationCheckConfi
 
 //static library_engine helper_sgx_urts_lib("libsgx_urts.so", RTLD_NOW | RTLD_GLOBAL);
 //static library_engine ra_tls_verify_lib("libra_tls_verify_dcap.so", RTLD_LAZY);
-static library_engine helper_sgx_urts_lib;//("libsgx_urts.so", RTLD_NOW | RTLD_GLOBAL);
-static library_engine ra_tls_verify_lib;//("libra_tls_verify_dcap.so", RTLD_LAZY);
-
-
-//static library_engine ra_tls_verify_lib("libra_tls_verify_dcap_graphene.so", RTLD_LAZY);
+static library_engine helper_sgx_urts_lib;
+static library_engine ra_tls_verify_lib;
 
 static char g_expected_mrenclave[32];
 static char g_expected_mrsigner[32];
@@ -164,7 +161,7 @@ class TlsServerAuthorizationCheck
 
         int ret = (*ra_tls_verify_callback_f)(reinterpret_cast<uint8_t *>(cert_pem), 16000);
         if (ret != 0) {
-            mbedtls_printf("something went wrong while verifying quote, code: %d\n", ret);
+            mbedtls_printf("something went wrong while verifying quote, error: %s\n", mbedtls_high_level_strerr(ret));
             arg->set_success(0);
             arg->set_status(GRPC_STATUS_UNAUTHENTICATED);
             return 0;

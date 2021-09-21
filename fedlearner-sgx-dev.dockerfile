@@ -4,8 +4,6 @@ FROM ubuntu:18.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-COPY sgx/configs/etc/apt/sources.list /etc/apt/sources.list
-
 # Add steps here to set up dependencies
 RUN apt-get update \
     && apt-get install -y --no-install-recommends apt-utils \
