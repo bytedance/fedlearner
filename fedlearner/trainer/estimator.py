@@ -190,8 +190,8 @@ class FLEstimator(object):
 
             hooks = []
             # stats
-            hooks.append(TraceStatsHook(
-                every_secs=30, stats_client=_gctx.stats_client))
+            # hooks.append(TraceStatsHook(
+            #       every_secs=30, stats_client=_gctx.stats_client))
             # user define chief hook
             if spec.training_chief_hooks and self._is_chief:
                 hooks.extend(spec.training_chief_hooks)
