@@ -22,8 +22,6 @@ function make_custom_env() {
     export session_parallelism=0
     export intra_op_parallelism=2
     export inter_op_parallelism=2
-    export OMP_NUM_THREADS=2
-    export MKL_NUM_THREADS=2
 }
 
 #make_custom_env
