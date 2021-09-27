@@ -32,8 +32,6 @@ python.manifest: python.manifest.template
 		-Dsession_parallelism=$(session_parallelism) \
 		-Dintra_op_parallelism=$(intra_op_parallelism) \
 		-Dinter_op_parallelism=$(inter_op_parallelism) \
-		-DOMP_NUM_THREADS=$(OMP_NUM_THREADS) \
-		-DMKL_NUM_THREADS=$(MKL_NUM_THREADS) \
 		-Dentrypoint=$(realpath $(shell sh -c "command -v python3")) \
 		$< >$@
 
