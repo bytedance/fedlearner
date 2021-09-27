@@ -114,6 +114,7 @@ class StepLossAucMetricsHook(GlobalStepMetricTensorHook):
                                                      every_steps=every_n_iter)
 
 
+# NOTE(whisylan): maybe lead to memory leak
 class TraceStatsHook(tf.train.SessionRunHook):
     def __init__(self,
                  timing_topn=20,
