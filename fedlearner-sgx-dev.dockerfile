@@ -66,16 +66,19 @@ RUN cd ${GRAPHENEDIR} \
     && ninja -C build \
     && ninja -C build install
 
-
 # Translate runtime symlinks to files
 RUN for f in $(find ${GRAPHENEDIR}/Runtime -type l); do cp --remove-destination $(realpath $f) $f; done
 
 ## GRPC
-#ENV GRPC_PATH=/grpc
 ENV INSTALL_PREFIX=/usr/local
 ENV LD_LIBRARY_PATH=${INSTALL_PREFIX}/lib:${LD_LIBRARY_PATH}
 ENV PATH=${INSTALL_PREFIX}/bin:${LD_LIBRARY_PATH}:${PATH}
 
+RUN pip3 install --upgrade pip setuptools==44.1.1
+RUN openssl genrsa -3 -out ${SGX_SIGNER_KEY} 3072
+
+## GRPC deps
+#ENV GRPC_PATH=/grpc
 #RUN mkdir -p ${INSTALL_PREFIX} \
 #    && wget -q -O cmake-linux.sh https://github.com/Kitware/CMake/releases/download/v3.19.6/cmake-3.19.6-Linux-x86_64.sh \
 #    && sh cmake-linux.sh -- --skip-license --prefix=${INSTALL_PREFIX} \
@@ -89,23 +92,11 @@ ENV PATH=${INSTALL_PREFIX}/bin:${LD_LIBRARY_PATH}:${PATH}
 #    && pip3 install --upgrade pip setuptools==44.1.1 \
 #    && pip3 install -r requirements.txt
 
-RUN pip3 install --upgrade pip setuptools==44.1.1
-COPY sgx/graphene ${GRAPHENEDIR}
-COPY sgx/fedlearner ${FEDLEARNER_PATH}
-#COPY sgx/grpc ${GRPC_PATH}
-COPY sgx/configs /
-
-RUN openssl genrsa -3 -out ${SGX_SIGNER_KEY} 3072
-
-#COPY sgx/grpc/build_install.sh ${GRPC_PATH}
-#RUN cd ${GRPC_PATH} && git apply grpc_skip_client_sanity_check.diff && ${GRPC_PATH}/build_install.sh
-
-# tensorflow
+# Tensorflow deps
 ENV BAZEL_VERSION=3.1.0
 RUN wget "https://github.com/bazelbuild/bazel/releases/download/${BAZEL_VERSION}/bazel_${BAZEL_VERSION}-linux-x86_64.deb" \
  && dpkg -i bazel_*.deb
 
-## deps 
 RUN pip install numpy keras_preprocessing 
 RUN ln -s  /usr/bin/python3.6 /usr/bin/python
 
@@ -114,30 +105,39 @@ ENV TF_BUILD_PATH=/tf/src
 ENV TF_BUILD_OUTPUT=/tf/output
 RUN git clone --recurse-submodules -b ${TF_VERSION} https://github.com/tensorflow/tensorflow ${TF_BUILD_PATH}
 
-## git apply diff
-COPY sgx/tf ${TF_BUILD_PATH} 
-RUN cd ${TF_BUILD_PATH} && git apply sgx_tls_sample.diff
-
-## mbedtls
-RUN cd ${TF_BUILD_PATH} && ./build.sh
-
-RUN cd ${TF_BUILD_PATH} && bazel build -c opt //tensorflow/tools/pip_package:build_pip_package
-
-# Fedlearner
+# Fedlearner deps
 ENV FEDLEARNER_PATH=/fedlearner
 RUN apt-get update
 RUN apt-get install -y libgmp-dev libmpfr-dev libmpc-dev libmysqlclient-dev
+
+# GRPC build
+#COPY sgx/grpc ${GRPC_PATH}
+#COPY sgx/grpc/build_install.sh ${GRPC_PATH}
+#RUN cd ${GRPC_PATH} && git apply grpc_skip_client_sanity_check.diff && ${GRPC_PATH}/build_install.sh
+
+## Tensorflow build
 COPY . ${FEDLEARNER_PATH}
+COPY sgx/graphene ${GRAPHENEDIR}
+COPY sgx/tf ${TF_BUILD_PATH}
+
+RUN cd ${TF_BUILD_PATH} && git apply sgx_tls_sample.diff
+RUN cd ${TF_BUILD_PATH} && ./build.sh
+RUN cd ${TF_BUILD_PATH} && bazel build -c opt //tensorflow/tools/pip_package:build_pip_package
+
+# Fedlearner build
+COPY sgx/fedlearner ${FEDLEARNER_PATH}
 RUN pip3 install --upgrade pip setuptools \
     && pip3 install -r ${FEDLEARNER_PATH}/requirements.txt
 RUN ${FEDLEARNER_PATH}/sgx/fedlearner/build_install.sh
-# uninstall tensorflow_io, mock it
-RUN pip uninstall -y tensorflow-io
-RUN pip uninstall -y tensorflow
 
-# re-install tensorflow
+# Re-install tensorflow, uninstall tensorflow_io, mock it
+RUN pip uninstall -y tensorflow tensorflow-io
 RUN cd ${TF_BUILD_PATH} && bazel-bin/tensorflow/tools/pip_package/build_pip_package ${TF_BUILD_OUTPUT} && pip install ${TF_BUILD_OUTPUT}/tensorflow-*-cp36-cp36m-linux_x86_64.whl
 RUN cd ${FEDLEARNER_PATH} && make op && cp ./cc/embedding.so /usr/local/lib/python3.6/dist-packages/cc
+
+# Re-install grpcio
+
+COPY sgx/configs /
 
 # https://askubuntu.com/questions/93457/how-do-i-enable-or-disable-apport
 RUN echo "enabled=0" > /etc/default/apport

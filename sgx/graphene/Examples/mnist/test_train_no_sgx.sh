@@ -20,8 +20,8 @@ function make_custom_env() {
     # make no sense right now
     export parallel_num_threads=2
     export session_parallelism=0
-    export intra_op_parallelism=2
-    export inter_op_parallelism=2
+    export intra_op_parallelism=$parallel_num_threads
+    export inter_op_parallelism=$parallel_num_threads
 }
 
 #make_custom_env
