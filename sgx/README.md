@@ -1,7 +1,6 @@
-# MNIST
+# FL on SGX
 
-This directory contains steps and artifacts to run a MNIST sample workload on
-Graphene.
+FL on SGX is a privacy-preserving federated machine learning framework. In this work, we implement remote attestation on GRPC and mbedTLS, and migrate Fedlearner (including Tensorflow) by LibOS to Intel SGX almost seamlessly.
 
 # Build docker image
 
@@ -24,6 +23,6 @@ open another terminal and execute
 test-sgx.sh follower 
 ```
 
-# Features Not Supported 
+# Unsupported features
 
 * tensorflow-io, used by fedlearner but not provided, mocked by `sgx/tenorflow_io.py`
