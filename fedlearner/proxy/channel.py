@@ -21,13 +21,13 @@ import socket
 import logging
 import collections
 import grpc
+import json
 
 from fedlearner.common import common
 
 EGRESS_URL = os.environ.get('EGRESS_URL', None)
 EGRESS_HOST = os.environ.get('EGRESS_HOST', None)
 EGRESS_DOMAIN = os.environ.get('EGRESS_DOMAIN', None)
-
 
 class ChannelType(Enum):
     UNKNOWN = 0
@@ -150,7 +150,13 @@ def make_secure_channel(address,
                         compression=None):
     use_tls, creds = common.use_tls()
     assert use_tls, "In-consistant TLS enabling"
-    tls_creds = grpc.ssl_channel_credentials(creds[0], creds[1], creds[2])
+    with open("dynamic_config.json", "r", encoding='utf-8') as fp:
+        MEASUREMENTS = json.load(fp)["sgx_mrs"][0]
+        MR_ENCLAVE = MEASUREMENTS["MR_ENCLAVE"]
+        MR_SIGNER = MEASUREMENTS["MR_SIGNER"]
+        ISV_PROD_ID = MEASUREMENTS["ISV_PROD_ID"]
+        ISV_SVN = MEASUREMENTS["ISV_SVN"]
+    tls_creds =  grpc.sgxratls_channel_credentials(MR_ENCLAVE, MR_SIGNER, ISV_PROD_ID, ISV_SVN)
     if check_address_valid(address):
         return grpc.secure_channel(address, tls_creds, options, compression)
 

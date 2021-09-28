@@ -12,7 +12,7 @@ function get_env() {
 }
 
 function make_custom_env() {
-    export TF_GRPC_TLS_ENABLE=on
+    export GRPC_SGX_RA_TLS_ENABLE=on
     export MR_ENCLAVE=`get_env mr_enclave`
     export MR_SIGNER=`get_env mr_signer`
     export ISV_PROD_ID=`get_env isv_prod_id`
@@ -20,8 +20,8 @@ function make_custom_env() {
     # make no sense right now
     export parallel_num_threads=2
     export session_parallelism=0
-    export intra_op_parallelism=2
-    export inter_op_parallelism=2
+    export intra_op_parallelism=$parallel_num_threads
+    export inter_op_parallelism=$parallel_num_threads
 }
 
 #make_custom_env

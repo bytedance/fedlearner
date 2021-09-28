@@ -271,17 +271,8 @@ def time_diff(minuend, sub):
     return ts_minuend - ts_sub
 
 def use_tls():
-    enable = os.environ.get("TF_OPTIONAL_TLS_ENABLE", False)
+    enable = os.environ.get("GRPC_SGX_RA_TLS_ENABLE", False)
     if not enable:
         return False, None
-
-    key = os.environ.get("TF_OPTIONAL_TLS_CERT_KEY", False)
-    with open(key, 'rb') as f:
-        private_key = f.read()
-    cert = os.environ.get("TF_OPTIONAL_TLS_CERT", False)
-    with open(cert, 'rb') as f:
-        certificate_chain = f.read()
-    root_key = os.environ.get("TF_OPTIONAL_TLS_ROOT_CERT", False)
-    with open(root_key, 'rb') as f:
-        root_certificates = f.read()
-    return True, (root_certificates, private_key, certificate_chain)
+    else:
+        return True, None

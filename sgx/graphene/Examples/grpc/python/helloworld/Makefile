@@ -7,16 +7,22 @@
 #
 # Use `make clean` to remove Graphene-generated files.
 
-include ../../Scripts/Makefile.configs
-
 # Relative path to Graphene root
 GRAPHENEDIR ?= ../..
 SGX_SIGNER_KEY ?= $(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/enclave-key.pem
+
+include $(GRAPHENEDIR)/Scripts/Makefile.configs
 
 ifeq ($(DEBUG),1)
 GRAPHENE_LOG_LEVEL = debug
 else
 GRAPHENE_LOG_LEVEL = error
+endif
+
+ifeq ($(ROLE),1)
+GRAPHENE_LOG_FILE = leader-graphene-sgx.log
+else
+GRAPHENE_LOG_FILE = follower-graphene-sgx.log
 endif
 
 .PHONY: all
@@ -28,11 +34,8 @@ endif
 python.manifest: python.manifest.template
 	graphene-manifest \
 		-Dlog_level=$(GRAPHENE_LOG_LEVEL) \
+		-Dlog_file=$(GRAPHENE_LOG_FILE) \
 		-Darch_libdir=$(ARCH_LIBDIR) \
-		-Dsession_parallelism=$(session_parallelism) \
-		-Dintra_op_parallelism=$(intra_op_parallelism) \
-		-Dinter_op_parallelism=$(inter_op_parallelism) \
-		-DGRPC_SGX_RA_TLS_ENABLE=$(GRPC_SGX_RA_TLS_ENABLE) \
 		-Dentrypoint=$(realpath $(shell sh -c "command -v python3")) \
 		$< >$@
 
@@ -58,3 +61,6 @@ clean:
 
 .PHONY: distclean
 distclean: clean
+
+run:
+	graphene-sgx python -u grpc-server.py
