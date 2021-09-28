@@ -22,8 +22,9 @@ loader.env.tensorflow_session_parallelism = "{{ session_parallelism }}"
 loader.env.tensorflow_intra_op_parallelism = "{{ intra_op_parallelism }}"
 loader.env.tensorflow_inter_op_parallelism = "{{ inter_op_parallelism }}"
 
-loader.env.TF_GRPC_TLS_ENABLE = "{{ TF_GRPC_TLS_ENABLE }}"
+loader.env.GRPC_SGX_RA_TLS_ENABLE = "{{ GRPC_SGX_RA_TLS_ENABLE }}"
 
+# Prorotected_file encryption
 loader.env.SECRET_PROVISION_CONSTRUCTOR = "1"
 loader.env.SECRET_PROVISION_SET_PF_KEY = "1"
 

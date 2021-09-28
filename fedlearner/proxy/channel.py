@@ -150,8 +150,6 @@ def make_secure_channel(address,
                         compression=None):
     use_tls, creds = common.use_tls()
     assert use_tls, "In-consistant TLS enabling"
-    # tls_creds = grpc.ssl_channel_credentials(creds[0], creds[1], creds[2])
-
     with open("dynamic_config.json", "r", encoding='utf-8') as fp:
         MEASUREMENTS = json.load(fp)["sgx_mrs"][0]
         MR_ENCLAVE = MEASUREMENTS["MR_ENCLAVE"]

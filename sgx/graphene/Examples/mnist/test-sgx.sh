@@ -13,7 +13,7 @@ function get_env() {
 }
 
 function make_custom_env() {
-    export TF_GRPC_TLS_ENABLE=on
+    export GRPC_SGX_RA_TLS_ENABLE=on
     export MR_ENCLAVE=`get_env mr_enclave`
     export MR_SIGNER=`get_env mr_signer`
     export ISV_PROD_ID=`get_env isv_prod_id`

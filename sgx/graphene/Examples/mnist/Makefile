@@ -32,7 +32,7 @@ python.manifest: python.manifest.template
 		-Dsession_parallelism=$(session_parallelism) \
 		-Dintra_op_parallelism=$(intra_op_parallelism) \
 		-Dinter_op_parallelism=$(inter_op_parallelism) \
-		-DTF_GRPC_TLS_ENABLE=$(TF_GRPC_TLS_ENABLE) \
+		-DGRPC_SGX_RA_TLS_ENABLE=$(GRPC_SGX_RA_TLS_ENABLE) \
 		-Dentrypoint=$(realpath $(shell sh -c "command -v python3")) \
 		$< >$@
 
