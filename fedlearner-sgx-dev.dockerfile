@@ -133,10 +133,13 @@ RUN cd ${TF_BUILD_PATH} && git apply sgx_tls_sample.diff
 RUN cd ${TF_BUILD_PATH} && bazel build -c opt //tensorflow/tools/pip_package:build_pip_package
 
 # Fedlearner build
-COPY sgx/fedlearner ${FEDLEARNER_PATH}
 RUN pip3 install --upgrade pip setuptools \
     && pip3 install -r ${FEDLEARNER_PATH}/requirements.txt
-RUN ${FEDLEARNER_PATH}/sgx/fedlearner/build_install.sh
+
+RUN cd ${FEDLEARNER_PATH} && make protobuf && make op && \
+	python3 setup.py bdist_wheel && pip3 install ./dist/*.whl && \
+	mkdir -p /usr/local/lib/python3.6/dist-packages/cc  && \
+	cp ./cc/embedding.so /usr/local/lib/python3.6/dist-packages/cc
 
 # Re-install tensorflow, uninstall tensorflow_io, mock it
 RUN pip uninstall -y tensorflow tensorflow-io

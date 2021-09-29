@@ -136,7 +136,7 @@ index d6237e10439..8a7f0e7db64 100755
 -            "https://github.com/grpc/grpc/archive/b54a5b338637f92bfcf4b0bc05e0f57a5fd8fadd.tar.gz",
 +            #"https://storage.googleapis.com/mirror.tensorflow.org/github.com/grpc/grpc/archive/b54a5b338637f92bfcf4b0bc05e0f57a5fd8fadd.tar.gz",
 +            #"https://github.com/grpc/grpc/archive/b54a5b338637f92bfcf4b0bc05e0f57a5fd8fadd.tar.gz",
-+            "http://127.0.0.1:8000/b54a5b338637f92bfcf4b0bc05e0f57a5fd8fadd.tar.gz",
++            "http://10.137.27.200:8000/b54a5b338637f92bfcf4b0bc05e0f57a5fd8fadd.tar.gz",
          ],
      )
  
