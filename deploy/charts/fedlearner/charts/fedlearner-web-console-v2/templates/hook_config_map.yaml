@@ -7,3 +7,4 @@ data:
   hook: |
     {{ .Files.Get .Values.hook | nindent 4 }}
 {{- end }}
+

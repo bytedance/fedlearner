@@ -79,7 +79,7 @@ spec:
       volumes:
         {{- if .Values.hook }}
         - name: hook-volume
-          configMap: 
+          configMap:
             name: "{{ .Release.Name }}-hook"
             items:
             - key: hook
