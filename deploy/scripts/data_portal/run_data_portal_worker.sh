@@ -22,9 +22,8 @@ source /app/deploy/scripts/pre_start_hook.sh || true
 source /app/deploy/scripts/env_to_args.sh 
 
 UPLOAD_DIR=$OUTPUT_BASE_DIR/upload
-${HADOOP_HOME}/bin/hadoop fs -mkdir -p $UPLOAD_DIR
 spark_entry_script="fedlearner/data_join/raw_data/raw_data.py"
-${HADOOP_HOME}/bin/hadoop fs -put -f $spark_entry_script $UPLOAD_DIR
+push_file $spark_entry_script $UPLOAD_DIR
 # create deps folder structure
 DEP_FILE=deps.zip
 CUR_DIR=`pwd`
@@ -37,7 +36,7 @@ touch fedlearner/__init__.py
 touch fedlearner/data_join/__init__.py
 touch fedlearner/data_join/raw_data/__init__.py
 python /app/deploy/scripts/zip.py -c ${DEP_FILE} fedlearner
-${HADOOP_HOME}/bin/hadoop fs -put -f ${DEP_FILE} $UPLOAD_DIR
+push_file ${DEP_FILE} ${UPLOAD_DIR}
 cd $CUR_DIR
 rm -rf $TMP_DIR
 
