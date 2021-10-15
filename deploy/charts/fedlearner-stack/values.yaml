@@ -91,7 +91,7 @@ sparkoperator:
   image:
     repository: registry.cn-beijing.aliyuncs.com/fedlearner/spark-operator
     pullPolicy: IfNotPresent
-    tag: v1beta2-1.2.0-3.0.0
+    tag: v1beta2-1.2.0-3.0.0_patch1
 
   sparkJobNamespace: default
   installCrds: true
