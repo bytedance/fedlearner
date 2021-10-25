@@ -15,7 +15,7 @@ nfs-client-provisioner:
 
   image:
     repository: registry.cn-beijing.aliyuncs.com/fedlearner/nfs-client-provisioner
-    tag: v3.1.0-k8s1.11
+    tag: v4.0.0
     pullPolicy: IfNotPresent
 
 mysql:
