@@ -21,7 +21,7 @@ source /app/deploy/scripts/hdfs_common.sh || true
 source /app/deploy/scripts/pre_start_hook.sh || true
 source /app/deploy/scripts/env_to_args.sh
 
-input_file_wildcard=$(normalize_env_to_args "--input_file_wildcard" $FILE_WILDCARD)
+input_file_wildcard=$(normalize_env_to_args "--input_file_wildcard" "$FILE_WILDCARD")
 kvstore_type=$(normalize_env_to_args '--kvstore_type' $KVSTORE_TYPE)
 files_per_job_limit=$(normalize_env_to_args '--files_per_job_limit' $FILES_PER_JOB_LIMIT)
 
