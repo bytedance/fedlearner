@@ -21,7 +21,7 @@ source /app/deploy/scripts/hdfs_common.sh || true
 source /app/deploy/scripts/env_to_args.sh
 
 partitioner_name=$(normalize_env_to_args "--partitioner_name" $NAME)
-input_file_wildcard=$(normalize_env_to_args "--input_file_wildcard" $FILE_WILDCARD)
+input_file_wildcard=$(normalize_env_to_args "--input_file_wildcard" "$FILE_WILDCARD")
 raw_data_iter=$(normalize_env_to_args "--raw_data_iter" $FILE_FORMAT)
 compressed_type=$(normalize_env_to_args "--compressed_type" $COMPRESSED_TYPE)
 read_ahead_size=$(normalize_env_to_args "--read_ahead_size" $READ_AHEAD_SIZE)
