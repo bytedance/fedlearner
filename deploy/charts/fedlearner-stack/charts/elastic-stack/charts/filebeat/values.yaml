@@ -102,7 +102,7 @@ config:
     - index: "metrics_v2"
       when.equals:
         index_type__: "metrics"
-    - index: "filebeat-7.0.1"
+    - index: "filebeat-7.10.0"
 
   # When a key contains a period, use this format for setting values on the command line:
   # --set config."http\.enabled"=true
