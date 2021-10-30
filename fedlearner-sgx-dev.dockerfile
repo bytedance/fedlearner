@@ -16,7 +16,8 @@ RUN apt-get update \
         unzip \
         git \
         zlib1g-dev \
-        wget
+        wget \
+        vim
 
 # Intel SGX
 RUN echo "deb [trusted=yes arch=amd64] https://download.01.org/intel-sgx/sgx_repo/ubuntu bionic main" | tee /etc/apt/sources.list.d/intel-sgx.list \
@@ -24,52 +25,49 @@ RUN echo "deb [trusted=yes arch=amd64] https://download.01.org/intel-sgx/sgx_rep
     && apt-get update
 
 # Install SGX-PSW
-RUN apt-get install -y libsgx-pce-logic libsgx-ae-qve libsgx-quote-ex libsgx-qe3-logic sgx-aesm-service
+RUN apt-get install -y libsgx-pce-logic libsgx-ae-qve libsgx-quote-ex libsgx-quote-ex libsgx-quote-ex-dev libsgx-qe3-logic sgx-aesm-service
 
 # Install SGX-DCAP
-RUN apt-get install -y libsgx-dcap-ql-dev libsgx-dcap-default-qpl libsgx-dcap-quote-verify-dev
+RUN apt-get install -y libsgx-dcap-ql-dev libsgx-dcap-default-qpl libsgx-dcap-quote-verify-dev libsgx-dcap-default-qpl-dev
 
-# Graphene
-ENV GRAPHENEDIR=/graphene
+# Gramine
+ENV GRAMINEDIR=/gramine
 # ENV GRAPHENE_VERSION=master
-# ENV GRAPHENE_VERSION=2fdb529f81e839ef1d9638362c2c02a4e34af79f
-ENV GRAPHENE_VERSION=pf_rename
-ENV ISGX_DRIVER_PATH=${GRAPHENEDIR}/Pal/src/host/Linux-SGX/linux-sgx-driver
-ENV SGX_SIGNER_KEY=${GRAPHENEDIR}/Pal/src/host/Linux-SGX/signer/enclave-key.pem
+ENV GRAMINE_VERSION=497847c0353a13c9e83c0ec4c0cbe99f11d4a75d
+ENV ISGX_DRIVER_PATH=${GRAMINEDIR}/driver
+ENV SGX_SIGNER_KEY=${GRAMINEDIR}/Pal/src/host/Linux-SGX/signer/enclave-key.pem
 ENV LC_ALL=C.UTF-8 LANG=C.UTF-8
 ENV WERROR=1
 ENV SGX=1
-
+ENV apt-get clean
 # https://graphene.readthedocs.io/en/latest/building.html
 # golang is needed by grpc/BoringSSL
-RUN apt-get install -y gawk bison meson python3-click python3-jinja2 golang
+RUN apt-get install -y gawk bison python3-click python3-jinja2 golang  ninja-build python3
 RUN apt-get install -y libcurl4-openssl-dev libprotobuf-c-dev python3-protobuf protobuf-c-compiler
-RUN pip3 install toml>=0.10
+RUN python3 -B -m pip install 'toml>=0.10' 'meson>=0.55'
 
-#RUN git clone https://github.com/oscarlab/graphene.git ${GRAPHENEDIR} \
-RUN git clone https://github.com/svenkata9/graphene.git ${GRAPHENEDIR} \
-    && cd ${GRAPHENEDIR} \
-    && git checkout ${GRAPHENE_VERSION}
+RUN git clone https://github.com/gramineproject/gramine.git ${GRAMINEDIR} \
+    && cd ${GRAMINEDIR} \
+    && git checkout ${GRAMINE_VERSION}
+
+COPY sgx/rename.diff ${GRAMINEDIR}
+COPY sgx/c_args.diff ${GRAMINEDIR}
+
+RUN cd ${GRAMINEDIR} \
+    && git apply rename.diff \
+    && git apply c_args.diff
 
 # Create SGX driver for Graphene
 RUN git clone https://github.com/intel/SGXDataCenterAttestationPrimitives.git ${ISGX_DRIVER_PATH} \
     && cd ${ISGX_DRIVER_PATH} \
-    && git checkout DCAP_1.9 \
-    && cp -r driver/linux/* ${ISGX_DRIVER_PATH}
-
-# Build Graphene with SGX
-# https://graphene.readthedocs.io/en/latest/quickstart.html#quick-start-with-sgx-support
-RUN cd ${GRAPHENEDIR} \
-    && make -j `nproc` ISGX_DRIVER_PATH="" SGX=0 \
-    && make -j `nproc` \
-    && meson build -Ddirect=enabled -Dsgx=enabled \
-    && ninja -C build \
-    && ninja -C build install
-
-# Translate runtime symlinks to files
-RUN for f in $(find ${GRAPHENEDIR}/Runtime -type l); do cp --remove-destination $(realpath $f) $f; done
+    && git checkout DCAP_1.11
 
 RUN openssl genrsa -3 -out ${SGX_SIGNER_KEY} 3072
+# Build Graphene with SGX
+# https://graphene.readthedocs.io/en/latest/quickstart.html#quick-start-with-sgx-support
+RUN cd ${GRAMINEDIR} && pwd && meson setup build/ --buildtype=debug -Dsgx=enabled -Ddcap=enabled -Dsgx_driver="dcap1.10" -Dsgx_driver_include_path="/gramine/driver/driver/linux/include" \
+    && ninja -C build/ \
+    && ninja -C build/ install
 
 # Global env
 ENV INSTALL_PREFIX=/usr/local
@@ -94,7 +92,7 @@ ENV BAZEL_VERSION=3.1.0
 RUN wget "https://github.com/bazelbuild/bazel/releases/download/${BAZEL_VERSION}/bazel_${BAZEL_VERSION}-linux-x86_64.deb" \
     && dpkg -i bazel_*.deb
 
-RUN pip install numpy keras_preprocessing 
+RUN pip3 install numpy keras_preprocessing
 RUN ln -s  /usr/bin/python3.6 /usr/bin/python
 
 ENV TF_VERSION=v2.4.2
@@ -104,11 +102,12 @@ RUN git clone --recurse-submodules -b ${TF_VERSION} https://github.com/tensorflo
 
 # Fedlearner deps
 ENV FEDLEARNER_PATH=/fedlearner
+RUN apt-get update
 RUN apt-get install -y libgmp-dev libmpfr-dev libmpc-dev libmysqlclient-dev
 
 # Prepare build source code
 COPY . ${FEDLEARNER_PATH}
-COPY sgx/graphene ${GRAPHENEDIR}
+COPY sgx/gramine ${GRAMINEDIR}
 
 # # GRPC v1.36.0 build
 # RUN cd ${GRPC_PATH} \
@@ -167,7 +166,7 @@ RUN apt-get clean all \
     && rm -rf /tmp/*
 
 # Workspace
-ENV WORK_SPACE_PATH=${GRAPHENEDIR}
+ENV WORK_SPACE_PATH=${GRAMINEDIR}
 WORKDIR ${WORK_SPACE_PATH}
 
 EXPOSE 6006 50051 50052

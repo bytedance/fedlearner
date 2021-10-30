@@ -124,7 +124,7 @@ index d6237e10439..8a7f0e7db64 100755
      tf_http_archive(
          name = "com_github_grpc_grpc",
 -        sha256 = "b956598d8cbe168b5ee717b5dafa56563eb5201a947856a6688bbeac9cac4e1f",
-+        sha256 = "651b578841bc76ce50d0046eef8b4b1cdd22049b3a635547d31ca8b28eb829c8",
++        sha256 = "0d5b77b4870ad8dfc237c88f69ff7492dbaee462a754409fb2221d056b1e7472",
          strip_prefix = "grpc-b54a5b338637f92bfcf4b0bc05e0f57a5fd8fadd",
          system_build_file = clean_dep("//third_party/systemlibs:grpc.BUILD"),
          patch_file = clean_dep("//third_party/grpc:generate_cc_env_fix.patch"),
@@ -136,7 +136,7 @@ index d6237e10439..8a7f0e7db64 100755
 -            "https://github.com/grpc/grpc/archive/b54a5b338637f92bfcf4b0bc05e0f57a5fd8fadd.tar.gz",
 +            #"https://storage.googleapis.com/mirror.tensorflow.org/github.com/grpc/grpc/archive/b54a5b338637f92bfcf4b0bc05e0f57a5fd8fadd.tar.gz",
 +            #"https://github.com/grpc/grpc/archive/b54a5b338637f92bfcf4b0bc05e0f57a5fd8fadd.tar.gz",
-+            "http://10.137.27.200:8000/b54a5b338637f92bfcf4b0bc05e0f57a5fd8fadd.tar.gz",
++            "http://localhost:8000/b54a5b338637f92bfcf4b0bc05e0f57a5fd8fadd.tar.gz",
          ],
      )
  
