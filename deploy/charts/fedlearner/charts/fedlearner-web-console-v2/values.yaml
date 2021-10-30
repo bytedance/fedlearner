@@ -56,11 +56,11 @@ ingress:
     nginx.ingress.kubernetes.io/auth-tls-secret: default/ca-secret
     nginx.ingress.kubernetes.io/auth-tls-verify-client: "on"
   hosts:
-    - domainName: null
+    - domainName: demo.com
       paths: ["/"]
   tls:
     - secretName: fedlearner-proxy-server
-      domainNames: null
+      domainNames: [demo.com]
 
 resources:
   limits:
@@ -105,4 +105,4 @@ cluster:
     DB_HOST: fedlearner-stack-mariadb
     DB_PORT: 3306
     DB_DATABASE: fedlearner
-
+    
