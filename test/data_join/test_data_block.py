@@ -81,9 +81,11 @@ class RawDataTests(unittest.TestCase):
 
         json_str = """{
             "input_files": "%s",
+            "input_format": "TF_RECORD",
             "compression_type": "GZIP",
             "data_block_threshold": %d,
             "output_type": "data_block",
+            "output_format": "TF_RECORD",
             "output_path": "%s"
         }""" % (','.join(self._input_files),
                 data_block_threshold, output_path)
@@ -125,7 +127,7 @@ class RawDataTests(unittest.TestCase):
                          check_success_tag=True,
                          upload_dir=upload_dir,
                          use_fake_client=True)
-        job.run(self._input_dir)
+        job.run(self._input_dir, "TF_RECORD", "TF_RECORD")
 
         db_path = os.path.join(output_path, 'data_block')
         total_num = self._num_partition * self._num_item_per_partition
@@ -157,7 +159,7 @@ class RawDataTests(unittest.TestCase):
                          check_success_tag=True,
                          upload_dir=upload_dir,
                          use_fake_client=True)
-        job.run(self._input_dir)
+        job.run(self._input_dir, "TF_RECORD", "TF_RECORD")
 
         db_path = os.path.join(output_path, 'data_block')
         total_num = self._num_partition * self._num_item_per_partition
