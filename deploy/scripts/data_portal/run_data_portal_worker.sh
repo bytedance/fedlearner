@@ -42,6 +42,7 @@ rm -rf $TMP_DIR
 
 input_file_wildcard=$(normalize_env_to_args "--input_file_wildcard" $FILE_WILDCARD)
 kvstore_type=$(normalize_env_to_args '--kvstore_type' $KVSTORE_TYPE)
+input_format=$(normalize_env_to_args '--input_format' $INPUT_FORMAT)
 files_per_job_limit=$(normalize_env_to_args '--files_per_job_limit' $FILES_PER_JOB_LIMIT)
 output_type=$(normalize_env_to_args '--output_type' $OUTPUT_TYPE)
 data_source_name=$(normalize_env_to_args '--data_source_name' $DATA_SOURCE_NAME)
@@ -65,7 +66,7 @@ python -m fedlearner.data_join.cmd.raw_data_cli \
     --web_console_username=$ROBOT_USERNAME \
     --web_console_password=$ROBOT_PWD \
     --spark_dependent_package=$UPLOAD_DIR/${DEP_FILE} \
-    $input_file_wildcard $LONG_RUNNING $CHECK_SUCCESS_TAG $kvstore_type \
+    $input_file_wildcard $input_format $LONG_RUNNING $CHECK_SUCCESS_TAG $kvstore_type \
     $SINGLE_SUBFOLDER $files_per_job_limit $output_type \
     $data_source_name $data_block_dump_threshold \
     $spark_image $spark_driver_cores $spark_driver_memory \

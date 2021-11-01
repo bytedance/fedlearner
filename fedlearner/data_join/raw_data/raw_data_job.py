@@ -1,5 +1,6 @@
 import logging
 import os
+import sys
 import time
 from datetime import datetime, timedelta
 
@@ -20,7 +21,8 @@ from fedlearner.data_join.raw_data.input_data_manager import InputDataManager
 from fedlearner.data_join.raw_data.raw_data_meta import RawDataMeta, \
     raw_data_meta_path
 from fedlearner.data_join.raw_data.raw_data_config import RawDataJobConfig
-from fedlearner.data_join.raw_data.common import OutputType, JobType
+from fedlearner.data_join.raw_data.common import OutputType, JobType, \
+    FileFormat
 from fedlearner.data_join.raw_data.spark_application import SparkFileConfig, \
     SparkApplication
 from fedlearner.data_join.raw_data_publisher import RawDataPublisher
@@ -91,7 +93,15 @@ class RawDataJob:
         self._kvstore = DBClient(kvstore_type)
         self._use_fake_client = use_fake_client
 
-    def run(self, input_path):
+    def run(self, input_path, input_format, output_format):
+        is_ok, msg = FileFormat.check_format(input_format)
+        if not is_ok:
+            logging.error("input %s", msg)
+            sys.exit(-1)
+        is_ok, msg = FileFormat.check_format(output_format)
+        if not is_ok:
+            logging.error("output %s", msg)
+            sys.exit(-1)
         job_id = self._next_job_id
         while True:
             prev_job_id = job_id
@@ -99,7 +109,7 @@ class RawDataJob:
                     input_path, self._meta.processed_fpath):
                 self._num_processing_file = len(rest_fpaths)
                 with Timer("RawData Job {}".format(job_id)):
-                    self._run(job_id, rest_fpaths)
+                    self._run(job_id, rest_fpaths, input_format, output_format)
                 job_id += 1
             if not self._long_running:
                 break
@@ -107,19 +117,22 @@ class RawDataJob:
                 logging.info("No new file to process, Wait 60s...")
                 time.sleep(60)
 
-    def _run(self, job_id, input_files):
+    def _run(self, job_id, input_files, input_format, output_format):
         logging.info("Processing %s in job %d", input_files, job_id)
         # 0. launch new spark job
         if self._output_type == OutputType.DataBlock:
-            self._run_data_block_job(job_id, input_files)
+            self._run_data_block_job(job_id, input_files, input_format,
+                                     output_format)
         else:
-            self._run_raw_data_job(job_id, input_files)
+            self._run_raw_data_job(job_id, input_files, input_format,
+                                   output_format)
 
         # 1. write meta
         self._meta.add_meta(job_id, input_files)
         self._meta.persist()
 
-    def _run_raw_data_job(self, job_id, input_files):
+    def _run_raw_data_job(self, job_id, input_files, input_format,
+                          output_format):
         output_path = os.path.join(self._root_path, str(job_id))
         if gfile.Exists(output_path):
             gfile.DeleteRecursively(output_path)
@@ -127,8 +140,9 @@ class RawDataJob:
         # 1. write config
         job_config = RawDataJobConfig(self._upload_dir, job_id)
         job_config.raw_data_config(
-            input_files, self._job_type,
+            input_files, input_format, self._job_type,
             OutputType.RawData,
+            output_format=output_format,
             output_partition_num=self._output_partition_num,
             output_path=output_path)
 
@@ -141,7 +155,8 @@ class RawDataJob:
         else:
             self._publish_raw_data(job_id, output_path)
 
-    def _run_data_block_job(self, job_id, input_files):
+    def _run_data_block_job(self, job_id, input_files, input_format,
+                            output_format,):
         data_source = self._create_data_source(job_id, self._root_path)
         output_base_path = data_source_data_block_dir(data_source)
         temp_output_path = os.path.join(output_base_path, str(job_id))
@@ -150,8 +165,8 @@ class RawDataJob:
         # 1. write config
         job_config = RawDataJobConfig(self._upload_dir, job_id)
         job_config.data_block_config(
-            input_files, temp_output_path,
-            OutputType.DataBlock, self._compression_type,
+            input_files, input_format, temp_output_path,
+            OutputType.DataBlock, output_format, self._compression_type,
             data_block_threshold=self._data_block_threshold)
         task_name = self._encode_spark_task_name(job_id)
         self._launch_spark_job(task_name, job_config.config_path)
