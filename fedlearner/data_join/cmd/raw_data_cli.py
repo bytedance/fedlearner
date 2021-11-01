@@ -54,7 +54,7 @@ if __name__ == "__main__":
                         choices=['raw_data', 'data_block'],
                         help='output type of data')
     parser.add_argument('--output_format', type=str, default='TF_RECORD',
-                        help='input format: [TF_RECORD|CSV]')
+                        help='output format: [TF_RECORD|CSV]')
     parser.add_argument("--compressed_type", type=str, default='',
                         choices=['', 'GZIP'],
                         help='the compressed type of output data block')
