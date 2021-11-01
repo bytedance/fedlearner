@@ -6,9 +6,10 @@ import os
 from cityhash import CityHash32  # pylint: disable=no-name-in-module
 from pyspark import SparkFiles
 from pyspark.sql import SparkSession
+from pyspark.sql.types import StringType, IntegerType
 
 from fedlearner.data_join.raw_data.common import Constants, DataKeyword, \
-    JobType, OutputType
+    JobType, OutputType, FileFormat, RawDataSchema
 
 
 def set_logger():
@@ -20,7 +21,6 @@ def set_logger():
 def start_spark(app_name='my_spark_app',
                 jar_packages=None,
                 files=None, spark_config=None):
-
     # get Spark session factory
     spark_builder = \
         SparkSession.builder.appName(app_name)
@@ -82,16 +82,25 @@ class RawData:
     def _to_raw_data(self, config):
         job_type = config[Constants.job_type_key]
         input_files = config[Constants.input_files_key].split(",")
+        input_format = config[Constants.input_format_key]
         output_path = config[Constants.output_path_key]
+        output_format = config[Constants.output_format_key]
         partition_num = config[Constants.output_partition_num_key]
 
         logging.info("Deal with new files %s", input_files)
 
         # read input data
-        data_df = self._spark.read \
-            .format("tfrecords") \
-            .option("recordType", "Example") \
-            .load(",".join(input_files))
+        if input_format == FileFormat.CSV:
+            data_df = self._spark.read \
+                .format("csv") \
+                .option("header", "true") \
+                .load(input_files, inferSchema="true")
+            data_df = self._format_data_frame(data_df)
+        else:
+            data_df = self._spark.read \
+                .format("tfrecords") \
+                .option("recordType", "Example") \
+                .load(",".join(input_files))
 
         partition_field = self._get_partition_field(job_type)
         if partition_field not in data_df.columns:
@@ -104,17 +113,23 @@ class RawData:
         output_df = self._partition_and_sort(data_df, job_type,
                                              partition_num, partition_index)
 
-        # output data
-        write_options = {
-            "recordType": "Example",
-            "maxRecordsPerFile": 1 << 20,
-            "codec": 'org.apache.hadoop.io.compress.GzipCodec',
-        }
-        output_df.write \
-            .mode("overwrite") \
-            .format("tfrecords") \
-            .options(**write_options) \
-            .save(output_path)
+        if output_format == FileFormat.CSV:
+            output_df.write \
+                .mode("overwrite") \
+                .format("csv") \
+                .save(output_path, header='true')
+        else:
+            # output data
+            write_options = {
+                "recordType": "Example",
+                "maxRecordsPerFile": 1 << 20,
+                "codec": 'org.apache.hadoop.io.compress.GzipCodec',
+            }
+            output_df.write \
+                .mode("overwrite") \
+                .format("tfrecords") \
+                .options(**write_options) \
+                .save(output_path)
 
         logging.info("Export data to %s finished", output_path)
 
@@ -161,6 +176,30 @@ class RawData:
             conf=write_options)
 
         logging.info("Export data to %s finished", output_path)
+
+    @staticmethod
+    def _format_data_frame(data_df):
+
+        def cast(fname, target_type):
+            if target_type == "string":
+                return data_df.withColumn(fname, data_df[fname].cast(
+                    StringType()))
+            if target_type == "integer":
+                return data_df.withColumn(fname, data_df[fname].cast(
+                    IntegerType()))
+            raise RuntimeError("Do not support type %s of field %s" %
+                               (target_type, fname))
+
+        data_schema = data_df.schema
+        for field in data_schema:
+            field_value = field.jsonValue()
+            field_name = field_value["name"]
+            field_type = field_value["type"]
+            if field_name in RawDataSchema.Schema and \
+                field_type not in RawDataSchema.Schema[field_name].types:
+                data_df = cast(field_name,
+                               RawDataSchema.Schema[field_name].default_type)
+        return data_df
 
     def _partition_and_sort(self, data_df, job_type,
                             partition_num, partition_index):

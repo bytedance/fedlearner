@@ -1,5 +1,6 @@
 from collections import OrderedDict
 from datetime import datetime, timedelta
+import csv
 import inspect
 import json
 import logging
@@ -20,9 +21,9 @@ from fedlearner.data_join.raw_data.raw_data_job import RawDataJob
 
 class TestDataGenerator(object):
     @staticmethod
-    def _get_input_fpath(output_dir, date_str, partition_id):
+    def _get_input_fpath(output_dir, date_str, partition_id, extension="gz"):
         return "{}/{}/partition_{:04}.{}".format(
-            output_dir, date_str, partition_id, "gz")
+            output_dir, date_str, partition_id, extension)
 
     @staticmethod
     def _get_data(partition_num, num_item_per_partition):
@@ -44,11 +45,11 @@ class TestDataGenerator(object):
             example_id += 1
         return event_times, eid_etime_dict, etime_eid_dict
 
-    def _generate_input_partition(self, output_dir,
-                                  partition_id,
-                                  example_ids,
-                                  event_times,
-                                  is_dirty):
+    def _generate_tfrecord_partition(self, output_dir,
+                                     partition_id,
+                                     example_ids,
+                                     event_times,
+                                     is_dirty):
         types = ['Chinese', 'English', 'Math', 'Physics']
         date_str = str(event_times[0])[:8]
         fpath = self._get_input_fpath(output_dir, date_str, partition_id)
@@ -89,9 +90,42 @@ class TestDataGenerator(object):
             fh.write('')
         return fpath
 
+    def _generate_csv_partition(self, output_dir,
+                                partition_id,
+                                example_ids,
+                                event_times,
+                                is_dirty):
+        types = ['Chinese', 'English', 'Math', 'Physics']
+        date_str = str(event_times[0])[:8]
+        fpath = self._get_input_fpath(output_dir, date_str, partition_id, "csv")
+        dirname = os.path.dirname(fpath)
+        if not gfile.Exists(dirname):
+            gfile.MakeDirs(dirname)
+        headers = []
+        if not is_dirty:
+            headers = ['example_id', 'raw_id', 'event_time']
+        headers.append('type')
+        with open(fpath, 'w') as csv_file:
+            writer = csv.DictWriter(csv_file, fieldnames=headers)
+            writer.writeheader()
+            for example_id, event_time in zip(example_ids, event_times):
+                if is_dirty:
+                    writer.writerow({
+                        "type": types[random.randint(0, 3)]
+                    })
+                else:
+                    writer.writerow({
+                        "example_id": str(example_id),
+                        "raw_id": str(example_id),
+                        "event_time": event_time,
+                        "type": types[random.randint(0, 3)]
+                    })
+        return fpath
+
     def generate_input_data(self, output_dir, partition_num,
                             num_item_per_partition,
-                            is_dirty=False):
+                            is_dirty=False,
+                            input_format="TF_RECORD"):
         if not gfile.Exists(output_dir):
             gfile.MakeDirs(output_dir)
         start_time = datetime.strptime('2020-7-1', '%Y-%m-%d')
@@ -108,9 +142,14 @@ class TestDataGenerator(object):
                 eids.append(example_id)
                 etime_eid_dict[event_times[-1]] = [str(example_id)]
                 example_id += 1
-            filename = self._generate_input_partition(
-                output_dir, partition_id,
-                eids, event_times, is_dirty)
+            if input_format == "CSV":
+                filename = self._generate_csv_partition(
+                    output_dir, partition_id,
+                    eids, event_times, is_dirty)
+            else:
+                filename = self._generate_tfrecord_partition(
+                    output_dir, partition_id,
+                    eids, event_times, is_dirty)
             output_files.append(filename)
             print(event_times, eids)
             start_time += timedelta(days=1)
@@ -168,7 +207,7 @@ class RawDataTests(unittest.TestCase):
         if gfile.Exists(self._job_path):
             gfile.DeleteRecursively(self._job_path)
 
-    def _check_raw_data(self, file_paths, wanted_cnt):
+    def _check_tfrecord(self, file_paths, wanted_cnt):
         total_cnt = 0
         for fpath in file_paths:
             partition_id = int(fpath.split('-')[-1][:-3])
@@ -188,13 +227,30 @@ class RawDataTests(unittest.TestCase):
                 total_cnt += 1
         self.assertEqual(total_cnt, wanted_cnt)
 
-    def test_generate_raw_data(self):
+    def _check_csv(self, file_paths, wanted_cnt):
+        total_cnt = 0
+        for fpath in file_paths:
+            print(fpath)
+            partition_id = int(fpath.split('-')[1])
+            event_time = 0
+            with open(fpath) as f:
+                for item in csv.DictReader(f):
+                    new_event_time = int(item[DataKeyword.event_time])
+                    self.assertTrue(new_event_time >= event_time,
+                                    "{}, {}".format(new_event_time, event_time))
+                    event_time = new_event_time
+                    self.assertEqual(partition_id, CityHash32(
+                        item[DataKeyword.example_id]) % self._num_partition)
+                    total_cnt += 1
+        self.assertEqual(total_cnt, wanted_cnt)
+
+    def _generate_raw_data(self, input_format, output_format):
         # generate test data
         generator = TestDataGenerator()
         self._input_data, self._input_files = \
             generator.generate_input_data(
                 self._input_dir, self._num_partition,
-                self._num_item_per_partition)
+                self._num_item_per_partition, input_format=input_format)
 
         schema_file_path = os.path.join(self._job_path, "raw_data",
                                         "data.schema.json")
@@ -204,33 +260,53 @@ class RawDataTests(unittest.TestCase):
         json_str = """{
             "job_type": "%s",
             "input_files": "%s",
+            "input_format": "%s",
             "schema_path": "%s",
             "output_type": "raw_data",
             "output_path": "%s",
+            "output_format": "%s",
             "output_partition_num": %d
-        }""" % (JobType.Streaming, ','.join(self._input_files),
-                schema_file_path, output_path, output_partition_num)
+        }""" % (JobType.Streaming, ','.join(self._input_files), input_format,
+                schema_file_path, output_path, output_format,
+                output_partition_num)
         config = json.loads(json_str)
         processor = RawData(None, self._jars)
         processor.run(config)
         processor.stop()
 
         total_num = self._num_partition * self._num_item_per_partition
+        if output_format == "CSV":
+            file_paths = []
+            for file in gfile.ListDirectory(output_path):
+                if file.endswith("csv"):
+                    file_paths.append(os.path.join(output_path, file))
 
-        file_paths = []
-        for file in gfile.ListDirectory(output_path):
-            if file.endswith("gz"):
-                file_paths.append(os.path.join(output_path, file))
+            self._check_csv(file_paths, total_num)
+        else:
+            file_paths = []
+            for file in gfile.ListDirectory(output_path):
+                if file.endswith("gz"):
+                    file_paths.append(os.path.join(output_path, file))
 
-        self._check_raw_data(file_paths, total_num)
+            self._check_tfrecord(file_paths, total_num)
 
-    def test_dirty_input(self):
+    def test_from_tfrecord(self):
+        self._generate_raw_data("TF_RECORD", "TF_RECORD")
+
+    def test_from_csv_to_tfrecord(self):
+        self._generate_raw_data("CSV", "TF_RECORD")
+
+    def test_from_csv_to_csv(self):
+        self._generate_raw_data("CSV", "CSV")
+
+    def _generate_dirty_input(self, input_format):
         # generate test data
         generator = TestDataGenerator()
         self._input_data, self._input_files = \
             generator.generate_input_data(
                 self._input_dir, self._num_partition,
-                self._num_item_per_partition, is_dirty=True)
+                self._num_item_per_partition, is_dirty=True,
+                input_format=input_format)
 
         schema_file_path = os.path.join(self._job_path, "raw_data",
                                         "data.schema.json")
@@ -240,11 +316,13 @@ class RawDataTests(unittest.TestCase):
         json_str = """{
             "job_type": "%s",
             "input_files": "%s",
+            "input_format": "%s",
             "schema_path": "%s",
             "output_type": "raw_data",
             "output_path": "%s",
+            "output_format": "TF_RECORD",
             "output_partition_num": %d
-        }""" % (JobType.Streaming, ','.join(self._input_files),
+        }""" % (JobType.Streaming, ','.join(self._input_files), input_format,
                 schema_file_path, output_path, output_partition_num)
         config = json.loads(json_str)
         processor = RawData(None, self._jars)
@@ -252,6 +330,12 @@ class RawDataTests(unittest.TestCase):
         processor.stop()
 
         self.assertFalse(gfile.Exists(output_path))
+
+    def test_dirty_tfrecord(self):
+        self._generate_dirty_input("TF_RECORD")
+
+    def test_dirty_csv(self):
+        self._generate_dirty_input("CSV")
 
     def test_run_raw_data_dirty(self):
         # generate test data
@@ -282,7 +366,7 @@ class RawDataTests(unittest.TestCase):
                          single_subfolder=True,
                          upload_dir=upload_dir,
                          use_fake_client=True)
-        job.run(self._input_dir)
+        job.run(self._input_dir, "TF_RECORD", "TF_RECORD")
 
         for job_id in range(self._num_partition):
             output_dir = os.path.join(output_path, str(job_id))
@@ -317,7 +401,7 @@ class RawDataTests(unittest.TestCase):
                          single_subfolder=True,
                          upload_dir=upload_dir,
                          use_fake_client=True)
-        job.run(self._input_dir)
+        job.run(self._input_dir, "TF_RECORD", "TF_RECORD")
 
         for job_id in range(self._num_partition):
             file_paths = []
@@ -330,7 +414,7 @@ class RawDataTests(unittest.TestCase):
                 os.path.join(output_dir, fname) for fname in filenames
             ])
 
-            self._check_raw_data(file_paths, self._num_item_per_partition)
+            self._check_tfrecord(file_paths, self._num_item_per_partition)
 
 
 if __name__ == '__main__':
