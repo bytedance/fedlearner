@@ -195,7 +195,7 @@ class RawDataTests(unittest.TestCase):
 
         self._input_dir = "{}/input_data".format(self._job_path)
         self._num_partition = 4
-        self._num_item_per_partition = 5
+        self._num_item_per_partition = 50
         cur_dir = os.path.dirname(os.path.realpath(__file__))
         jar_path = os.path.join(cur_dir, 'jars')
         self._jars = []
@@ -207,10 +207,9 @@ class RawDataTests(unittest.TestCase):
         if gfile.Exists(self._job_path):
             gfile.DeleteRecursively(self._job_path)
 
-    def _check_tfrecord(self, file_paths, wanted_cnt):
+    def _check_tfrecord(self, file_paths, output_partitions, wanted_cnt):
         total_cnt = 0
-        for fpath in file_paths:
-            partition_id = int(fpath.split('-')[-1][:-3])
+        for partition_id, fpath in enumerate(sorted(file_paths)):
             print(fpath, partition_id)
             event_time = 0
             options = tf.io.TFRecordOptions(compression_type='GZIP')
@@ -223,15 +222,14 @@ class RawDataTests(unittest.TestCase):
                                 "{}, {}".format(new_event_time, event_time))
                 event_time = new_event_time
                 self.assertEqual(partition_id, CityHash32(
-                    tf_item[DataKeyword.example_id]) % self._num_partition)
+                    tf_item[DataKeyword.example_id]) % output_partitions)
                 total_cnt += 1
         self.assertEqual(total_cnt, wanted_cnt)
 
-    def _check_csv(self, file_paths, wanted_cnt):
+    def _check_csv(self, file_paths, output_partitions, wanted_cnt):
         total_cnt = 0
-        for fpath in file_paths:
-            print(fpath)
-            partition_id = int(fpath.split('-')[1])
+        for partition_id, fpath in enumerate(sorted(file_paths)):
+            print(fpath, partition_id)
             event_time = 0
             with open(fpath) as f:
                 for item in csv.DictReader(f):
@@ -240,7 +238,7 @@ class RawDataTests(unittest.TestCase):
                                     "{}, {}".format(new_event_time, event_time))
                     event_time = new_event_time
                     self.assertEqual(partition_id, CityHash32(
-                        item[DataKeyword.example_id]) % self._num_partition)
+                        item[DataKeyword.example_id]) % output_partitions)
                     total_cnt += 1
         self.assertEqual(total_cnt, wanted_cnt)
 
@@ -255,7 +253,7 @@ class RawDataTests(unittest.TestCase):
         schema_file_path = os.path.join(self._job_path, "raw_data",
                                         "data.schema.json")
         output_path = os.path.join(self._job_path, "raw_data", str(0))
-        output_partition_num = 4
+        output_partition_num = 20
 
         json_str = """{
             "job_type": "%s",
@@ -281,14 +279,16 @@ class RawDataTests(unittest.TestCase):
                 if file.endswith("csv"):
                     file_paths.append(os.path.join(output_path, file))
 
-            self._check_csv(file_paths, total_num)
+            self.assertEqual(output_partition_num, len(file_paths))
+            self._check_csv(file_paths, output_partition_num, total_num)
         else:
             file_paths = []
             for file in gfile.ListDirectory(output_path):
                 if file.endswith("gz"):
                     file_paths.append(os.path.join(output_path, file))
 
-            self._check_tfrecord(file_paths, total_num)
+            self.assertEqual(output_partition_num, len(file_paths))
+            self._check_tfrecord(file_paths, output_partition_num, total_num)
 
     def test_from_tfrecord(self):
         self._generate_raw_data("TF_RECORD", "TF_RECORD")
@@ -414,7 +414,8 @@ class RawDataTests(unittest.TestCase):
                 os.path.join(output_dir, fname) for fname in filenames
             ])
 
-            self._check_tfrecord(file_paths, self._num_item_per_partition)
+            self._check_tfrecord(file_paths, output_partition_num,
+                                 self._num_item_per_partition)
 
 
 if __name__ == '__main__':

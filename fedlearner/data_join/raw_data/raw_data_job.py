@@ -223,13 +223,6 @@ class RawDataJob:
             config_path,
             self._spark_dependent_package)
 
-    @staticmethod
-    def _decode_partition_id(filename):
-        if not filename.startswith('part-'):
-            raise RuntimeError("filename of raw_data should startswith " \
-                               "{}".format('part-'))
-        return int(filename.split('-')[-1].split(".")[0])
-
     def _publish_raw_data(self, job_id, output_dir):
         publisher = \
             RawDataPublisher(self._kvstore,
@@ -238,8 +231,12 @@ class RawDataJob:
         if gfile.Exists(output_dir) and gfile.IsDirectory(output_dir):
             fnames = [f for f in gfile.ListDirectory(output_dir)
                       if not self._is_flag_file(f)]
-            for fname in sorted(fnames):
-                partition_id = self._decode_partition_id(fname)
+            if len(fnames) != self._output_partition_num:
+                logging.error("output partition number is not as expected, "
+                              "want %d, got %s", self._output_partition_num,
+                              str(fnames))
+                sys.exit(-1)
+            for partition_id, fname in enumerate(sorted(fnames)):
                 file_path = os.path.join(output_dir, fname)
                 publish_fpaths.append(file_path)
                 publisher.publish_raw_data(partition_id, [file_path])
