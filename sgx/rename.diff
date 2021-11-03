@@ -1,0 +1,250 @@
+diff --git a/LibOS/shim/src/fs/chroot/fs.c b/LibOS/shim/src/fs/chroot/fs.c
+index d67816a59..f0c0feefd 100644
+--- a/LibOS/shim/src/fs/chroot/fs.c
++++ b/LibOS/shim/src/fs/chroot/fs.c
+@@ -200,14 +200,15 @@ static int chroot_lookup(struct shim_dentry* dent) {
+     return ret;
+ }
+ 
+-/* Open a temporary read-only PAL handle for a file (used by `unlink` etc.) */
+-static int chroot_temp_open(struct shim_dentry* dent, mode_t type, PAL_HANDLE* out_palhdl) {
++/* Open a temporary PAL handle for a file (used by `rename`, `unlink` etc.) */
++static int chroot_temp_open(struct shim_dentry* dent, mode_t type, int pal_options,
++                            PAL_HANDLE* out_palhdl) {
+     char* uri;
+     int ret = chroot_dentry_uri(dent, type, &uri);
+     if (ret < 0)
+         return ret;
+ 
+-    ret = DkStreamOpen(uri, PAL_ACCESS_RDONLY, /*share_flags=*/0, /*create=*/0, /*options=*/0,
++    ret = DkStreamOpen(uri, PAL_ACCESS_RDONLY, /*share_flags=*/0, /*create=*/0, pal_options,
+                        out_palhdl);
+     free(uri);
+     return pal_to_unix_errno(ret);
+@@ -522,7 +523,7 @@ static int chroot_readdir(struct shim_dentry* dent, readdir_callback_t callback,
+     char* buf = NULL;
+     size_t buf_size = READDIR_BUF_SIZE;
+ 
+-    ret = chroot_temp_open(dent, S_IFDIR, &palhdl);
++    ret = chroot_temp_open(dent, S_IFDIR, /*pal_options=*/0, &palhdl);
+     if (ret < 0)
+         return ret;
+ 
+@@ -584,7 +585,7 @@ static int chroot_unlink(struct shim_dentry* dir, struct shim_dentry* dent) {
+     lock(&dent->lock);
+ 
+     PAL_HANDLE palhdl;
+-    ret = chroot_temp_open(dent, dent->type, &palhdl);
++    ret = chroot_temp_open(dent, dent->type, /*pal_options=*/0, &palhdl);
+     if (ret < 0)
+         goto out;
+ 
+@@ -638,7 +639,7 @@ static int chroot_rename(struct shim_dentry* old, struct shim_dentry* new) {
+         goto out;
+ 
+     PAL_HANDLE palhdl;
+-    ret = chroot_temp_open(old, old->type, &palhdl);
++    ret = chroot_temp_open(old, old->type, PAL_OPTION_RENAME, &palhdl);
+     if (ret < 0)
+         goto out;
+ 
+@@ -677,7 +678,7 @@ static int chroot_chmod(struct shim_dentry* dent, mode_t perm) {
+     lock(&dent->inode->lock);
+ 
+     PAL_HANDLE palhdl;
+-    ret = chroot_temp_open(dent, dent->type, &palhdl);
++    ret = chroot_temp_open(dent, dent->type, /*pal_options=*/0, &palhdl);
+     if (ret < 0)
+         goto out;
+ 
+diff --git a/Pal/include/host/Linux-common/pal_flags_conv.h b/Pal/include/host/Linux-common/pal_flags_conv.h
+index f7c4a919f..556c10f6a 100644
+--- a/Pal/include/host/Linux-common/pal_flags_conv.h
++++ b/Pal/include/host/Linux-common/pal_flags_conv.h
+@@ -57,7 +57,7 @@ static inline int PAL_CREATE_TO_LINUX_OPEN(int create) {
+ }
+ 
+ static inline int PAL_OPTION_TO_LINUX_OPEN(int options) {
+-    assert(WITHIN_MASK(options, PAL_OPTION_CLOEXEC | PAL_OPTION_NONBLOCK));
++    assert(WITHIN_MASK(options, PAL_OPTION_CLOEXEC | PAL_OPTION_NONBLOCK | PAL_OPTION_RENAME));
+     return (options & PAL_OPTION_CLOEXEC  ? O_CLOEXEC  : 0) |
+            (options & PAL_OPTION_NONBLOCK ? O_NONBLOCK : 0);
+ }
+diff --git a/Pal/include/pal/pal.h b/Pal/include/pal/pal.h
+index f4a8d176c..1f8b379f6 100644
+--- a/Pal/include/pal/pal.h
++++ b/Pal/include/pal/pal.h
+@@ -297,8 +297,9 @@ enum PAL_OPTION {
+     PAL_OPTION_CLOEXEC       = 1,
+     PAL_OPTION_EFD_SEMAPHORE = 2, /*!< specific to `eventfd` syscall */
+     PAL_OPTION_NONBLOCK      = 4,
++    PAL_OPTION_RENAME        = 8, /*!< specific to `rename` syscall */
+ 
+-    PAL_OPTION_MASK          = 7,
++    PAL_OPTION_MASK          = 15,
+ };
+ 
+ #define WITHIN_MASK(val, mask) (((val) | (mask)) == (mask))
+diff --git a/Pal/src/host/Linux-SGX/db_files.c b/Pal/src/host/Linux-SGX/db_files.c
+index dc7c88198..6c38135a6 100644
+--- a/Pal/src/host/Linux-SGX/db_files.c
++++ b/Pal/src/host/Linux-SGX/db_files.c
+@@ -122,6 +122,13 @@ static int file_open(PAL_HANDLE* handle, const char* type, const char* uri, int
+             pf_mode = PF_FILE_MODE_READ | PF_FILE_MODE_WRITE;
+         }
+ 
++        /* The file is being opened for renaming. We will need to update the metadata in the file,
++         * so open with RDWR mode with necessary share permissions. */
++        if (pal_options & PAL_OPTION_RENAME) {
++            pf_mode = PF_FILE_MODE_READ | PF_FILE_MODE_WRITE;
++            flags = O_RDWR;
++        }
++
+         if ((pf_mode & PF_FILE_MODE_WRITE) && pf->writable_fd >= 0) {
+             log_warning("file_open(%s): disallowing concurrent writable handle",
+                         hdl->file.realpath);
+@@ -788,22 +795,74 @@ static int file_rename(PAL_HANDLE handle, const char* type, const char* uri) {
+     if (strcmp(type, URI_TYPE_FILE))
+         return -PAL_ERROR_INVAL;
+ 
+-    char* tmp = strdup(uri);
+-    if (!tmp)
++    char* new_path = strdup(uri);
++    if (!new_path)
+         return -PAL_ERROR_NOMEM;
+ 
++    struct protected_file* pf = find_protected_file_handle(handle);
++
++    /* TODO: Handle the case of renaming a file that has a file handle already open */
++    if (pf) {
++        size_t normpath_size = strlen(uri) + 1;
++        char* new_normpath = (char*)calloc(1, normpath_size);
++
++        if (!new_normpath) {
++            free(new_path);
++            return -PAL_ERROR_NOMEM;
++        }
++
++        if (get_norm_path(uri, new_normpath, &normpath_size) < 0) {
++            log_warning("Could not normalize path (%s)", uri);
++            free(new_normpath);
++            free(new_path);
++            return -PAL_ERROR_DENIED;
++        }
++
++        if (!get_protected_file(new_normpath)) {
++            log_warning("New path during rename is not specified in 'sgx.protected_files' (%s)", new_normpath);
++            free(new_normpath);
++            free(new_path);
++            return -PAL_ERROR_DENIED;
++        }
++
++        /* update the metadata of the protected file */
++        pf_status_t pf_ret = pf_rename(pf->context, new_normpath);
++
++        free(new_normpath);
++
++        if (PF_FAILURE(pf_ret)) {
++            log_warning("pf_rename failed: %s", pf_strerror(pf_ret));
++            free(new_path);
++            return -PAL_ERROR_DENIED;
++        }
++    }
++
+     int ret = ocall_rename(handle->file.realpath, uri);
+     if (ret < 0) {
+-        free(tmp);
++        free(new_path);
++        if (pf) {
++            /* restore the original file name in pf metadata */
++            pf_status_t pf_ret = pf_rename(pf->context, handle->file.realpath);
++            if (PF_FAILURE(pf_ret)) {
++                log_warning("Rename failed: %s, the file might be unusable", pf_strerror(pf_ret));
++            }
++        }
+         return unix_to_pal_error(ret);
+     }
+ 
++    if (pf) {
++        ret = pf_file_close(pf, handle);
++        if (ret < 0) {
++            log_warning("pf_file_close failed during rename");
++        }
++    }
++
+     /* initial realpath is part of handle object and will be freed with it */
+     if (handle->file.realpath && handle->file.realpath != (void*)handle + HANDLE_SIZE(file)) {
+         free((void*)handle->file.realpath);
+     }
+ 
+-    handle->file.realpath = tmp;
++    handle->file.realpath = new_path;
+     return 0;
+ }
+ 
+diff --git a/Pal/src/host/Linux-SGX/protected-files/protected_files.c b/Pal/src/host/Linux-SGX/protected-files/protected_files.c
+index 8ab14cd52..d88860bca 100644
+--- a/Pal/src/host/Linux-SGX/protected-files/protected_files.c
++++ b/Pal/src/host/Linux-SGX/protected-files/protected_files.c
+@@ -372,6 +372,20 @@ static bool ipf_init_new_file(pf_context_t* pf, const char* path) {
+     return true;
+ }
+ 
++static bool ipf_rename_file(pf_context_t* pf, const char* new_path) {
++    if (strlen(new_path) > PATH_MAX_SIZE - 1) {
++        pf->last_error = PF_STATUS_PATH_TOO_LONG;
++        return false;
++    }
++
++    memset(&pf->encrypted_part_plain.path, 0, sizeof(pf->encrypted_part_plain.path));
++    memcpy(pf->encrypted_part_plain.path, new_path, strlen(new_path) + 1);
++
++    pf->need_writing = true;
++
++    return true;
++}
++
+ static bool ipf_close(pf_context_t* pf) {
+     void* data;
+     bool retval = true;
+@@ -1320,6 +1334,19 @@ pf_status_t pf_flush(pf_context_t* pf) {
+     return PF_STATUS_SUCCESS;
+ }
+ 
++pf_status_t pf_rename(pf_context_t* pf, const char* new_path) {
++    if (!g_initialized)
++        return PF_STATUS_UNINITIALIZED;
++
++    if (!ipf_rename_file(pf, new_path))
++        return pf->last_error;
++
++    if (!ipf_internal_flush(pf))
++        return pf->last_error;
++
++    return PF_STATUS_SUCCESS;
++}
++
+ pf_status_t pf_get_handle(pf_context_t* pf, pf_handle_t* handle) {
+     if (!g_initialized)
+         return PF_STATUS_UNINITIALIZED;
+diff --git a/Pal/src/host/Linux-SGX/protected-files/protected_files.h b/Pal/src/host/Linux-SGX/protected-files/protected_files.h
+index 7dd840663..a7b020507 100644
+--- a/Pal/src/host/Linux-SGX/protected-files/protected_files.h
++++ b/Pal/src/host/Linux-SGX/protected-files/protected_files.h
+@@ -275,4 +275,16 @@ pf_status_t pf_get_handle(pf_context_t* pf, pf_handle_t* handle);
+  */
+ pf_status_t pf_flush(pf_context_t* pf);
+ 
++/*!
++ * \brief Update the path in the metadata during a rename
++ *
++ * \param [in] pf PF context
++ * \param [in] new_path Renamed path
++ * \return PF status
++ * \details For protected files, the file name including the path is stored in the encrypted
++ *          metadata which is verified against the actual path during open. So, during a rename
++ *          we need to update the metadata with the new path.
++ */
++pf_status_t pf_rename(pf_context_t* pf, const char* new_path);
++
+ #endif /* PROTECTED_FILES_H_ */
