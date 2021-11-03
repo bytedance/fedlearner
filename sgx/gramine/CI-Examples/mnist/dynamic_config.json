@@ -1,0 +1,11 @@
+{
+    "sgx_mrs": [
+        {
+            "MR_ENCLAVE" : "",
+            "MR_SIGNER" : "",
+            "ISV_PROD_ID" : "0",
+            "ISV_SVN" : "0"
+        }
+    ],
+    "other" : []
+}
