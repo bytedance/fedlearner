@@ -33,17 +33,18 @@ end_date=$(normalize_env_to_args "--end-date" $END_DATE)
 shuffle=$(normalize_env_to_args "--shuffle" $SUFFLE_DATA_BLOCK)
 
 if [ -n "$CHECKPOINT_PATH" ]; then
-    checkpoint_path="$CHECKPOINT_PATH"
+    checkpoint_path="--checkpoint-path=$CHECKPOINT_PATH"
 else
-    checkpoint_path="$OUTPUT_BASE_DIR/checkpoints"
+    checkpoint_path="--checkpoint-path=$OUTPUT_BASE_DIR/checkpoints"
 fi
+load_checkpoint_path=$(normalize_env_to_args "--load-checkpoint-path" "$LOAD_CHECKPOINT_PATH")
 load_checkpoint_filename=$(normalize_env_to_args "--load-checkpoint-filename" "$LOAD_CHECKPOINT_FILENAME")
 load_checkpoint_filename_with_path=$(normalize_env_to_args "--load-checkpoint-filename-with-path" "$LOAD_CHECKPOINT_FILENAME_WITH_PATH")
 
 if [[ -n "$EXPORT_PATH" ]]; then
-    export_path="$EXPORT_PATH"
+    export_path="--export-path=$EXPORT_PATH"
 else
-    export_path="$OUTPUT_BASE_DIR/exported_models"
+    export_path="--export-path=$OUTPUT_BASE_DIR/exported_models"
 fi
 
 if [ -n "$CLUSTER_SPEC" ]; then
@@ -79,9 +80,9 @@ python main.py --master \
     --data-source=$DATA_SOURCE \
     --master-addr=0.0.0.0:50051 \
     --cluster-spec="$CLUSTER_SPEC" \
-    --checkpoint-path=$checkpoint_path \
+    $checkpoint_path $load_checkpoint_path \
     $load_checkpoint_filename $load_checkpoint_filename_with_path \
-    --export-path=$export_path \
+    $export_path \
     $mode $sparse_estimator \
     $save_checkpoint_steps $save_checkpoint_secs \
     $summary_save_steps $summary_save_secs \
