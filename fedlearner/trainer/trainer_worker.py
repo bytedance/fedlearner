@@ -19,6 +19,7 @@ import threading
 
 import tensorflow.compat.v1 as tf
 from fedlearner.common import fl_logging, stats
+from fedlearner.common.argparse_util import str_as_bool
 from fedlearner.trainer.bridge import Bridge
 from fedlearner.trainer.estimator import FLEstimator
 from fedlearner.trainer.sparse_estimator import SparseFLEstimator
@@ -93,7 +94,8 @@ def create_argument_parser():
                         help='number of epoch for training, not '\
                              'support in online training')
     parser.add_argument('--shuffle',
-                        type=bool,
+                        type=str_as_bool,
+                        default=False, const=True, nargs='?',
                         help='shuffle the data block or not')
     parser.add_argument('--export-path',
                         type=str,
@@ -129,7 +131,8 @@ def create_argument_parser():
                         type=int,
                         help='Number of secs to save summary files.')
     parser.add_argument('--sparse-estimator',
-                        type=bool,
+                        type=str_as_bool,
+                        default=False, const=True, nargs='?',
                         help='Whether using sparse estimator.')
     parser.add_argument('--mode',
                         type=str,
