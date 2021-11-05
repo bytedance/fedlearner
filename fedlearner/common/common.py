@@ -274,5 +274,4 @@ def use_tls():
     enable = os.environ.get("GRPC_SGX_RA_TLS_ENABLE", False)
     if not enable:
         return False, None
-    else:
-        return True, None
+    return True, None
