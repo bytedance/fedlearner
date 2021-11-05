@@ -95,12 +95,13 @@ class RawData:
                 .format("csv") \
                 .option("header", "true") \
                 .load(input_files, inferSchema="true")
-            data_df = self._format_data_frame(data_df)
         else:
             data_df = self._spark.read \
                 .format("tfrecords") \
                 .option("recordType", "Example") \
                 .load(",".join(input_files))
+
+        data_df = self._format_data_frame(data_df)
 
         partition_field = self._get_partition_field(job_type)
         if partition_field not in data_df.columns:
