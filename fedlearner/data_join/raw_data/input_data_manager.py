@@ -69,10 +69,10 @@ class InputDataManager(object):
             splits = os.path.split(os.path.relpath(fname, root))
             dirnames = splits[:-1]
 
-            # ignore files and dirs starting with _
+            # ignore files and dirs starting with _ or .
             ignore = False
             for name in splits:
-                if name.startswith('_'):
+                if name.startswith(('_', '.')):
                     ignore = True
                     break
             if ignore:
