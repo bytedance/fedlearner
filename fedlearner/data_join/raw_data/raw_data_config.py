@@ -41,7 +41,8 @@ class RawDataJobConfig(object):
                         output_type,
                         output_format,
                         output_partition_num,
-                        output_path):
+                        output_path,
+                        validation):
         config_dict = {
             Constants.job_type_key: job_type,
             Constants.input_files_key: ",".join(input_files),
@@ -50,6 +51,7 @@ class RawDataJobConfig(object):
             Constants.output_partition_num_key: output_partition_num,
             Constants.output_format_key: output_format,
             Constants.output_path_key: output_path,
+            Constants.validation_key: validation
         }
         with gfile.Open(self._config_path, 'w') as f:
             f.write(json.dumps(config_dict))

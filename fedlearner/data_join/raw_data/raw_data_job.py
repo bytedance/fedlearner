@@ -50,6 +50,7 @@ class RawDataJob:
                  web_console_url='',
                  web_console_username='',
                  web_console_password='',
+                 validation=0,
                  kvstore_type="dfs",
                  use_fake_client=False):
         self._job_name = job_name
@@ -71,6 +72,7 @@ class RawDataJob:
         self._web_console_url = web_console_url
         self._web_console_username = web_console_username
         self._web_console_password = web_console_password
+        self._validation = validation
 
         if self._output_type == OutputType.DataBlock:
             # if output data block, run folder one by one
@@ -144,7 +146,8 @@ class RawDataJob:
             OutputType.RawData,
             output_format=output_format,
             output_partition_num=self._output_partition_num,
-            output_path=output_path)
+            output_path=output_path,
+            validation=self._validation)
 
         task_name = self._encode_spark_task_name(job_id)
         self._launch_spark_job(task_name, job_config.config_path)

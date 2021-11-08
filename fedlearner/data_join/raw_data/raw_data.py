@@ -6,7 +6,8 @@ import os
 from cityhash import CityHash32  # pylint: disable=no-name-in-module
 from pyspark import SparkFiles
 from pyspark.sql import SparkSession
-from pyspark.sql.types import StringType, IntegerType
+from pyspark.sql.types import StringType, IntegerType, LongType
+from pyspark.sql.functions import col  # pylint: disable=no-name-in-module
 
 from fedlearner.data_join.raw_data.common import Constants, DataKeyword, \
     JobType, OutputType, FileFormat, RawDataSchema
@@ -55,6 +56,21 @@ def get_config(config_filename):
     return config_dict
 
 
+def validate(data_df, job_type):
+    if job_type == JobType.PSI:
+        field_names = [DataKeyword.raw_id, DataKeyword.example_id]
+    else:
+        field_names = [DataKeyword.example_id, DataKeyword.event_time]
+    columns = data_df.columns
+    for field_name in field_names:
+        if field_name not in columns:
+            raise RuntimeError("Field %s which is necessary missed" %
+                               field_name)
+        if data_df.where(col(field_name).isNull()).count() != 0:
+            raise RuntimeError("There are invalid values of field '%s'" %
+                               field_name)
+
+
 class RawData:
     def __init__(self, config_file=None, jar_packages=None):
         # start Spark application and get Spark session, logger and config
@@ -86,6 +102,7 @@ class RawData:
         output_path = config[Constants.output_path_key]
         output_format = config[Constants.output_format_key]
         partition_num = config[Constants.output_partition_num_key]
+        validation = config.get(Constants.validation_key, 0)
 
         logging.info("Deal with new files %s", input_files)
 
@@ -102,6 +119,10 @@ class RawData:
                 .load(",".join(input_files))
 
         data_df = self._format_data_frame(data_df)
+
+        data_df.printSchema()
+        if validation:
+            validate(data_df, job_type)
 
         partition_field = self._get_partition_field(job_type)
         if partition_field not in data_df.columns:
@@ -188,18 +209,23 @@ class RawData:
             if target_type == "integer":
                 return data_df.withColumn(fname, data_df[fname].cast(
                     IntegerType()))
+            if target_type == "long":
+                return data_df.withColumn(fname, data_df[fname].cast(
+                    LongType()))
             raise RuntimeError("Do not support type %s of field %s" %
                                (target_type, fname))
 
         data_schema = data_df.schema
+        field_types = {}
         for field in data_schema:
             field_value = field.jsonValue()
-            field_name = field_value["name"]
-            field_type = field_value["type"]
-            if field_name in RawDataSchema.Schema and \
-                field_type not in RawDataSchema.Schema[field_name].types:
-                data_df = cast(field_name,
-                               RawDataSchema.Schema[field_name].default_type)
+            field_types[field_value["name"]] = field_value["type"]
+        for name, field in RawDataSchema.Schema.items():
+            if field.required and name not in field_types:
+                raise RuntimeError("Field %s is required" % name)
+            if name in field_types and \
+                field_types[name] not in field.types:
+                data_df = cast(name, field.default_type)
         return data_df
 
     def _partition_and_sort(self, data_df, job_type,

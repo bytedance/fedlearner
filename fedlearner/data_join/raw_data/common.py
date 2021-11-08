@@ -11,6 +11,7 @@ class Constants:
     output_format_key = "output_format"
     data_block_threshold_key = "data_block_threshold"
     compression_type_key = "compression_type"
+    validation_key = "validation"
 
 
 class JobType:
@@ -46,7 +47,7 @@ class RawDataSchema:
     InvalidBytes = ''.encode()
     InvalidInt = -1
     ALLOWED_FIELD = namedtuple('ALLOW_FIELD', ['default_value', 'default_type',
-                                               'types', 'must'])
+                                               'types', 'required'])
     Schema = dict({
         'example_id': ALLOWED_FIELD(InvalidBytes, "string", ["string"], True),
         'event_time': ALLOWED_FIELD(InvalidEventTime, "long",

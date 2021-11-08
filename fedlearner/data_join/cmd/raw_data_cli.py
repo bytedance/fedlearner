@@ -88,6 +88,8 @@ if __name__ == "__main__":
                         help='username of web console')
     parser.add_argument("--web_console_password", type=str, default='',
                         help='password of web console')
+    parser.add_argument("--validation", type=int, default=0,
+                        help='whether to validate input data')
     args = parser.parse_args()
     set_logger()
     spark_driver_config = SparkDriverConfig(args.spark_driver_cores,
@@ -118,5 +120,6 @@ if __name__ == "__main__":
                      spark_executor_config=spark_executor_config,
                      web_console_url=args.web_console_url,
                      web_console_username=args.web_console_username,
-                     web_console_password=args.web_console_password)
+                     web_console_password=args.web_console_password,
+                     validation=args.validation)
     job.run(args.input_base_dir, args.input_format, args.output_format)
