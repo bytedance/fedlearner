@@ -156,8 +156,8 @@ def make_secure_channel(address,
         MR_SIGNER = MEASUREMENTS["MR_SIGNER"]
         ISV_PROD_ID = MEASUREMENTS["ISV_PROD_ID"]
         ISV_SVN = MEASUREMENTS["ISV_SVN"]
-    tls_creds =  grpc.sgxratls_channel_credentials(
-            MR_ENCLAVE, MR_SIGNER, ISV_PROD_ID, ISV_SVN)
+    tls_creds = grpc.sgxratls_channel_credentials(
+			MR_ENCLAVE, MR_SIGNER, ISV_PROD_ID, ISV_SVN)
     if check_address_valid(address):
         return grpc.secure_channel(address, tls_creds, options, compression)
 
