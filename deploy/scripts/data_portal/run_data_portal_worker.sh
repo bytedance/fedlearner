@@ -54,6 +54,7 @@ spark_driver_memory=$(normalize_env_to_args '--spark_driver_memory' $SPARK_DRIVE
 spark_executor_cores=$(normalize_env_to_args '--spark_executor_cores' $SPARK_EXECUTOR_CORES)
 spark_executor_memory=$(normalize_env_to_args '--spark_executor_memory' $SPARK_EXECUTOR_MEMORY)
 spark_executor_instances=$(normalize_env_to_args '--spark_executor_instances' $SPARK_EXECUTOR_INSTANCES)
+validation=$(normalize_env_to_args '--validation' $VALIDATION)
 
 python -m fedlearner.data_join.cmd.raw_data_cli \
     --data_portal_name=$DATA_PORTAL_NAME \
@@ -71,4 +72,5 @@ python -m fedlearner.data_join.cmd.raw_data_cli \
     $SINGLE_SUBFOLDER $files_per_job_limit $output_type $output_format \
     $data_source_name $data_block_dump_threshold \
     $spark_image $spark_driver_cores $spark_driver_memory \
-    $spark_executor_cores $spark_executor_memory $spark_executor_instances
+    $spark_executor_cores $spark_executor_memory $spark_executor_instances \
+    $validation

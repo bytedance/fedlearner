@@ -49,7 +49,8 @@ class TestDataGenerator(object):
                                      partition_id,
                                      example_ids,
                                      event_times,
-                                     is_dirty):
+                                     is_miss,
+                                     is_wrong):
         types = ['Chinese', 'English', 'Math', 'Physics']
         date_str = str(event_times[0])[:8]
         fpath = self._get_input_fpath(output_dir, date_str, partition_id)
@@ -61,18 +62,28 @@ class TestDataGenerator(object):
         with tf.io.TFRecordWriter(fpath, options=options) as writer:
             for example_id, event_time in zip(example_ids, event_times):
                 feat = {}
-                if not is_dirty:
-                    feat['example_id'] = tf.train.Feature(
-                        bytes_list=tf.train.BytesList(value=[
-                            str(example_id).encode(
-                                'utf-8')]))
+                if not is_miss:
+                    if isinstance(example_id, int):
+                        feat['example_id'] = tf.train.Feature(
+                           int64_list=tf.train.Int64List(value=[example_id]))
+                    else:
+                        feat['example_id'] = tf.train.Feature(
+                            bytes_list=tf.train.BytesList(value=[
+                                str(example_id).encode(
+                                    'utf-8')]))
                     feat['raw_id'] = tf.train.Feature(
                         bytes_list=tf.train.BytesList(value=[
                             str(example_id).encode(
                                 'utf-8')]))
-                    feat['event_time'] = tf.train.Feature(
-                        int64_list=tf.train.Int64List(
-                            value=[event_time]))
+                    if is_wrong:
+                        feat['event_time'] = tf.train.Feature(
+                            bytes_list=tf.train.BytesList(value=[
+                                str("a").encode(
+                                    'utf-8')]))
+                    else:
+                        feat['event_time'] = tf.train.Feature(
+                            int64_list=tf.train.Int64List(
+                                value=[event_time]))
                 if random.random() < 0.8:
                     feat['label'] = tf.train.Feature(
                         int64_list=tf.train.Int64List(
@@ -94,7 +105,8 @@ class TestDataGenerator(object):
                                 partition_id,
                                 example_ids,
                                 event_times,
-                                is_dirty):
+                                is_miss,
+                                is_wrong):
         types = ['Chinese', 'English', 'Math', 'Physics']
         date_str = str(event_times[0])[:8]
         fpath = self._get_input_fpath(output_dir, date_str, partition_id, "csv")
@@ -102,15 +114,22 @@ class TestDataGenerator(object):
         if not gfile.Exists(dirname):
             gfile.MakeDirs(dirname)
         headers = []
-        if not is_dirty:
+        if not is_miss:
             headers = ['example_id', 'raw_id', 'event_time']
         headers.append('type')
         with open(fpath, 'w') as csv_file:
             writer = csv.DictWriter(csv_file, fieldnames=headers)
             writer.writeheader()
             for example_id, event_time in zip(example_ids, event_times):
-                if is_dirty:
+                if is_miss:
                     writer.writerow({
+                        "type": types[random.randint(0, 3)]
+                    })
+                elif is_wrong:
+                    writer.writerow({
+                        "example_id": str(example_id),
+                        "raw_id": str(example_id),
+                        "event_time": "a",
                         "type": types[random.randint(0, 3)]
                     })
                 else:
@@ -124,7 +143,9 @@ class TestDataGenerator(object):
 
     def generate_input_data(self, output_dir, partition_num,
                             num_item_per_partition,
+                            is_miss=False,
                             is_dirty=False,
+                            is_wrong=False,
                             input_format="TF_RECORD"):
         if not gfile.Exists(output_dir):
             gfile.MakeDirs(output_dir)
@@ -139,17 +160,20 @@ class TestDataGenerator(object):
             for idx in range(num_item_per_partition):
                 event_times.append(int((start_time + timedelta(
                     hours=idx)).strftime("%Y%m%d%H%M%S")))
-                eids.append(example_id)
+                if is_dirty:
+                    eids.append(example_id)
+                else:
+                    eids.append(str(example_id))
                 etime_eid_dict[event_times[-1]] = [str(example_id)]
                 example_id += 1
             if input_format == "CSV":
                 filename = self._generate_csv_partition(
                     output_dir, partition_id,
-                    eids, event_times, is_dirty)
+                    eids, event_times, is_miss, is_wrong)
             else:
                 filename = self._generate_tfrecord_partition(
                     output_dir, partition_id,
-                    eids, event_times, is_dirty)
+                    eids, event_times, is_miss, is_wrong)
             output_files.append(filename)
             print(event_times, eids)
             start_time += timedelta(days=1)
@@ -242,7 +266,7 @@ class RawDataTests(unittest.TestCase):
                     total_cnt += 1
         self.assertEqual(total_cnt, wanted_cnt)
 
-    def _generate_raw_data(self, input_format, output_format):
+    def _test_raw_data(self, input_format, output_format):
         # generate test data
         generator = TestDataGenerator()
         self._input_data, self._input_files = \
@@ -263,7 +287,8 @@ class RawDataTests(unittest.TestCase):
             "output_type": "raw_data",
             "output_path": "%s",
             "output_format": "%s",
-            "output_partition_num": %d
+            "output_partition_num": %d,
+            "validation": 1
         }""" % (JobType.Streaming, ','.join(self._input_files), input_format,
                 schema_file_path, output_path, output_format,
                 output_partition_num)
@@ -291,21 +316,22 @@ class RawDataTests(unittest.TestCase):
             self._check_tfrecord(file_paths, output_partition_num, total_num)
 
     def test_from_tfrecord(self):
-        self._generate_raw_data("TF_RECORD", "TF_RECORD")
+        self._test_raw_data("TF_RECORD", "TF_RECORD")
 
     def test_from_csv_to_tfrecord(self):
-        self._generate_raw_data("CSV", "TF_RECORD")
+        self._test_raw_data("CSV", "TF_RECORD")
 
     def test_from_csv_to_csv(self):
-        self._generate_raw_data("CSV", "CSV")
+        self._test_raw_data("CSV", "CSV")
 
-    def _generate_dirty_input(self, input_format):
+    def _test_dirty_input(self, input_format, is_miss, is_wrong):
         # generate test data
         generator = TestDataGenerator()
         self._input_data, self._input_files = \
             generator.generate_input_data(
                 self._input_dir, self._num_partition,
-                self._num_item_per_partition, is_dirty=True,
+                self._num_item_per_partition, is_miss=is_miss,
+                is_wrong=is_wrong,
                 input_format=input_format)
 
         schema_file_path = os.path.join(self._job_path, "raw_data",
@@ -321,21 +347,24 @@ class RawDataTests(unittest.TestCase):
             "output_type": "raw_data",
             "output_path": "%s",
             "output_format": "TF_RECORD",
-            "output_partition_num": %d
+            "output_partition_num": %d,
+            "validation": 1
         }""" % (JobType.Streaming, ','.join(self._input_files), input_format,
                 schema_file_path, output_path, output_partition_num)
         config = json.loads(json_str)
         processor = RawData(None, self._jars)
-        processor.run(config)
+        with self.assertRaises(RuntimeError):
+            processor.run(config)
         processor.stop()
 
-        self.assertFalse(gfile.Exists(output_path))
+    def test_missed_field_tfrecord(self):
+        self._test_dirty_input("TF_RECORD", is_miss=True, is_wrong=False)
 
-    def test_dirty_tfrecord(self):
-        self._generate_dirty_input("TF_RECORD")
+    def test_missed_field_csv(self):
+        self._test_dirty_input("CSV", is_miss=True, is_wrong=False)
 
-    def test_dirty_csv(self):
-        self._generate_dirty_input("CSV")
+    def test_wrong_field_tfrecord(self):
+        self._test_dirty_input("TF_RECORD", is_miss=False, is_wrong=True)
 
     def test_run_raw_data_dirty(self):
         # generate test data
@@ -343,7 +372,7 @@ class RawDataTests(unittest.TestCase):
         self._input_data, self._input_files = \
             generator.generate_input_data(
                 self._input_dir, self._num_partition,
-                self._num_item_per_partition, is_dirty=True)
+                self._num_item_per_partition, is_miss=True)
 
         output_partition_num = 4
         os.environ['STORAGE_ROOT_PATH'] = self._job_path
@@ -366,7 +395,8 @@ class RawDataTests(unittest.TestCase):
                          single_subfolder=True,
                          upload_dir=upload_dir,
                          use_fake_client=True)
-        job.run(self._input_dir, "TF_RECORD", "TF_RECORD")
+        with self.assertRaises(SystemExit):
+            job.run(self._input_dir, "TF_RECORD", "TF_RECORD")
 
         for job_id in range(self._num_partition):
             output_dir = os.path.join(output_path, str(job_id))
