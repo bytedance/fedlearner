@@ -24,7 +24,7 @@ sys.enable_sigterm_injection = 1
 # Mounted FSes. The following "chroot" FSes mount a part of the host FS into the
 # guest. Other parts of the host FS will not be available in the guest.
 
-# Default glibc files, mounted from the Runtime directory in GRAPHENEDIR.
+# Default glibc files, mounted from the Runtime directory in GRAMINE.
 fs.mount.lib.type = "chroot"
 fs.mount.lib.path = "/lib"
 fs.mount.lib.uri = "file:{{ graphene.runtimedir() }}"

@@ -1,7 +1,7 @@
 set -e
 set -x
 
-export MBEDTLS_PATH=${GRAPHENEDIR}/Examples/ra-tls-mbedtls
+export MBEDTLS_PATH=${GRAMINE}/Examples/ra-tls-mbedtls
 export HELLO_PATH=${GRPC_PATH}/examples/cpp/helloworld
 
 # Build ra-tls-mbedtls

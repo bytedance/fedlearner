@@ -5,11 +5,11 @@
 ################################## GRAPHENE ###################################
 
 # LibOS layer library of Graphene. There is currently only one implementation,
-# so it is always set to libsysdb.so. Note that GRAPHENEDIR macro is expanded
+# so it is always set to libsysdb.so. Note that GRAMINE macro is expanded
 # to relative path to Graphene repository in the Makefile as part of the
 # build process.
 loader.preload = "file:{{ graphene.libos }}"
-libos.entrypoint = "file:streaming-server"
+libos.entrypoint = "file:grpc-server"
 
 # Verbosity of Graphene debug log (none/error/warning/debug/trace/all). Note
 # that GRAPHENE_LOG_LEVEL macro is expanded in the Makefile as part of the
@@ -53,7 +53,7 @@ sgx.remote_attestation = 1
 #   for simplicity (except for the first 'lib' case).
 
 # Mount host-OS directory to Graphene glibc/runtime libraries (in 'uri') into
-# in-Graphene visible directory /lib (in 'path'). Note that GRAPHENEDIR macro
+# in-Graphene visible directory /lib (in 'path'). Note that GRAMINE macro
 # is expanded to relative path to Graphene repository in the Makefile as part
 # of the build process.
 fs.mount.lib.type = "chroot"
@@ -114,7 +114,7 @@ sgx.thread_num = 8
 # match, this file is trusted and allowed to be loaded and used. Note that
 # this happens on the client machine.
 
-sgx.trusted_files.grpc-async-server = "file:streaming-server"
+sgx.trusted_files.grpc-server = "file:grpc-server"
 #sgx.trusted_files.libra_tls_attest = "file:ra-tls-mbedtls"
 
 sgx.trusted_files.runtime = "file:{{ graphene.runtimedir() }}/"
