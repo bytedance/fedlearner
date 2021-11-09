@@ -50,8 +50,8 @@ RUN git clone https://github.com/gramineproject/gramine.git ${GRAMINEDIR} \
     && cd ${GRAMINEDIR} \
     && git checkout ${GRAMINE_VERSION}
 
-COPY sgx/rename.diff ${GRAMINEDIR}
-COPY sgx/c_args.diff ${GRAMINEDIR}
+COPY sgx/gramine/patches/rename.diff ${GRAMINEDIR}
+COPY sgx/gramine/patches/c_args.diff ${GRAMINEDIR}
 
 RUN cd ${GRAMINEDIR} \
     && git apply rename.diff \
