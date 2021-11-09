@@ -5,11 +5,11 @@
 ################################## GRAPHENE ###################################
 
 # LibOS layer library of Graphene. There is currently only one implementation,
-# so it is always set to libsysdb.so. Note that GRAPHENEDIR macro is expanded
+# so it is always set to libsysdb.so. Note that GRAMINE macro is expanded
 # to relative path to Graphene repository in the Makefile as part of the
 # build process.
 loader.preload = "file:{{ graphene.libos }}"
-libos.entrypoint = "file:grpc-server"
+libos.entrypoint = "file:streaming-client"
 
 # Verbosity of Graphene debug log (none/error/warning/debug/trace/all). Note
 # that GRAPHENE_LOG_LEVEL macro is expanded in the Makefile as part of the
@@ -53,7 +53,7 @@ sgx.remote_attestation = 1
 #   for simplicity (except for the first 'lib' case).
 
 # Mount host-OS directory to Graphene glibc/runtime libraries (in 'uri') into
-# in-Graphene visible directory /lib (in 'path'). Note that GRAPHENEDIR macro
+# in-Graphene visible directory /lib (in 'path'). Note that GRAMINE macro
 # is expanded to relative path to Graphene repository in the Makefile as part
 # of the build process.
 fs.mount.lib.type = "chroot"
@@ -114,12 +114,13 @@ sgx.thread_num = 8
 # match, this file is trusted and allowed to be loaded and used. Note that
 # this happens on the client machine.
 
-sgx.trusted_files.grpc-server = "file:grpc-server"
-#sgx.trusted_files.libra_tls_attest = "file:ra-tls-mbedtls"
-
-sgx.trusted_files.runtime = "file:{{ graphene.runtimedir() }}/"
-sgx.trusted_files.arch_libdir = "file:{{ arch_libdir }}/"
-sgx.trusted_files.usr_arch_libdir = "file:/usr/{{ arch_libdir }}/"
+sgx.trusted_files = [
+	"file:{{ graphene.runtimedir() }}/",
+	"file:{{ arch_libdir }}/",
+	"file:/usr/{{ arch_libdir }}/",
+	"file:/etc/ssl/certs",
+	"file:streaming-client"
+]
 
 # Trusted no-library files include configuration files, read-only files, and
 # other static files. It is useful to specify such files here to make sure
@@ -137,12 +138,14 @@ sgx.trusted_files.usr_arch_libdir = "file:/usr/{{ arch_libdir }}/"
 
 # Name Service Switch (NSS) files. Glibc reads these files as part of name-
 # service information gathering. For more info, see 'man nsswitch.conf'.
-sgx.allowed_files.nsswitch = "file:/etc/nsswitch.conf"
-sgx.allowed_files.ethers = "file:/etc/ethers"
-sgx.allowed_files.hosts = "file:/etc/hosts"
-sgx.allowed_files.group = "file:/etc/group"
-sgx.allowed_files.passwd = "file:/etc/passwd"
-
-# getaddrinfo(3) configuration file. Glibc reads this file to correctly find
-# network addresses. For more info, see 'man gai.conf'.
-sgx.allowed_files.gaiconf = "file:/etc/gai.conf"
+sgx.allowed_files = [
+	"file:/etc/nsswitch.conf",
+	"file:/etc/ethers",
+	"file:/etc/hosts",
+	"file:/etc/group",
+	"file:/etc/passwd",
+	"file:/etc/gai.conf",
+	"file:/etc/sgx_default_qcnl.conf",
+	"file:/etc/host.conf",
+	"file:/etc/resolv.conf"
+]

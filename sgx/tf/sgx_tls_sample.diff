@@ -137,14 +137,14 @@ index 51832fe9628..199d0cda566 100644
  +        use_default_shell_env = True,
       )
 -
-+ 
++
       return struct(files = depset(out_files))
 +diff --git a/src/core/lib/security/credentials/tls/tls_credentials.cc b/src/core/lib/security/credentials/tls/tls_credentials.cc
 +index 701fd3b150..0826d05933 100644
 +--- a/src/core/lib/security/credentials/tls/tls_credentials.cc
 ++++ b/src/core/lib/security/credentials/tls/tls_credentials.cc
 +@@ -111,9 +111,9 @@ TlsServerCredentials::create_security_connector() {
-+ 
++
 + grpc_channel_credentials* grpc_tls_credentials_create(
 +     grpc_tls_credentials_options* options) {
 +-  if (!CredentialOptionSanityCheck(options, true /* is_client */)) {

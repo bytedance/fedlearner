@@ -17,8 +17,8 @@
 ################################# CONSTANTS ###################################
 
 # Relative path to Graphene root
-GRAPHENEDIR ?= ../../..
-SGX_SIGNER_KEY ?= $(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/enclave-key.pem
+GRAMINE ?= ../../..
+SGX_SIGNER_KEY ?= $(GRAMINE)/Pal/src/host/Linux-SGX/signer/enclave-key.pem
 INSTALL_PREFIX ?= /usr/local
 export PATH := $(INSTALL_PREFIX)/bin:$(PATH)
 
@@ -37,7 +37,7 @@ all: grpc-server.manifest.sgx grpc-server.token grpc-server.sig \
 		streaming-client.manifest.sgx streaming-client.token streaming-client.sig
 endif
 
-include $(GRAPHENEDIR)/Scripts/Makefile.configs
+include $(GRAMINE)/Scripts/Makefile.configs
 
 ################################ gRPC MANIFEST ###############################
 

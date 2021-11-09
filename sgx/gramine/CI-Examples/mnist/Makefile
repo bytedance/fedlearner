@@ -10,8 +10,8 @@
 include ../../Scripts/Makefile.configs
 
 # Relative path to Graphene root
-GRAPHENEDIR ?= ../..
-SGX_SIGNER_KEY ?= $(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/enclave-key.pem
+GRAMINE ?= ../..
+SGX_SIGNER_KEY ?= $(GRAMINE)/Pal/src/host/Linux-SGX/signer/enclave-key.pem
 
 ifeq ($(DEBUG),1)
 GRAPHENE_LOG_LEVEL = debug

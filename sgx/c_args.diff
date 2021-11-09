@@ -1,0 +1,43 @@
+From 4f5c45732961ae2de514dfdf6869431a770982f0 Mon Sep 17 00:00:00 2001
+From: Your Name <you@example.com>
+Date: Wed, 27 Oct 2021 14:10:15 +0000
+Subject: [PATCH] Fix dcap build error
+
+---
+ Pal/src/host/Linux-SGX/tools/ra-tls/meson.build | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/Pal/src/host/Linux-SGX/tools/ra-tls/meson.build b/Pal/src/host/Linux-SGX/tools/ra-tls/meson.build
+index ea68be90..32c14221 100644
+--- a/Pal/src/host/Linux-SGX/tools/ra-tls/meson.build
++++ b/Pal/src/host/Linux-SGX/tools/ra-tls/meson.build
+@@ -88,7 +88,7 @@ if dcap
+         'ra_tls_verify_common.c',
+         'ra_tls.h',
+
+-        args: ra_tls_args,
++        c_args: ra_tls_args,
+         include_directories: sgx_inc,
+         dependencies: [
+             sgx_dcap_quoteverify_dep,
+@@ -109,7 +109,7 @@ if dcap
+         'ra_tls_verify_common.c',
+         'ra_tls.h',
+
+-        args: ra_tls_args,
++        c_args: ra_tls_args,
+         include_directories: sgx_inc,
+         dependencies: [
+             sgx_dcap_quoteverify_dep,
+@@ -132,7 +132,7 @@ if dcap
+         'ra_tls.h',
+         'secret_prov.h',
+
+-        args: ra_tls_args,
++        c_args: ra_tls_args,
+         include_directories: sgx_inc,
+         dependencies: [
+             threads_dep,
+--
+2.17.1
+

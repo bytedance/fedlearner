@@ -1,10 +1,11 @@
 set -e
 
-export MBEDTLS_PATH=${GRAPHENEDIR}/Examples/ra-tls-mbedtls
+export MBEDTLS_PATH=${GRAMINEDIR}/CI-Examples/ra-tls-mbedtls
 export ABSEIL_PATH=${GRPC_PATH}/third_party/abseil-cpp
 
 # Build ra-tls-mbedtls
 if [ ! -d "${MBEDTLS_PATH}/mbedtls" ]; then
+    echo "building ra-tls-mbedtls......"
     ${MBEDTLS_PATH}/build_install.sh
 fi
 
