@@ -223,7 +223,8 @@ class Channel():
         # channel client & server
         self._channel_call = channel_pb2_grpc.ChannelStub(self._channel)
         if use_tls:
-            server_credentials = grpc.sgxratls_server_credentials("dynamic_config.json")
+            server_credentials = \
+                grpc.sgxratls_server_credentials("dynamic_config.json")
             self._server.add_secure_port(
                 self._listen_address, server_credentials)
         else:
