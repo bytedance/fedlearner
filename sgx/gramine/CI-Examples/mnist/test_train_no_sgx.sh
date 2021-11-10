@@ -8,7 +8,7 @@ alias logfilter="grep -v \"FUTEX\|measured\|memory entry\|cleaning up\|async eve
 export CUDA_VISIBLE_DEVICES=""
 
 function get_env() {
-    graphene-sgx-get-token -sig=python.sig  | grep $1 | awk -F":" '{print $2}' | xargs
+    gramine-sgx-get-token -s python.sig -o /dev/null | grep $1 | awk -F ":" '{print $2}' | xargs
 }
 
 function make_custom_env() {
@@ -28,7 +28,7 @@ function make_custom_env() {
 
 alias logfilter="grep -v \"FUTEX\|measured\|memory entry\|cleaning up\|async event\|shim_exit\""
 
->ps0-graphene-python.log
->worker0-graphene-python.log
-python -u train.py --task_index=0 --job_name=ps --loglevel=debug 2>&1 | logfilter | tee -a ps0-graphene-python.log & 
-python -u train.py --task_index=0 --job_name=worker --loglevel=debug 2>&1 | logfilter | tee -a worker0-graphene-python.log &
+>ps0-gramine-python.log
+>worker0-gramine-python.log
+python -u train.py --task_index=0 --job_name=ps --loglevel=debug 2>&1 | logfilter | tee -a ps0-gramine-python.log & 
+python -u train.py --task_index=0 --job_name=worker --loglevel=debug 2>&1 | logfilter | tee -a worker0-gramine-python.log &

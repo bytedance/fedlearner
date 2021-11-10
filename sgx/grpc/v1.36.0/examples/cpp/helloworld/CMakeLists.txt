@@ -187,8 +187,6 @@ foreach(_target
     address_sorting
     dl
 
-    libmbedtls.so
-    libmbedx509.so
-    libmbedcrypto.so
-    ra_tls_attest)
+    libmbedx509_gramine.a
+    libmbedcrypto_gramine.a)
 endforeach()

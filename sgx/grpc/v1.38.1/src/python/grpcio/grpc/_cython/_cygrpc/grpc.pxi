@@ -655,16 +655,71 @@ cdef extern from "grpc/grpc_security.h":
     GRPC_TLS_SKIP_HOSTNAME_VERIFICATION
     GRPC_TLS_SKIP_ALL_SERVER_VERIFICATION
 
+  ctypedef struct grpc_tls_error_details:
+    pass
+
+  ctypedef struct grpc_tls_identity_pairs:
+    pass
+
+  ctypedef struct grpc_tls_certificate_provider:
+    pass
+
+  ctypedef struct grpc_tls_credentials_options:
+    pass
+
   ctypedef struct grpc_tls_server_authorization_check_arg:
     pass
 
   ctypedef struct grpc_tls_server_authorization_check_config:
     pass
 
-  ctypedef struct grpc_tls_credentials_options:
-    pass
+  grpc_tls_identity_pairs* grpc_tls_identity_pairs_create();
+
+  void grpc_tls_identity_pairs_add_pair(grpc_tls_identity_pairs* pairs,
+                                        const char* private_key,
+                                        const char* cert_chain);
+
+  void grpc_tls_identity_pairs_destroy(grpc_tls_identity_pairs* pairs);
+
+  grpc_tls_certificate_provider* grpc_tls_certificate_provider_static_data_create(
+    const char* root_certificate, grpc_tls_identity_pairs* pem_key_cert_pairs);
+
+  grpc_tls_certificate_provider* grpc_tls_certificate_provider_file_watcher_create(
+    const char* private_key_path, const char* identity_certificate_path,
+    const char* root_cert_path, unsigned int refresh_interval_sec);
+
+  void grpc_tls_certificate_provider_release(
+      grpc_tls_certificate_provider* provider);
 
   grpc_tls_credentials_options* grpc_tls_credentials_options_create()
+
+  void grpc_tls_credentials_options_set_cert_request_type(
+    grpc_tls_credentials_options* options,
+    grpc_ssl_client_certificate_request_type type);
+
+  void grpc_tls_credentials_options_set_server_verification_option(
+    grpc_tls_credentials_options* options,
+    grpc_tls_server_verification_option server_verification_option);
+
+  void grpc_tls_credentials_options_set_certificate_provider(
+    grpc_tls_credentials_options* options,
+    grpc_tls_certificate_provider* provider);
+
+  void grpc_tls_credentials_options_watch_root_certs(
+    grpc_tls_credentials_options* options);
+
+  void grpc_tls_credentials_options_set_root_cert_name(
+    grpc_tls_credentials_options* options, const char* root_cert_name);
+
+  void grpc_tls_credentials_options_watch_identity_key_cert_pairs(
+    grpc_tls_credentials_options* options);
+
+  void grpc_tls_credentials_options_set_identity_cert_name(
+    grpc_tls_credentials_options* options, const char* identity_cert_name);
+
+  void grpc_tls_credentials_options_set_server_authorization_check_config(
+    grpc_tls_credentials_options* options,
+    grpc_tls_server_authorization_check_config* config);
 
   grpc_tls_server_authorization_check_config* grpc_tls_server_authorization_check_config_create(
     const void* config_user_data,
@@ -674,18 +729,13 @@ cdef extern from "grpc/grpc_security.h":
                    grpc_tls_server_authorization_check_arg* arg),
     void (*destruct)(void* config_user_data));
 
-  void grpc_tls_credentials_options_set_server_verification_option(
-    grpc_tls_credentials_options* options,
-    grpc_tls_server_verification_option server_verification_option);
-
-  void grpc_tls_credentials_options_set_server_authorization_check_config(
-    grpc_tls_credentials_options* options,
-    grpc_tls_server_authorization_check_config* config);
-
   void grpc_tls_server_authorization_check_config_release(
     grpc_tls_server_authorization_check_config* config);
 
   grpc_channel_credentials* grpc_tls_credentials_create(
+    grpc_tls_credentials_options* options);
+
+  grpc_server_credentials* grpc_tls_server_credentials_create(
     grpc_tls_credentials_options* options);
 
 cdef extern from "grpc/compression.h":

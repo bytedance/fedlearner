@@ -1,6 +1,7 @@
 set -e
+set -x
 
-export BUILD_TYPE=Debug
+export BUILD_TYPE=Release
 export HELLO_PATH=${GRPC_PATH}/examples/cpp/helloworld
 
 ${GRPC_PATH}/build_cpp.sh

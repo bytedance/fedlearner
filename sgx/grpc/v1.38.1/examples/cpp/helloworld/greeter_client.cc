@@ -16,10 +16,8 @@
  *
  */
 
-#include "getopt.hpp"
-
 #include <grpcpp/grpcpp.h>
-#include <grpcpp/security/sgx/grpc_sgx_ra_tls.h>
+#include <grpcpp/security/sgx/sgx_ra_tls.h>
 
 #ifdef BAZEL_BUILD
 #include "examples/protos/helloworld.grpc.pb.h"
@@ -27,24 +25,20 @@
 #include "helloworld.grpc.pb.h"
 #endif
 
+#include "../getopt.hpp"
+
 using helloworld::Greeter;
 using helloworld::HelloReply;
 using helloworld::HelloRequest;
 
 struct argparser {
   bool ssl;
+  const char* config;
   std::string server_address;
-  const char * mr_enclave;
-  const char * mr_signer;
-  const char * isv_prod_id;
-  const char * isv_svn;
   argparser() {
     server_address = getarg("localhost:50051", "-t", "--target");
     ssl = getarg(true, "-ssl", "--ssl");
-    mr_enclave = getarg("0", "-mre", "--mr_enclave");
-    mr_signer = getarg("0", "-mrs", "--mr_signer");
-    isv_prod_id = getarg("0", "-id", "--isv_prod_id");
-    isv_svn = getarg("0", "-svn", "--isv_svn");
+    config = getarg("dynamic_config.json", "-cfg", "--config");
   };
 };
 
@@ -89,7 +83,7 @@ void run_client() {
 
   std::shared_ptr<grpc::Channel> channel = nullptr;
   if (args.ssl) {
-    auto cred = grpc::sgx::TlsCredentials(args.mr_enclave, args.mr_signer, args.isv_prod_id, args.isv_svn);
+    auto cred = grpc::sgx::TlsCredentials(args.config);
     channel = std::move(grpc::CreateChannel(args.server_address, cred));
     // channel = std::move(grpc::sgx::CreateSecureChannel(args.server_address, cred));
   } else {
@@ -99,9 +93,10 @@ void run_client() {
 
   GreeterClient greeter(channel);
 
-  std::string user("world");
-  std::string reply = greeter.SayHello(user);
-  std::cout << "Greeter received: " << reply << std::endl;
+  std::string user_a = greeter.SayHello("a");
+  std::string user_b = greeter.SayHello("b");
+
+  std::cout << "Greeter received: " << user_a << ", "<< user_b << std::endl;
 };
 
 int main(int argc, char** argv) {

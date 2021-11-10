@@ -13,7 +13,7 @@ cp build_docker_image.sh ../ && cd ..
 
 ## Test Mode
 ```
-cd /graphene/Examples/mnist
+cd /gramine/Examples/mnist
 test-sgx.sh data
 test-sgx.sh leader
 ```

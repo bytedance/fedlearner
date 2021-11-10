@@ -1,0 +1,102 @@
+diff --git a/Pal/src/host/Linux-SGX/tools/ra-tls/ra_tls_verify_dcap.c b/Pal/src/host/Linux-SGX/tools/ra-tls/ra_tls_verify_dcap.c
+index 8ce518da..4c854410 100644
+--- a/Pal/src/host/Linux-SGX/tools/ra-tls/ra_tls_verify_dcap.c
++++ b/Pal/src/host/Linux-SGX/tools/ra-tls/ra_tls_verify_dcap.c
+@@ -24,6 +24,8 @@
+ #include <mbedtls/pk.h>
+ #include <mbedtls/sha256.h>
+ #include <mbedtls/x509_crt.h>
++#include <mbedtls/debug.h>
++#include <mbedtls/error.h>
+ 
+ #include "attestation.h"
+ #include "ra_tls.h"
+@@ -96,8 +98,10 @@ int ra_tls_verify_callback(void* data, mbedtls_x509_crt* crt, int depth, uint32_
+     size_t quote_size;
+     ret = find_oid(crt->v3_ext.p, crt->v3_ext.len, quote_oid, quote_oid_len, (uint8_t**)&quote,
+                    &quote_size);
+-    if (ret < 0)
++    if (ret < 0) {
++        printf("find_oid failed");
+         goto out;
++    }
+ 
+     if (quote_size < sizeof(*quote)) {
+         ret = MBEDTLS_ERR_X509_INVALID_EXTENSIONS;
+@@ -106,8 +110,11 @@ int ra_tls_verify_callback(void* data, mbedtls_x509_crt* crt, int depth, uint32_
+ 
+     /* compare public key's hash from cert against quote's report_data */
+     ret = cmp_crt_pk_against_quote_report_data(crt, quote);
+-    if (ret < 0)
++    if (ret < 0) {
++        printf("cmp_crt_pk_against_quote_report_data failed");
++        ret = MBEDTLS_ERR_X509_BAD_INPUT_DATA;
+         goto out;
++    }
+ 
+     /* prepare user-supplied verification parameters "allow outdated TCB"/"allow debug enclave" */
+     bool allow_outdated_tcb  = getenv_allow_outdated_tcb();
+@@ -116,12 +123,14 @@ int ra_tls_verify_callback(void* data, mbedtls_x509_crt* crt, int depth, uint32_
+     /* call into libsgx_dcap_quoteverify to verify ECDSA/based SGX quote */
+     ret = sgx_qv_get_quote_supplemental_data_size(&supplemental_data_size);
+     if (ret) {
++        printf("sgx_qv_get_quote_supplemental_data_size failed");
+         ret = MBEDTLS_ERR_X509_FATAL_ERROR;
+         goto out;
+     }
+ 
+     supplemental_data = (uint8_t*)malloc(supplemental_data_size);
+     if (!supplemental_data) {
++        printf("malloc failed");
+         ret = MBEDTLS_ERR_X509_ALLOC_FAILED;
+         goto out;
+     }
+@@ -140,6 +149,7 @@ int ra_tls_verify_callback(void* data, mbedtls_x509_crt* crt, int depth, uint32_
+                               /*p_qve_report_info=*/NULL, supplemental_data_size,
+                               supplemental_data);
+     if (ret) {
++        printf("sgx_qv_verify_quote failed");
+         ret = MBEDTLS_ERR_X509_CERT_VERIFY_FAILED;
+         goto out;
+     }
+@@ -159,6 +169,7 @@ int ra_tls_verify_callback(void* data, mbedtls_x509_crt* crt, int depth, uint32_
+         case SGX_QL_QV_RESULT_REVOKED:
+         case SGX_QL_QV_RESULT_UNSPECIFIED:
+         default:
++            printf("verification_result meet unknown failure\n");
+             ret = MBEDTLS_ERR_X509_CERT_VERIFY_FAILED;
+             break;
+     }
+@@ -166,6 +177,7 @@ int ra_tls_verify_callback(void* data, mbedtls_x509_crt* crt, int depth, uint32_
+     /* verify enclave attributes from the SGX quote */
+     ret = verify_quote_enclave_attributes(quote, allow_debug_enclave);
+     if (ret < 0) {
++        printf("verify_quote_enclave_attributes failed");
+         ret = MBEDTLS_ERR_X509_CERT_VERIFY_FAILED;
+         goto out;
+     }
+@@ -177,9 +189,15 @@ int ra_tls_verify_callback(void* data, mbedtls_x509_crt* crt, int depth, uint32_
+                                        (const char*)&quote->report_body.mr_signer,
+                                        (const char*)&quote->report_body.isv_prod_id,
+                                        (const char*)&quote->report_body.isv_svn);
++        if (ret < 0) {
++            printf("g_verify_measurements_cb failed");
++        }
+     } else {
+         /* use default logic to verify measurements */
+         ret = verify_quote_against_envvar_measurements(quote, quote_size);
++        if (ret < 0) {
++            printf("verify_quote_against_envvar_measurements failed");
++        }
+     }
+     if (ret < 0) {
+         ret = MBEDTLS_ERR_X509_CERT_VERIFY_FAILED;
+@@ -189,5 +207,8 @@ int ra_tls_verify_callback(void* data, mbedtls_x509_crt* crt, int depth, uint32_
+     ret = 0;
+ out:
+     free(supplemental_data);
++    if (ret != 0) {
++        printf(", code: %d, error: %s\n", ret, mbedtls_high_level_strerr(ret));
++    }
+     return ret;
+ }

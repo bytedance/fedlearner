@@ -2079,8 +2079,11 @@ target_link_libraries(grpc
   gpr
   ${_gRPC_SSL_LIBRARIES}
   address_sorting
-  libmbedx509.a
-  libmbedcrypto.a
+
+  libmbedx509_gramine.a
+  libmbedcrypto_gramine.a
+  libcjson.a
+  libcjson_utils.a
 )
 if(_gRPC_PLATFORM_IOS OR _gRPC_PLATFORM_MAC)
   target_link_libraries(grpc "-framework CoreFoundation")
@@ -2777,9 +2780,9 @@ add_library(grpc++
   src/cpp/util/status.cc
   src/cpp/util/string_ref.cc
   src/cpp/util/time_cc.cc
-  src/cpp/sgx/grpc_sgx_ra_tls_client.cc
-  src/cpp/sgx/grpc_sgx_ra_tls_server.cc
-  src/cpp/sgx/grpc_sgx_ra_tls_utils.cc
+  src/cpp/sgx/sgx_ra_tls_credentials.cc
+  src/cpp/sgx/sgx_ra_tls_options.cc
+  src/cpp/sgx/sgx_ra_tls_utils.cc
 )
 
 set_target_properties(grpc++ PROPERTIES
@@ -2977,7 +2980,8 @@ foreach(_hdr
   include/grpcpp/security/credentials.h
   include/grpcpp/security/server_credentials.h
   include/grpcpp/security/tls_certificate_provider.h
-  include/grpcpp/security/sgx/grpc_sgx_ra_tls.h
+  include/grpcpp/security/sgx/sgx_ra_tls.h
+  include/grpcpp/security/sgx/sgx_ra_tls_options.h
   include/grpcpp/server.h
   include/grpcpp/server_builder.h
   include/grpcpp/server_context.h
@@ -3625,7 +3629,8 @@ foreach(_hdr
   include/grpcpp/security/server_credentials.h
   include/grpcpp/security/tls_certificate_provider.h
   include/grpcpp/security/tls_credentials_options.h
-  include/grpcpp/security/sgx/grpc_sgx_ra_tls.h
+  include/grpcpp/security/sgx/sgx_ra_tls.h
+  include/grpcpp/security/sgx/sgx_ra_tls_options.h
   include/grpcpp/server.h
   include/grpcpp/server_builder.h
   include/grpcpp/server_context.h

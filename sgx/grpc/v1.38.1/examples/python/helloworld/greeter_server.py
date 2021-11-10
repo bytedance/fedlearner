@@ -34,7 +34,7 @@ def serve(args):
     helloworld_pb2_grpc.add_GreeterServicer_to_server(Greeter(), server)
 
     if args.ssl:
-        credentials = grpc.sgxratls_server_credentials()
+        credentials = grpc.sgxratls_server_credentials(config_json=args.config)
         server.add_secure_port(args.target, credentials)
     else:
         server.add_insecure_port(args.target)
@@ -59,6 +59,14 @@ def command_arguments():
         required=False,
         default=True,
         help='Enable secure sockets layer'
+    )
+    parser.add_argument(
+        '-cfg',
+        '--config',
+        type=str,
+        required=False,
+        default='dynamic_config.json',
+        help='The path of dynamic config json'
     )
     return parser.parse_args()
 

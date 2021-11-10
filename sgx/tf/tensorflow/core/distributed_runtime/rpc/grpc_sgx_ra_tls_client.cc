@@ -133,9 +133,9 @@ int ra_tls_verify_measurements_callback(const char* mrenclave, const char* mrsig
 }
 
 void ra_tls_verify_init() {
-    const char* in_enclave = getenv("GRPC_SGX_RA_TLS_ENABLE");
+    const char* in_enclave = getenv("TF_GRPC_SGX_RA_TLS_ENABLE");
     if (in_enclave && in_enclave[0] == 'o') {
-        ra_tls_verify_lib.open("libra_tls_verify_dcap_graphene.so", RTLD_LAZY);
+        ra_tls_verify_lib.open("libra_tls_verify_dcap_gramine.so", RTLD_LAZY);
     } else {
         helper_sgx_urts_lib.open("libsgx_urts.so", RTLD_NOW | RTLD_GLOBAL);
         ra_tls_verify_lib.open("libra_tls_verify_dcap.so", RTLD_LAZY);

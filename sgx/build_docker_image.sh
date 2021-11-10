@@ -7,9 +7,10 @@ else
     tag=$1
 fi
 
-cd ..
+cd `dirname "$0"`/..
+
 # You can remove build-arg http_proxy and https_proxy if your network doesn't need it
-#no_proxy="localhost,127.0.0.0/1"
+no_proxy="localhost,127.0.0.1"
 proxy_server="http://test-proxy:port"
 
 DOCKER_BUILDKIT=0 docker build \
@@ -19,3 +20,5 @@ DOCKER_BUILDKIT=0 docker build \
     --build-arg http_proxy=${proxy_server} \
     --build-arg https_proxy=${proxy_server} \
     --build-arg no_proxy=${no_proxy}
+
+cd -

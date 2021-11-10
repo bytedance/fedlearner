@@ -5,12 +5,12 @@ recent version of gRPC (as of this writing, version 3.18.0). This was tested
 on a machine with SGX v1 and Ubuntu 18.04.
 
 The Makefile and the template manifest contain extensive comments and are made
-self-explanatory. Please review them to gain understanding of Graphene-SGX
-and requirements for applications running under Graphene-SGX.
+self-explanatory. Please review them to gain understanding of Gramine-SGX
+and requirements for applications running under Gramine-SGX.
 
 ## gRPC RA-TLS server
 
-The server is supposed to run in the SGX enclave with Graphene and RA-TLS dlopen-loaded. 
+The server is supposed to run in the SGX enclave with Gramine and RA-TLS dlopen-loaded. 
 
 ## gRPC RA-TLS client
 
@@ -26,10 +26,9 @@ with four additional command-line arguments (see the source code for details).
 
 kill %%
 
-make run &
+cd ../tmp/server
+gramine-sgx grpc
 
-# get mre and mrs
-graphene-sgx-get-token --sig grpc-server.sig
-
-./grpc-client -mre=xxxxxxxxxxxxx -mrs=xxxxxxxxxxxxx -isv_prod_id=x -isv_svn=x
+cd ../tmp/client
+gramine-sgx grpc
 ```
