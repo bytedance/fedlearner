@@ -3,10 +3,14 @@ kind: Service
 metadata:
   name: "{{ .Release.Name }}-statsd-v1-service"
   labels:
-    app: statsd-v1
+    app: "{{ .Release.Name }}-statsd-v1"
 spec:
   selector:
     app: '{{ template "metricbeat.fullname" . }}-metrics'
   ports:
-  - protocol: UDP
+  - name: statsd-udp-port
+    protocol: UDP
+    port: 8125
+  - name: statsd-tcp-port
+    protocol: TCP
     port: 8125

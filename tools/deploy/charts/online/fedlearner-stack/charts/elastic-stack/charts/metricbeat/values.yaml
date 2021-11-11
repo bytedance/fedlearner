@@ -22,6 +22,7 @@ daemonset:
         secretKeyRef:
           name: elasticsearch-master-credentials
           key: password
+    # TODO(guoxinxi): remove hardcoded host
     - name: "ELASTICSEARCH_HOST"
       value: "fedlearner-stack-elasticsearch-client"
   #  - name: MY_ENVIRONMENT_VAR
@@ -340,7 +341,7 @@ extraInitContainers: ""
 hostPathRoot: /var/lib
 
 image:
-  repository: "docker.elastic.co/beats/metricbeat"
+  repository: "registry.cn-beijing.aliyuncs.com/fedlearner/metricbeat"
   tag: "7.15.0"
   pullPolicy: IfNotPresent
 
