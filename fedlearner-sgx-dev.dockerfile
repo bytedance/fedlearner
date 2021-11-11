@@ -125,9 +125,6 @@ RUN apt-get install -y libmysqlclient-dev
 # Build gRPC 
 COPY sgx/grpc/common ${GRPC_PATH}
 COPY sgx/grpc/v1.38.1 ${GRPC_PATH}
-# COPY sgx/grpc/v1.36.0 ${GRPC_PATH}
-# RUN cd ${GRPC_PATH} \
-#     && git apply grpc_skip_client_sanity_check.diff
 
 RUN ${GRPC_PATH}/build_python.sh
 
