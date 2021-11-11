@@ -1,5 +1,4 @@
-set -e
-set -x
+set -ex
 
 export MBEDTLS_PATH=${GRAMINEDIR}/CI-Examples/ra-tls-mbedtls
 

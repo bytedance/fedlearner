@@ -1,5 +1,4 @@
-set -e
-set -x
+set -ex
 
 # build grpc c / cpp library
 ${GRPC_PATH}/build_cpp.sh

@@ -1,5 +1,4 @@
-set -e
-set -x
+set -ex
 
 export BUILD_TYPE=Release
 export HELLO_PATH=${GRPC_PATH}/examples/cpp/keyvaluestore

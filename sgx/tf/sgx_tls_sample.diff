@@ -81,9 +81,9 @@ index 98e05b64aad..d92b93d5df9 100644
  }
  
 +std::shared_ptr<::grpc::ServerCredentials> GetCredentials() {
-+    const char* secure = std::getenv("GRPC_SGX_RA_TLS_ENABLE");
++    const char* secure = std::getenv("TF_GRPC_SGX_RA_TLS_ENABLE");
 +    LOG(INFO) << "GetCredentials";
-+    if (secure) {
++    if (secure && strcmp(secure, "on") == 0) {
 +        LOG(INFO) << "Secure mode: " << string(secure);
 +        return ::grpc::sgx::TlsServerCredentials();
 +    }
@@ -92,9 +92,9 @@ index 98e05b64aad..d92b93d5df9 100644
 +}
 +
 +std::shared_ptr<::grpc::ChannelCredentials> GetChannelCredentials() {
-+    const char* secure = std::getenv("GRPC_SGX_RA_TLS_ENABLE");
++    const char* secure = std::getenv("TF_GRPC_SGX_RA_TLS_ENABLE");
 +    LOG(INFO) << "GetCredentials";
-+    if (secure) {
++    if (secure && strcmp(secure, "on") == 0) {
 +       LOG(INFO) << "Secure mode: " << string(secure);
 +       const char* mr_enclave = std::getenv("MR_ENCLAVE");
 +       const char* mr_signer = std::getenv("MR_SIGNER");

@@ -7,10 +7,8 @@ include $(GRAMINEDIR)/Scripts/Makefile.configs
 
 ifeq ($(DEBUG),1)
 GRAPHENE_LOG_LEVEL = debug
-GRPC_VERBOSITY = debug
 else
 GRAPHENE_LOG_LEVEL = error
-GRPC_VERBOSITY = 
 endif
 
 .PHONY: all

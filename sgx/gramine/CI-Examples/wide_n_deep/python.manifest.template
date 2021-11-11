@@ -11,8 +11,8 @@ loader.insecure__use_cmdline_argv = true
 loader.insecure__use_host_env = true
 
 loader.env.LD_LIBRARY_PATH = "{{ python.stdlib }}/lib:/lib:{{ arch_libdir }}:/usr/local/lib:/usr/local/{{ arch_libdir }}:/usr/lib:/usr/{{ arch_libdir }}"
-#loader.env.SECRET_PROVISION_CONSTRUCTOR = "1"
-#loader.env.SECRET_PROVISION_SET_PF_KEY = "1"
+loader.env.SECRET_PROVISION_CONSTRUCTOR = "1"
+loader.env.SECRET_PROVISION_SET_PF_KEY = "1"
 
 sys.enable_sigterm_injection = true
 sys.stack.size = "32M"

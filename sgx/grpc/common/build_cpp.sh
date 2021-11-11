@@ -1,5 +1,4 @@
-set -e
-set -x
+set -ex
 
 export ABSEIL_PATH=${GRPC_PATH}/third_party/abseil-cpp
 

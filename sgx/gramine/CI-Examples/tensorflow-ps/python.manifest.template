@@ -15,7 +15,7 @@ loader.env.SECRET_PROVISION_CONSTRUCTOR = "1"
 loader.env.SECRET_PROVISION_SET_PF_KEY = "1"
 
 sys.enable_sigterm_injection = true
-sys.stack.size = "32M"
+sys.stack.size = "16M"
 
 fs.mount.lib.type = "chroot"
 fs.mount.lib.path = "/lib"
@@ -57,8 +57,8 @@ fs.mount.keras.uri = "file:/root/.keras/keras.json"
 sgx.debug = false
 sgx.remote_attestation = true
 sgx.nonpie_binary = true
-sgx.enclave_size = "16G"
-sgx.thread_num = 1024
+sgx.enclave_size = "8G"
+sgx.thread_num = 512
 sgx.protected_files_key = "ffeeddccbbaa99887766554433221100"
 
 sgx.trusted_files = [
@@ -72,10 +72,7 @@ sgx.trusted_files = [
   "file:/etc/ssl/certs/ca-certificates.crt",
   "file:/etc/default/apport",
   "file:/etc/mime.types",
-  "file:make_data.py",
-  "file:leader.py",
-  "file:follower.py",
-  "file:tensorflow_io.py",
+  "file:train.py",
 ]
 
 sgx.allowed_files = [
@@ -100,7 +97,6 @@ sgx.allowed_files = [
   "file:data/",
   "file:model/",
   "file:/root/.keras/keras.json",
-  "file:dynamic_config.json",
 ]
 
 #sgx.protected_files = [

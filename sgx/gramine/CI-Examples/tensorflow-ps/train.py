@@ -48,7 +48,7 @@ def main(_):
         config = tf.ConfigProto(intra_op_parallelism_threads=2, inter_op_parallelism_threads=2);
         with tf.train.MonitoredTrainingSession(master="grpc://" + worker_hosts[FLAGS.task_index],
                                                is_chief=(FLAGS.task_index==0), # 我们制定task_index为0的任务为主任务，用于负责变量初始化、做checkpoint、保存summary和复原
-                                               checkpoint_dir="/tmp/tf_train_logs",
+                                               checkpoint_dir="model",
                                                save_checkpoint_secs=None,
                                                config=config,
                                                hooks=hooks) as mon_sess:

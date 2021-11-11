@@ -2,17 +2,13 @@
 
 GRAMINEDIR ?= ../../../..
 SGX_SIGNER_KEY ?= $(GRAMINEDIR)/Pal/src/host/Linux-SGX/signer/enclave-key.pem
-# INSTALL_PREFIX ?= /usr/local
-# export PATH := $(INSTALL_PREFIX)/bin:$(PATH)
 
 include $(GRAMINEDIR)/Scripts/Makefile.configs
 
 ifeq ($(DEBUG),1)
 GRAPHENE_LOG_LEVEL = debug
-GRPC_VERBOSITY = debug
 else
 GRAPHENE_LOG_LEVEL = error
-GRPC_VERBOSITY = 
 endif
 
 .PHONY: all

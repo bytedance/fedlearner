@@ -1,5 +1,4 @@
-set -e
-set -x
+set -ex
 
 ${GRPC_PATH}/build_python.sh
 
