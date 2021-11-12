@@ -6,13 +6,10 @@ function make_custom_env() {
     export GRPC_VERBOSITY=ERROR
     export TF_GRPC_SGX_RA_TLS_ENABLE=""
     export TF_CPP_MIN_LOG_LEVEL=1
-    # make no sense right now
-    export parallel_num_threads=2
+    export parallel_num_threads=4
     export session_parallelism=0
-    export intra_op_parallelism=$parallel_num_threads
-    export inter_op_parallelism=$parallel_num_threads
-    export OMP_NUM_THREADS=$parallel_num_threads
-    export MKL_NUM_THREADS=$parallel_num_threads
+    export INTRA_OP_PARALLELISM_THREADS=$parallel_num_threads
+    export INTER_OP_PARALLELISM_THREADS=$parallel_num_threads
     # network proxy
     unset http_proxy https_proxy
 }

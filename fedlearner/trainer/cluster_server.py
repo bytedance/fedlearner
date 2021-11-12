@@ -15,7 +15,7 @@
 # coding: utf-8
 
 import tensorflow.compat.v1 as tf
-from fedlearner.common import fl_logging
+from fedlearner.common import fl_logging, common
 
 
 class ClusterServer():
@@ -32,8 +32,11 @@ class ClusterServer():
 
     def _create_tf_server(self, cluster_spec):
         self._tf_config = tf.ConfigProto()
-        self._tf_config.inter_op_parallelism_threads = 4
-        self._tf_config.intra_op_parallelism_threads = 4
+        tf_config = common.get_tf_config()
+        self._tf_config.inter_op_parallelism_threads = \
+            tf_config["inter_op_parallelism_threads"]
+        self._tf_config.intra_op_parallelism_threads = \
+            tf_config["intra_op_parallelism_threads"]
         self._tf_config.experimental \
             .share_session_state_in_clusterspec_propagation = True
         self._tf_config.rpc_options.compression_algorithm = "gzip"
