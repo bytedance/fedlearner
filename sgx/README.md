@@ -4,23 +4,32 @@ FL on SGX is a privacy-preserving federated machine learning framework. In this 
 
 # Build docker image
 
+## Update etc
+
+1. set PCCS_URL in `configs/etc/sgx_default_qcnl.conf` 
+2. set proxy_server in `build_docker_image.sh`
+
+## Build
+
 ```
-cp build_docker_image.sh ../ && cd ..
+cd sgx
 ./build_docker_image.sh ${tag}
 ```
 
 # Run in container
 
-## Test Mode
+## Test
 ```
-cd /gramine/Examples/mnist
-test-sgx.sh data
-test-sgx.sh leader
+cd sgx/gramine/CI-Examples/mnist/
+test-ps-sgx.sh data
+test-ps-sgx.sh make 
+
+test-ps-sgx.sh leader
 ```
 
-open another terminal and execute
+Open another terminal and execute
 ```
-test-sgx.sh follower 
+test-ps-sgx.sh follower 
 ```
 
 # Unsupported features
