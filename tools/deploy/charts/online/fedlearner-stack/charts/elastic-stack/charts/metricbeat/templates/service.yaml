@@ -11,6 +11,3 @@ spec:
   - name: statsd-udp-port
     protocol: UDP
     port: 8125
-  - name: statsd-tcp-port
-    protocol: TCP
-    port: 8125
