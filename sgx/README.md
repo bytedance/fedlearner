@@ -5,7 +5,6 @@ FL on SGX is a privacy-preserving federated machine learning framework. In this 
 # Build docker image
 
 ```
-cp build_docker_image.sh ../ && cd ..
 ./build_docker_image.sh ${tag}
 ```
 
@@ -13,9 +12,10 @@ cp build_docker_image.sh ../ && cd ..
 
 ## Test Mode
 ```
-cd /gramine/Examples/mnist
-test-sgx.sh data
-test-sgx.sh leader
+cd ${gramine}/CI-Examples/mnist
+test-ps-sgx.sh data
+test-ps-sgx.sh make
+test-ps-sgx.sh leader
 ```
 
 open another terminal and execute
@@ -25,4 +25,4 @@ test-sgx.sh follower
 
 # Unsupported features
 
-* tensorflow-io, used by fedlearner but not provided, mocked by `sgx/tenorflow_io.py`
+* tensorflow-io, used by fedlearner but not provided, mocked by `sgx/gramine/CI-Examples/tenorflow_io.py`
