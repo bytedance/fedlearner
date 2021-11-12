@@ -1920,40 +1920,28 @@ def alts_server_credentials():
     return ServerCredentials(_cygrpc.server_credentials_alts())
 
 
-def sgxratls_channel_credentials(mr_enclave, mr_signer, isv_prod_id, isv_svn):
-    """Creates a ChannelCredentials for use with an SSL-enabled Channel.
+def sgxratls_channel_credentials(config_json):
+    """Creates a ChannelCredentials for use with an SGX-enabled Channel.
 
     Args:
-      root_certificates: The PEM-encoded root certificates as a byte string,
-        or None to retrieve them from a default location chosen by gRPC
-        runtime.
-      private_key: The PEM-encoded private key as a byte string, or None if no
-        private key should be used.
-      certificate_chain: The PEM-encoded certificate chain as a byte string
-        to use or None if no certificate chain should be used.
 
     Returns:
-      A ChannelCredentials for use with an SSL-enabled Channel.
+      A ChannelCredentials for use with an SGX-enabled Channel Credential.
     """
     return ChannelCredentials(
-        _cygrpc.channel_credentials_sgxratls(mr_enclave, mr_signer, isv_prod_id, isv_svn))
+        _cygrpc.channel_credentials_sgxratls(config_json))
 
 
-def sgxratls_server_credentials():
-    """Creates a ServerCredentials for use with an SSL-enabled Server.
+def sgxratls_server_credentials(config_json):
+    """Creates a ServerCredentials for use with an SGX-enabled Server.
 
     Args:
 
     Returns:
-      A ServerCredentials for use with an SSL-enabled Server. Typically, this
-      object is an argument to add_secure_port() method during server setup.
+      A ServerCredentials for use with an SGX-enabled Server Credential.
     """
-
     return ServerCredentials(
-        _cygrpc.server_credentials_ssl(None, [
-            _cygrpc.SslPemKeyCertPair(key, pem)
-            for key, pem in _cygrpc.get_sgx_server_key_cert()
-        ], False))
+      _cygrpc.server_credentials_sgxratls(config_json))
 
 
 def compute_engine_channel_credentials(call_credentials):

@@ -11,7 +11,7 @@ index ce1a20a5ae9..a972f51f930 100644
 -    linkopts = if_windows(["-DEFAULTLIB:ws2_32.lib"]),
 +    srcs = ["grpc_util.cc", "grpc_sgx_ra_tls_utils.cc", "grpc_sgx_ra_tls_server.cc", "grpc_sgx_ra_tls_client.cc", "grpc_sgx_credentials_provider.cc"],
 +    hdrs = ["grpc_util.h", "grpc_sgx_ra_tls.h", "grpc_sgx_ra_tls_utils.h", "grpc_sgx_credentials_provider.h"],
-+    linkopts = ["-lmbedtls", "-lmbedx509", "-lmbedcrypto", "-lra_tls_attest"],
++    linkopts = ["-L/usr/local/lib", "-l:libmbedx509_gramine.a", "-l:libmbedcrypto_gramine.a"],
      deps = [
          "//tensorflow/core:lib",
          # Required to be able to overload TensorResponse parsing.
@@ -34,7 +34,7 @@ index 985b0454837..f0b462d06e9 100644
 +  auto cred = GetChannelCredentials();
    *channel_pointer = ::grpc::CreateCustomChannel(
 -      "dns:///" + target, ::grpc::InsecureChannelCredentials(), args);
-+          "dns:///" + target, cred, args);
++      "dns:///" + target, cred, args);
    return Status::OK();
  }
  
@@ -81,9 +81,9 @@ index 98e05b64aad..d92b93d5df9 100644
  }
  
 +std::shared_ptr<::grpc::ServerCredentials> GetCredentials() {
-+    const char* secure = std::getenv("GRPC_SGX_RA_TLS_ENABLE");
++    const char* secure = std::getenv("TF_GRPC_SGX_RA_TLS_ENABLE");
 +    LOG(INFO) << "GetCredentials";
-+    if (secure) {
++    if (secure && strcmp(secure, "on") == 0) {
 +        LOG(INFO) << "Secure mode: " << string(secure);
 +        return ::grpc::sgx::TlsServerCredentials();
 +    }
@@ -92,9 +92,9 @@ index 98e05b64aad..d92b93d5df9 100644
 +}
 +
 +std::shared_ptr<::grpc::ChannelCredentials> GetChannelCredentials() {
-+    const char* secure = std::getenv("GRPC_SGX_RA_TLS_ENABLE");
++    const char* secure = std::getenv("TF_GRPC_SGX_RA_TLS_ENABLE");
 +    LOG(INFO) << "GetCredentials";
-+    if (secure) {
++    if (secure && strcmp(secure, "on") == 0) {
 +       LOG(INFO) << "Secure mode: " << string(secure);
 +       const char* mr_enclave = std::getenv("MR_ENCLAVE");
 +       const char* mr_signer = std::getenv("MR_SIGNER");

@@ -20,7 +20,6 @@ import os
 import socket
 import logging
 import collections
-import json
 import grpc
 
 from fedlearner.common import common
@@ -148,16 +147,10 @@ def make_secure_channel(address,
                         mode=ChannelType.INTERNAL,
                         options=None,
                         compression=None):
-    use_tls, creds = common.use_tls()
-    assert use_tls, "In-consistant TLS enabling"
-    with open("dynamic_config.json", "r", encoding='utf-8') as fp:
-        MEASUREMENTS = json.load(fp)["sgx_mrs"][0]
-        MR_ENCLAVE = MEASUREMENTS["MR_ENCLAVE"]
-        MR_SIGNER = MEASUREMENTS["MR_SIGNER"]
-        ISV_PROD_ID = MEASUREMENTS["ISV_PROD_ID"]
-        ISV_SVN = MEASUREMENTS["ISV_SVN"]
-    tls_creds = grpc.sgxratls_channel_credentials(
-			MR_ENCLAVE, MR_SIGNER, ISV_PROD_ID, ISV_SVN)
+    assert common.use_tls(), "In-consistant TLS enabling"
+
+    tls_creds = grpc.sgxratls_channel_credentials("dynamic_config.json")
+
     if check_address_valid(address):
         return grpc.secure_channel(address, tls_creds, options, compression)
 

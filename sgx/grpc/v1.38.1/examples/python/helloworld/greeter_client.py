@@ -29,14 +29,17 @@ def run(args):
     # of the code.
 
     if args.ssl:
-        credentials = grpc.sgxratls_channel_credentials(args.mr_enclave, args.mr_signer, args.isv_prod_id, args.isv_svn)
+        credentials = grpc.sgxratls_channel_credentials(config_json=args.config)
         channel = grpc.secure_channel(args.target, credentials)
     else:
         channel = grpc.insecure_channel(args.target)
 
     stub = helloworld_pb2_grpc.GreeterStub(channel)
-    response = stub.SayHello(helloworld_pb2.HelloRequest(name='you'))
-    print("Greeter client received: " + response.message)
+    user_a = stub.SayHello(helloworld_pb2.HelloRequest(name='a'))
+    user_b = stub.SayHello(helloworld_pb2.HelloRequest(name='b'))
+    print("Greeter client received: ", user_a.message, user_b.message)
+
+    channel.close()
 
 
 def command_arguments():
@@ -58,36 +61,12 @@ def command_arguments():
         help='Enable secure sockets layer'
     )
     parser.add_argument(
-        '-mre',
-        '--mr_enclave',
+        '-cfg',
+        '--config',
         type=str,
         required=False,
-        default='0',
-        help='The value of mr_enclave'
-    )
-    parser.add_argument(
-        '-mrs',
-        '--mr_signer',
-        type=str,
-        required=False,
-        default='0',
-        help='The value of mr_signer'
-    )
-    parser.add_argument(
-        '-id',
-        '--isv_prod_id',
-        type=str,
-        required=False,
-        default='0',
-        help='The value of isv_prod_id'
-    )
-    parser.add_argument(
-        '-svn',
-        '--isv_svn',
-        type=str,
-        required=False,
-        default='0',
-        help='The value of isv_svn'
+        default='dynamic_config.json',
+        help='The path of dynamic config json'
     )
     return parser.parse_args()
 

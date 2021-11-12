@@ -271,7 +271,7 @@ def time_diff(minuend, sub):
     return ts_minuend - ts_sub
 
 def use_tls():
-    enable = os.environ.get("GRPC_SGX_RA_TLS_ENABLE", False)
+    enable = os.environ.get("FL_GRPC_SGX_RA_TLS_ENABLE", False)
     if not enable:
-        return False, None
-    return True, None
+        return False
+    return True

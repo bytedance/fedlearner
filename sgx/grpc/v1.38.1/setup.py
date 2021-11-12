@@ -266,7 +266,7 @@ if EXTRA_ENV_LINK_ARGS is None:
         EXTRA_ENV_LINK_ARGS += ' -Wl,-wrap,memcpy -static-libgcc'
 
 if BUILD_WITH_SGX_RA_TLS:
-    EXTRA_ENV_LINK_ARGS += ' -lmbedx509 -lmbedcrypto'
+    EXTRA_ENV_LINK_ARGS += ' -lmbedx509_gramine -lmbedcrypto_gramine -lcjson -lcjson_utils'
 
 EXTRA_COMPILE_ARGS = shlex.split(EXTRA_ENV_COMPILE_ARGS)
 EXTRA_LINK_ARGS = shlex.split(EXTRA_ENV_LINK_ARGS)
@@ -302,9 +302,6 @@ if BUILD_WITH_SYSTEM_CARES:
 if BUILD_WITH_SYSTEM_RE2:
     CORE_C_FILES = filter(lambda x: 'third_party/re2' not in x, CORE_C_FILES)
     RE2_INCLUDE = (os.path.join('/usr', 'include', 're2'),)
-
-# if BUILD_WITH_SGX_RA_TLS:
-#     SGX_RA_TLS_INCLUDE = (os.path.join('include', 'grpcpp', 'security', 'sgx'),)
 
 EXTENSION_INCLUDE_DIRECTORIES = ((PYTHON_STEM,) + CORE_INCLUDE + ABSL_INCLUDE +
                                  ADDRESS_SORTING_INCLUDE + CARES_INCLUDE +

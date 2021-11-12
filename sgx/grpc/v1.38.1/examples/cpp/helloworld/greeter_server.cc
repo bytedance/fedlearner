@@ -16,10 +16,8 @@
  *
  */
 
-#include "getopt.hpp"
-
 #include <grpcpp/grpcpp.h>
-#include <grpcpp/security/sgx/grpc_sgx_ra_tls.h>
+#include <grpcpp/security/sgx/sgx_ra_tls.h>
 #include <grpcpp/ext/proto_server_reflection_plugin.h>
 
 #ifdef BAZEL_BUILD
@@ -28,22 +26,27 @@
 #include "helloworld.grpc.pb.h"
 #endif
 
+#include "../getopt.hpp"
+
 using helloworld::Greeter;
 using helloworld::HelloReply;
 using helloworld::HelloRequest;
 
 struct argparser {
   bool ssl;
+  const char* config;
   std::string server_address;
   argparser() {
-    ssl = getarg(true, "-ssl", "--ssl");
     server_address = getarg("0.0.0.0:50051", "-host", "--host");
+    ssl = getarg(true, "-ssl", "--ssl");
+    config = getarg("dynamic_config.json", "-cfg", "--config");
   };
 };
 
 // Logic and data behind the server's behavior.
 class GreeterServiceImpl final : public Greeter::Service {
-  grpc::Status SayHello(grpc::ServerContext* context, const HelloRequest* request, HelloReply* reply) override {
+  grpc::Status SayHello(
+    grpc::ServerContext* context, const HelloRequest* request, HelloReply* reply) override {
     std::string prefix("Hello ");
     reply->set_message(prefix + request->name());
     return grpc::Status::OK;
@@ -62,7 +65,7 @@ void RunServer() {
   std::shared_ptr<grpc::ServerCredentials> creds = nullptr;
 
   if (args.ssl) {
-    creds = std::move(grpc::sgx::TlsServerCredentials());
+    creds = std::move(grpc::sgx::TlsServerCredentials(args.config));
   } else {
     creds = std::move(grpc::InsecureServerCredentials());
   }

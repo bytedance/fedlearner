@@ -181,7 +181,7 @@ class Channel():
             ('grpc.max_receive_message_length', -1),
             ('grpc.max_reconnect_backoff_ms', 1000),
         )
-        use_tls, creds = common.use_tls()
+        use_tls = common.use_tls()
         if use_tls:
             self._channel = make_secure_channel(
                 self._remote_address,
@@ -223,7 +223,8 @@ class Channel():
         # channel client & server
         self._channel_call = channel_pb2_grpc.ChannelStub(self._channel)
         if use_tls:
-            server_credentials = grpc.sgxratls_server_credentials()
+            server_credentials = \
+                grpc.sgxratls_server_credentials("dynamic_config.json")
             self._server.add_secure_port(
                 self._listen_address, server_credentials)
         else:

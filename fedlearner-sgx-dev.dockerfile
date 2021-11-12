@@ -1,25 +1,29 @@
-# https://github.com/oscarlab/graphene/blob/master/Tools/gsc/images/graphene_aks.latest.dockerfile
+# https://github.com/gramineproject/gramine/blob/master/.ci/ubuntu18.04.dockerfile
 
 FROM ubuntu:18.04
 
 ENV DEBIAN_FRONTEND=noninteractive
+ENV INSTALL_PREFIX=/usr/local
+ENV LD_LIBRARY_PATH=${INSTALL_PREFIX}/lib:${INSTALL_PREFIX}/lib/x86_64-linux-gnu:${LD_LIBRARY_PATH}
+ENV PATH=${INSTALL_PREFIX}/bin:${LD_LIBRARY_PATH}:${PATH}
 
-# Add steps here to set up dependencies
+# Add steps here to set up common dependencies
 RUN apt-get update \
     && apt-get install -y --no-install-recommends apt-utils \
     && apt-get install -y \
+        ca-certificates \
         build-essential \
         autoconf \
         libtool \
         python3-pip \
         python3-dev \
-        unzip \
         git \
-        zlib1g-dev \
         wget \
-        vim
+        unzip \
+        zlib1g-dev \
+        jq
 
-# Intel SGX
+# Intel SGX PPA
 RUN echo "deb [trusted=yes arch=amd64] https://download.01.org/intel-sgx/sgx_repo/ubuntu bionic main" | tee /etc/apt/sources.list.d/intel-sgx.list \
     && wget -qO - https://download.01.org/intel-sgx/sgx_repo/ubuntu/intel-sgx-deb.key | apt-key add - \
     && apt-get update
@@ -30,129 +34,139 @@ RUN apt-get install -y libsgx-pce-logic libsgx-ae-qve libsgx-quote-ex libsgx-quo
 # Install SGX-DCAP
 RUN apt-get install -y libsgx-dcap-ql-dev libsgx-dcap-default-qpl libsgx-dcap-quote-verify-dev libsgx-dcap-default-qpl-dev
 
-# Gramine
-ENV GRAMINEDIR=/gramine
-# ENV GRAPHENE_VERSION=master
-ENV GRAMINE_VERSION=497847c0353a13c9e83c0ec4c0cbe99f11d4a75d
-ENV ISGX_DRIVER_PATH=${GRAMINEDIR}/driver
-ENV SGX_SIGNER_KEY=${GRAMINEDIR}/Pal/src/host/Linux-SGX/signer/enclave-key.pem
-ENV LC_ALL=C.UTF-8 LANG=C.UTF-8
-ENV WERROR=1
-ENV SGX=1
-ENV apt-get clean
-# https://graphene.readthedocs.io/en/latest/building.html
-# golang is needed by grpc/BoringSSL
-RUN apt-get install -y gawk bison python3-click python3-jinja2 golang  ninja-build python3
-RUN apt-get install -y libcurl4-openssl-dev libprotobuf-c-dev python3-protobuf protobuf-c-compiler
-RUN python3 -B -m pip install 'toml>=0.10' 'meson>=0.55'
-
-RUN git clone https://github.com/gramineproject/gramine.git ${GRAMINEDIR} \
-    && cd ${GRAMINEDIR} \
-    && git checkout ${GRAMINE_VERSION}
-
-COPY sgx/gramine/patches/rename.diff ${GRAMINEDIR}
-COPY sgx/gramine/patches/c_args.diff ${GRAMINEDIR}
-
-RUN cd ${GRAMINEDIR} \
-    && git apply rename.diff \
-    && git apply c_args.diff
-
-# Create SGX driver for Graphene
-RUN git clone https://github.com/intel/SGXDataCenterAttestationPrimitives.git ${ISGX_DRIVER_PATH} \
-    && cd ${ISGX_DRIVER_PATH} \
-    && git checkout DCAP_1.11
-
-RUN openssl genrsa -3 -out ${SGX_SIGNER_KEY} 3072
-# Build Graphene with SGX
-# https://graphene.readthedocs.io/en/latest/quickstart.html#quick-start-with-sgx-support
-RUN cd ${GRAMINEDIR} && pwd && meson setup build/ --buildtype=debug -Dsgx=enabled -Ddcap=enabled -Dsgx_driver="dcap1.10" -Dsgx_driver_include_path="/gramine/driver/driver/linux/include" \
-    && ninja -C build/ \
-    && ninja -C build/ install
-
-# Global env
-ENV INSTALL_PREFIX=/usr/local
-ENV LD_LIBRARY_PATH=${INSTALL_PREFIX}/lib:${LD_LIBRARY_PATH}
-ENV PATH=${INSTALL_PREFIX}/bin:${LD_LIBRARY_PATH}:${PATH}
-
-# GRPC deps
-ENV GRPC_PATH=/grpc
+# Install CMAKE
 RUN mkdir -p ${INSTALL_PREFIX} \
     && wget -q -O cmake-linux.sh https://github.com/Kitware/CMake/releases/download/v3.19.6/cmake-3.19.6-Linux-x86_64.sh \
     && sh cmake-linux.sh -- --skip-license --prefix=${INSTALL_PREFIX} \
     && rm cmake-linux.sh
 
+# Install gramine
+ENV GRAMINEDIR=/gramine
+ENV SGX_DCAP_VERSION=DCAP_1.11
+# ENV GRAPHENE_VERSION=master
+# ENV GRAMINE_VERSION=497847c0353a13c9e83c0ec4c0cbe99f11d4a75d
+ENV GRAMINE_VERSION=c662f63bba76736e6d5122a866da762efd1978c1
+ENV ISGX_DRIVER_PATH=${GRAMINEDIR}/driver
+ENV SGX_SIGNER_KEY=${GRAMINEDIR}/Pal/src/host/Linux-SGX/signer/enclave-key.pem
+ENV LC_ALL=C.UTF-8 LANG=C.UTF-8
+ENV WERROR=1
+ENV SGX=1
+
+# https://gramine.readthedocs.io/en/latest/building.html
+# golang is needed by grpc/BoringSSL
+RUN apt-get install -y gawk bison python3-click python3-jinja2 golang ninja-build
+RUN apt-get install -y libcurl4-openssl-dev libprotobuf-c-dev python3-protobuf protobuf-c-compiler
+RUN apt-get install -y libgmp-dev libmpfr-dev libmpc-dev libisl-dev
+
+RUN ln -s /usr/bin/python3 /usr/bin/python \
+    && pip3 install --upgrade pip \
+    && pip3 install toml meson
+
+RUN git clone https://github.com/gramineproject/gramine.git ${GRAMINEDIR} \
+    && cd ${GRAMINEDIR} \
+    && git checkout ${GRAMINE_VERSION}
+
+RUN git clone https://github.com/intel/SGXDataCenterAttestationPrimitives.git ${ISGX_DRIVER_PATH} \
+    && cd ${ISGX_DRIVER_PATH} \
+    && git checkout ${SGX_DCAP_VERSION}
+
+COPY sgx/gramine/patches ${GRAMINEDIR}
+RUN cd ${GRAMINEDIR} \
+    && git apply *.diff
+
+# https://gramine.readthedocs.io/en/latest/quickstart.html#quick-start-with-sgx-support
+RUN openssl genrsa -3 -out ${SGX_SIGNER_KEY} 3072
+RUN cd ${GRAMINEDIR} \
+    && LD_LIBRARY_PATH="" meson setup build/ --buildtype=debug -Dprefix=${INSTALL_PREFIX} -Ddirect=enabled -Dsgx=enabled -Ddcap=enabled -Dsgx_driver=dcap1.10 -Dsgx_driver_include_path=${ISGX_DRIVER_PATH}/driver/linux/include \
+    && LD_LIBRARY_PATH="" ninja -C build/ \
+    && LD_LIBRARY_PATH="" ninja -C build/ install
+
+# Install mbedtls
+RUN cd ${GRAMINEDIR}/build/subprojects/mbedtls-mbedtls* \
+    && cp -r `find . -name "*_gramine.a"` ${INSTALL_PREFIX}/lib \
+    && cp -r ${GRAMINEDIR}/subprojects/mbedtls-mbedtls*/include ${INSTALL_PREFIX}
+
+# Install cJSON
+RUN cd ${GRAMINEDIR}/subprojects/cJSON* \
+    && make static \
+    && cp -r *.a ${INSTALL_PREFIX}/lib \
+    && mkdir -p ${INSTALL_PREFIX}/include/cjson \
+    && cp -r *.h ${INSTALL_PREFIX}/include/cjson
+
+# GRPC dependencies
+ENV GRPC_PATH=/grpc
 ENV GRPC_VERSION=v1.38.1
-RUN git clone https://github.com/grpc/grpc -b ${GRPC_VERSION} ${GRPC_PATH}
-RUN cd ${GRPC_PATH} \
-    && pip3 install --upgrade pip setuptools==44.1.1 \
-    && pip3 install -r requirements.txt
+# ENV GRPC_VERSION=b54a5b338637f92bfcf4b0bc05e0f57a5fd8fadd
 
-# Tensorflow deps
+RUN git clone --recurse-submodules -b ${GRPC_VERSION} https://github.com/grpc/grpc ${GRPC_PATH}
+
+RUN pip3 install --upgrade pip \
+    && pip3 install -r ${GRPC_PATH}/requirements.txt
+
+# Tensorflow dependencies
 ENV BAZEL_VERSION=3.1.0
-RUN wget "https://github.com/bazelbuild/bazel/releases/download/${BAZEL_VERSION}/bazel_${BAZEL_VERSION}-linux-x86_64.deb" \
-    && dpkg -i bazel_*.deb
-
-RUN pip3 install numpy keras_preprocessing
-RUN ln -s  /usr/bin/python3.6 /usr/bin/python
-
 ENV TF_VERSION=v2.4.2
 ENV TF_BUILD_PATH=/tf/src
 ENV TF_BUILD_OUTPUT=/tf/output
+
+RUN pip3 install --upgrade pip \
+    && pip3 install numpy keras_preprocessing
+
+RUN wget "https://github.com/bazelbuild/bazel/releases/download/${BAZEL_VERSION}/bazel_${BAZEL_VERSION}-linux-x86_64.deb" \
+    && dpkg -i bazel_*.deb
+
 RUN git clone --recurse-submodules -b ${TF_VERSION} https://github.com/tensorflow/tensorflow ${TF_BUILD_PATH}
 
-# Fedlearner deps
+# Fedlearner dependencies
 ENV FEDLEARNER_PATH=/fedlearner
-RUN apt-get update
-RUN apt-get install -y libgmp-dev libmpfr-dev libmpc-dev libmysqlclient-dev
 
-# Prepare build source code
-COPY . ${FEDLEARNER_PATH}
-COPY sgx/gramine ${GRAMINEDIR}
+RUN apt-get install -y libmysqlclient-dev
 
-# # GRPC v1.36.0 build
-# RUN cd ${GRPC_PATH} \
-#     && git checkout b54a5b338637f92bfcf4b0bc05e0f57a5fd8fadd \
-#     && git submodule update --init
-# COPY sgx/grpc/v1.36.0 ${GRPC_PATH}
-# RUN cd ${GRPC_PATH} \
-#     && git apply grpc_skip_client_sanity_check.diff \
-#     && ${GRPC_PATH}/build_install.sh
-
-# GRPC v1.38.1 build
-RUN cd ${GRPC_PATH} \
-    && git checkout v1.38.1 \
-    && git submodule update --init
+# Build gRPC 
+COPY sgx/grpc/common ${GRPC_PATH}
 COPY sgx/grpc/v1.38.1 ${GRPC_PATH}
-RUN cd ${GRPC_PATH} \
-    && ${GRPC_PATH}/build_python.sh
 
-# Tensorflow build
+RUN ${GRPC_PATH}/build_python.sh
+
+# Build tensorflow
 COPY sgx/tf ${TF_BUILD_PATH}
-RUN cd ${TF_BUILD_PATH} && git apply sgx_tls_sample.diff
-RUN cd ${TF_BUILD_PATH} && bazel build -c opt //tensorflow/tools/pip_package:build_pip_package
 
-# Fedlearner build
-RUN pip3 install --upgrade pip setuptools \
+RUN cd ${TF_BUILD_PATH} \
+    && git apply sgx_tls_sample.diff
+
+RUN cd ${TF_BUILD_PATH} \
+    && bazel build -c opt //tensorflow/tools/pip_package:build_pip_package \
+    && bazel-bin/tensorflow/tools/pip_package/build_pip_package ${TF_BUILD_OUTPUT}
+
+# Build and install fedlearner
+COPY . ${FEDLEARNER_PATH}
+
+RUN pip3 install --upgrade pip \
     && pip3 install -r ${FEDLEARNER_PATH}/requirements.txt
 
-RUN cd ${FEDLEARNER_PATH} && make protobuf && make op && \
-	python3 setup.py bdist_wheel && pip3 install ./dist/*.whl && \
-	mkdir -p /usr/local/lib/python3.6/dist-packages/cc  && \
-	cp ./cc/embedding.so /usr/local/lib/python3.6/dist-packages/cc
+RUN cd ${FEDLEARNER_PATH} \
+    && make protobuf \
+    && python3 setup.py bdist_wheel \
+    && pip3 install ./dist/*.whl
 
 # Re-install tensorflow, uninstall tensorflow_io, mock it
-RUN pip uninstall -y tensorflow tensorflow-io
-RUN cd ${TF_BUILD_PATH} \
-    && bazel-bin/tensorflow/tools/pip_package/build_pip_package ${TF_BUILD_OUTPUT} \
-    && pip install ${TF_BUILD_OUTPUT}/tensorflow-*-cp36-cp36m-linux_x86_64.whl
+RUN pip3 uninstall -y tensorflow tensorflow-io \
+    && pip3 install ${TF_BUILD_OUTPUT}/*.whl
 
 # Re-install fedlearner plugin
-RUN cd ${FEDLEARNER_PATH} && make op && cp ./cc/embedding.so /usr/local/lib/python3.6/dist-packages/cc
+RUN cd ${FEDLEARNER_PATH} \
+    && make op \
+    && mkdir -p /usr/local/lib/python3.6/dist-packages/cc \
+    && cp ./cc/embedding.so /usr/local/lib/python3.6/dist-packages/cc
 
 # Re-install grpcio
-RUN pip uninstall -y grpcio \
-    && pip install ${GRPC_PATH}/dist/grpcio*.whl
+RUN pip3 uninstall -y grpcio \
+    && pip3 install ${GRPC_PATH}/dist/grpcio*.whl
 
+# For debug
+RUN apt install -y strace gdb ctags vim
+
+COPY sgx/gramine/CI-Examples ${GRAMINEDIR}/CI-Examples
 COPY sgx/configs /
 
 # https://askubuntu.com/questions/93457/how-do-i-enable-or-disable-apport
