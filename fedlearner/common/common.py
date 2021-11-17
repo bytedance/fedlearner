@@ -279,7 +279,7 @@ def use_tls():
 def get_tf_config():
     return {
         "intra_op_parallelism_threads": \
-            os.environ.get("INTRA_OP_PARALLELISM_THREADS", 16),
+            int(os.environ.get("INTRA_OP_PARALLELISM_THREADS", 16)),
         "inter_op_parallelism_threads": \
-            os.environ.get("INTER_OP_PARALLELISM_THREADS", 16)
+            int(os.environ.get("INTER_OP_PARALLELISM_THREADS", 16))
     }
