@@ -1,21 +1,35 @@
+import datetime
 import logging
 import os
 from fnmatch import fnmatch
 
 from tensorflow.compat.v1 import gfile
+from fedlearner.common.common import INVALID_DATETIME, convert_to_datetime
 
 
 class InputDataManager(object):
     def __init__(self, wildcard, check_success_tag,
                  single_subfolder=False,
-                 files_per_job_limit=None):
+                 files_per_job_limit=None,
+                 start_date='',
+                 end_date=''):
         self._wildcard = wildcard
         self._check_success_tag = check_success_tag
         self._single_subfolder = single_subfolder
         self._files_per_job_limit = files_per_job_limit
+        self._start_date = convert_to_datetime(start_date)
+        self._end_date = convert_to_datetime(end_date)
 
         self._num_files = 0
         self._num_allocated_files = 0
+
+    @staticmethod
+    def to_date(date_str):
+        try:
+            date_format = "%Y%m%d"
+            return datetime.datetime.strptime(date_str, date_format)
+        except ValueError:
+            return None
 
     @staticmethod
     def _list_dir_helper_oss(root):
@@ -35,7 +49,7 @@ class InputDataManager(object):
 
     def _list_dir_helper(self, root):
         filenames = list(gfile.ListDirectory(root))
-        # If _SUCCESS is present, we assume there are no subdirs
+        # If _SUCCESS is present, we assume there is no sub-dirs
         if '_SUCCESS' in filenames:
             return [os.path.join(root, i) for i in filenames]
 
@@ -50,6 +64,17 @@ class InputDataManager(object):
             else:
                 res.append(fname)
         return res
+
+    def _is_wanted_date(self, cur_date_str):
+        cur_date = convert_to_datetime(cur_date_str)
+        if cur_date != INVALID_DATETIME:
+            if self._start_date != INVALID_DATETIME and \
+                cur_date < self._start_date:
+                return False
+            if self._end_date != INVALID_DATETIME and \
+                cur_date >= self._end_date:
+                return False
+        return True
 
     def list_input_dir(self, root, processed_fpath):
         logging.info("List input directory, it will take some time...")
@@ -89,6 +114,10 @@ class InputDataManager(object):
                 succ_fname = os.path.join(root, *dirnames, '_SUCCESS')
                 if succ_fname not in all_files:
                     continue
+
+            # check dirname is wanted date
+            if not self._is_wanted_date(dirnames[-1]):
+                continue
 
             if fname in processed_fpath:
                 continue
