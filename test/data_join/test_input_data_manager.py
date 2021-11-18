@@ -38,16 +38,17 @@ class TestInputDataManager(unittest.TestCase):
             gfile.DeleteRecursively(self._input_base_dir)
         gfile.MakeDirs(self._input_base_dir)
 
-        self._data_fnames = ['1001/{}.data'.format(i) for i in range(100)]
+        self._data_fnames = ['20210101/{}.data'.format(i) for i in range(100)]
         self._data_fnames_without_success = \
-            ['1002/{}.data'.format(i) for i in range(100)]
-        self._csv_fnames = ['1003/{}.csv'.format(i) for i in range(100)]
+            ['20210102/{}.data'.format(i) for i in range(100)]
+        self._csv_fnames = ['20210103/{}.csv'.format(i) for i in range(100)]
         self._unused_fnames = ['{}.xx'.format(100)]
         self._all_fnames = self._data_fnames + \
                            self._data_fnames_without_success + \
                            self._csv_fnames + self._unused_fnames
 
-        all_fnames_with_success = ['1001/_SUCCESS'] + ['1003/_SUCCESS'] +\
+        all_fnames_with_success = ['20210101/_SUCCESS'] + \
+                                  ['20210103/_SUCCESS'] +\
                                   self._all_fnames
         for fname in all_fnames_with_success:
             fpath = os.path.join(self._input_base_dir, fname)
@@ -60,12 +61,17 @@ class TestInputDataManager(unittest.TestCase):
 
     def _list_input_dir(self, file_wildcard, check_success_tag,
                         single_subfolder,
-                        target_fnames, max_files_per_job=8000):
+                        target_fnames,
+                        max_files_per_job=8000,
+                        start_date='',
+                        end_date=''):
         manager = InputDataManager(
             file_wildcard,
             check_success_tag,
             single_subfolder,
-            max_files_per_job)
+            max_files_per_job,
+            start_date=start_date,
+            end_date=end_date)
         fpaths = next(manager.iterator(self._input_base_dir, []))
         fpaths.sort()
         target_fnames.sort()
@@ -131,6 +137,43 @@ class TestInputDataManager(unittest.TestCase):
             check_success_tag=False,
             single_subfolder=False,
             target_fnames=self._all_fnames)
+
+    def test_list_input_dir_with_start_date(self):
+        self._list_input_dir(
+            file_wildcard=None,
+            check_success_tag=False,
+            single_subfolder=False,
+            target_fnames=self._data_fnames_without_success +
+                          self._csv_fnames + self._unused_fnames,
+            start_date="20210102")
+
+    def test_list_input_dir_with_end_date(self):
+        self._list_input_dir(
+            file_wildcard=None,
+            check_success_tag=False,
+            single_subfolder=False,
+            target_fnames=self._data_fnames + self._unused_fnames,
+            end_date="20210102")
+
+    def test_list_input_dir_with_start_end_date(self):
+        self._list_input_dir(
+            file_wildcard=None,
+            check_success_tag=False,
+            single_subfolder=False,
+            target_fnames=self._data_fnames +
+                          self._data_fnames_without_success +
+                          self._unused_fnames,
+            start_date="20210101",
+            end_date="20210103")
+
+    def test_list_input_dir_invalid_day(self):
+        self._list_input_dir(
+            file_wildcard=None,
+            check_success_tag=False,
+            single_subfolder=False,
+            target_fnames=self._all_fnames,
+            start_date='dsd',
+            end_date='1s')
 
 
 if __name__ == '__main__':

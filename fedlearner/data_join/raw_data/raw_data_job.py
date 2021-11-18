@@ -52,7 +52,9 @@ class RawDataJob:
                  web_console_password='',
                  validation=0,
                  kvstore_type="dfs",
-                 use_fake_client=False):
+                 use_fake_client=False,
+                 start_date=None,
+                 end_date=None):
         self._job_name = job_name
         self._root_path = root_path
         self._job_type = job_type
@@ -87,7 +89,9 @@ class RawDataJob:
             wildcard,
             check_success_tag,
             single_subfolder,
-            files_per_job_limit)
+            files_per_job_limit,
+            start_date=start_date,
+            end_date=end_date)
 
         self._next_job_id = self._meta.job_id + 1
         self._num_processing_file = 0
