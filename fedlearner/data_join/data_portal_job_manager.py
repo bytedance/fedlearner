@@ -14,6 +14,7 @@
 
 # coding: utf-8
 
+import datetime
 import threading
 import logging
 from os import path
@@ -33,7 +34,7 @@ from fedlearner.data_join.sort_run_merger import MergedSortRunMeta
 class DataPortalJobManager(object):
     def __init__(self, kvstore, portal_name, long_running, check_success_tag,
                  single_subfolder, files_per_job_limit,
-                 max_files_per_job=8000):
+                 max_files_per_job=8000, start_date=None, end_date=None):
         self._lock = threading.Lock()
         self._kvstore = kvstore
         self._portal_name = portal_name
@@ -41,6 +42,8 @@ class DataPortalJobManager(object):
         self._single_subfolder = single_subfolder
         self._files_per_job_limit = files_per_job_limit
         self._max_files_per_job = max_files_per_job
+        self._start_date = self._to_date(start_date)
+        self._end_date = self._to_date(end_date)
         self._portal_manifest = None
         self._processing_job = None
         self._sync_portal_manifest()
@@ -63,6 +66,15 @@ class DataPortalJobManager(object):
         if self._portal_manifest.processing_job_id < 0:
             if not self._launch_new_portal_job() and not self._long_running:
                 self._finished = True
+
+    @staticmethod
+    def _to_date(date_str):
+        try:
+            # default format
+            date_format = "%Y%m%d"
+            return datetime.datetime.strptime(date_str, date_format)
+        except ValueError:
+            return None
 
     def get_portal_manifest(self):
         with self._lock:
@@ -335,6 +347,15 @@ class DataPortalJobManager(object):
                 res.append(fname)
         return res
 
+    def _is_wanted_date(self, cur_date_str):
+        cur_date = self._to_date(cur_date_str)
+        if cur_date:
+            if self._start_date and cur_date < self._start_date:
+                return False
+            if self._end_date and cur_date >= self._end_date:
+                return False
+        return True
+
     def _list_input_dir(self):
         logging.info("List input directory, it will take some time...")
         root = self._portal_manifest.input_base_dir
@@ -351,7 +372,6 @@ class DataPortalJobManager(object):
         by_folder = {}
         for fname in all_files:
             splits = path.split(path.relpath(fname, root))
-            basename = splits[-1]
             dirnames = splits[:-1]
 
             # ignore files and dirs starting with _ or .
@@ -375,6 +395,10 @@ class DataPortalJobManager(object):
                 succ_fname = path.join(root, *dirnames, '_SUCCESS')
                 if succ_fname not in all_files:
                     continue
+
+            # check dirname is wanted date
+            if not self._is_wanted_date(dirnames[-1]):
+                continue
 
             if fname in self._processed_fpath:
                 continue
