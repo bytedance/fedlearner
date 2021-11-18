@@ -14,7 +14,6 @@
 
 # coding: utf-8
 
-import datetime
 import threading
 import logging
 from os import path
@@ -26,6 +25,7 @@ from tensorflow.compat.v1 import gfile
 
 from fedlearner.common import data_portal_service_pb2 as dp_pb
 
+from fedlearner.common.common import convert_time_string_to_datetime
 from fedlearner.data_join import common
 from fedlearner.data_join.raw_data_publisher import RawDataPublisher
 from fedlearner.data_join.sort_run_merger import MergedSortRunMeta
@@ -70,9 +70,7 @@ class DataPortalJobManager(object):
     @staticmethod
     def _to_date(date_str):
         try:
-            # default format
-            date_format = "%Y%m%d"
-            return datetime.datetime.strptime(date_str, date_format)
+            return convert_time_string_to_datetime(date_str)
         except ValueError:
             return None
 
