@@ -25,13 +25,14 @@ from tensorflow.compat.v1 import gfile
 
 from fedlearner.common import data_portal_service_pb2 as dp_pb
 
-from fedlearner.common.common import convert_time_string_to_datetime
+from fedlearner.common.common import convert_to_datetime, INVALID_DATETIME
 from fedlearner.data_join import common
 from fedlearner.data_join.raw_data_publisher import RawDataPublisher
 from fedlearner.data_join.sort_run_merger import MergedSortRunMeta
 
 
 class DataPortalJobManager(object):
+
     def __init__(self, kvstore, portal_name, long_running, check_success_tag,
                  single_subfolder, files_per_job_limit,
                  max_files_per_job=8000, start_date=None, end_date=None):
@@ -42,8 +43,8 @@ class DataPortalJobManager(object):
         self._single_subfolder = single_subfolder
         self._files_per_job_limit = files_per_job_limit
         self._max_files_per_job = max_files_per_job
-        self._start_date = self._to_date(start_date)
-        self._end_date = self._to_date(end_date)
+        self._start_date = convert_to_datetime(start_date)
+        self._end_date = convert_to_datetime(end_date)
         self._portal_manifest = None
         self._processing_job = None
         self._sync_portal_manifest()
@@ -66,13 +67,6 @@ class DataPortalJobManager(object):
         if self._portal_manifest.processing_job_id < 0:
             if not self._launch_new_portal_job() and not self._long_running:
                 self._finished = True
-
-    @staticmethod
-    def _to_date(date_str):
-        try:
-            return convert_time_string_to_datetime(date_str)
-        except ValueError:
-            return None
 
     def get_portal_manifest(self):
         with self._lock:
@@ -346,11 +340,13 @@ class DataPortalJobManager(object):
         return res
 
     def _is_wanted_date(self, cur_date_str):
-        cur_date = self._to_date(cur_date_str)
-        if cur_date:
-            if self._start_date and cur_date < self._start_date:
+        cur_date = convert_to_datetime(cur_date_str)
+        if cur_date != INVALID_DATETIME:
+            if self._start_date != INVALID_DATETIME and \
+                cur_date < self._start_date:
                 return False
-            if self._end_date and cur_date >= self._end_date:
+            if self._end_date != INVALID_DATETIME and \
+                cur_date >= self._end_date:
                 return False
         return True
 

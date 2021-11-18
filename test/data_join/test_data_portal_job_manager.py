@@ -252,8 +252,8 @@ class TestDataPortalJobManager(unittest.TestCase):
             check_success_tag=False,
             single_subfolder=False,
             files_per_job_limit=None,
-            start_date='2021010s',
-            end_date='020210102',
+            start_date=None,
+            end_date='',
         )
         self._list_input_dir(
             portal_options, None, self._all_fnames)
