@@ -57,6 +57,10 @@ if __name__ == "__main__":
                         help='Only process one subfolder at a time')
     parser.add_argument('--files_per_job_limit', type=int, default=None,
                         help='Max number of files in a job')
+    parser.add_argument('--start_date', type=str, default=None,
+                        help='Start date of input data, format %Y%m%d')
+    parser.add_argument('--end_date', type=str, default=None,
+                        help='End date of input data, format %Y%m%d')
     args = parser.parse_args()
     set_logger()
 
@@ -105,7 +109,10 @@ if __name__ == "__main__":
         long_running=args.long_running,
         check_success_tag=args.check_success_tag,
         single_subfolder=args.single_subfolder,
-        files_per_job_limit=args.files_per_job_limit)
+        files_per_job_limit=args.files_per_job_limit,
+        start_date=args.start_date,
+        end_date=args.end_date
+    )
 
     portal_master_srv = DataPortalMasterService(args.listen_port,
                                                 args.data_portal_name,
