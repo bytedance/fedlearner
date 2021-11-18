@@ -53,8 +53,8 @@ class RawDataJob:
                  validation=0,
                  kvstore_type="dfs",
                  use_fake_client=False,
-                 start_date=None,
-                 end_date=None):
+                 start_date='',
+                 end_date=''):
         self._job_name = job_name
         self._root_path = root_path
         self._job_type = job_type
