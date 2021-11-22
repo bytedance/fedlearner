@@ -107,7 +107,6 @@ class InputDataManager(object):
             # check wildcard
             if self._wildcard and not fnmatch(fname, self._wildcard):
                 continue
-            self._num_files += 1
 
             # check success tag
             if self._check_success_tag:
@@ -118,6 +117,8 @@ class InputDataManager(object):
             # check dirname is wanted date
             if not self._is_wanted_date(dirnames[-1]):
                 continue
+
+            self._num_files += 1
 
             if fname in processed_fpath:
                 continue
@@ -130,7 +131,7 @@ class InputDataManager(object):
 
         logging.info(
             'Listing %s: found %d dirs, %d files, %d tmp files ignored, '
-            '%d files matching wildcard, %d new files to process.',
+            '%d files matching condition, %d new files to process.',
             root, len(by_folder), len(all_files), num_ignored,
             self._num_files, num_new_files)
         return by_folder

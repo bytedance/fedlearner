@@ -20,6 +20,7 @@ import logging
 import os
 from http import HTTPStatus
 import subprocess
+import time
 import requests
 from kubernetes.client.exceptions import ApiException
 
@@ -83,6 +84,20 @@ class WebConsoleClient(object):
             response['data']['state'] in k8s_status:
             return SparkAPPStatus[response['data']['state']], response
         return SparkAPPStatus.PENDING, ''
+
+    def get_sparkapplication_log(self,
+                                 name: str) -> str:
+        spark_job_url = os.path.join(self._spark_api_url, name, "log")
+        params = {"lines": "10000"}
+        # retry 3 times
+        for i in range(3):
+            response = requests.get(url=spark_job_url, headers=self._headers,
+                                    params=params)
+            response = json.loads(response.text)
+            if 'data' in response:
+                return '\n'.join(sorted(response['data']))
+            time.sleep(10)
+        return ''
 
     @staticmethod
     def _spark_task_config(task_name, file_config,
@@ -174,8 +189,12 @@ class FakeWebConsoleClient(object):
             }
         }
 
+    def get_sparkapplication_log(self,
+                                 name: str) -> str:
+        logging.info("Get log of spark application %s", name)
+        return ""
+
     def delete_sparkapplication(self,
-                                name: str,
-                                ) -> dict:
+                                name: str,) -> dict:
         logging.info("Delete spark application %s", name)
         return {}
