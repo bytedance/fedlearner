@@ -63,6 +63,9 @@ class SparkApplication(object):
                 if status == SparkAPPStatus.FAILED:
                     logging.error("Spark job %s failed, with response %s",
                                   self._name, msg)
+                    logging.error("-" * 80)
+                    logging.error(self._client.get_sparkapplication_log(
+                        self._name))
                     sys.exit(-1)
                 else:
                     logging.info("Sleep 10s to wait spark job done...")
