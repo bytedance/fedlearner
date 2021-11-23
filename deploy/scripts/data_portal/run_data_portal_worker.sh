@@ -40,7 +40,7 @@ push_file ${DEP_FILE} ${UPLOAD_DIR}
 cd $CUR_DIR
 rm -rf $TMP_DIR
 
-input_file_wildcard=$(normalize_env_to_args "--input_file_wildcard" $FILE_WILDCARD)
+input_file_wildcard=$(normalize_env_to_args "--input_file_wildcard" "$FILE_WILDCARD")
 kvstore_type=$(normalize_env_to_args '--kvstore_type' $KVSTORE_TYPE)
 input_format=$(normalize_env_to_args '--input_format' $INPUT_DATA_FORMAT)
 files_per_job_limit=$(normalize_env_to_args '--files_per_job_limit' $FILES_PER_JOB_LIMIT)
