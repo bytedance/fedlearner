@@ -94,6 +94,12 @@ if __name__ == "__main__":
                         help='start time for input data')
     parser.add_argument('--end_date', type=str, default='',
                         help='end time for input data')
+    parser.add_argument('--oss_access_key_id', type=str, default=None,
+                        help='access key id for oss')
+    parser.add_argument('--oss_access_key_secret', type=str, default=None,
+                        help='access key secret for oss')
+    parser.add_argument('--oss_endpoint', type=str, default=None,
+                        help='endpoint for oss')
     args = parser.parse_args()
     set_logger()
     spark_driver_config = SparkDriverConfig(args.spark_driver_cores,
@@ -127,5 +133,8 @@ if __name__ == "__main__":
                      web_console_password=args.web_console_password,
                      validation=args.validation,
                      start_date=args.start_date,
-                     end_date=args.end_date)
+                     end_date=args.end_date,
+                     oss_access_key_id=args.oss_access_key_id,
+                     oss_access_key_secret=args.oss_access_key_secret,
+                     oss_endpoint=args.oss_endpoint)
     job.run(args.input_base_dir, args.input_format, args.output_format)

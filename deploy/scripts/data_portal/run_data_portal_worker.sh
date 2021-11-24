@@ -57,6 +57,9 @@ spark_executor_instances=$(normalize_env_to_args '--spark_executor_instances' $S
 validation=$(normalize_env_to_args '--validation' $VALIDATION)
 start_date=$(normalize_env_to_args '--start_date' $START_DATE)
 end_date=$(normalize_env_to_args '--end_date' $END_DATE)
+oss_access_key_id=$(normalize_env_to_args '--oss_access_key_id' $OSS_ACCESS_KEY_ID)
+oss_access_key_secret=$(normalize_env_to_args '--oss_access_key_secret' $OSS_ACCESS_KEY_SECRET)
+oss_endpoint=$(normalize_env_to_args '--oss_endpoint' $OSS_ENDPOINT)
 
 python -m fedlearner.data_join.cmd.raw_data_cli \
     --data_portal_name=$DATA_PORTAL_NAME \
@@ -75,4 +78,5 @@ python -m fedlearner.data_join.cmd.raw_data_cli \
     $data_source_name $data_block_dump_threshold \
     $spark_image $spark_driver_cores $spark_driver_memory \
     $spark_executor_cores $spark_executor_memory $spark_executor_instances \
-    $validation $start_date $end_date
+    $validation $start_date $end_date \
+    $oss_access_key_id $oss_access_key_secret $oss_endpoint

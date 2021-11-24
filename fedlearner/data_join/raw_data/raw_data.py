@@ -39,6 +39,10 @@ def start_spark(app_name='my_spark_app',
         # add other config params
         for key, val in spark_config.items():
             spark_builder.config(key, val)
+    spark_builder.config("fs.AbstractFileSystem.oss.impl",
+                         "com.aliyun.emr.fs.oss.OSS")
+    spark_builder.config("fs.oss.impl",
+                         "com.aliyun.emr.fs.oss.JindoOssFileSystem")
 
     # create session and retrieve Spark logger object
     return spark_builder.getOrCreate()

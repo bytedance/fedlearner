@@ -1,6 +1,7 @@
 import datetime
 import logging
 import os
+from urllib.parse import urlparse
 from fnmatch import fnmatch
 
 from tensorflow.compat.v1 import gfile
@@ -12,13 +13,19 @@ class InputDataManager(object):
                  single_subfolder=False,
                  files_per_job_limit=None,
                  start_date='',
-                 end_date=''):
+                 end_date='',
+                 oss_access_key_id=None,
+                 oss_access_key_secret=None,
+                 oss_endpoint=None):
         self._wildcard = wildcard
         self._check_success_tag = check_success_tag
         self._single_subfolder = single_subfolder
         self._files_per_job_limit = files_per_job_limit
         self._start_date = convert_to_datetime(start_date)
         self._end_date = convert_to_datetime(end_date)
+        self._oss_access_key_id = oss_access_key_id
+        self._oss_access_key_secret = oss_access_key_secret
+        self._oss_endpoint = oss_endpoint
 
         self._num_files = 0
         self._num_allocated_files = 0
@@ -31,19 +38,42 @@ class InputDataManager(object):
         except ValueError:
             return None
 
-    @staticmethod
-    def _list_dir_helper_oss(root):
+    def _oss_gfile_address(self, input_path):
+        url = urlparse(input_path)
+        addr = "{}://{}?id={}&key={}&host={}{}" \
+            .format(url.scheme,
+                    url.hostname,
+                    self._oss_access_key_id,
+                    self._oss_access_key_secret,
+                    self._oss_endpoint,
+                    url.path)
+        return addr
+
+    def _oss_spark_address(self, input_path):
+        url = urlparse(input_path)
+        addr = "{scheme}://{id}:{key}@{bucket}.{endpoint}{path}" \
+            .format(scheme=url.scheme,
+                    id=self._oss_access_key_id,
+                    key=self._oss_access_key_secret,
+                    bucket=url.hostname,
+                    endpoint=self._oss_endpoint,
+                    path=url.path)
+        return addr
+
+    def _list_dir_helper_oss(self, root):
         # oss returns a file multiple times, e.g. listdir('root') returns
         #   ['folder', 'file1.txt', 'folder/file2.txt']
         # and then listdir('root/folder') returns
         #   ['file2.txt']
         filenames = set(
-            os.path.join(root, i) for i in gfile.ListDirectory(root))
+            os.path.join(root, i) for i in gfile.ListDirectory(
+                self._oss_gfile_address(root)))
         res = []
         for fname in filenames:
             succ = os.path.join(os.path.dirname(fname), '_SUCCESS')
-            if succ in filenames or not gfile.IsDirectory(fname):
-                res.append(fname)
+            if succ in filenames or not gfile.IsDirectory(
+                self._oss_gfile_address(fname)):
+                res.append(self._oss_spark_address(fname))
 
         return res
 

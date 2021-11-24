@@ -54,7 +54,10 @@ class RawDataJob:
                  kvstore_type="dfs",
                  use_fake_client=False,
                  start_date='',
-                 end_date=''):
+                 end_date='',
+                 oss_access_key_id=None,
+                 oss_access_key_secret=None,
+                 oss_endpoint=None):
         self._job_name = job_name
         self._root_path = root_path
         self._job_type = job_type
@@ -91,7 +94,10 @@ class RawDataJob:
             single_subfolder,
             files_per_job_limit,
             start_date=start_date,
-            end_date=end_date)
+            end_date=end_date,
+            oss_access_key_id=oss_access_key_id,
+            oss_access_key_secret=oss_access_key_secret,
+            oss_endpoint=oss_endpoint)
 
         self._next_job_id = self._meta.job_id + 1
         self._num_processing_file = 0
