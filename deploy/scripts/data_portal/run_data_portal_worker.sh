@@ -19,7 +19,7 @@ set -ex
 export CUDA_VISIBLE_DEVICES=
 source /app/deploy/scripts/hdfs_common.sh || true
 source /app/deploy/scripts/pre_start_hook.sh || true
-source /app/deploy/scripts/env_to_args.sh 
+source /app/deploy/scripts/env_to_args.sh
 
 UPLOAD_DIR=$OUTPUT_BASE_DIR/upload
 spark_entry_script="fedlearner/data_join/raw_data/raw_data.py"

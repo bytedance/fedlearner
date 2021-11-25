@@ -55,9 +55,9 @@ class RawDataJob:
                  use_fake_client=False,
                  start_date='',
                  end_date='',
-                 oss_access_key_id=None,
-                 oss_access_key_secret=None,
-                 oss_endpoint=None):
+                 oss_access_key_id='',
+                 oss_access_key_secret='',
+                 oss_endpoint=''):
         self._job_name = job_name
         self._root_path = root_path
         self._job_type = job_type
@@ -78,6 +78,9 @@ class RawDataJob:
         self._web_console_username = web_console_username
         self._web_console_password = web_console_password
         self._validation = validation
+        self._oss_access_key_id = oss_access_key_id
+        self._oss_access_key_secret = oss_access_key_secret
+        self._oss_endpoint = oss_endpoint
 
         if self._output_type == OutputType.DataBlock:
             # if output data block, run folder one by one
@@ -157,7 +160,10 @@ class RawDataJob:
             output_format=output_format,
             output_partition_num=self._output_partition_num,
             output_path=output_path,
-            validation=self._validation)
+            validation=self._validation,
+            oss_access_key_id=self._oss_access_key_id,
+            oss_access_key_secret=self._oss_access_key_secret,
+            oss_endpoint=self._oss_endpoint)
 
         task_name = self._encode_spark_task_name(job_id)
         self._launch_spark_job(task_name, job_config.config_path)
@@ -234,7 +240,10 @@ class RawDataJob:
             self._spark_image,
             os.path.join(self._upload_dir, self._spark_entry_script_name),
             config_path,
-            self._spark_dependent_package)
+            self._spark_dependent_package,
+            self._oss_access_key_id,
+            self._oss_access_key_secret,
+            self._oss_endpoint)
 
     def _publish_raw_data(self, job_id, output_dir):
         publisher = \

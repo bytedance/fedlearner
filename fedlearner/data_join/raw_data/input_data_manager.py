@@ -38,7 +38,7 @@ class InputDataManager(object):
         except ValueError:
             return None
 
-    def _oss_gfile_address(self, input_path):
+    def _oss_address(self, input_path):
         url = urlparse(input_path)
         addr = "{}://{}?id={}&key={}&host={}{}" \
             .format(url.scheme,
@@ -49,17 +49,6 @@ class InputDataManager(object):
                     url.path)
         return addr
 
-    def _oss_spark_address(self, input_path):
-        url = urlparse(input_path)
-        addr = "{scheme}://{id}:{key}@{bucket}.{endpoint}{path}" \
-            .format(scheme=url.scheme,
-                    id=self._oss_access_key_id,
-                    key=self._oss_access_key_secret,
-                    bucket=url.hostname,
-                    endpoint=self._oss_endpoint,
-                    path=url.path)
-        return addr
-
     def _list_dir_helper_oss(self, root):
         # oss returns a file multiple times, e.g. listdir('root') returns
         #   ['folder', 'file1.txt', 'folder/file2.txt']
@@ -67,13 +56,13 @@ class InputDataManager(object):
         #   ['file2.txt']
         filenames = set(
             os.path.join(root, i) for i in gfile.ListDirectory(
-                self._oss_gfile_address(root)))
+                self._oss_address(root)))
         res = []
         for fname in filenames:
             succ = os.path.join(os.path.dirname(fname), '_SUCCESS')
             if succ in filenames or not gfile.IsDirectory(
-                self._oss_gfile_address(fname)):
-                res.append(self._oss_spark_address(fname))
+                self._oss_address(fname)):
+                res.append(fname)
 
         return res
 
@@ -116,6 +105,7 @@ class InputDataManager(object):
 
         self._num_files = 0
         self._num_allocated_files = len(processed_fpath)
+        logging.info("%s: %s", root, all_files)
 
         num_ignored = 0
         num_new_files = 0
@@ -145,7 +135,7 @@ class InputDataManager(object):
                     continue
 
             # check dirname is wanted date
-            if not self._is_wanted_date(dirnames[-1]):
+            if not self._is_wanted_date(os.path.basename(dirnames[-1])):
                 continue
 
             self._num_files += 1
