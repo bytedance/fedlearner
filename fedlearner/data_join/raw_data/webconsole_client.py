@@ -106,7 +106,11 @@ class WebConsoleClient(object):
             "name": task_name,
             "image_url": file_config.image,
             "main_application": file_config.entry_file,
-            "command": ["--config", file_config.config_file],
+            "command": [
+                "--config", file_config.config_file,
+                "--oss_access_key_id", file_config.oss_access_key_id,
+                "--oss_access_key_secret", file_config.oss_access_key_secret,
+                "--oss_endpoint", file_config.oss_endpoint],
             "py_files": [file_config.dep_file],
             "driver_config": {
                 "cores": driver_config.cores,

@@ -42,7 +42,10 @@ class RawDataJobConfig(object):
                         output_format,
                         output_partition_num,
                         output_path,
-                        validation):
+                        validation,
+                        oss_access_key_id,
+                        oss_access_key_secret,
+                        oss_endpoint):
         config_dict = {
             Constants.job_type_key: job_type,
             Constants.input_files_key: ",".join(input_files),

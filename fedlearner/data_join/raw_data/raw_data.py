@@ -19,9 +19,25 @@ def set_logger():
                                "%(levelname)s - %(message)s")
 
 
+def _get_oss_jars():
+    spark_jar_path = "/opt/spark/jars"
+    dependent_jar_names = ('emr-core', 'aliyun-sdk-oss', 'commons-codec',
+                           'httpclient', 'httpcore', 'commons-logging',
+                           'jdom')
+    dependent_jars = []
+    for jar_name in os.listdir(spark_jar_path):
+        if jar_name.startswith(dependent_jar_names):
+            dependent_jars.append(os.path.join(spark_jar_path, jar_name))
+    return ','.join(dependent_jars)
+
+
 def start_spark(app_name='my_spark_app',
                 jar_packages=None,
-                files=None, spark_config=None):
+                files=None,
+                spark_config=None,
+                oss_access_key_id=None,
+                oss_access_key_secret=None,
+                oss_endpoint=None):
     # get Spark session factory
     spark_builder = \
         SparkSession.builder.appName(app_name)
@@ -39,10 +55,18 @@ def start_spark(app_name='my_spark_app',
         # add other config params
         for key, val in spark_config.items():
             spark_builder.config(key, val)
-    spark_builder.config("fs.AbstractFileSystem.oss.impl",
-                         "com.aliyun.emr.fs.oss.OSS")
-    spark_builder.config("fs.oss.impl",
-                         "com.aliyun.emr.fs.oss.JindoOssFileSystem")
+
+    if oss_access_key_id and oss_access_key_secret and oss_endpoint:
+        spark_builder.config("spark.hadoop.fs.oss.core.dependency.path",
+                             _get_oss_jars())
+        spark_builder.config("spark.hadoop.fs.oss.accessKeyId",
+                             oss_access_key_id)
+        spark_builder.config("spark.hadoop.fs.oss.accessKeySecret",
+                             oss_access_key_secret)
+        spark_builder.config("spark.hadoop.fs.oss.endpoint",
+                             oss_endpoint)
+        spark_builder.config("spark.hadoop.fs.oss.impl",
+                             "com.aliyun.fs.oss.nat.NativeOssFileSystem")
 
     # create session and retrieve Spark logger object
     return spark_builder.getOrCreate()
@@ -76,7 +100,10 @@ def validate(data_df, job_type):
 
 
 class RawData:
-    def __init__(self, config_file=None, jar_packages=None):
+    def __init__(self, config_file=None, jar_packages=None,
+                 oss_access_key_id=None,
+                 oss_access_key_secret=None,
+                 oss_endpoint=None):
         # start Spark application and get Spark session, logger and config
         config_files = [config_file] if config_file else None
         self._config = None
@@ -84,9 +111,14 @@ class RawData:
         self._spark = start_spark(
             app_name='RawData',
             jar_packages=jar_packages,
-            files=config_files)
+            files=config_files,
+            oss_access_key_id=oss_access_key_id,
+            oss_access_key_secret=oss_access_key_secret,
+            oss_endpoint=oss_endpoint)
+
         if config_file:
             self._config = get_config(os.path.basename(config_file))
+
 
     def run(self, config=None):
         set_logger()
@@ -264,11 +296,20 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--config', '-c', type=str, default="config.json")
     parser.add_argument('--packages', type=str, default="")
+    parser.add_argument('--oss_access_key_id', type=str, default='',
+                        help='access key id for oss')
+    parser.add_argument('--oss_access_key_secret', type=str, default='',
+                        help='access key secret for oss')
+    parser.add_argument('--oss_endpoint', type=str, default='',
+                        help='endpoint for oss')
     args = parser.parse_args()
     set_logger()
     logging.info(args)
 
     packages = args.packages.split(",")
-    processor = RawData(args.config, packages)
+    processor = RawData(args.config, packages,
+                        oss_access_key_id=args.oss_access_key_id,
+                        oss_access_key_secret=args.oss_access_key_secret,
+                        oss_endpoint=args.oss_endpoint)
     processor.run()
     processor.stop()

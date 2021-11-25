@@ -94,11 +94,11 @@ if __name__ == "__main__":
                         help='start time for input data')
     parser.add_argument('--end_date', type=str, default='',
                         help='end time for input data')
-    parser.add_argument('--oss_access_key_id', type=str, default=None,
+    parser.add_argument('--oss_access_key_id', type=str, default='',
                         help='access key id for oss')
-    parser.add_argument('--oss_access_key_secret', type=str, default=None,
+    parser.add_argument('--oss_access_key_secret', type=str, default='',
                         help='access key secret for oss')
-    parser.add_argument('--oss_endpoint', type=str, default=None,
+    parser.add_argument('--oss_endpoint', type=str, default='',
                         help='endpoint for oss')
     args = parser.parse_args()
     set_logger()

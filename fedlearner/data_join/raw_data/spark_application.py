@@ -10,7 +10,10 @@ from fedlearner.data_join.raw_data.webconsole_client import \
 
 SparkFileConfig = collections.namedtuple('SparkFileConfig',
                                          ['image', 'entry_file',
-                                          'config_file', 'dep_file'])
+                                          'config_file', 'dep_file',
+                                          'oss_access_key_id',
+                                          'oss_access_key_secret',
+                                          'oss_endpoint'])
 
 SparkDriverConfig = collections.namedtuple('SparkDriverConfig',
                                            ["cores", "memory"])
@@ -80,4 +83,5 @@ class SparkApplication(object):
         self._file_config = SparkFileConfig(
             self._file_config.image, self._file_config.entry_file,
             ["--config={}".format(self._file_config.config_file),
-             "--packages={}".format(local_jars)], self._file_config.dep_file)
+             "--packages={}".format(local_jars)], self._file_config.dep_file,
+            "", "", "")
