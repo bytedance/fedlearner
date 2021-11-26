@@ -394,6 +394,7 @@ class RawDataTests(unittest.TestCase):
                          check_success_tag=True,
                          single_subfolder=True,
                          upload_dir=upload_dir,
+                         kvstore_type="dfs",
                          use_fake_client=True)
         with self.assertRaises(SystemExit):
             job.run(self._input_dir, "TF_RECORD", "TF_RECORD")
@@ -430,6 +431,7 @@ class RawDataTests(unittest.TestCase):
                          check_success_tag=True,
                          single_subfolder=True,
                          upload_dir=upload_dir,
+                         kvstore_type="dfs",
                          use_fake_client=True)
         job.run(self._input_dir, "TF_RECORD", "TF_RECORD")
 

@@ -51,7 +51,7 @@ class RawDataJob:
                  web_console_username='',
                  web_console_password='',
                  validation=0,
-                 kvstore_type="dfs",
+                 kvstore_type="etcd",
                  use_fake_client=False,
                  start_date='',
                  end_date='',
