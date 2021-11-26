@@ -65,7 +65,7 @@ if __name__ == "__main__":
     parser.add_argument('--long_running', action='store_true',
                         help='make the data portal long running')
     parser.add_argument('--kvstore_type', type=str,
-                        default='dfs', help='the type of kvstore')
+                        default='etcd', help='the type of kvstore')
     parser.add_argument("--spark_image", type=str, default='',
                         help='docker image for spark')
     parser.add_argument("--spark_dependent_package", type=str, default='',

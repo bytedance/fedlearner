@@ -126,6 +126,7 @@ class RawDataTests(unittest.TestCase):
                          compression_type="GZIP",
                          check_success_tag=True,
                          upload_dir=upload_dir,
+                         kvstore_type="dfs",
                          use_fake_client=True)
         job.run(self._input_dir, "TF_RECORD", "TF_RECORD")
 
@@ -158,6 +159,7 @@ class RawDataTests(unittest.TestCase):
                          data_block_threshold=data_block_threshold,
                          check_success_tag=True,
                          upload_dir=upload_dir,
+                         kvstore_type="dfs",
                          use_fake_client=True)
         job.run(self._input_dir, "TF_RECORD", "TF_RECORD")
 
