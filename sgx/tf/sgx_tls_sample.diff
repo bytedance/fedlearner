@@ -120,6 +120,7 @@ index aed798217cb..aa70e94971a 100644
  }  // namespace tensorflow
  
  #endif  // TENSORFLOW_CORE_DISTRIBUTED_RUNTIME_RPC_GRPC_UTIL_H_
+
 diff --git a/third_party/grpc/generate_cc_env_fix.patch b/third_party/grpc/generate_cc_env_fix.patch
 index 51832fe9628..199d0cda566 100644
 --- a/third_party/grpc/generate_cc_env_fix.patch

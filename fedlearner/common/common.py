@@ -275,3 +275,11 @@ def use_tls():
     if not enable:
         return False
     return True
+
+def get_tf_config():
+    return {
+        "intra_op_parallelism_threads": \
+            int(os.environ.get("INTRA_OP_PARALLELISM_THREADS", 16)),
+        "inter_op_parallelism_threads": \
+            int(os.environ.get("INTER_OP_PARALLELISM_THREADS", 16))
+    }
