@@ -23,7 +23,7 @@ from distutils.util import strtobool
 
 import tensorflow.compat.v1 as tf
 from google.protobuf import any_pb2 as any_pb
-from fedlearner.common import fl_logging
+from fedlearner.common import fl_logging, common
 from fedlearner.channel import Channel
 from fedlearner.common import common_pb2 as common_pb
 from fedlearner.common import trainer_worker_service_pb2 as tws2_pb
@@ -91,6 +91,7 @@ class Bridge(object):
         self._channel = Channel(
             self._listen_address, self._remote_address,
             token=self._token,
+            max_workers=common.get_tf_config()["grpc_server_channel_threads"],
             stats_client=_gctx.stats_client)
         self._channel.subscribe(self._channel_callback)
 

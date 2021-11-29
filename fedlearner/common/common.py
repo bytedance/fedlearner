@@ -281,5 +281,7 @@ def get_tf_config():
         "intra_op_parallelism_threads": \
             int(os.environ.get("INTRA_OP_PARALLELISM_THREADS", 16)),
         "inter_op_parallelism_threads": \
-            int(os.environ.get("INTER_OP_PARALLELISM_THREADS", 16))
+            int(os.environ.get("INTER_OP_PARALLELISM_THREADS", 16)),
+        "grpc_server_channel_threads": \
+            int(os.environ.get("GRPC_SERVER_CHANNEL_THREADS", 16))
     }
