@@ -165,7 +165,7 @@ RUN pip3 uninstall -y grpcio \
     && pip3 install ${GRPC_PATH}/dist/grpcio*.whl
 
 # For debug
-RUN apt install -y strace gdb ctags vim
+RUN apt-get install -y strace gdb ctags vim
 
 COPY sgx/gramine/CI-Examples ${GRAMINEDIR}/CI-Examples
 COPY sgx/configs /

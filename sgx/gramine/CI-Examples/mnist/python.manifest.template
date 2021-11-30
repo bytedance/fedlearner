@@ -5,7 +5,7 @@ loader.preload = "file:{{ gramine.libos }}"
 loader.log_level = "{{ log_level }}"
 # loader.log_file = ""
 
-loader.pal_internal_mem_size = "500M"
+loader.pal_internal_mem_size = "200M"
 
 loader.insecure__use_cmdline_argv = true 
 loader.insecure__use_host_env = true
@@ -15,7 +15,7 @@ loader.env.SECRET_PROVISION_CONSTRUCTOR = "1"
 loader.env.SECRET_PROVISION_SET_PF_KEY = "1"
 
 sys.enable_sigterm_injection = true
-sys.stack.size = "32M"
+sys.stack.size = "2M"
 
 fs.mount.lib.type = "chroot"
 fs.mount.lib.path = "/lib"
@@ -58,7 +58,8 @@ sgx.debug = false
 sgx.remote_attestation = true
 sgx.nonpie_binary = true
 sgx.enclave_size = "16G"
-sgx.thread_num = 1024
+sgx.thread_num = 512
+sgx.rpc_thread_num = 0
 sgx.protected_files_key = "ffeeddccbbaa99887766554433221100"
 
 sgx.trusted_files = [

@@ -11,9 +11,9 @@ function make_custom_env() {
     export TF_DISABLE_MKL=0
     export TF_ENABLE_MKL_NATIVE_FORMAT=1
     export parallel_num_threads=4
-    export session_parallelism=0
     export INTRA_OP_PARALLELISM_THREADS=$parallel_num_threads
     export INTER_OP_PARALLELISM_THREADS=$parallel_num_threads
+    export GRPC_SERVER_CHANNEL_THREADS=16
     export KMP_SETTINGS=1
     export KMP_BLOCKTIME=0
     # network proxy
