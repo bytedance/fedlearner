@@ -77,7 +77,7 @@ RUN cd ${GRAMINEDIR} \
 # https://gramine.readthedocs.io/en/latest/quickstart.html#quick-start-with-sgx-support
 RUN openssl genrsa -3 -out ${SGX_SIGNER_KEY} 3072
 RUN cd ${GRAMINEDIR} \
-    && LD_LIBRARY_PATH="" meson setup build/ --buildtype=debug -Dprefix=${INSTALL_PREFIX} -Ddirect=enabled -Dsgx=enabled -Ddcap=enabled -Dsgx_driver=dcap1.10 -Dsgx_driver_include_path=${ISGX_DRIVER_PATH}/driver/linux/include \
+    && LD_LIBRARY_PATH="" meson setup build/ --buildtype=release -Dprefix=${INSTALL_PREFIX} -Ddirect=enabled -Dsgx=enabled -Ddcap=enabled -Dsgx_driver=dcap1.10 -Dsgx_driver_include_path=${ISGX_DRIVER_PATH}/driver/linux/include \
     && LD_LIBRARY_PATH="" ninja -C build/ \
     && LD_LIBRARY_PATH="" ninja -C build/ install
 
