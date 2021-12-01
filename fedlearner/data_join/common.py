@@ -54,7 +54,7 @@ SYNC_ALLOWED_OPTIONAL_FIELDS = [
 # must: both old and new version of raw data should have this field
 ALLOWED_FIELD = namedtuple('ALLOW_FIELD', ['default_value', 'type', 'must'])
 ALLOWED_FIELDS = dict({
-    'example_id': ALLOWED_FIELD(InvalidExampleId, bytes, True),
+    'example_id': ALLOWED_FIELD(InvalidExampleId, bytes, False),
     'event_time': ALLOWED_FIELD(InvalidEventTime, int, False),
     'index': ALLOWED_FIELD(InvalidInt, int, False),
     'event_time_deep': ALLOWED_FIELD(InvalidEventTime, int, False),
