@@ -15,8 +15,8 @@ function make_custom_env() {
     export DNNL_VERBOSE=1
     export GRPC_VERBOSITY=ERROR
     export TF_CPP_MIN_LOG_LEVEL=1
-    export TF_GRPC_SGX_RA_TLS_ENABLE=""
-    export FL_GRPC_SGX_RA_TLS_ENABLE=""
+    export TF_GRPC_SGX_RA_TLS_ENABLE=on
+    export FL_GRPC_SGX_RA_TLS_ENABLE=on
     export TF_DISABLE_MKL=0
     export TF_ENABLE_MKL_NATIVE_FORMAT=1
     export parallel_num_threads=4
