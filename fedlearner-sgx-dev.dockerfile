@@ -134,7 +134,7 @@ COPY sgx/tf ${TF_BUILD_PATH}
 RUN cd ${TF_BUILD_PATH} \
     && git apply sgx_tls_sample.diff
 
-ARG TF_BUILD_CFG="--config=mkl --config=numa --copt=-march=native --copt=-O3 --cxxopt=-march=native --cxxopt=-O3 --cxxopt=-D_GLIBCXX_USE_CXX11_ABI=0"
+ARG TF_BUILD_CFG="--config=numa --config=mkl --config=mkl_threadpool --copt=-march=native --copt=-O3 --cxxopt=-march=native --cxxopt=-O3 --cxxopt=-D_GLIBCXX_USE_CXX11_ABI=0"
 RUN cd ${TF_BUILD_PATH} \
     && bazel build -c opt ${TF_BUILD_CFG} //tensorflow/tools/pip_package:build_pip_package \
     && bazel-bin/tensorflow/tools/pip_package/build_pip_package ${TF_BUILD_OUTPUT}
@@ -177,7 +177,7 @@ RUN echo "exit 0" > /usr/sbin/policy-rc.d
 # Clean tmp files
 RUN apt-get clean all \
     && rm -rf /var/lib/apt/lists/* \
-    && rm -rf ~/.cache/pip/* \
+    && rm -rf ~/.cache/* \
     && rm -rf /tmp/*
 
 # Workspace

@@ -5,7 +5,7 @@ loader.preload = "file:{{ gramine.libos }}"
 loader.log_level = "{{ log_level }}"
 # loader.log_file = ""
 
-loader.pal_internal_mem_size = "500M"
+loader.pal_internal_mem_size = "200M"
 
 loader.insecure__use_cmdline_argv = true 
 loader.insecure__use_host_env = true
@@ -15,7 +15,7 @@ loader.env.SECRET_PROVISION_CONSTRUCTOR = "1"
 loader.env.SECRET_PROVISION_SET_PF_KEY = "1"
 
 sys.enable_sigterm_injection = true
-sys.stack.size = "16M"
+sys.stack.size = "2M"
 
 fs.mount.lib.type = "chroot"
 fs.mount.lib.path = "/lib"

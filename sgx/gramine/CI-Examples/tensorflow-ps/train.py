@@ -45,7 +45,8 @@ def main(_):
         # The MonitoredTrainingSession takes care of session initialization,
         # restoring from a checkpoint, saving to a checkpoint, and closing when done
         # or an error occurs.
-        config = tf.ConfigProto(intra_op_parallelism_threads=2, inter_op_parallelism_threads=2);
+        config = tf.ConfigProto(intra_op_parallelism_threads=int(os.environ["INTRA_OP_PARALLELISM_THREADS"]),
+                                inter_op_parallelism_threads=int(os.environ["INTER_OP_PARALLELISM_THREADS"]));
         with tf.train.MonitoredTrainingSession(master="grpc://" + worker_hosts[FLAGS.task_index],
                                                is_chief=(FLAGS.task_index==0), # 我们制定task_index为0的任务为主任务，用于负责变量初始化、做checkpoint、保存summary和复原
                                                checkpoint_dir="model",
@@ -62,7 +63,7 @@ def main(_):
                 _, step, loss_v, weight, biase = mon_sess.run([train_op, global_step, loss, W, b], feed_dict={x_data: train_x, y_data: train_y})
                 if step % 100 == 0:
                     print("step: %d, weight: %f, biase: %f, loss: %f" %(step, weight, biase, loss_v))
-            print("Optimization finished.")
+            print("Training finished.")
 
 if __name__ == "__main__":
     tf.app.run()
