@@ -382,7 +382,6 @@ class DataPortalJobManager(object):
             # check wildcard
             if wildcard and not fnmatch(fname, wildcard):
                 continue
-            num_target_files += 1
 
             # check success tag
             if self._check_success_tag:
@@ -391,17 +390,19 @@ class DataPortalJobManager(object):
                     continue
 
             # check dirname is wanted date
-            if not self._is_wanted_date(dirnames[-1]):
+            folder_name = path.basename(dirnames[-1])
+            if not self._is_wanted_date(folder_name):
                 continue
+
+            num_target_files += 1
 
             if fname in self._processed_fpath:
                 continue
             num_new_files += 1
 
-            folder = path.join(*dirnames)
-            if folder not in by_folder:
-                by_folder[folder] = []
-            by_folder[folder].append(fname)
+            if folder_name not in by_folder:
+                by_folder[folder_name] = []
+            by_folder[folder_name].append(fname)
 
         if not by_folder:
             rest_fpaths = []
@@ -428,7 +429,7 @@ class DataPortalJobManager(object):
 
         logging.info(
             'Listing %s: found %d dirs, %d files, %d tmp files ignored, '
-            '%d files matching wildcard, %d new files to process. '
+            '%d files matching condition, %d new files to process. '
             'Processing %d files in this iteration.',
             root, len(by_folder), len(all_files), num_ignored,
             num_target_files, num_new_files, len(rest_fpaths))
