@@ -136,7 +136,8 @@ RUN cd ${TF_BUILD_PATH} \
 
 RUN cd ${TF_BUILD_PATH} \
     && bazel build -c opt //tensorflow/tools/pip_package:build_pip_package \
-    && bazel-bin/tensorflow/tools/pip_package/build_pip_package ${TF_BUILD_OUTPUT}
+    && bazel-bin/tensorflow/tools/pip_package/build_pip_package ${TF_BUILD_OUTPUT} \
+    && rm -rf ~/.cache/*
 
 # Build and install fedlearner
 COPY . ${FEDLEARNER_PATH}
