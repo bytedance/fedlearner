@@ -77,7 +77,7 @@ RUN cd ${GRAMINEDIR} \
 # https://gramine.readthedocs.io/en/latest/quickstart.html#quick-start-with-sgx-support
 RUN openssl genrsa -3 -out ${SGX_SIGNER_KEY} 3072
 RUN cd ${GRAMINEDIR} \
-    && LD_LIBRARY_PATH="" meson setup build/ --buildtype=debug -Dprefix=${INSTALL_PREFIX} -Ddirect=enabled -Dsgx=enabled -Ddcap=enabled -Dsgx_driver=dcap1.10 -Dsgx_driver_include_path=${ISGX_DRIVER_PATH}/driver/linux/include \
+    && LD_LIBRARY_PATH="" meson setup build/ --buildtype=release -Dprefix=${INSTALL_PREFIX} -Ddirect=enabled -Dsgx=enabled -Ddcap=enabled -Dsgx_driver=dcap1.10 -Dsgx_driver_include_path=${ISGX_DRIVER_PATH}/driver/linux/include \
     && LD_LIBRARY_PATH="" ninja -C build/ \
     && LD_LIBRARY_PATH="" ninja -C build/ install
 
@@ -134,8 +134,9 @@ COPY sgx/tf ${TF_BUILD_PATH}
 RUN cd ${TF_BUILD_PATH} \
     && git apply sgx_tls_sample.diff
 
+ARG TF_BUILD_CFG="--config=numa --config=mkl --config=mkl_threadpool --copt=-march=native --copt=-O3 --cxxopt=-march=native --cxxopt=-O3 --cxxopt=-D_GLIBCXX_USE_CXX11_ABI=0"
 RUN cd ${TF_BUILD_PATH} \
-    && bazel build -c opt //tensorflow/tools/pip_package:build_pip_package \
+    && bazel build -c opt ${TF_BUILD_CFG} //tensorflow/tools/pip_package:build_pip_package \
     && bazel-bin/tensorflow/tools/pip_package/build_pip_package ${TF_BUILD_OUTPUT}
 
 # Build and install fedlearner
@@ -164,7 +165,7 @@ RUN pip3 uninstall -y grpcio \
     && pip3 install ${GRPC_PATH}/dist/grpcio*.whl
 
 # For debug
-RUN apt install -y strace gdb ctags vim
+RUN apt-get install -y strace gdb ctags vim
 
 COPY sgx/gramine/CI-Examples ${GRAMINEDIR}/CI-Examples
 COPY sgx/configs /
@@ -176,7 +177,7 @@ RUN echo "exit 0" > /usr/sbin/policy-rc.d
 # Clean tmp files
 RUN apt-get clean all \
     && rm -rf /var/lib/apt/lists/* \
-    && rm -rf ~/.cache/pip/* \
+    && rm -rf ~/.cache/* \
     && rm -rf /tmp/*
 
 # Workspace

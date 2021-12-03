@@ -12,17 +12,23 @@ function get_env() {
 function make_custom_env() {
     export DEBUG=0
     export CUDA_VISIBLE_DEVICES=""
+    export DNNL_VERBOSE=1
     export GRPC_VERBOSITY=ERROR
+    export TF_CPP_MIN_LOG_LEVEL=1
     export TF_GRPC_SGX_RA_TLS_ENABLE=on
     export FL_GRPC_SGX_RA_TLS_ENABLE=on
-    export TF_CPP_MIN_LOG_LEVEL=1
+    export TF_DISABLE_MKL=0
+    export TF_ENABLE_MKL_NATIVE_FORMAT=1
+    export parallel_num_threads=4
+    export INTRA_OP_PARALLELISM_THREADS=$parallel_num_threads
+    export INTER_OP_PARALLELISM_THREADS=$parallel_num_threads
+    export GRPC_SERVER_CHANNEL_THREADS=16
+    export KMP_SETTINGS=1
+    export KMP_BLOCKTIME=0
     export MR_ENCLAVE=`get_env mr_enclave`
     export MR_SIGNER=`get_env mr_signer`
     export ISV_PROD_ID=`get_env isv_prod_id`
     export ISV_SVN=`get_env isv_svn`
-    export parallel_num_threads=4
-    export INTRA_OP_PARALLELISM_THREADS=$parallel_num_threads
-    export INTER_OP_PARALLELISM_THREADS=$parallel_num_threads
     # network proxy
     unset http_proxy https_proxy
 }
