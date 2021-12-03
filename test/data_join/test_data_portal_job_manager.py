@@ -57,17 +57,18 @@ class TestDataPortalJobManager(unittest.TestCase):
             gfile.DeleteRecursively(self._portal_input_base_dir)
         gfile.MakeDirs(self._portal_input_base_dir)
 
-        self._data_fnames = ['20210101/{}.data'.format(i) for i in range(100)]
+        self._data_fnames = ['c/20210101/{}.data'.format(i) for i in range(100)]
         self._data_fnames_without_success = \
-            ['20210102/{}.data'.format(i) for i in range(100)]
-        self._csv_fnames = ['20210103/{}.csv'.format(i) for i in range(100)]
+            ['a/20210102/{}.data'.format(i) for i in range(100)]
+        self._csv_fnames = ['b/20210103/{}.csv'.format(i) for i in range(100)]
         self._unused_fnames = ['{}.xx'.format(100)]
         self._ignored_fnames = [f'.part-{i}.crc' for i in range(10)]
         self._all_fnames = self._data_fnames + \
                            self._data_fnames_without_success + \
                            self._csv_fnames + self._unused_fnames
 
-        all_fnames_with_success = ['20210101/_SUCCESS', '20210103/_SUCCESS'] + \
+        all_fnames_with_success = ['c/20210101/_SUCCESS',
+                                   'b/20210103/_SUCCESS'] + \
                                   self._all_fnames + self._ignored_fnames
         for fname in all_fnames_with_success:
             fpath = os.path.join(self._portal_input_base_dir, fname)
