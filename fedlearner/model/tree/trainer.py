@@ -220,7 +220,7 @@ def read_data(file_type, filename, require_example_ids, require_labels,
     features = []
     cat_features = []
     def to_float(x):
-        return float(x if x != '' else 'nan')
+        return float(x if x not in ['', None] else 'nan')
     for line in reader:
         if file_type == 'tfrecord':
             line = parse_tfrecord(line)
@@ -230,7 +230,7 @@ def read_data(file_type, filename, require_example_ids, require_labels,
             raw_ids.append(str(line['raw_id']))
         if labels is not None:
             labels.append(float(line[label_field]))
-        features.append([to_float(line[i]) for i in cont_columns])
+        features.append([to_float(line.get(i)) for i in cont_columns])
         cat_features.append([int(line[i]) for i in cat_columns])
 
     features = np.array(features, dtype=np.float)
