@@ -395,11 +395,8 @@ class BaseGrower(object):
 
     def _normalize_feature_importance(self):
         if self._feature_importance.sum() != 0.0:
-
-            self._feature_importance = self._feature_importance/ \
-                                        self._feature_importance.sum()
-            self._feature_importance = self._feature_importance/ \
-                                        self._feature_importance.sum()
+            self._feature_importance = self._feature_importance / \
+                                       self._feature_importance.sum()
 
     def _compute_histogram(self, node):
         node.grad_hists = self._hist_builder.compute_histogram(
@@ -487,7 +484,7 @@ class BaseGrower(object):
             self._compare_split(
                 split_info, True, fid, split_point,
                 left_g, left_h,
-                sum_g - left_g, sum_h)
+                sum_g - left_g, sum_h - left_h)
 
     def _add_node(self, parent_id):
         node_id = len(self._nodes)
