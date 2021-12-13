@@ -48,6 +48,7 @@ elif [ "$ROLE" == "leader" ]; then
     make_custom_env
     rm -rf model/leader
     taskset -c 0-3 stdbuf -o0 gramine-sgx python -u -m fedlearner.trainer.parameter_server localhost:40051 2>&1 | runtime_logfilter | tee -a leader-gramine-ps.log & 
+    sleep 2m
     taskset -c 4-7 stdbuf -o0 gramine-sgx python -u leader.py --local-addr=localhost:50051                                    \
                                                               --peer-addr=localhost:50052                                     \
                                                               --data-path=data/leader                                         \
@@ -65,6 +66,7 @@ elif [ "$ROLE" == "follower" ]; then
     make_custom_env
     rm -rf model/follower
     taskset -c 8-11 stdbuf -o0 gramine-sgx python -u -m fedlearner.trainer.parameter_server localhost:40061 2>&1 | runtime_logfilter | tee -a follower-gramine-ps.log & 
+    sleep 2m
     taskset -c 12-15 stdbuf -o0 gramine-sgx python -u follower.py --local-addr=localhost:50052                                   \
                                                                   --peer-addr=localhost:50051                                    \
                                                                   --data-path=data/follower                                      \
