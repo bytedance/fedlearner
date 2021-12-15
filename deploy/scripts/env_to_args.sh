@@ -18,7 +18,15 @@ pull_code() {
   elif [[ $1 == "http://"* || $1 == "https://"* ]]; then
       wget $1 -O pulled_file
   elif [[ $1 == "oss://"* ]]; then
+<<<<<<< HEAD
       python -c "import tensorflow.compat.v1 as tf; import tensorflow_io; open('pulled_file', 'wb').write(tf.io.gfile.GFile('$1', 'rb').read())"
+=======
+<<<<<<< HEAD
+      python -c "import tensorflow.compat.v1 as tf; import tensorflow_io; open('code.tar.gz', 'wb').write(tf.io.gfile.GFile('$1', 'rb').read())"
+=======
+      python -c "import tensorflow as tf; import tensorflow_io; open('pulled_file', 'wb').write(tf.io.gfile.GFile('$1', 'rb').read())"
+>>>>>>> 21d2ae40 (feat(code): add dictionary support for code_key (#931))
+>>>>>>> 81f0ed0c (feat(code): add dictionary support for code_key (#931))
   elif [[ $1 == "base64://"* ]]; then
       python -c "import base64; f = open('pulled_file', 'wb'); f.write(base64.b64decode('$1'[9:])); f.close()"
   else
