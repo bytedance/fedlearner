@@ -20,7 +20,7 @@ from fedlearner.common import data_join_service_pb2 as dj_pb
 from fedlearner.common import common_pb2 as common_pb
 from fedlearner.common.common import set_logger
 from fedlearner.data_join.data_join_master import DataJoinMasterService
-from fedlearner.data_join.psi_rsa import rsa_psi_helper
+from fedlearner.data_join.rsa_psi import rsa_psi_helper
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='DataJointMasterService cmd.')
