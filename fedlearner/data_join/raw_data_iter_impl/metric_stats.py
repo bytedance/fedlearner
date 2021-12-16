@@ -4,6 +4,7 @@ from datetime import datetime
 
 import pytz
 
+import fedlearner.data_join.common as djc
 from fedlearner.common import metrics, common
 from fedlearner.data_join.common import convert_to_str
 from fedlearner.common.common import convert_to_datetime
@@ -21,9 +22,13 @@ class MetricStats:
             for field in self._stat_fields:
                 value = convert_to_str(getattr(item, field, '#None#'))
                 tags[field] = value
-            tags['example_id'] = convert_to_str(item.example_id)
-            tags['event_time'] = convert_to_datetime(item.event_time, True) \
-                .isoformat(timespec='microseconds')
+            if item.example_id != djc.InvalidExampleId:
+                tags['example_id'] = convert_to_str(item.example_id)
+            if item.event_time != djc.InvalidEventTime:
+                tags['event_time'] = convert_to_datetime(
+                    item.event_time, True
+                ).isoformat(timespec='microseconds')
+
             tags['process_time'] = datetime.now(tz=pytz.utc) \
                 .isoformat(timespec='microseconds')
             metrics.emit_store(name='input_data', value=0, tags=tags,

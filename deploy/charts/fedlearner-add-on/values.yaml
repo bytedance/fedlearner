@@ -2,12 +2,6 @@
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
-imageCredentials:
-  enabled: true
-  registry: ""
-  username: ""
-  password: ""
-
 service:
   enabled: true
   type: ExternalName

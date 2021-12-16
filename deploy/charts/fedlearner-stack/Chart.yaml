@@ -8,12 +8,6 @@ dependencies:
 - name: ingress-nginx
   repository: ""
   version: 2.1.0
-- name: nfs-client-provisioner
-  version: 1.2.8
-  condition: nfs-client-provisioner.enabled
-- name: nfs-server-provisioner
-  version: 1.0.0
-  condition: nfs-server-provisioner.enabled
 - name: elastic-stack
   version: 2.0.0
   condition: elastic-stack.enabled
@@ -25,3 +19,7 @@ dependencies:
   repository: ""
   version: 4.8.2
   condition: etcd.enabled
+- name: sparkoperator
+  repository: http://storage.googleapis.com/kubernetes-charts-incubator
+  version: 0.8.4
+  condition: sparkoperator.enabled

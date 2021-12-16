@@ -1,0 +1,9 @@
+{{- if .Values.hook }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: "{{ .Release.Name }}-hook"
+data:
+  hook: |
+    {{ .Files.Get .Values.hook | nindent 4 }}
+{{- end }}

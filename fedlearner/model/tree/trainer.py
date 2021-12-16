@@ -25,6 +25,7 @@ import numpy as np
 
 import tensorflow.compat.v1 as tf
 
+from fedlearner.common.argparse_util import str_as_bool
 from fedlearner.trainer.bridge import Bridge
 from fedlearner.model.tree.tree import BoostingTreeEnsamble
 from fedlearner.model.tree.trainer_master_client import LocalTrainerMasterClient
@@ -57,7 +58,8 @@ def create_argument_parser():
     parser.add_argument('--validation-data-path', type=str, default=None,
                         help='Path to validation data file. ' \
                              'Only used in train mode.')
-    parser.add_argument('--no-data', type=bool, default=False,
+    parser.add_argument('--no-data', type=str_as_bool,
+                        default=False, const=True, nargs='?',
                         help='Run prediction without data.')
     parser.add_argument('--file-ext', type=str, default='.csv',
                         help='File extension to use')
@@ -112,8 +114,8 @@ def create_argument_parser():
                         default=1,
                         help='Number of parallel threads.')
     parser.add_argument('--verify-example-ids',
-                        type=bool,
-                        default=False,
+                        type=str_as_bool,
+                        default=False, const=True, nargs='?',
                         help='If set to true, the first column of the '
                              'data will be treated as example ids that '
                              'must match between leader and follower')
@@ -127,20 +129,20 @@ def create_argument_parser():
                         help='Field names of categorical features. Feature'
                              ' values should be non-negtive integers')
     parser.add_argument('--use-streaming',
-                        type=bool,
-                        default=False,
+                        type=str_as_bool,
+                        default=False, const=True, nargs='?',
                         help='Whether to use streaming transmit.')
     parser.add_argument('--send-scores-to-follower',
-                        type=bool,
-                        default=False,
+                        type=str_as_bool,
+                        default=False, const=True, nargs='?',
                         help='Whether to send prediction scores to follower.')
     parser.add_argument('--send-metrics-to-follower',
-                        type=bool,
-                        default=False,
+                        type=str_as_bool,
+                        default=False, const=True, nargs='?',
                         help='Whether to send metrics to follower.')
     parser.add_argument('--enable-packing',
-                        type=bool,
-                        default=False,
+                        type=str_as_bool,
+                        default=False, const=True, nargs='?',
                         help='Whether to enable packing grad and hess')
     parser.add_argument('--label-field',
                         type=str,
@@ -218,7 +220,7 @@ def read_data(file_type, filename, require_example_ids, require_labels,
     features = []
     cat_features = []
     def to_float(x):
-        float(x if x != '' else 'nan')
+        return float(x if x not in ['', None] else 'nan')
     for line in reader:
         if file_type == 'tfrecord':
             line = parse_tfrecord(line)
@@ -228,7 +230,7 @@ def read_data(file_type, filename, require_example_ids, require_labels,
             raw_ids.append(str(line['raw_id']))
         if labels is not None:
             labels.append(float(line[label_field]))
-        features.append([to_float(line[i]) for i in cont_columns])
+        features.append([to_float(line.get(i)) for i in cont_columns])
         cat_features.append([int(line[i]) for i in cat_columns])
 
     features = np.array(features, dtype=np.float)
@@ -313,7 +315,7 @@ def train(args, booster):
         assert cat_X_names == val_cat_X_names, \
             "Train data and validation data must have same features"
     else:
-        val_X = val_cat_X = X_names = val_y = val_example_ids = None
+        val_X = val_cat_X = val_y = val_example_ids = None
 
     if args.output_path:
         tf.io.gfile.makedirs(os.path.dirname(args.output_path))
@@ -375,6 +377,7 @@ def test_one_file(args, bridge, booster, data_file, output_file):
 
     if y is not None:
         metrics = booster.loss.metrics(pred, y)
+        booster.iter_metrics_handler(metrics, 'eval')
     else:
         metrics = {}
     logging.info("Test metrics: %s", metrics)

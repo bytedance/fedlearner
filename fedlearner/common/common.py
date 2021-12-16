@@ -11,7 +11,7 @@ class Config(object):
     DATA_JOIN_METRICS_SAMPLE_RATE = \
         float(os.environ.get('DATA_JOIN_METRICS_SAMPLE_RATE', 0.3))
     RAW_DATA_METRICS_SAMPLE_RATE = \
-        float(os.environ.get('RAW_DATA_METRICS_SAMPLE_RATE', 0.02))
+        float(os.environ.get('RAW_DATA_METRICS_SAMPLE_RATE', 0.0))
     ES_BATCH_SIZE = int(float(os.environ.get('ES_BATCH_SIZE', 1000)))
     TZ = pytz.timezone(os.environ.get('TZ', 'UTC'))
     ES_USERNAME = os.environ.get('ES_USERNAME', 'elastic')
@@ -19,6 +19,7 @@ class Config(object):
     METRICS_TO_STDOUT = int(float(os.environ.get('METRICS_TO_STDOUT', 0)))
 
 
+INVALID_DATETIME = datetime.datetime.fromtimestamp(0)
 # YYYY-MM-DD'T'hh:mm:ss.SSSSSSZ
 _es_datetime_format = 'strict_date_optional_time'
 # WARNING: MAPPINGS BELOW ARE COMPATIBILITY MEASURES AND SHOULD NOT BE MODIFIED.
@@ -227,8 +228,8 @@ def convert_to_datetime(value, enable_tz=False):
         except ValueError:  # might be a non-number str
             # 3. default to 0
             fl_logging.warning('Unable to parse time %s to iso format, '
-                            'defaults to 0.', value)
-            date_time = datetime.datetime.fromtimestamp(0)
+                               'defaults to 0.', value)
+            date_time = INVALID_DATETIME
     if enable_tz:
         date_time = set_timezone(date_time)
     return date_time

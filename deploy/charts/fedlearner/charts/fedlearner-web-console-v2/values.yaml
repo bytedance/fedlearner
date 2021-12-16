@@ -42,6 +42,11 @@ service:
   type: ClusterIP
   port: 1990
 
+publicService:
+  enabled: true
+  podPort: 1989
+  nodePort: 30200
+
 ingress:
   enabled: true
   ingressPrefix: "fedlearner-webconsole-v2"
@@ -51,11 +56,11 @@ ingress:
     nginx.ingress.kubernetes.io/auth-tls-secret: default/ca-secret
     nginx.ingress.kubernetes.io/auth-tls-verify-client: "on"
   hosts:
-    - domainName: null
+    - domainName: demo.com
       paths: ["/"]
   tls:
     - secretName: fedlearner-proxy-server
-      domainNames: null
+      domainNames: [demo.com]
 
 resources:
   limits:
@@ -80,6 +85,8 @@ extraVolumes:
     persistentVolumeClaim:
       claimName: pvc-fedlearner-default
 
+hook: ""
+
 cluster:
   env:
     KIBANA_HOST: fedlearner-stack-kibana
@@ -98,3 +105,4 @@ cluster:
     DB_HOST: fedlearner-stack-mariadb
     DB_PORT: 3306
     DB_DATABASE: fedlearner
+    

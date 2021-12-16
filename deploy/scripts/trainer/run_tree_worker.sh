@@ -18,12 +18,17 @@ set -ex
 
 export CUDA_VISIBLE_DEVICES=
 source /app/deploy/scripts/hdfs_common.sh || true
+source /app/deploy/scripts/pre_start_hook.sh || true
 source /app/deploy/scripts/env_to_args.sh
 
 NUM_WORKERS=`python -c 'import json, os; print(len(json.loads(os.environ["CLUSTER_SPEC"])["clusterSpec"]["Worker"]))'`
 
 if [[ -z "${DATA_PATH}" && -n "${DATA_SOURCE}" ]]; then
     export DATA_PATH="${STORAGE_ROOT_PATH}/data_source/${DATA_SOURCE}/data_block"
+fi
+
+if [[ -z "${LOAD_MODEL_PATH}" && -n "${LOAD_MODEL_NAME}" ]]; then
+  export LOAD_MODEL_PATH="${STORAGE_ROOT_PATH}/job_output/${LOAD_MODEL_NAME}/exported_models"
 fi
 
 mode=$(normalize_env_to_args "--mode" "$MODE")

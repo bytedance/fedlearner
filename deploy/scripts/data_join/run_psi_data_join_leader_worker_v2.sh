@@ -16,6 +16,8 @@
 
 set -ex
 
+source /app/deploy/scripts/pre_start_hook.sh || true
+
 psi_signer_cmd=/app/deploy/scripts/rsa_psi/run_rsa_psi_signer.sh
 psi_preprocessor_cmd=/app/deploy/scripts/rsa_psi/run_psi_preprocessor.sh 
 data_join_worker_cmd=/app/deploy/scripts/data_join/run_data_join_worker.sh
