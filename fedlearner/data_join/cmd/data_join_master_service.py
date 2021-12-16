@@ -56,7 +56,7 @@ if __name__ == "__main__":
         )
     if args.job_type == common_pb.DataSourceType.PSI:
         if args.role == common_pb.FLRole.Leader:
-            assert args.rsa_length >= 1024, "Invalid rsa_length for PSI"
+            assert args.rsa_length > 1024, "Invalid rsa_length for PSI"
             rsa_psi_helper.make_or_load_rsa_keypair_as_pem(
                 args.rsa_length, args.output_base_dir)
         else:

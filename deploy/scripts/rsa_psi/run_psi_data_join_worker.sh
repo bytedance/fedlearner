@@ -21,6 +21,8 @@ psi_data_join_follower_worker_cmd=/app/deploy/scripts/data_join/run_psi_data_joi
 
 export INPUT_FILE_SUBSCRIBE_DIR=$RAW_DATA_SUB_DIR
 export RAW_DATA_PUBLISH_DIR="portal_publish_dir/${APPLICATION_ID}_psi_preprocess"
+export MASTER_POD_NAMES=`python -c 'import json, os; print(json.loads(os.environ["CLUSTER_SPEC"])["clusterSpec"]["Master"][0])'`
+
 if [ $ROLE == "leader" ]; then
     ${psi_data_join_leader_worker_cmd}
 else

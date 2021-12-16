@@ -107,7 +107,8 @@ message RawDataResponse {
 }
 
 message SyncPSIPublicKeyResponse {
-    string public_key_pem = 1;
+  Status status = 1;
+  string public_key_pem = 2;
 }
 
 service DataJoinMasterService {

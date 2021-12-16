@@ -52,11 +52,13 @@ def make_or_load_rsa_keypair_as_pem(length, output_dir,
     tmp_fpath = os.path.join(output_dir, fname)
     if gfile.Exists(tmp_fpath):
         return load_rsa_key_from_local(tmp_fpath, True)
+    if not gfile.Exists(output_dir):
+        gfile.MkDir(output_dir)
     rsa_public_key, rsa_private_key = rsa.newkeys(length)
     dump_rsa_key_as_pem(output_dir, rsa_private_key, fname)
     return rsa_public_key.save_pkcs1()
 
-def load_rsa_key_from_local(input_file, is_sk=False):
+def load_rsa_key_from_local(input_file, is_sk=False) -> rsa.PublicKey:
     """
     Load key from given input_file for workers with 3 retries.
     Probablly, worker has to wait for the master sycing public key.
@@ -72,7 +74,6 @@ def load_rsa_key_from_local(input_file, is_sk=False):
                 return rsa.PublicKey.load_pkcs1(keydata)
         except Exception as e: #pylint: disable=broad-except
             traceback.print_exc()
-            print(i)
             time.sleep(10)
     return None
 

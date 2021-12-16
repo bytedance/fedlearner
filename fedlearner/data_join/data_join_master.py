@@ -20,6 +20,7 @@ from concurrent import futures
 
 import grpc
 from google.protobuf import empty_pb2, timestamp_pb2
+import rsa
 
 from fedlearner.common import common_pb2 as common_pb
 from fedlearner.common import data_join_service_pb2 as dj_pb
@@ -32,6 +33,7 @@ from fedlearner.data_join.routine_worker import RoutineWorker
 from fedlearner.data_join.raw_data_manifest_manager import (
     RawDataManifestManager
 )
+from fedlearner.data_join.rsa_psi import rsa_psi_helper
 from fedlearner.data_join.common import (retrieve_data_source,
                                          commit_data_source)
 
@@ -476,6 +478,18 @@ class DataJoinMaster(dj_grpc.DataJoinMasterServiceServicer):
         if ts is not None:
             response.timestamp.MergeFrom(ts)
         return response
+
+    def SyncPSIPublicKey(
+            self, request: empty_pb2.Empty,
+            context: grpc.ServicerContext) -> dj_pb.SyncPSIPublicKeyResponse:
+        private_key = rsa_psi_helper.load_rsa_key_from_local(is_sk=True)
+        public_key = rsa.PublicKey(private_key.n, private_key.e)
+        public_key_pem = public_key.save_pkcs1('PEM')
+        if not public_key_pem:
+            return dj_pb.SyncPSIPublicKeyResponse(status=common_pb.Status(
+                code=-2, error_message="Failed to get public key"))
+
+        return dj_pb.SyncPSIPublicKeyResponse(public_key_pem=public_key_pem)
 
     def _check_data_source_meta(self, remote_meta, raise_exp=False):
         if self._data_source_meta != remote_meta:

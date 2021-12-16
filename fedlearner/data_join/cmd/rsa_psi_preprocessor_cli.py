@@ -31,6 +31,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Rsa Psi Preprocessor!')
     parser.add_argument('--preprocessor_name', type=str, default='test',
                         help='the name of rsa psi preprocessor')
+    parser.add_argument('--master_addr', type=str,
+                        help='the addr(uuid) of local data join master')
     parser.add_argument('-r', '--psi_role', type=str, required=True,
                         help='the role of rsa psi(Leader/Follower)')
     parser.add_argument('--rsa_key_path', type=str, default=None,
@@ -113,7 +115,11 @@ if __name__ == "__main__":
     if rsa_key_pem is None or len(rsa_key_pem) == 0:
         if args.rsa_key_path is None:
             assert args.master_addr is not None
-            rsa_key_pem = rph.load_rsa_key_from_master(args.output_base_dir)
+            if args.psi_role == 'leader':
+                rsa_key_pem = rph.load_rsa_key_from_local(args.output_base_dir, is_sk=True)
+            else:
+                rsa_key_pem = rph.load_rsa_key_from_local(args.output_base_dir, is_sk=False)
+            rsa_key_pem = rsa_key_pem.save_pkcs1('PEM')
             assert rsa_key_pem is not None, \
                 "Can't read rsa key from master after 30s"
         else:

@@ -47,7 +47,7 @@ if __name__ == "__main__":
     if rsa_private_key_pem is None or len(rsa_private_key_pem) == 0:
         if args.rsa_private_key_path is None:
             assert args.master_addr is not None
-            rsa_private_key_pem = rsa_psi_helper.load_rsa_key_from_master(
+            rsa_private_key_pem = rsa_psi_helper.load_rsa_key_from_local(
                 args.output_base_dir, True)
             assert rsa_private_key_pem is not None, \
                 "Can't read rsa key from master"
