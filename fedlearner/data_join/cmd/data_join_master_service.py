@@ -52,7 +52,7 @@ if __name__ == "__main__":
     master_srv = DataJoinMasterService(
             args.listen_port, args.peer_addr,
             args.data_source_name, args.kvstore_type,
-            master_options
+            master_options, args.output_base_dir
         )
     if args.job_type == common_pb.DataSourceType.PSI:
         if args.role == common_pb.FLRole.Leader:

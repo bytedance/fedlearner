@@ -116,9 +116,11 @@ if __name__ == "__main__":
         if args.rsa_key_path is None:
             assert args.master_addr is not None
             if args.psi_role == 'leader':
-                rsa_key_pem = rph.load_rsa_key_from_local(args.output_base_dir, is_sk=True)
+                rsa_key_pem = rph.load_rsa_key_from_local(args.output_base_dir,
+                                                          is_sk=True)
             else:
-                rsa_key_pem = rph.load_rsa_key_from_local(args.output_base_dir, is_sk=False)
+                rsa_key_pem = rph.load_rsa_key_from_local(args.output_base_dir,
+                                                          is_sk=False)
             rsa_key_pem = rsa_key_pem.save_pkcs1('PEM')
             assert rsa_key_pem is not None, \
                 "Can't read rsa key from master after 30s"

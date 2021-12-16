@@ -309,10 +309,11 @@ class MasterFSM(object):
         return True
 
 class DataJoinMaster(dj_grpc.DataJoinMasterServiceServicer):
-    def __init__(self, peer_client, data_source_name,
-                 kvstore_type, options):
+    def __init__(self, peer_client, data_source_name, kvstore_type, options,
+                 input_dir: str):
         super(DataJoinMaster, self).__init__()
         self._data_source_name = data_source_name
+        self._input_dir = input_dir
         kvstore = DBClient(kvstore_type, options.use_mock_etcd)
         self._options = options
         self._fsm = MasterFSM(peer_client, data_source_name,
@@ -482,7 +483,8 @@ class DataJoinMaster(dj_grpc.DataJoinMasterServiceServicer):
     def SyncPSIPublicKey(
             self, request: empty_pb2.Empty,
             context: grpc.ServicerContext) -> dj_pb.SyncPSIPublicKeyResponse:
-        private_key = rsa_psi_helper.load_rsa_key_from_local(is_sk=True)
+        private_key = rsa_psi_helper.load_rsa_key_from_local(
+            input_file=self._input_dir, is_sk=True)
         public_key = rsa.PublicKey(private_key.n, private_key.e)
         public_key_pem = public_key.save_pkcs1('PEM')
         if not public_key_pem:
@@ -537,7 +539,7 @@ class DataJoinMaster(dj_grpc.DataJoinMasterServiceServicer):
 
 class DataJoinMasterService(object):
     def __init__(self, listen_port, peer_addr, data_source_name,
-                 kvstore_type, options):
+                 kvstore_type, options, input_dir: str):
         channel = make_insecure_channel(
                 peer_addr, ChannelType.REMOTE,
                 options=[('grpc.max_send_message_length', 2**31-1),
@@ -550,9 +552,9 @@ class DataJoinMasterService(object):
             futures.ThreadPoolExecutor(max_workers=10),
             options=[('grpc.max_send_message_length', 2**31-1),
                      ('grpc.max_receive_message_length', 2**31-1)])
-        self._data_join_master = DataJoinMaster(
-                peer_client, data_source_name, kvstore_type, options
-            )
+        self._data_join_master = DataJoinMaster(peer_client, data_source_name,
+                                                kvstore_type, options,
+                                                input_dir)
         dj_grpc.add_DataJoinMasterServiceServicer_to_server(
                 self._data_join_master, self._server
             )
