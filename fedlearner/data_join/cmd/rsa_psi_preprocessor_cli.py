@@ -33,9 +33,9 @@ if __name__ == "__main__":
                         help='the name of rsa psi preprocessor')
     parser.add_argument('-r', '--psi_role', type=str, required=True,
                         help='the role of rsa psi(Leader/Follower)')
-    parser.add_argument('--rsa_key_path', type=str,
+    parser.add_argument('--rsa_key_path', type=str, default=None,
                         help='the file path for the rsa key')
-    parser.add_argument('--rsa_key_pem', type=str,
+    parser.add_argument('--rsa_key_pem', type=str, default=None,
                         help='the rsa key stroe by pem format')
     parser.add_argument('--input_file_paths', type=str, nargs='+',
                         help='the file path input rsa psi preprocessor')
