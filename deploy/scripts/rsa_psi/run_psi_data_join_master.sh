@@ -23,10 +23,10 @@ export RAW_DATA_SUB_DIR="portal_publish_dir/${APPLICATION_ID}_psi_preprocess"
 # Reverse the role assignment for data join so that leader for PSI preprocessor
 # becomes follower for data join. Data join's workers get their role from
 # master so we don't need to do this for worker.
-if [ $ROLE == "leader" ]; then
-    export ROLE="follower"
-else
-    export ROLE="leader"
-fi
+# if [ $ROLE == "leader" ]; then
+#    export ROLE="follower"
+# else
+#     export ROLE="leader"
+# fi
 
 ${data_join_master_cmd}

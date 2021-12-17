@@ -47,17 +47,15 @@ if __name__ == "__main__":
     set_logger()
     rsa_private_key_pem = args.rsa_privet_key_pem
     if rsa_private_key_pem is None or len(rsa_private_key_pem) == 0:
-        if args.rsa_private_key_path is None or len(args.rsa_private_key_path) == 0:
+        if args.rsa_private_key_path is None or len(
+                args.rsa_private_key_path) == 0:
             assert args.master_addr is not None
-            rsa_private_key_pem = rsa_psi_helper.load_rsa_key_from_local(
-                args.output_base_dir, True)
-            assert rsa_private_key_pem is not None, \
-                "Can't read rsa key from master"
+            private_key_path = args.output_base_dir
         else:
             assert args.rsa_private_key_path is not None
-            with gfile.GFile(args.rsa_private_key_path, 'rb') as f:
-                rsa_private_key_pem = f.read()
-    rsa_private_key = rsa.PrivateKey.load_pkcs1(rsa_private_key_pem)
+            private_key_path = args.rsa_private_key_path
+    rsa_private_key = rsa_psi_helper.load_rsa_key_from_local(
+        private_key_path, True)
     offload_processor_number = args.signer_offload_processor_number
     if offload_processor_number < 0:
         offload_processor_number = max(
