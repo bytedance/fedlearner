@@ -70,7 +70,7 @@ class DataJoinMaster(unittest.TestCase):
             data_source_name,
             'etcd',
             options,
-            data_source_f.output_base_dir,
+            data_source_l.output_base_dir,
         )
         master_l.start()
         os.environ['ETCD_BASE_DIR'] = 'bytefl_f'
