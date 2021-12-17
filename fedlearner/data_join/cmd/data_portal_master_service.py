@@ -20,6 +20,7 @@ import sys
 from google.protobuf import text_format
 
 from fedlearner.common import data_portal_service_pb2 as dp_pb
+from fedlearner.common import common_pb2 as common_pb
 from fedlearner.common.db_client import DBClient
 from fedlearner.common.common import set_logger
 
@@ -68,8 +69,8 @@ if __name__ == "__main__":
     kvstore = DBClient(args.kvstore_type, use_mock_etcd)
     kvstore_key = common.portal_kvstore_base_dir(args.data_portal_name)
     portal_manifest = kvstore.get_data(kvstore_key)
-    data_portal_type = dp_pb.DataPortalType.PSI if \
-        args.data_portal_type == 'PSI' else dp_pb.DataPortalType.Streaming
+    data_portal_type = common_pb.DataSourceType.PSI if \
+        args.data_portal_type == 'PSI' else common_pb.DataSourceType.Streaming
     if portal_manifest is None:
         portal_manifest = dp_pb.DataPortalManifest(
                 name=args.data_portal_name,
