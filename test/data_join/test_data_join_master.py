@@ -65,15 +65,18 @@ class DataJoinMaster(unittest.TestCase):
         options = dj_pb.DataJoinMasterOptions(use_mock_etcd=True)
         os.environ['ETCD_BASE_DIR'] = 'bytefl_l'
         master_l = data_join_master.DataJoinMasterService(
-                int(master_addr_l.split(':')[1]),
-                master_addr_f, data_source_name, 'etcd', options
-            )
+            int(master_addr_l.split(':')[1]),
+            master_addr_f,
+            data_source_name,
+            'etcd',
+            options,
+            data_source_f.output_base_dir,
+        )
         master_l.start()
         os.environ['ETCD_BASE_DIR'] = 'bytefl_f'
         master_f = data_join_master.DataJoinMasterService(
-                int(master_addr_f.split(':')[1]),
-                master_addr_l, data_source_name, 'etcd', options
-            )
+            int(master_addr_f.split(':')[1]), master_addr_l, data_source_name,
+            'etcd', options, data_source_f.output_base_dir)
         master_f.start()
         channel_l = make_insecure_channel(master_addr_l, ChannelType.INTERNAL)
         client_l = dj_grpc.DataJoinMasterServiceStub(channel_l)
@@ -544,4 +547,4 @@ class DataJoinMaster(unittest.TestCase):
         master_f.stop()
 
 if __name__ == '__main__':
-        unittest.main()
+    unittest.main()
