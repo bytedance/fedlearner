@@ -29,6 +29,8 @@ set +x
 
 python -m fedlearner.data_join.cmd.rsa_psi_signer_service \
     --listen_port=50051 \
+    --master_addr="$MASTER_POD_NAMES" \
+    --output_base_dir="$OUTPUT_BASE_DIR" \
     --rsa_private_key_path="$RSA_PRIVATE_KEY_PATH" \
     --rsa_privet_key_pem="$RSA_KEY_PEM" \
     $slow_sign_threshold $worker_num $signer_offload_processor_number \

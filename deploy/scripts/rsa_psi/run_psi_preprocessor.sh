@@ -65,7 +65,7 @@ set +x
 
 python -m fedlearner.data_join.cmd.rsa_psi_preprocessor_cli \
     --psi_role=$ROLE \
-    --master_addr=$MASTER_POD_NAMES \
+    --master_addr="$MASTER_POD_NAMES" \
     --rsa_key_path="$RSA_KEY_PATH" \
     --rsa_key_pem="$RSA_KEY_PEM" \
     --output_base_dir="$OUTPUT_BASE_DIR" \

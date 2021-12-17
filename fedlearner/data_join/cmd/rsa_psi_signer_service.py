@@ -29,6 +29,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='RsaPsiSigner cmd.')
     parser.add_argument('-p', '--listen_port', type=int, default=40980,
                         help='Listen port of RSA PSI signer')
+    parser.add_argument('--master_addr', type=str,
+                        help='the addr(uuid) of local data join master')
     parser.add_argument('--rsa_private_key_path', type=str,
                         help='the file path to store rsa private key')
     parser.add_argument('--rsa_privet_key_pem', type=str,
@@ -45,7 +47,7 @@ if __name__ == "__main__":
     set_logger()
     rsa_private_key_pem = args.rsa_privet_key_pem
     if rsa_private_key_pem is None or len(rsa_private_key_pem) == 0:
-        if args.rsa_private_key_path is None:
+        if args.rsa_private_key_path is None or len(args.rsa_private_key_path) == 0:
             assert args.master_addr is not None
             rsa_private_key_pem = rsa_psi_helper.load_rsa_key_from_local(
                 args.output_base_dir, True)
