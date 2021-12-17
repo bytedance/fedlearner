@@ -113,7 +113,7 @@ if __name__ == "__main__":
             raise RuntimeError("no input files for preprocessor")
     rsa_key_pem = args.rsa_key_pem
     if rsa_key_pem is None or len(rsa_key_pem) == 0:
-        if args.rsa_key_path is None:
+        if args.rsa_key_path is None or len(args.rsa_key_path) == 0:
             assert args.master_addr is not None
             if args.psi_role == 'leader':
                 rsa_key_pem = rph.load_rsa_key_from_local(args.output_base_dir,
