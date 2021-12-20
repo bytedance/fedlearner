@@ -22,6 +22,7 @@ psi_signer_cmd=/app/deploy/scripts/rsa_psi/run_rsa_psi_signer.sh
 psi_preprocessor_cmd=/app/deploy/scripts/rsa_psi/run_psi_preprocessor.sh 
 data_join_worker_cmd=/app/deploy/scripts/data_join/run_data_join_worker.sh
 
+
 if [ -z "$CPU_LIMIT" ] && ([ -z "$PREPROCESSOR_OFFLOAD_PROCESSOR_NUMBER" ] || [ -z $SIGNER_OFFLOAD_PROCESSOR_NUMBER ])
 then
   echo "Can't infer preprocessor_offload_processor_number for psi preprocessor and signer_offload_processor_number for psi signer"
