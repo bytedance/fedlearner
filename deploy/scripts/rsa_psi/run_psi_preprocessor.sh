@@ -60,6 +60,7 @@ builder_compressed_type=$(normalize_env_to_args "--builder_compressed_type" $PSI
 preprocessor_offload_processor_number=$(normalize_env_to_args "--preprocessor_offload_processor_number" $PREPROCESSOR_OFFLOAD_PROCESSOR_NUMBER)
 kvstore_type=$(normalize_env_to_args '--kvstore_type' $KVSTORE_TYPE)
 
+
 # Turn off display to avoid RSA_KEY_PEM showing in log
 set +x
 
@@ -67,7 +68,7 @@ python -m fedlearner.data_join.cmd.rsa_psi_preprocessor_cli \
     --psi_role=$ROLE \
     --rsa_key_path="$RSA_KEY_PATH" \
     --rsa_key_pem="$RSA_KEY_PEM" \
-    --output_base_dir="$OUTPUT_BASE_DIR" \
+    --output_file_dir="$OUTPUT_BASE_DIR/psi_output" \
     --raw_data_publish_dir=$RAW_DATA_PUBLISH_DIR \
     --partition_id=$INDEX \
     $preprocessor_name $input_file_paths $input_dir $input_file_subscribe_dir \

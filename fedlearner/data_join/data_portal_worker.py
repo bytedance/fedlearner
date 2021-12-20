@@ -26,7 +26,6 @@ from tensorflow.compat.v1 import gfile
 
 from fedlearner.common import data_portal_service_pb2 as dp_pb
 from fedlearner.common import data_join_service_pb2 as dj_pb
-from fedlearner.common import common_pb2 as common_pb
 from fedlearner.common import data_portal_service_pb2_grpc as dp_grpc
 from fedlearner.proxy.channel import make_insecure_channel, ChannelType
 from fedlearner.data_join.raw_data_partitioner import RawDataPartitioner
@@ -173,14 +172,14 @@ class DataPortalWorker(object):
         partition_options = self._make_partitioner_options(task)
         data_partitioner = None
         type_repr = ''
-        if task.data_portal_type == common_pb.DataSourceType.Streaming:
+        if task.data_portal_type == dp_pb.DataPortalType.Streaming:
             data_partitioner = RawDataSortPartitioner(
                 partition_options, task.part_field, self._kvstore_type,
                 self._use_mock_etcd
             )
             type_repr = 'streaming'
         else:
-            assert task.data_portal_type == common_pb.DataSourceType.PSI
+            assert task.data_portal_type == dp_pb.DataPortalType.PSI
             data_partitioner = RawDataPartitioner(
                 partition_options, task.part_field, self._kvstore_type,
                 self._use_mock_etcd

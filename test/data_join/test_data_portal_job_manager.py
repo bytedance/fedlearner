@@ -27,7 +27,6 @@ from google.protobuf import text_format
 
 from fedlearner.data_join import common
 from fedlearner.common import data_portal_service_pb2 as dp_pb
-from fedlearner.common import common_pb2 as cpb
 from fedlearner.common.db_client import DBClient
 from fedlearner.data_join.data_portal_job_manager import DataPortalJobManager
 
@@ -84,7 +83,7 @@ class TestDataPortalJobManager(unittest.TestCase):
                         target_fnames, max_files_per_job=8000):
         portal_manifest = dp_pb.DataPortalManifest(
             name=self._data_portal_name,
-            data_portal_type=cpb.DataSourceType.Streaming,
+            data_portal_type=dp_pb.DataPortalType.Streaming,
             output_partition_num=4,
             input_file_wildcard=file_wildcard,
             input_base_dir=self._portal_input_base_dir,

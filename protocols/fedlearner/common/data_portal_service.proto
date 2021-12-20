@@ -20,11 +20,16 @@ import "google/protobuf/empty.proto";
 
 package fedlearner.common;
 
+enum DataPortalType {
+  PSI = 0;         
+  Streaming = 1;
+}
+
 enum PartState {
   kInit = 0;
   kIdMap = 1;
   kIdMapped = 2;
-  kEventTimeReduce = 3;
+  kEventTimeReduce = 3; 
   kEventTimeReduced = 4;
 }
 
@@ -36,7 +41,7 @@ message DataPortalJob {
 
 message DataPortalManifest {
   string name = 1;
-  DataSourceType data_portal_type = 2;
+  DataPortalType data_portal_type = 2;
   uint32 output_partition_num = 3;
   string input_file_wildcard = 4;
   string input_base_dir = 5;
@@ -64,7 +69,7 @@ message MapTask {
   int64 output_partition_num = 4;
   int64 partition_id = 5;
   string part_field = 6;
-  DataSourceType data_portal_type = 7;
+  DataPortalType data_portal_type = 7;
 }
 
 message ReduceTask {
