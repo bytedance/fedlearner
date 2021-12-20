@@ -55,11 +55,19 @@ class LogisticLoss(object):
     def hessian(self, x, pred, label):
         return np.maximum(pred * (1.0 - pred), 1e-16)
 
+    @staticmethod
+    def confusion_matrix(pred, label):
+        tp = (label * pred).sum()
+        tn = ((1 - label) * (1 - pred)).sum()
+        fp = ((1 - label) * pred).sum()
+        fn = (label * (1 - pred)).sum()
+        return {'tp': tp, 'tn': tn, 'fp': fp, 'fn': fn}
+
     def metrics(self, pred, label):
         y_pred = (pred > 0.5).astype(label.dtype)
         precision, recall, f1 = _precision_recall_f1(label, y_pred)
         ks, auc = _roc_auc_score(label, pred)
-        return {
+        metrics = {
             'acc': np.isclose(y_pred, label).sum() / len(label),
             'precision': precision,
             'recall': recall,
@@ -67,6 +75,9 @@ class LogisticLoss(object):
             'auc': auc,
             'ks': ks,
         }
+        conf_mat = self.confusion_matrix(y_pred, label)
+        metrics.update(conf_mat)
+        return metrics
 
 
 class MSELoss(object):
