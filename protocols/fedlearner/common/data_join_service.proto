@@ -106,10 +106,6 @@ message RawDataResponse {
   }
 }
 
-message SyncPSIPublicKeyResponse {
-    string public_key_pem = 1;
-}
-
 service DataJoinMasterService {
   rpc GetDataSource(google.protobuf.Empty) returns (DataSource) {}
   rpc GetDataSourceStatus(DataSourceRequest) returns (DataSourceStatus) {}
@@ -121,7 +117,6 @@ service DataJoinMasterService {
   rpc AddRawData(RawDataRequest) returns (Status) {}
   rpc ForwardPeerDumpedIndex(RawDataRequest) returns (Status) {}
   rpc GetRawDataLatestTimeStamp(RawDataRequest) returns (RawDataResponse) {}
-  rpc SyncPSIPublicKey(google.protobuf.Empty) returns (SyncPSIPublicKeyResponse) {}
 }
 
 enum DataBlockType {

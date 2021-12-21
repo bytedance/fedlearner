@@ -23,7 +23,6 @@ from tensorflow.compat.v1 import gfile
 
 from fedlearner.common.common import set_logger
 from fedlearner.data_join.rsa_psi.rsa_psi_signer import RsaPsiSigner
-from fedlearner.data_join.rsa_psi import rsa_psi_helper
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='RsaPsiSigner cmd.')
@@ -39,22 +38,13 @@ if __name__ == "__main__":
                         help='max worker number for grpc server')
     parser.add_argument('--signer_offload_processor_number', type=int,
                         default=-1, help='the offload processor for signer')
-    parser.add_argument('--output_base_dir', type=str, required=True,
-                        help='the directory to store the result of processor')
     args = parser.parse_args()
     set_logger()
     rsa_private_key_pem = args.rsa_privet_key_pem
     if rsa_private_key_pem is None or len(rsa_private_key_pem) == 0:
-        if args.rsa_private_key_path is None:
-            assert args.master_addr is not None
-            rsa_private_key_pem = rsa_psi_helper.load_rsa_key_from_master(
-                args.output_base_dir, True)
-            assert rsa_private_key_pem is not None, \
-                "Can't read rsa key from master"
-        else:
-            assert args.rsa_private_key_path is not None
-            with gfile.GFile(args.rsa_private_key_path, 'rb') as f:
-                rsa_private_key_pem = f.read()
+        assert args.rsa_private_key_path is not None
+        with gfile.GFile(args.rsa_private_key_path, 'rb') as f:
+            rsa_private_key_pem = f.read()
     rsa_private_key = rsa.PrivateKey.load_pkcs1(rsa_private_key_pem)
     offload_processor_number = args.signer_offload_processor_number
     if offload_processor_number < 0:

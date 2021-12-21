@@ -50,7 +50,7 @@ class DataPortalMaster(unittest.TestCase):
         raw_data_publish_dir = 'raw_data_publish_dir'
         portal_manifest = dp_pb.DataPortalManifest(
                 name=data_portal_name,
-                data_portal_type=common_pb.DataSourceType.Streaming,
+                data_portal_type=dp_pb.DataPortalType.Streaming,
                 output_partition_num=4,
                 input_file_wildcard="*.done",
                 input_base_dir=portal_input_base_dir,
@@ -218,7 +218,7 @@ class DataPortalMaster(unittest.TestCase):
         self.assertEqual(job_id, portal_job.job_id)
         self.assertFalse(portal_job.finished)
         fnames.sort()
-        fpaths = [os.path.join(portal_manifest.input_base_dir, f) for f in fnames
+        fpaths = [os.path.join(portal_manifest.input_base_dir, f) for f in fnames 
                   if fnmatch(f, portal_manifest.input_file_wildcard)]
         self.assertEqual(len(fpaths), len(portal_job.fpaths))
         for index, fpath in enumerate(fpaths):
@@ -227,7 +227,7 @@ class DataPortalMaster(unittest.TestCase):
     def _check_map_task(self, map_task, fnames, partition_id, portal_manifest):
         self.assertEqual(map_task.output_partition_num, portal_manifest.output_partition_num)
         fnames.sort()
-        fpaths = [os.path.join(portal_manifest.input_base_dir, f) for f in fnames
+        fpaths = [os.path.join(portal_manifest.input_base_dir, f) for f in fnames 
                   if (fnmatch(f, portal_manifest.input_file_wildcard) and
                           hash(os.path.join(portal_manifest.input_base_dir, f)) %
                             map_task.output_partition_num == partition_id)]
