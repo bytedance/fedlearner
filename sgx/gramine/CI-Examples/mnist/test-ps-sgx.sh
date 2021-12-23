@@ -14,6 +14,7 @@ function make_custom_env() {
     export CUDA_VISIBLE_DEVICES=""
     export DNNL_VERBOSE=1
     export GRPC_VERBOSITY=ERROR
+    export GRPC_POLL_STRATEGY=epoll1
     export TF_CPP_MIN_LOG_LEVEL=1
     export TF_GRPC_SGX_RA_TLS_ENABLE=on
     export FL_GRPC_SGX_RA_TLS_ENABLE=on
@@ -57,7 +58,7 @@ elif [ "$ROLE" == "leader" ]; then
                                                               --epoch-num=2                                                   \
                                                               --batch-size=32                                                 \
                                                               --cluster-spec='{"clusterSpec":{"PS":["localhost:40051"]}}'     \
-                                                              --loglevel=debug 2>&1 | runtime_logfilter | tee -a leader-gramine-python.log &
+                                                              --loglevel=debug 2>&1 | runtime_logfilter | tee -a leader-gramine.log &
     if [ "$DEBUG" != "0" ]; then
         wait && kill -9 `pgrep -f gramine`
     fi
@@ -74,7 +75,7 @@ elif [ "$ROLE" == "follower" ]; then
                                                                   --epoch-num=2                                                  \
                                                                   --batch-size=32                                                \
                                                                   --cluster-spec='{"clusterSpec":{"PS":["localhost:40061"]}}'    \
-                                                                  --loglevel=debug 2>&1 | runtime_logfilter | tee -a follower-gramine-python.log &
+                                                                  --loglevel=debug 2>&1 | runtime_logfilter | tee -a follower-gramine.log &
     if [ "$DEBUG" != "0" ]; then
         wait && kill -9 `pgrep -f gramine`
     fi

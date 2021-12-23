@@ -404,19 +404,26 @@ std::vector<grpc::experimental::IdentityKeyCertPair> get_identity_key_cert_pairs
 
 void credential_option_set_authorization_check(
     grpc::sgx::CredentialsOptions& options) {
-  ra_tls_ctx.authorization_check = std::make_shared<TlsAuthorizationCheck>();
-  ra_tls_ctx.authorization_check_config =
-    std::make_shared<grpc::experimental::TlsServerAuthorizationCheckConfig>(
-      ra_tls_ctx.authorization_check);
+  if (!ra_tls_ctx.authorization_check) {
+    ra_tls_ctx.authorization_check = std::make_shared<TlsAuthorizationCheck>();
+  }
+
+  if (!ra_tls_ctx.authorization_check_config) {
+    ra_tls_ctx.authorization_check_config =
+      std::make_shared<grpc::experimental::TlsServerAuthorizationCheckConfig>(
+        ra_tls_ctx.authorization_check);
+  }
 
   options.set_verification_option(GRPC_TLS_SKIP_ALL_SERVER_VERIFICATION);
   options.set_authorization_check_config(ra_tls_ctx.authorization_check_config);
 }
 
 void credential_option_set_certificate_provider(grpc::sgx::CredentialsOptions& options) {
-  ra_tls_ctx.certificate_provider =
-    std::make_shared<grpc::experimental::StaticDataCertificateProvider>(
-      get_identity_key_cert_pairs(ra_tls_get_key_cert()));
+  if (!ra_tls_ctx.certificate_provider) {
+    ra_tls_ctx.certificate_provider =
+      std::make_shared<grpc::experimental::StaticDataCertificateProvider>(
+        get_identity_key_cert_pairs(ra_tls_get_key_cert()));
+  }
 
   options.set_certificate_provider(ra_tls_ctx.certificate_provider);
   // options.watch_root_certs();

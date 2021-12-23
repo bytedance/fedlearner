@@ -1,18 +1,17 @@
 import os
 import numpy as np
 import tensorflow.compat.v1 as tf
-tf.disable_eager_execution() 
-
-# Configuration of cluster 
-ps_hosts = [ "localhost:60001"]
-worker_hosts = [ "localhost:61001"]
+tf.disable_v2_behavior()
+tf.disable_eager_execution()
 
 tf.app.flags.DEFINE_string("job_name", "worker", "One of 'ps', 'worker'")
 tf.app.flags.DEFINE_integer("task_index", 0, "Index of task within the job")
-
-cluster = tf.train.ClusterSpec({"ps": ps_hosts, "worker": worker_hosts})
-
 FLAGS = tf.app.flags.FLAGS
+
+# Configuration of cluster 
+ps_hosts = [ "localhost:60001", "localhost:60002"]
+worker_hosts = [ "localhost:60003", "localhost:60004"]
+cluster = tf.train.ClusterSpec({"ps": ps_hosts, "worker": worker_hosts})
 
 def main(_):
     server = tf.train.Server(cluster,
@@ -24,7 +23,7 @@ def main(_):
         with tf.device(tf.train.replica_device_setter(
             worker_device="/job:worker/task:%d" % FLAGS.task_index,
             cluster=cluster)):
-            
+
             x_data = tf.placeholder(tf.float32, [100])
             y_data = tf.placeholder(tf.float32, [100])
 
@@ -32,22 +31,22 @@ def main(_):
             b = tf.Variable(tf.zeros([1]))
             y = W * x_data + b
             loss = tf.reduce_mean(tf.square(y - y_data))
-            
-            global_step = tf.train.get_or_create_global_step();
+
+            global_step = tf.train.get_or_create_global_step()
             optimizer = tf.train.GradientDescentOptimizer(0.1)
             train_op = optimizer.minimize(loss, global_step=global_step)
-            
+
             tf.summary.scalar('cost', loss)
             summary_op = tf.summary.merge_all()
-            init_op = tf.global_variables_initializer()
+            tf.global_variables_initializer()
         # The StopAtStepHook handles stopping after running given steps.
         hooks = [ tf.train.StopAtStepHook(last_step=1000)]
         # The MonitoredTrainingSession takes care of session initialization,
         # restoring from a checkpoint, saving to a checkpoint, and closing when done
         # or an error occurs.
         config = tf.ConfigProto(intra_op_parallelism_threads=int(os.environ["INTRA_OP_PARALLELISM_THREADS"]),
-                                inter_op_parallelism_threads=int(os.environ["INTER_OP_PARALLELISM_THREADS"]));
-        with tf.train.MonitoredTrainingSession(master="grpc://" + worker_hosts[FLAGS.task_index],
+                               inter_op_parallelism_threads=int(os.environ["INTER_OP_PARALLELISM_THREADS"]))
+        with tf.train.MonitoredTrainingSession(master=server.target,
                                                is_chief=(FLAGS.task_index==0), # 我们制定task_index为0的任务为主任务，用于负责变量初始化、做checkpoint、保存summary和复原
                                                checkpoint_dir="model",
                                                save_checkpoint_secs=None,
