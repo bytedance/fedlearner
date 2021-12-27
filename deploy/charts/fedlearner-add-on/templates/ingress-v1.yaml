@@ -1,8 +1,6 @@
 {{- if semverCompare ">=1.19-0" .Capabilities.KubeVersion.GitVersion -}}
 
 {{- if .Values.ingress.enabled -}}
-{{- $configurationSnippet := .Files.Get "configuration-snippet.txt" -}}
-{{- $serverSnippet := .Files.Get "server-snippet.txt" -}}
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -13,14 +11,12 @@ metadata:
   {{- with .Values.ingress.annotations }}
   annotations:
     {{- toYaml . | nindent 4 }}
-    {{- if not (empty $configurationSnippet) }}
+    nginx.ingress.kubernetes.io/auth-tls-secret: default/ca-secret
+    nginx.ingress.kubernetes.io/auth-tls-verify-client: "on"
     nginx.ingress.kubernetes.io/configuration-snippet: |
-{{ $configurationSnippet | indent 6 }}
-    {{- end }}
-    {{- if not (empty $serverSnippet) }}
-    nginx.ingress.kubernetes.io/server-snippet: |
-{{ $serverSnippet | indent 6 }}
-    {{- end }}
+      grpc_set_header  Authority $http_x_host;
+      grpc_set_header  Host $http_x_host;
+      grpc_next_upstream_tries 5;
   {{- end }}
 spec:
   rules:
@@ -31,9 +27,13 @@ spec:
         pathType: Prefix
         backend:
           service:
-            name: fedlearner-proxy
+            name: fedlearner-stack-ingress-nginx-controller
             port:
-              number: {{ .Values.ingress.port }}
+              number: 80
+  tls:
+  - hosts:
+    - {{ .Values.ingress.host }}
+    secretName: fedlearner-proxy-server
 {{- end }}
 
 {{- end }}
