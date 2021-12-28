@@ -1,5 +1,5 @@
 #!/bin/bash
-set -ex
+set -x
 
 shopt -s expand_aliases
 alias make_logfilter="grep \"mr_enclave\|mr_signer\|isv_prod_id\|isv_svn\""
@@ -14,6 +14,7 @@ function make_custom_env() {
     export CUDA_VISIBLE_DEVICES=""
     export DNNL_VERBOSE=1
     export GRPC_VERBOSITY=ERROR
+    export GRPC_POLL_STRATEGY=epoll1
     export TF_CPP_MIN_LOG_LEVEL=1
     export TF_GRPC_SGX_RA_TLS_ENABLE=on
     export FL_GRPC_SGX_RA_TLS_ENABLE=on
@@ -43,6 +44,7 @@ elif [ "$ROLE" == "make" ]; then
     rm -rf *.log model
     make clean && make | make_logfilter
     jq ' .sgx_mrs[0].mr_enclave = ''"'`get_env mr_enclave`'" | .sgx_mrs[0].mr_signer = ''"'`get_env mr_signer`'" ' $GRPC_PATH/examples/dynamic_config.json > ./dynamic_config.json
+    kill -9 `pgrep -f python`
     kill -9 `pgrep -f gramine`
 elif [ "$ROLE" == "leader" ]; then
     make_custom_env
@@ -58,7 +60,7 @@ elif [ "$ROLE" == "leader" ]; then
                                                               --epoch-num=2                                                   \
                                                               --batch-size=32                                                 \
                                                               --cluster-spec='{"clusterSpec":{"PS":["localhost:40051"]}}'     \
-                                                              --loglevel=debug 2>&1 | runtime_logfilter | tee -a leader-gramine-python.log &
+                                                              --loglevel=debug 2>&1 | runtime_logfilter | tee -a leader-gramine.log &
     if [ "$DEBUG" != "0" ]; then
         wait && kill -9 `pgrep -f gramine`
     fi
@@ -76,7 +78,7 @@ elif [ "$ROLE" == "follower" ]; then
                                                                   --epoch-num=2                                                  \
                                                                   --batch-size=32                                                \
                                                                   --cluster-spec='{"clusterSpec":{"PS":["localhost:40061"]}}'    \
-                                                                  --loglevel=debug 2>&1 | runtime_logfilter | tee -a follower-gramine-python.log &
+                                                                  --loglevel=debug 2>&1 | runtime_logfilter | tee -a follower-gramine.log &
     if [ "$DEBUG" != "0" ]; then
         wait && kill -9 `pgrep -f gramine`
     fi

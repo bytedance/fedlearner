@@ -70,16 +70,16 @@ void parse_args(const char* s_mrenclave, const char* s_mrsigner, const char* s_i
   errno = 0;
   uint16_t isv_prod_id = (uint16_t)strtoul(s_isv_prod_id, NULL, 10);
   if (errno) {
-      mbedtls_printf("Cannot parse ISV_PROD_ID!\n");
-      return;
+    mbedtls_printf("Cannot parse ISV_PROD_ID!\n");
+    return;
   }
   memcpy(g_expected_isv_prod_id, &isv_prod_id, sizeof(isv_prod_id));
 
   errno = 0;
   uint16_t isv_svn = (uint16_t)strtoul(s_isv_svn, NULL, 10);
   if (errno) {
-      mbedtls_printf("Cannot parse ISV_SVN\n");
-      return;
+    mbedtls_printf("Cannot parse ISV_SVN\n");
+    return;
   }
   memcpy(g_expected_isv_svn, &isv_svn, sizeof(isv_svn));
 }
@@ -194,7 +194,6 @@ typedef class ::grpc_impl::experimental::TlsCredentialReloadConfig TlsCredential
 
 class TestTlsCredentialReload : public TlsCredentialReloadInterface {
     int Schedule(TlsCredentialReloadArg* arg) override {
-
         if (!arg->is_pem_key_cert_pair_list_empty()) {
             arg->set_status(GRPC_SSL_CERTIFICATE_CONFIG_RELOAD_UNCHANGED);
             return 0;
@@ -221,9 +220,16 @@ std::shared_ptr<grpc::ChannelCredentials> TlsCredentials(
 
     ra_tls_verify_init();
 
-    server_authorization_check = std::make_shared<TlsServerAuthorizationCheck>();
-    server_authorization_check_config = std::make_shared<grpc_impl::experimental::TlsServerAuthorizationCheckConfig>(
-              server_authorization_check);
+    if (!server_authorization_check) {
+      server_authorization_check = std::make_shared<TlsServerAuthorizationCheck>();
+    }
+
+    if (!server_authorization_check_config) {
+      server_authorization_check_config = \
+        std::make_shared<grpc_impl::experimental::TlsServerAuthorizationCheckConfig>(
+          server_authorization_check);
+    }
+
     grpc_impl::experimental::TlsCredentialsOptions options(
         GRPC_SSL_DONT_REQUEST_CLIENT_CERTIFICATE,
         GRPC_TLS_SKIP_ALL_SERVER_VERIFICATION,

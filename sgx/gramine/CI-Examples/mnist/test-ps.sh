@@ -5,6 +5,7 @@ function make_custom_env() {
     export CUDA_VISIBLE_DEVICES=""
     export DNNL_VERBOSE=1
     export GRPC_VERBOSITY=ERROR
+    export GRPC_POLL_STRATEGY=epoll1
     export TF_CPP_MIN_LOG_LEVEL=1
     export TF_GRPC_SGX_RA_TLS_ENABLE=""
     export FL_GRPC_SGX_RA_TLS_ENABLE=""
@@ -39,7 +40,7 @@ elif [ "$ROLE" == "leader" ]; then
                                        --epoch-num=2                                                   \
                                        --batch-size=32                                                 \
                                        --cluster-spec='{"clusterSpec":{"PS":["localhost:40051"]}}'     \
-                                       --loglevel=debug 2>&1 | tee -a leader-python.log &
+                                       --loglevel=debug 2>&1 | tee -a leader-native.log &
 elif [ "$ROLE" == "follower" ]; then
     make_custom_env
     rm -rf model/follower
@@ -53,5 +54,5 @@ elif [ "$ROLE" == "follower" ]; then
                                            --epoch-num=2                                                  \
                                            --batch-size=32                                                \
                                            --cluster-spec='{"clusterSpec":{"PS":["localhost:40061"]}}'    \
-                                           --loglevel=debug 2>&1 | tee -a follower-python.log &
+                                           --loglevel=debug 2>&1 | tee -a follower-native.log &
 fi

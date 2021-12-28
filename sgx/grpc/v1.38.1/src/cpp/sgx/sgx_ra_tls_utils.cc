@@ -284,10 +284,16 @@ int ra_tls_verify_measurements_callback(const char* mr_enclave, const char* mr_s
 
 void ra_tls_verify_init() {
   if (ra_tls_ctx.sgx_cfg.verify_in_enclave) {
-    ra_tls_ctx.verify_lib.open("libra_tls_verify_dcap_gramine.so", RTLD_LAZY);
+    if (!ra_tls_ctx.verify_lib.get_handle()) {
+      ra_tls_ctx.verify_lib.open("libra_tls_verify_dcap_gramine.so", RTLD_LAZY);
+    }
   } else {
-    ra_tls_ctx.sgx_urts_lib.open("libsgx_urts.so", RTLD_NOW | RTLD_GLOBAL);
-    ra_tls_ctx.verify_lib.open("libra_tls_verify_dcap.so", RTLD_LAZY);
+    if (!ra_tls_ctx.sgx_urts_lib.get_handle()) {
+      ra_tls_ctx.sgx_urts_lib.open("libsgx_urts.so", RTLD_NOW | RTLD_GLOBAL);
+    }
+    if (!ra_tls_ctx.verify_lib.get_handle()) {
+      ra_tls_ctx.verify_lib.open("libra_tls_verify_dcap.so", RTLD_LAZY);
+    }
   }
 
   ra_tls_ctx.ra_tls_verify_callback_f =
@@ -304,18 +310,23 @@ void ra_tls_verify_init() {
 }
 
 void ra_tls_verify_init(const char* file) {
+  std::lock_guard<std::mutex> lock(ra_tls_ctx.mtx);
   ra_tls_ctx.sgx_cfg = parse_sgx_config_json(file);
   ra_tls_verify_init();
 }
 
 void ra_tls_verify_init(sgx_config sgx_cfg) {
+  std::lock_guard<std::mutex> lock(ra_tls_ctx.mtx);
   ra_tls_ctx.sgx_cfg = sgx_cfg;
   ra_tls_verify_init();
 }
 
 // Require to use a provider, because server always needs to use identity certs.
 std::vector<std::string> ra_tls_get_key_cert() {
-  ra_tls_ctx.attest_lib.open("libra_tls_attest.so", RTLD_LAZY);
+  if (!ra_tls_ctx.attest_lib.get_handle()) {
+    ra_tls_ctx.attest_lib.open("libra_tls_attest.so", RTLD_LAZY);
+  }
+
   auto ra_tls_create_key_and_crt_f =
     reinterpret_cast<int (*)(mbedtls_pk_context*, mbedtls_x509_crt*)>(
       ra_tls_ctx.attest_lib.get_func("ra_tls_create_key_and_crt"));
@@ -404,19 +415,30 @@ std::vector<grpc::experimental::IdentityKeyCertPair> get_identity_key_cert_pairs
 
 void credential_option_set_authorization_check(
     grpc::sgx::CredentialsOptions& options) {
-  ra_tls_ctx.authorization_check = std::make_shared<TlsAuthorizationCheck>();
-  ra_tls_ctx.authorization_check_config =
-    std::make_shared<grpc::experimental::TlsServerAuthorizationCheckConfig>(
-      ra_tls_ctx.authorization_check);
+  std::lock_guard<std::mutex> lock(ra_tls_ctx.mtx);
+
+  if (!ra_tls_ctx.authorization_check) {
+    ra_tls_ctx.authorization_check = std::make_shared<TlsAuthorizationCheck>();
+  }
+
+  if (!ra_tls_ctx.authorization_check_config) {
+    ra_tls_ctx.authorization_check_config =
+      std::make_shared<grpc::experimental::TlsServerAuthorizationCheckConfig>(
+        ra_tls_ctx.authorization_check);
+  }
 
   options.set_verification_option(GRPC_TLS_SKIP_ALL_SERVER_VERIFICATION);
   options.set_authorization_check_config(ra_tls_ctx.authorization_check_config);
 }
 
 void credential_option_set_certificate_provider(grpc::sgx::CredentialsOptions& options) {
-  ra_tls_ctx.certificate_provider =
-    std::make_shared<grpc::experimental::StaticDataCertificateProvider>(
-      get_identity_key_cert_pairs(ra_tls_get_key_cert()));
+  std::lock_guard<std::mutex> lock(ra_tls_ctx.mtx);
+
+  if (!ra_tls_ctx.certificate_provider) {
+    ra_tls_ctx.certificate_provider =
+      std::make_shared<grpc::experimental::StaticDataCertificateProvider>(
+        get_identity_key_cert_pairs(ra_tls_get_key_cert()));
+  }
 
   options.set_certificate_provider(ra_tls_ctx.certificate_provider);
   // options.watch_root_certs();

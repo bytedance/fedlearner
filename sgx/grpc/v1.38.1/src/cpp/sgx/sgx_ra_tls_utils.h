@@ -25,6 +25,7 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
+#include <mutex>
 
 #include <dlfcn.h>
 
@@ -138,6 +139,7 @@ struct ra_tls_context {
   class library_engine sgx_urts_lib;
 
   struct sgx_config sgx_cfg;
+  std::mutex mtx;
 
   int (*ra_tls_verify_callback_f)(uint8_t* der_crt, size_t der_crt_size) = nullptr;
   std::shared_ptr<TlsAuthorizationCheck> authorization_check = nullptr;
