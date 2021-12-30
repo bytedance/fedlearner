@@ -88,11 +88,18 @@ if __name__ == "__main__":
         portal_manifest = \
             text_format.Parse(portal_manifest, dp_pb.DataPortalManifest(),
                               allow_unknown_field=True)
+        def oss_basedir(raw_dir):
+            return raw_dir.split("/", 3)[-1]
+        input_dirs = [portal_manifest.input_base_dir,
+                      args.input_base_dir]
+        for idx in range(2):
+            if input_dirs[idx].startswith('oss://'):
+                input_dirs[idx] = oss_basedir(input_dirs[idx])
         parameter_pairs = [
+            tuple(input_dirs),
             (portal_manifest.data_portal_type, data_portal_type),
             (portal_manifest.output_partition_num, args.output_partition_num),
             (portal_manifest.input_file_wildcard, args.input_file_wildcard),
-            (portal_manifest.input_base_dir, args.input_base_dir),
             (portal_manifest.output_base_dir, args.output_base_dir),
             (portal_manifest.raw_data_publish_dir, args.raw_data_publish_dir)
         ]
