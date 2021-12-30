@@ -88,8 +88,10 @@ if __name__ == "__main__":
         portal_manifest = \
             text_format.Parse(portal_manifest, dp_pb.DataPortalManifest(),
                               allow_unknown_field=True)
+
         def oss_basedir(raw_dir):
             return raw_dir.split("/", 3)[-1]
+        # deal with input dir
         input_dirs = [portal_manifest.input_base_dir,
                       args.input_base_dir]
         for idx in range(2):
@@ -110,6 +112,11 @@ if __name__ == "__main__":
                     "forbidden, you should create a new job to do this",
                     old, new)
                 sys.exit(-1)
+        # update if necessary
+        if portal_manifest.input_base_dir != args.input_base_dir:
+            portal_manifest.input_base_dir = args.input_base_dir
+            kvstore.set_data(kvstore_key, text_format. \
+                             MessageToString(portal_manifest))
 
     options = dp_pb.DataPotraMasterlOptions(
         use_mock_etcd=use_mock_etcd,
