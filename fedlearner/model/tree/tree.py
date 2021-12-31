@@ -425,8 +425,9 @@ class BaseGrower(object):
             right_g*right_g/(right_h + lam) - \
             sum_g*sum_g/(sum_h + lam)
         if not gain >= 0:
-            logging.warning(f'the value of gain {gain} is invalid, left_h: {left_h}, right_h: {right_h}, '
-                            f'left_g: {left_g}, right_g: {right_g}, lam: {lam}')
+            logging.warning(f'the value of gain {gain} is invalid, left_h: '
+                            f'{left_h}, right_h: {right_h}, left_g: '
+                            f'{left_g}, right_g: {right_g}, lam: {lam}')
         if gain > split_info.gain:
             split_info.gain = gain
             split_info.feature_id = feature_id
@@ -446,7 +447,8 @@ class BaseGrower(object):
             else:
                 self._find_cont_split(node, fid, split_info)
 
-        assert len(split_info.split_point) != 0, 'the length of split point must not be 0'
+        assert len(split_info.split_point) != 0, \
+            'the length of split point must not be 0'
         self._split_candidates.put((-split_info.gain, split_info))
 
         return split_info.gain, split_info
