@@ -425,8 +425,8 @@ class BaseGrower(object):
             right_g*right_g/(right_h + lam) - \
             sum_g*sum_g/(sum_h + lam)
         if not gain >= 0:
-            logging.warning(f'the value of gain %s is invalid, left_h: %s, '
-                            f'right_h: %s, left_g: %s, right_g: %s, lam: %s',
+            logging.warning(f"the value of gain %f is invalid, left_h: %f, "
+                            f"right_h: %f, left_g: %f, right_g: %f, lam: %f",
                             gain, left_g, right_g, left_h, right_h, lam)
         if gain > split_info.gain:
             split_info.gain = gain
