@@ -27,6 +27,7 @@ from fedlearner.common import data_portal_service_pb2 as dp_pb
 
 from fedlearner.common.common import convert_to_datetime, INVALID_DATETIME
 from fedlearner.data_join import common
+from fedlearner.data_join.common import InputPathUtil
 from fedlearner.data_join.raw_data_publisher import RawDataPublisher
 from fedlearner.data_join.sort_run_merger import MergedSortRunMeta
 
@@ -60,7 +61,7 @@ class DataPortalJobManager(object):
             job = self._sync_portal_job(job_id)
             assert job is not None and job.job_id == job_id
             for fpath in job.fpaths:
-                self._processed_fpath.add(fpath)
+                self._processed_fpath.add(InputPathUtil.format_path(fpath))
         self._job_part_map = {}
         if self._portal_manifest.processing_job_id >= 0:
             self._check_processing_job_finished()
@@ -396,7 +397,7 @@ class DataPortalJobManager(object):
 
             num_target_files += 1
 
-            if fname in self._processed_fpath:
+            if InputPathUtil.format_path(fname) in self._processed_fpath:
                 continue
             num_new_files += 1
 
@@ -475,7 +476,7 @@ class DataPortalJobManager(object):
             finished_job.finished = True
             self._update_processing_job(finished_job)
         for fpath in processing_job.fpaths:
-            self._processed_fpath.add(fpath)
+            self._processed_fpath.add(InputPathUtil.format_path(fpath))
         self._processing_job = None
         self._job_part_map = {}
         portal_mainifest = self._sync_portal_manifest()

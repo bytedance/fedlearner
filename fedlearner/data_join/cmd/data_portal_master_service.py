@@ -24,6 +24,7 @@ from fedlearner.common.db_client import DBClient
 from fedlearner.common.common import set_logger
 
 from fedlearner.data_join import common
+from fedlearner.data_join.common import InputPathUtil
 from fedlearner.data_join.data_portal_master import DataPortalMasterService
 
 if __name__ == "__main__":
@@ -89,16 +90,9 @@ if __name__ == "__main__":
             text_format.Parse(portal_manifest, dp_pb.DataPortalManifest(),
                               allow_unknown_field=True)
 
-        def oss_basedir(raw_dir):
-            return raw_dir.split("/", 3)[-1]
-        # deal with input dir
-        input_dirs = [portal_manifest.input_base_dir,
-                      args.input_base_dir]
-        for idx in range(2):
-            if input_dirs[idx].startswith('oss://'):
-                input_dirs[idx] = oss_basedir(input_dirs[idx])
         parameter_pairs = [
-            tuple(input_dirs),
+            (InputPathUtil.format_path(portal_manifest.input_base_dir),
+             InputPathUtil.format_path(args.input_base_dir)),
             (portal_manifest.data_portal_type, data_portal_type),
             (portal_manifest.output_partition_num, args.output_partition_num),
             (portal_manifest.input_file_wildcard, args.input_file_wildcard),
@@ -112,7 +106,7 @@ if __name__ == "__main__":
                     "forbidden, you should create a new job to do this",
                     old, new)
                 sys.exit(-1)
-        # update if necessary
+        # update if oss key changed
         if portal_manifest.input_base_dir != args.input_base_dir:
             portal_manifest.input_base_dir = args.input_base_dir
             kvstore.set_data(kvstore_key, text_format. \
