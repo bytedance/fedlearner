@@ -1,9 +1,10 @@
-tensorflow>=2.4,<2.5
-tensorflow-io>=0.13,<0.18
+tensorflow>=2.7,<2.8
+tensorflow-io>=0.23
+grpcio>=1.40,<1.41
+grpcio-tools>=1.40,<1.41
 setuptools==41.0.0
 pylint==2.4.4
 jinja2
-grpcio-tools
 etcd3
 peewee
 apsw

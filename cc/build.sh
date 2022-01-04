@@ -6,4 +6,4 @@ TF_LFLAGS=$(python -c 'import tensorflow.compat.v1 as tf; print(" ".join(tf.sysc
 
 SRC_DIR=$(pwd)/cc
 
-g++ -std=c++11 -shared ${SRC_DIR}/operators/kernels/*.cc ${SRC_DIR}/operators/ops/*.cc -o ${SRC_DIR}/embedding.so -fPIC ${TF_CFLAGS} ${TF_LFLAGS} -O2
+g++ -std=c++14 -shared ${SRC_DIR}/operators/kernels/*.cc ${SRC_DIR}/operators/ops/*.cc -o ${SRC_DIR}/embedding.so -fPIC ${TF_CFLAGS} ${TF_LFLAGS} -O2

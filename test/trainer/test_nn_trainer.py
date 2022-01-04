@@ -44,8 +44,8 @@ import fedlearner.trainer as flt
 from fedlearner.data_join.data_block_manager import DataBlockBuilder
 from fedlearner.data_join.raw_data_iter_impl.tf_record_iter import TfExampleItem
 
-from graph_def.leader import main as lm
-from graph_def.follower import main as fm
+from test.trainer.graph_def.leader import main as lm
+from test.trainer.graph_def.follower import main as fm
 
 debug_mode = False
 local_mnist_path = "./mnist.npz"
