@@ -80,7 +80,6 @@ fi
 cd ${ROLE}
 
 python main.py --master \
-    --local-worker \
     --application-id=$APPLICATION_ID \
     --data-source=$DATA_SOURCE \
     --master-addr=0.0.0.0:50051 \
