@@ -20,8 +20,6 @@ import time
 import tensorflow.compat.v1 as tf
 from tensorflow_estimator.python.estimator import model_fn as model_fn_lib
 from fedlearner.common import fl_logging
-from fedlearner.trainer.run_hooks import TraceStatsHook
-from fedlearner.trainer._global_context import global_context as _gctx
 
 
 class FLModel(object):
@@ -189,9 +187,6 @@ class FLEstimator(object):
                 features, labels, tf.estimator.ModeKeys.TRAIN)
 
             hooks = []
-            # stats
-            hooks.append(TraceStatsHook(
-                every_secs=30, stats_client=_gctx.stats_client))
             # user define chief hook
             if spec.training_chief_hooks and self._is_chief:
                 hooks.extend(spec.training_chief_hooks)
