@@ -88,9 +88,11 @@ for i, master in enumerate(cluster_spec.get('Master', [])):
 for i, worker in enumerate(cluster_spec.get('Worker', [])):
   cluster_spec['Worker'][i] = rewrite_port(worker, '50051', '50052')
 num_worker = len(cluster_spec.get('Worker', []))
-for i in range(num_worker):
-  cluster_spec['Worker'].append(rewrite_port(cluster_spec['Worker'][i], '50052',
-                                             str(50052+10000)))
+for m_idx in range($LOCAL_WORKER_MULTIPLIER):
+  gap = (m_idx + 1) * 10000
+  for i in range(num_worker):
+    cluster_spec['Worker'].append(rewrite_port(cluster_spec['Worker'][i], '50052',
+                                               str(50052+gap)))
 print(json.dumps({'clusterSpec': cluster_spec}))
 """`
 fi
