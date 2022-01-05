@@ -96,6 +96,7 @@ class _Task(object):
                 self._task.terminate()
             elif self._task.is_alive():
                 raise ValueError("can not kill by force")
+
     def start(self):
         logging.info("begin to start")
         with self._lock:
@@ -291,7 +292,7 @@ class TestHorizontalNNTraining(unittest.TestCase):
         return data_source
 
     def setUp(self):
-        self.sche = _TaskScheduler(150)
+        self.sche = _TaskScheduler(250)
         self.app_id = "test_trainer_v1"
         if debug_mode:
             (x, y), _ = tf.keras.datasets.mnist.load_data(local_mnist_path)
