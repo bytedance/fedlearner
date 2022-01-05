@@ -1,24 +1,12 @@
-# Copyright 2020 The FedLearner Authors. All Rights Reserved.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
 import os
 import logging as _logging
+import threading
 
 BASIC_FORMAT = "%(asctime)s [%(levelname)s]: %(message)s " \
                "(%(filename)s:%(lineno)d)"
 DEBUG = "debug"
 INFO = "info"
+WARN = "warn"
 WARNING = "warning"
 ERROR = "error"
 CRITICAL = "critical"
@@ -27,25 +15,17 @@ _name_to_level = {
     DEBUG: _logging.DEBUG,
     INFO: _logging.INFO,
     WARNING: _logging.WARNING,
-    "warn": _logging.WARNING,
+    WARN: _logging.WARN,
     ERROR: _logging.ERROR,
     CRITICAL: _logging.CRITICAL,
 }
 
+_logger = None
+_logger_lock = threading.Lock()
+
 def _get_level_from_env():
-    level_name = os.getenv("FL_LOG_LEVEL", "").lower()
-    if level_name in _name_to_level:
-        return _name_to_level[level_name]
-
-    verbosity = os.getenv("VERBOSITY")
-    if verbosity == "0":
-        return _logging.WARNING
-    if verbosity == "1":
-        return _logging.INFO
-    if verbosity == "2":
-        return _logging.DEBUG
-
-    return None
+    level = os.getenv("FL_LOG_LEVEL", "").lower()
+    return _name_to_level.get(level)
 
 def _create_logger():
     logger = _logging.getLogger(name="fedlearner")
@@ -60,42 +40,48 @@ def _create_logger():
 
     return logger
 
-_logger = _create_logger()
+def get_logger():
+  global _logger
+  if _logger:
+    return _logger
 
+  with _logger_lock:
+    if _logger:
+      return _logger
+    _logger = _create_logger()
 
-def set_level(level):
-    level_ = _name_to_level.get(level.lower(), None)
-    if not level_:
-        raise ValueError("Unknow log level: %s"%level)
-    _logger.setLevel(level_)
+  return _logger
 
-def _kwargs_add_stack_level(kwargs):
-    kwargs["stacklevel"] = kwargs.get("stacklevel", 1) + 1
-    return kwargs
+def _kwargs_add_stacklevel(kwargs, level=1):
+  kwargs["stacklevel"] = kwargs.get("stacklevel", 1) + level
+  return kwargs
+
+def set_level(level : str):
+    l = _name_to_level.get(level.lower(), None)
+    if not l:
+        raise ValueError("unknow log level: %s"%level)
+    get_logger().setLevel(l)
 
 def critical(msg, *args, **kwargs):
-    _logger.critical(msg, *args, **_kwargs_add_stack_level(kwargs))
+  get_logger().critical(msg, args, kwargs)
 
 def fatal(msg, *args, **kwargs):
-    _logger.fatal(msg, *args, **_kwargs_add_stack_level(kwargs))
+  get_logger().fatal(msg, *args, **_kwargs_add_stacklevel(kwargs))
 
 def error(msg, *args, **kwargs):
-    _logger.error(msg, *args, **_kwargs_add_stack_level(kwargs))
-
-def exception(msg, *args, **kwargs):
-    _logger.exception(msg, *args, **_kwargs_add_stack_level(kwargs))
+  get_logger().error(msg, *args, **_kwargs_add_stacklevel(kwargs))
 
 def warning(msg, *args, **kwargs):
-    _logger.warning(msg, *args, **_kwargs_add_stack_level(kwargs))
+  get_logger().warning(msg, *args, **_kwargs_add_stacklevel(kwargs))
 
 def warn(msg, *args, **kwargs):
-    _logger.warning(msg, *args, **_kwargs_add_stack_level(kwargs))
+  get_logger().warn(msg, *args, **_kwargs_add_stacklevel(kwargs))
 
 def info(msg, *args, **kwargs):
-    _logger.info(msg, *args, **_kwargs_add_stack_level(kwargs))
+  get_logger().info(msg, *args, **_kwargs_add_stacklevel(kwargs))
 
 def debug(msg, *args, **kwargs):
-    _logger.debug(msg, *args, **_kwargs_add_stack_level(kwargs))
+  get_logger().debug(msg, *args, **_kwargs_add_stacklevel(kwargs))
 
 def log(level, msg, *args, **kwargs):
-    _logger.log(msg, level, *args, **_kwargs_add_stack_level(kwargs))
+  get_logger().log(level, msg, *args, **_kwargs_add_stacklevel(kwargs))

@@ -1,0 +1,13 @@
+syntax = "proto3";
+
+package fedlearner.cluster;
+
+message FedNodeDef {
+  string name = 1;
+  string address = 2;
+}
+
+message FedClusterDef {
+  FedNodeDef leader = 1;
+  repeated FedNodeDef followers = 2;
+}
