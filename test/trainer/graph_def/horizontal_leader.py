@@ -16,7 +16,8 @@
 # pylint: disable=no-else-return, inconsistent-return-statements
 
 import logging
-import tensorflow.compat.v1 as tf
+# import tensorflow.compat.v1 as tf
+import tensorflow as tf
 import fedlearner.trainer as flt
 
 
@@ -73,10 +74,22 @@ def model_def(features):
 
     act1 = tf.nn.relu(tf.nn.bias_add(tf.matmul(x, w1l), b1l))
     logits = tf.nn.bias_add(tf.matmul(act1, w2), b2)
-    return logits
+
+    w3 = tf.get_variable('w3',
+                         shape=[256, 10],
+                         dtype=tf.float32,
+                         initializer=tf.random_uniform_initializer(
+                             -0.01, 0.01))
+    b3 = tf.get_variable('b3',
+                         shape=[10],
+                         dtype=tf.float32,
+                         initializer=tf.zeros_initializer())
+    local_logits = tf.nn.bias_add(tf.matmul(act1, w3), b3)
+    optimizer = tf.train.AdagradOptimizer(0.1)
+    return logits, local_logits, optimizer
 
 def remote_model_fn(model, features, labels, mode):
-    logits = model_def(features)
+    logits, local_logits, optimizer = model_def(features)
 
     if mode == tf.estimator.ModeKeys.PREDICT:
         return model.make_spec(mode=mode, predictions=logits)
@@ -90,24 +103,34 @@ def remote_model_fn(model, features, labels, mode):
         loss = tf.math.reduce_mean(loss)
         return model.make_spec(
             mode=mode, loss=loss, eval_metric_ops={'accuracy': acc_pair})
+
+    global_step = tf.train.get_or_create_global_step()
     # mode == tf.estimator.ModeKeys.TRAIN
-    optimizer = tf.train.GradientDescentOptimizer(0.1)
     logits_grad = model.send('logits', logits, require_grad=True)
-    loss = model.recv('loss', tf.float32, require_grad=False)
-    acc = model.recv('accuracy', tf.float32, require_grad=False)
-    train_op = model.minimize(
+    remote_train_op = model.minimize(
         optimizer, logits,
         grad_loss=logits_grad,
-        global_step=tf.train.get_or_create_global_step())
+        global_step=global_step)
+
+    # mode == tf.estimator.ModeKeys.TRAIN
+    local_loss = tf.nn.sparse_softmax_cross_entropy_with_logits(
+        labels=y, logits=local_logits)
+    local_loss = tf.math.reduce_mean(local_loss)
+
+    local_train_op = optimizer.minimize(
+        local_loss, global_step=global_step)
+
+    acc = model.recv('accuracy', tf.float32, require_grad=False)
+    loss = model.recv('loss', tf.float32, require_grad=False)
     logging_hook = tf.train.LoggingTensorHook(
         {"loss" : loss, "acc" : acc}, every_n_iter=10)
     return model.make_spec(
-        mode=mode, loss=loss, train_op=train_op,
+        mode=mode, loss=loss, train_op=remote_train_op,
         training_hooks=[logging_hook])
 
 
 def local_model_fn(model, features, labels, mode):
-    logits = model_def(features)
+    logits, local_logits, optimizer = model_def(features)
 
     if mode == tf.estimator.ModeKeys.PREDICT:
         return model.make_spec(mode=mode, predictions=logits)
@@ -122,21 +145,31 @@ def local_model_fn(model, features, labels, mode):
         return model.make_spec(
             mode=mode, loss=loss, eval_metric_ops={'accuracy': acc_pair})
 
+    global_step = tf.train.get_or_create_global_step()
     # mode == tf.estimator.ModeKeys.TRAIN
-    optimizer = tf.train.GradientDescentOptimizer(0.1)
-    loss = tf.nn.sparse_softmax_cross_entropy_with_logits(labels=y,
-                                                          logits=logits)
-    loss = tf.math.reduce_mean(loss)
+    logits_grad = model.send('logits', logits, require_grad=True)
+    remote_train_op = model.minimize(
+        optimizer, logits,
+        grad_loss=logits_grad,
+        global_step=global_step)
 
-    train_op = model.minimize(
-        optimizer, loss, global_step=tf.train.get_or_create_global_step())
-    correct = tf.nn.in_top_k(predictions=logits, targets=y, k=1)
+    # mode == tf.estimator.ModeKeys.TRAIN
+    local_loss = tf.nn.sparse_softmax_cross_entropy_with_logits(
+        labels=y, logits=local_logits)
+    local_loss = tf.math.reduce_mean(local_loss)
+
+    local_train_op = optimizer.minimize(
+        local_loss, global_step=global_step)
+
+    correct = tf.nn.in_top_k(predictions=local_logits, targets=y, k=1)
     acc = tf.reduce_mean(input_tensor=tf.cast(correct, tf.float32))
     logging_hook = tf.train.LoggingTensorHook(
-        {"loss": loss, "acc": acc}, every_n_iter=10)
-    return model.make_spec(
-        mode=mode, loss=loss, train_op=train_op,
-        training_hooks=[logging_hook])
+        {"local loss": local_loss, "local acc": acc}, every_n_iter=10)
+    return tf.estimator.EstimatorSpec(
+            mode=mode,
+            loss=local_loss,
+            train_op=local_train_op,
+            training_hooks=[logging_hook])
 
 
 def main(args):
