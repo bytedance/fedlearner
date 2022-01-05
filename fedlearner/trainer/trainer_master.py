@@ -27,6 +27,7 @@ from fedlearner.common import fl_logging
 from fedlearner.common import trainer_master_service_pb2 as tm_pb
 from fedlearner.common import trainer_master_service_pb2_grpc as tm_grpc
 from fedlearner.common import common_pb2 as common_pb
+from fedlearner.trainer.bridge import FakeBridge
 from fedlearner.trainer.estimator import FLEstimator
 from fedlearner.trainer.sparse_estimator import SparseFLEstimator
 from fedlearner.trainer.cluster_server import ClusterServer
@@ -143,22 +144,6 @@ class DataBlockCheckpointSaverListener(tf.train.CheckpointSaverListener):
             {self._ckpt: self._visitor.dump()}
         )
         #fl_logging.info("data checkpoint saved result: %s", res)
-
-
-class _FakeBridge():
-    def send_op(self, name, x):
-        def func(x):
-            raise RuntimeError("Unexcepted call send op")
-
-        out = tf.py_function(func=func, inp=[x], Tout=[], name='send_' + name)
-        return out
-    def receive_op(self, name, dtype):
-        def func():
-            raise RuntimeError("Unexcepted call receive op")
-
-        return tf.py_function(func=func, inp=[], Tout=[dtype])[0]
-    def register_data_block_handler(self, handler):
-        pass
 
 
 class _FakeTrainerMasterClient():
@@ -282,7 +267,7 @@ class _TrainerMaster(tm_grpc.TrainerMasterServiceServicer):
             if self._sparse_estimator else FLEstimator
         return estimator_factory(
             cluster_server=self._cluster_server,
-            bridge=_FakeBridge(),
+            bridge=FakeBridge(),
             trainer_master=_FakeTrainerMasterClient(),
             role=self._role,
             model_fn=self._model_fn)

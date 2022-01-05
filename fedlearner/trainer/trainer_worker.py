@@ -16,13 +16,12 @@ import os
 import argparse
 import json
 import threading
-import time
 
 import tensorflow.compat.v1 as tf
 from fedlearner.common import fl_logging, stats
 from fedlearner.common.argparse_util import str_as_bool
 from fedlearner.common import trainer_master_service_pb2 as tm_pb
-from fedlearner.trainer.bridge import Bridge
+from fedlearner.trainer.bridge import Bridge, FakeBridge
 from fedlearner.trainer.estimator import FLEstimator
 from fedlearner.trainer.sparse_estimator import SparseFLEstimator
 from fedlearner.trainer.trainer_master_client \
@@ -211,9 +210,9 @@ def _run_worker(role, args, input_fn, model_fn):
     mode = args.mode.lower()
 
     worker_type = tm_pb.WorkerType.REMOTE_WORKER
-    bridge = None
     if args.local_worker:
         worker_type = tm_pb.WorkerType.LOCAL_WORKER
+        bridge = FakeBridge()
     else:
         if not args.local_addr:
             raise ValueError("local-addr is required")
@@ -252,10 +251,7 @@ def _run_worker(role, args, input_fn, model_fn):
     elif mode == 'eval':
         estimator.evaluate(input_fn)
 
-    if bridge:
-        trainer_master.worker_complete(bridge.terminated_at)
-    else:
-        trainer_master.worker_complete(int(time.time()))
+    trainer_master.worker_complete(bridge.terminated_at)
     trainer_master.wait_master_complete()
 
 def _run_local(role,

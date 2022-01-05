@@ -198,28 +198,18 @@ class FLEstimator(object):
                 master=self._cluster_server.target,
                 config=self._cluster_server.cluster_config)
 
-            if self._bridge:
-                self._bridge.connect()
-                with tf.train.MonitoredSession(
-                    session_creator=session_creator, hooks=hooks) as sess:
-                    while not sess.should_stop():
-                        start_time = time.time()
-                        self._bridge.start()
-                        sess.run(spec.train_op, feed_dict={})
-                        self._bridge.commit()
-                        use_time = time.time() - start_time
-                        fl_logging.debug("after session run. time: %f sec",
-                                         use_time)
-                self._bridge.terminate()
-            else:  # local worker
-                with tf.train.MonitoredSession(
-                    session_creator=session_creator, hooks=hooks) as sess:
-                    while not sess.should_stop():
-                        start_time = time.time()
-                        sess.run(spec.train_op, feed_dict={})
-                        use_time = time.time() - start_time
-                        fl_logging.debug("after session run. time: %f sec",
-                                         use_time)
+            self._bridge.connect()
+            with tf.train.MonitoredSession(
+                session_creator=session_creator, hooks=hooks) as sess:
+                while not sess.should_stop():
+                    start_time = time.time()
+                    self._bridge.start()
+                    sess.run(spec.train_op, feed_dict={})
+                    self._bridge.commit()
+                    use_time = time.time() - start_time
+                    fl_logging.debug("after session run. time: %f sec",
+                                     use_time)
+            self._bridge.terminate()
 
         return self
 
@@ -264,28 +254,18 @@ class FLEstimator(object):
                 master=self._cluster_server.target,
                 config=self._cluster_server.cluster_config)
             # Evaluate over dataset
-            if self._bridge:
-                self._bridge.connect()
-                with tf.train.MonitoredSession(
-                    session_creator=session_creator, hooks=all_hooks) as sess:
-                    while not sess.should_stop():
-                        start_time = time.time()
-                        self._bridge.start()
-                        sess.run(eval_op)
-                        self._bridge.commit()
-                        use_time = time.time() - start_time
-                        fl_logging.debug("after session run. time: %f sec",
-                                         use_time)
-                self._bridge.terminate()
-            else:
-                with tf.train.MonitoredSession(
-                    session_creator=session_creator, hooks=all_hooks) as sess:
-                    while not sess.should_stop():
-                        start_time = time.time()
-                        sess.run(eval_op)
-                        use_time = time.time() - start_time
-                        fl_logging.debug("after session run. time: %f sec",
-                                         use_time)
+            self._bridge.connect()
+            with tf.train.MonitoredSession(
+                session_creator=session_creator, hooks=all_hooks) as sess:
+                while not sess.should_stop():
+                    start_time = time.time()
+                    self._bridge.start()
+                    sess.run(eval_op)
+                    self._bridge.commit()
+                    use_time = time.time() - start_time
+                    fl_logging.debug("after session run. time: %f sec",
+                                     use_time)
+            self._bridge.terminate()
             # Print result
             fl_logging.info('Metrics for evaluate: %s',
                 _dict_to_str(final_ops_hook.final_ops_values))
