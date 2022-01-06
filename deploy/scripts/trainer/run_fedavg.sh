@@ -1,6 +1,7 @@
 #!/bin/bash
 set -ex
 
+source /app/deploy/scripts/hdfs_common.sh
 source /app/deploy/scripts/env_to_args.sh
 
 if [[ -n "${CODE_KEY}" ]]; then

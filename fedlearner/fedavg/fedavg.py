@@ -19,8 +19,8 @@ class MasterControlKerasCallback(tf.keras.callbacks.Callback):
     self._master.on_train_batch_end()
 
 def train_from_keras_model(model,
-                           x,
-                           y,
+                           x=None,
+                           y=None,
                            batch_size=None,
                            epochs=1,
                            fed_name=None,
