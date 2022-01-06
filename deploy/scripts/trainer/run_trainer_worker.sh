@@ -109,7 +109,7 @@ for IDX in $(seq 1 $LOCAL_WORKER_MULTIPLIER); do
       --worker-rank="$LOCAL_WORKER_RANK" \
       $mode $batch_size \
       $sparse_estimator $learning_rate > /app/local_worker_$LOCAL_WORKER_RANK.log 2>&1 &
-  local_worker_pids+=$!
+  local_worker_pids+=($!)
 done
 
 python main.py --worker \
