@@ -92,7 +92,7 @@ python main.py --worker \
     --master-addr="$MASTER_HOST:50051" \
     --cluster-spec="$CLUSTER_SPEC" \
     --local-addr="$POD_IP:50051" \
-    --peer-addr="$PEER_ADDR" \
+    --peer-addr="localhost:50053" \
     --worker-rank="$WORKER_RANK" \
     $mode $batch_size \
     $sparse_estimator $learning_rate
