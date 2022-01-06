@@ -122,7 +122,7 @@ def remote_model_fn(model, features, labels, mode):
 
     acc = model.recv('accuracy', tf.float32, require_grad=False)
     loss = model.recv('loss', tf.float32, require_grad=False)
-    logging_hook = tf.train.LoggingTensorHook(
+    logging_hook = tf.estimator.LoggingTensorHook(
         {"loss" : loss, "acc" : acc}, every_n_iter=10)
     return model.make_spec(
         mode=mode, loss=loss, train_op=remote_train_op,
@@ -163,7 +163,7 @@ def local_model_fn(model, features, labels, mode):
 
     correct = tf.nn.in_top_k(predictions=local_logits, targets=y, k=1)
     acc = tf.reduce_mean(input_tensor=tf.cast(correct, tf.float32))
-    logging_hook = tf.train.LoggingTensorHook(
+    logging_hook = tf.estimator.LoggingTensorHook(
         {"local loss": local_loss, "local acc": acc}, every_n_iter=10)
     return tf.estimator.EstimatorSpec(
             mode=mode,
