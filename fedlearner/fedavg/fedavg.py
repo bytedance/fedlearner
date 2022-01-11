@@ -1,7 +1,7 @@
 import os
 import tensorflow as tf
 from .master import LeaderMaster, FollowerMaster
-from fedlearner.cluster.cluster_spec import FedClusterSpec
+from fedlearner.cluster.cluster_spec import FLClusterSpec
 
 
 class MasterControlKerasCallback(tf.keras.callbacks.Callback):
@@ -23,26 +23,29 @@ def train_from_keras_model(model,
                            y=None,
                            batch_size=None,
                            epochs=1,
-                           fed_name=None,
-                           fed_cluster=None,
-                           steps_per_sync=None):
+                           fl_name=None,
+                           fl_cluster=None,
+                           steps_per_sync=None,
+                           save_filepath=None):
 
-  if not fed_name:
-    fed_name = os.getenv("FL_FED_NAME")
-  if not fed_cluster:
-    fed_cluster = os.getenv("FL_FED_CLUSTER")
+  if not fl_name:
+    fl_name = os.getenv("FL_NAME")
+  if not fl_cluster:
+    fl_cluster = os.getenv("FL_CLUSTER")
   if not steps_per_sync:
     steps_per_sync = int(os.getenv("FL_STPES_PER_SYNC"))
+  if not save_filepath:
+    save_filepath = os.getenv("FL_SAVE_FILEPATH") or os.getenv("EXPORT_PATH")
 
-  fed_cluster_spec = FedClusterSpec(fed_cluster)
-  if fed_cluster_spec.is_leader(fed_name):
+  fl_cluster_spec = FLClusterSpec(fl_cluster)
+  if fl_cluster_spec.is_leader(fl_name):
     master_class = LeaderMaster
-  elif fed_cluster_spec.is_follower(fed_name):
+  elif fl_cluster_spec.is_follower(fl_name):
     master_class = FollowerMaster
   else:
-    raise ValueError("unknow fed_name: {}".format(fed_name))
+    raise ValueError("unknow fl_name: {}".format(fl_name))
 
-  master = master_class(model, fed_name, fed_cluster_spec, steps_per_sync)
+  master = master_class(model, fl_name, fl_cluster_spec, steps_per_sync, save_filepath)
   master.start()
   model.fit(x, y, batch_size=batch_size, epochs=epochs, callbacks=[MasterControlKerasCallback(master)])
 

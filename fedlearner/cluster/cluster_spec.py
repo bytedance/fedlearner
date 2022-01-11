@@ -3,18 +3,18 @@
 import json
 
 from google.protobuf import json_format
-from .cluster_pb2 import FedClusterDef
+from .cluster_pb2 import FLClusterDef
 
 
-class FedClusterSpec():
+class FLClusterSpec():
   def __init__(self, cluster):
-    if isinstance(cluster, FedClusterSpec):
-      self._cluster_def = FedClusterDef()
+    if isinstance(cluster, FLClusterSpec):
+      self._cluster_def = FLClusterDef()
       self._cluster_def.CopyFrom(cluster.as_cluster_def())
     elif isinstance(cluster, dict):
-      self._cluster_def = json_format.Parse(json.dumps(cluster), FedClusterDef())
+      self._cluster_def = json_format.Parse(json.dumps(cluster), FLClusterDef())
     elif isinstance(cluster, str):
-      self._cluster_def = json_format.Parse(cluster, FedClusterDef()) 
+      self._cluster_def = json_format.Parse(cluster, FLClusterDef()) 
     else:
       raise TypeError("'cluster' must be a FederatedClusterSpec, or dict, or a str of json")
 

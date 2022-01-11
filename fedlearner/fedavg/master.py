@@ -1,3 +1,4 @@
+import os
 import time
 import threading
 import numpy as np
@@ -19,7 +20,7 @@ class _MasterState(Enum):
   DONE = 7
 
 class _Master:
-  def __init__(self, model, steps_per_sync):
+  def __init__(self, model, steps_per_sync, save_filepath):
     self._model = model
 
     self._lock = threading.RLock()
@@ -32,6 +33,7 @@ class _Master:
     self._steps_per_sync = steps_per_sync if steps_per_sync > 0 else 1
     self._should_sync = False
     self._is_train_end = False
+    self._save_filepath = save_filepath
 
   def start(self):
     self._thread = threading.Thread(target=self._thread_fn, daemon=True)
@@ -118,7 +120,10 @@ class _Master:
     self._set_weights(weight_mapping)
     self._version = version
     self._timestamp = timestamp
-    # TODO save
+
+    if self._save_filepath:
+      filepath = os.path.join(self._save_filepath, str(self._timestamp))
+      self._model.save(filepath)
 
   def _done(self):
     logging.debug("master quit")
@@ -188,16 +193,16 @@ class _FollowerSession:
 
 
 class LeaderMaster(_Master):
-  def __init__(self, model, fed_name, fed_cluster_spec, steps_per_sync):
-    super().__init__(model, steps_per_sync)
+  def __init__(self, model, fl_name, fl_cluster_spec, steps_per_sync, save_filepath):
+    super().__init__(model, steps_per_sync, save_filepath)
 
     self._model = model
-    self._fed_name = fed_name,
-    self._fed_cluster_spec = fed_cluster_spec
-    self._leader = self._fed_cluster_spec.leader
+    self._fl_name = fl_name,
+    self._fl_cluster_spec = fl_cluster_spec
+    self._leader = self._fl_cluster_spec.leader
 
     self._follower_mapping = dict()
-    for f in self._fed_cluster_spec.followers:
+    for f in self._fl_cluster_spec.followers:
       self._follower_mapping[f.name] = _FollowerSession(f.name)
 
     self._latest_version = 0
@@ -441,13 +446,13 @@ class LeaderMaster(_Master):
 
 
 class FollowerMaster(_Master):
-  def __init__(self, model, fed_name, fed_cluster_spec, steps_per_sync):
-    super().__init__(model, steps_per_sync)
+  def __init__(self, model, fl_name, fl_cluster_spec, steps_per_sync, save_filepath):
+    super().__init__(model, steps_per_sync, save_filepath)
 
     self._model = model
-    self._fed_name = fed_name
-    self._fed_cluster_spec = fed_cluster_spec
-    self._leader = self._fed_cluster_spec.leader
+    self._fl_name = fl_name
+    self._fl_cluster_spec = fl_cluster_spec
+    self._leader = self._fl_cluster_spec.leader
 
   def start(self):
     self._grpc_channel = grpc_utils.remote_insecure_channel(self._leader.address)
@@ -459,21 +464,21 @@ class FollowerMaster(_Master):
     self._grpc_channel.close()
 
   def _join(self):
-    req = JoinRequest(name=self._fed_name)
+    req = JoinRequest(name=self._fl_name)
     resp = grpc_utils.call_with_retry(lambda: self._grpc_client.Join(req))
     if resp.status.code != Status.Code.OK:
       raise RuntimeError("join fed cluster error, code: %d, message: %s", resp.status.code, resp.status.message)
-    logging.info("join fed cluster success, fed_name: %s", self._fed_name)
+    logging.info("join fed cluster success, fl_name: %s", self._fl_name)
 
   def _quit(self):
-    req = QuitRequest(name=self._fed_name)
+    req = QuitRequest(name=self._fl_name)
     resp = grpc_utils.call_with_retry(lambda: self._grpc_client.Quit(req))
     if resp.status.code != Status.Code.OK:
       raise RuntimeError("quit fed cluster error, code: %d, message: %s", resp.status.code, resp.status.message)
-    logging.info("quit fed cluster success, fed_name: %s", self._fed_name)
+    logging.info("quit fed cluster success, fl_name: %s", self._fl_name)
 
   def _pull(self, version, is_last_pull=False):
-    req = PullRequest(name=self._fed_name,
+    req = PullRequest(name=self._fl_name,
                       version=version,
                       is_last_pull=is_last_pull)
     while True:
@@ -490,7 +495,7 @@ class FollowerMaster(_Master):
     return _proto_weights_to_weight_mapping(resp.weights), resp.version, resp.timestamp
 
   def _push(self, step, weight_mapping, version, is_train_end):
-    req = PushRequest(name=self._fed_name,
+    req = PushRequest(name=self._fl_name,
                       step=step,
                       weights=_weight_mapping_to_proto_weights(weight_mapping),
                       version=version,
