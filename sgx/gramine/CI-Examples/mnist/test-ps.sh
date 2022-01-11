@@ -14,7 +14,7 @@ function make_custom_env() {
     export parallel_num_threads=4
     export INTRA_OP_PARALLELISM_THREADS=$parallel_num_threads
     export INTER_OP_PARALLELISM_THREADS=$parallel_num_threads
-    export GRPC_SERVER_CHANNEL_THREADS=16
+    export GRPC_SERVER_CHANNEL_THREADS=2
     export KMP_SETTINGS=1
     export KMP_BLOCKTIME=0
     # network proxy
