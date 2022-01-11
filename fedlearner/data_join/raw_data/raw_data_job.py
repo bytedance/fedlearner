@@ -124,7 +124,8 @@ class RawDataJob:
                     input_path, self._meta.processed_fpath):
                 self._num_processing_file = len(rest_fpaths)
                 with Timer("RawData Job {}".format(job_id)):
-                    self._run(job_id, rest_fpaths, input_format, output_format)
+                    self._run(job_id, input_path, rest_fpaths, input_format,
+                              output_format)
                 job_id += 1
             if not self._long_running:
                 break
@@ -132,11 +133,13 @@ class RawDataJob:
                 logging.info("No new file to process, Wait 60s...")
                 time.sleep(60)
 
-    def _run(self, job_id, input_files, input_format, output_format):
+    def _run(self, job_id, input_root_dir, input_files, input_format,
+             output_format):
         logging.info("Processing %s in job %d", input_files, job_id)
         # 0. launch new spark job
         if self._output_type == OutputType.DataBlock:
-            self._run_data_block_job(job_id, input_files, input_format,
+            self._run_data_block_job(job_id, input_root_dir, input_files,
+                                     input_format,
                                      output_format)
         else:
             self._run_raw_data_job(job_id, input_files, input_format,
@@ -174,8 +177,8 @@ class RawDataJob:
         else:
             self._publish_raw_data(job_id, output_path)
 
-    def _run_data_block_job(self, job_id, input_files, input_format,
-                            output_format,):
+    def _run_data_block_job(self, job_id, input_root_dir,
+                            input_files, input_format, output_format):
         data_source = self._create_data_source(job_id, self._root_path)
         output_base_path = data_source_data_block_dir(data_source)
         temp_output_path = os.path.join(output_base_path, str(job_id))
@@ -193,9 +196,23 @@ class RawDataJob:
         success_tag = os.path.join(temp_output_path, "_SUCCESS")
         if not gfile.Exists(success_tag):
             logging.warning("Encounter empty inputs, no data generated")
-        else:
+            return
+
+        folder_name = os.path.relpath(input_files[0],
+                                      input_root_dir).split("/", 1)[0]
+        try:
+            date_time = datetime.strptime(folder_name, '%Y%m%d')
+            start_time_str = date_time.strftime("%Y%m%d%H%M%S")
+            end_time_str = (date_time + timedelta(hours=23, minutes=59,
+                                                  seconds=59)) \
+                .strftime("%Y%m%d%H%M%S")
             self._publish_data_block(job_id, data_source, temp_output_path,
-                                     output_base_path, input_files[0])
+                                     output_base_path, start_time_str,
+                                     end_time_str)
+        except ValueError as e:
+            logging.error("Input data's folder format is %s, want %s",
+                          folder_name, "%Y%m%d")
+            sys.exit(-1)
 
     def _progress(self):
         num_total_files, num_allocated_files = self._input_data_manager\
@@ -270,26 +287,14 @@ class RawDataJob:
             logging.info("%d. %s", seq, fpath)
 
     def _publish_data_block(self, job_id, data_source, temp_output_path,
-                            output_base_path, input_file):
-        folder_name = os.path.basename(os.path.dirname(input_file))
-        try:
-            date_time = datetime.strptime(folder_name, '%Y%m%d')
-            start_time_str = date_time.strftime("%Y%m%d%H%M%S")
-            end_time_str = (date_time + timedelta(hours=23, minutes=59,
-                                                  seconds=59)) \
-                .strftime("%Y%m%d%H%M%S")
-        except ValueError as e:
-            logging.error("Input data's folder format is %s, want %s",
-                          folder_name, "%Y%m%d")
-            start_time_str = '0'
-            end_time_str = '0'
-        # 3. rename output files
+                            output_base_path, start_time, end_time):
+        # 1. rename output files
         block_id = 0
         for filename in gfile.ListDirectory(temp_output_path):
             if self._is_flag_file(filename):
                 continue
             new_filename = self._encode_data_block_filename(
-                job_id, block_id, start_time_str, end_time_str)
+                job_id, block_id, start_time, end_time)
             meta_filename = encode_data_block_meta_fname(
                 self._data_source_name, job_id, block_id)
             in_file = os.path.join(temp_output_path, filename)
@@ -299,14 +304,14 @@ class RawDataJob:
             with gfile.Open(meta_file, "w") as meta:
                 meta.write("")
             block_id += 1
-        # 4. move to destination path
+        # 2. move to destination path
         output_path = os.path.join(output_base_path, partition_repr(job_id))
         if gfile.Exists(output_path):
             gfile.DeleteRecursively(output_path)
         logging.info("Rename %s to %s", temp_output_path, output_path)
         gfile.Rename(temp_output_path, output_path)
 
-        # 5. mock data_source
+        # 3. mock data_source
         self._update_data_source(job_id, data_source)
 
     def _update_manifest(self, manifest):

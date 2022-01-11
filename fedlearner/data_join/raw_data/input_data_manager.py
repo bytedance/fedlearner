@@ -84,8 +84,12 @@ class InputDataManager(object):
                 res.append(fname)
         return res
 
-    def _is_wanted_date(self, cur_date_str):
-        cur_date = convert_to_datetime(cur_date_str)
+    def _is_wanted_date(self, cur_date_strs):
+        cur_date = INVALID_DATETIME
+        for cur_date_str in cur_date_strs:
+            cur_date = convert_to_datetime(cur_date_str)
+            if cur_date != INVALID_DATETIME:
+                break
         if cur_date != INVALID_DATETIME:
             if self._start_date != INVALID_DATETIME and \
                 cur_date < self._start_date:
@@ -135,7 +139,7 @@ class InputDataManager(object):
                     continue
 
             # check dirname is wanted date
-            if not self._is_wanted_date(os.path.basename(dirnames[-1])):
+            if not self._is_wanted_date(dirnames[-1].split('/')):
                 continue
 
             self._num_files += 1
