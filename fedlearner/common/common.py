@@ -270,11 +270,13 @@ def time_diff(minuend, sub):
     ts_sub = convert_to_datetime(sub, enable_tz=False).timestamp()
     return ts_minuend - ts_sub
 
+
 def use_tls():
-    enable = os.environ.get("FL_GRPC_SGX_RA_TLS_ENABLE", False)
+    enable = os.getenv("FL_GRPC_SGX_RA_TLS_ENABLE") == "on"
     if not enable:
         return False
     return True
+
 
 def get_tf_config():
     return {

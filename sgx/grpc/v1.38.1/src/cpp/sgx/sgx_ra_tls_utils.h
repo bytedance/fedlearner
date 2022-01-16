@@ -21,6 +21,7 @@
 
 #include <string>
 #include <vector>
+#include <unordered_map>
 #include <memory>
 #include <iostream>
 #include <fstream>
@@ -133,19 +134,30 @@ struct sgx_config {
   std::vector<sgx_measurement> sgx_mrs;
 };
 
-struct ra_tls_context {
-  class library_engine verify_lib;
-  class library_engine attest_lib;
-  class library_engine sgx_urts_lib;
-
-  struct sgx_config sgx_cfg;
-  std::mutex mtx;
-
-  int (*ra_tls_verify_callback_f)(uint8_t* der_crt, size_t der_crt_size) = nullptr;
-  std::shared_ptr<TlsAuthorizationCheck> authorization_check = nullptr;
-  std::shared_ptr<grpc::experimental::TlsServerAuthorizationCheckConfig> authorization_check_config = nullptr;
-  std::shared_ptr<grpc::experimental::StaticDataCertificateProvider> certificate_provider = nullptr;
+struct ra_tls_cache {
+  int id = 0;
+  std::unordered_map<
+          int, std::shared_ptr<grpc::experimental::StaticDataCertificateProvider>
+      > certificate_provider;
+  std::unordered_map<
+          int, std::shared_ptr<grpc::sgx::TlsAuthorizationCheck>
+      > authorization_check;
+  std::unordered_map<
+          int, std::shared_ptr<grpc::experimental::TlsServerAuthorizationCheckConfig>
+      > authorization_check_config;
 };
+
+struct ra_tls_context {
+  std::mutex mtx;
+  struct sgx_config sgx_cfg;
+  struct ra_tls_cache cache;
+  class library_engine attest_lib;
+  class library_engine verify_lib;
+  class library_engine sgx_urts_lib;
+  int (*verify_callback_f)(uint8_t* der_crt, size_t der_crt_size) = nullptr;
+};
+
+void check_free(void* ptr);
 
 sgx_config parse_sgx_config_json(const char* file);
 

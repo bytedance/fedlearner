@@ -45,7 +45,7 @@ sgx.nonpie_binary = true
 sgx.enclave_size = "2G"
 sgx.thread_num = 16
 
-sgx.require_avx = true
+# sgx.require_avx = true
 # sgx.require_avx512 = true
 # sgx.require_amx = true
 

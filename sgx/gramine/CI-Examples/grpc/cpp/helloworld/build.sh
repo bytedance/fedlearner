@@ -1,45 +1,43 @@
-set -e
+set -ex
 
 shopt -s expand_aliases
 alias logfilter="grep \"mr_enclave\|mr_signer\|isv_prod_id\|isv_svn\""
 
-# cp -r /home/host-home/0400h/fedlearner/sgx/grpc/v1.38.1/. ${GRPC_PATH}
-# cp -r /home/host-home/0400h/fedlearner/sgx/gramine/CI-Examples/. ${GRAMINEDIR}/CI-Examples
-
-export EXP_PATH=${GRPC_PATH}/examples
-export EXP_CPP_PATH=${EXP_PATH}/cpp
-export RUNTIME_PATH=`pwd -P`/../tmp
+GRPC_EXP_PATH=${GRPC_PATH}/examples
+GRPC_EXP_CPP_PATH=${GRPC_EXP_PATH}/cpp
+RUNTIME_TMP_PATH=/tmp/grpc_tmp_runtime
+RUNTIME_PATH=`pwd -P`/runtime
 
 function get_env() {
     gramine-sgx-get-token -s grpc.sig -o /dev/null | grep $1 | awk -F ":" '{print $2}' | xargs
 }
 
-
 function prepare_runtime() {
-    make clean && GRAPHENE_ENTRYPOINT=$1 make | logfilter && cp -r `pwd -P` ${RUNTIME_PATH}/$1
+    make clean && GRAPHENE_ENTRYPOINT=$1 make | logfilter && cp -r `pwd -P` ${RUNTIME_TMP_PATH}/$1
 }
 
 function generate_json() {
-    cd ${RUNTIME_PATH}/$1
-    jq ' .sgx_mrs[0].mr_enclave = ''"'`get_env mr_enclave`'" | .sgx_mrs[0].mr_signer = ''"'`get_env mr_signer`'" ' ${EXP_PATH}/dynamic_config.json > ${RUNTIME_PATH}/$2/dynamic_config.json
+    cd ${RUNTIME_TMP_PATH}/$1
+    jq ' .sgx_mrs[0].mr_enclave = ''"'`get_env mr_enclave`'" | .sgx_mrs[0].mr_signer = ''"'`get_env mr_signer`'" ' ${GRPC_EXP_PATH}/dynamic_config.json > ${RUNTIME_TMP_PATH}/$2/dynamic_config.json
     cd -
 }
 
 # build examples
-${EXP_CPP_PATH}/helloworld/build.sh
-${EXP_CPP_PATH}/keyvaluestore/build.sh
+${GRPC_EXP_CPP_PATH}/helloworld/build.sh
+${GRPC_EXP_CPP_PATH}/keyvaluestore/build.sh
 
 # copy examples
-cp ${EXP_CPP_PATH}/helloworld/build/greeter_server .
-cp ${EXP_CPP_PATH}/helloworld/build/greeter_client .
-cp ${EXP_CPP_PATH}/helloworld/build/greeter_async_server .
-cp ${EXP_CPP_PATH}/helloworld/build/greeter_async_client .
-cp ${EXP_CPP_PATH}/keyvaluestore/build/server ./stream_server
-cp ${EXP_CPP_PATH}/keyvaluestore/build/client ./stream_client
+cp ${GRPC_EXP_CPP_PATH}/helloworld/build/greeter_server .
+cp ${GRPC_EXP_CPP_PATH}/helloworld/build/greeter_client .
+cp ${GRPC_EXP_CPP_PATH}/helloworld/build/greeter_async_server .
+cp ${GRPC_EXP_CPP_PATH}/helloworld/build/greeter_async_client .
+cp ${GRPC_EXP_CPP_PATH}/keyvaluestore/build/server ./stream_server
+cp ${GRPC_EXP_CPP_PATH}/keyvaluestore/build/client ./stream_client
 
-# create runtime dir
-mkdir -p ${RUNTIME_PATH}
-rm -rf ${RUNTIME_PATH}/*
+# create runtime tmp dir
+rm -rf  ${RUNTIME_PATH} || true
+rm -rf  ${RUNTIME_TMP_PATH} || true
+mkdir -p ${RUNTIME_TMP_PATH}
 
 # prepare runtime with gramine
 prepare_runtime greeter_server
@@ -56,5 +54,7 @@ generate_json greeter_async_server greeter_async_client
 generate_json greeter_async_client greeter_async_server
 generate_json stream_server stream_client
 generate_json stream_client stream_server
+
+mv ${RUNTIME_TMP_PATH} ${RUNTIME_PATH}
 
 kill -9 `pgrep -f gramine`
