@@ -14,6 +14,7 @@
 
 import re
 import tensorflow.compat.v1 as tf
+from fedlearner.common import metrics
 from tensorflow.python.training import training_util
 from fedlearner.trainer._global_context import global_context as _gctx
 
@@ -91,6 +92,9 @@ class GlobalStepMetricTensorHook(tf.train.SessionRunHook):
                 pipe.gauge("trainer.metric_value",
                            value.sum(),
                            tags={"metric": key})
+
+                # for compatibility, also write to metrics(es)
+                metrics.emit_store(name=key, value=value, tags={})
 
 
 class StepMetricsHook(GlobalStepMetricTensorHook):
