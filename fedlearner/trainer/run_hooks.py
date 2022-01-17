@@ -14,8 +14,8 @@
 
 import re
 import tensorflow.compat.v1 as tf
-from fedlearner.common import metrics
 from tensorflow.python.training import training_util
+from fedlearner.common import metrics
 from fedlearner.trainer._global_context import global_context as _gctx
 
 class GlobalStepMetricTensorHook(tf.train.SessionRunHook):
