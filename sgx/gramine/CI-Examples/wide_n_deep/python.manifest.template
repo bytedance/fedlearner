@@ -74,9 +74,6 @@ sgx.trusted_files = [
   "file:{{ gramine.runtimedir() }}/",
   "file:{{ arch_libdir }}/",
   "file:/usr/{{ arch_libdir }}/",
-  "file:{{ python.stdlib }}/",
-  "file:{{ python.distlib }}/",
-  "file:/usr/local/lib/python3.6/dist-packages/",
   "file:/etc/ssl/certs/ca-certificates.crt",
   "file:/etc/default/apport",
   "file:/etc/mime.types",
@@ -87,6 +84,9 @@ sgx.trusted_files = [
 ]
 
 sgx.allowed_files = [
+  "file:{{ python.stdlib }}/",
+  "file:{{ python.distlib }}/",
+  "file:/usr/local/lib/python3.6/dist-packages/",
   "file:/usr/lib/ssl/openssl.cnf",
   "file:/usr/lib/gcc",
   "file:/usr/bin/ld",
