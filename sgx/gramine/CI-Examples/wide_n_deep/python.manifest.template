@@ -41,6 +41,11 @@ fs.mount.tmp.type = "chroot"
 fs.mount.tmp.path = "/tmp"
 fs.mount.tmp.uri = "file:/tmp"
 
+# Do not use "/proc" in tensorflow
+# fs.mount.proc.type = "chroot"
+# fs.mount.proc.path = "/proc"
+# fs.mount.proc.uri = "file:/proc"
+
 fs.mount.etc.type = "chroot"
 fs.mount.etc.path = "/etc"
 fs.mount.etc.uri = "file:/etc"
@@ -56,7 +61,9 @@ fs.mount.keras.uri = "file:/root/.keras/keras.json"
 
 sgx.debug = false
 sgx.remote_attestation = true
+sgx.preheat_enclave = false
 sgx.nonpie_binary = true
+sgx.enable_stats = false
 sgx.enclave_size = "16G"
 sgx.thread_num = 512
 sgx.rpc_thread_num = 0
@@ -97,7 +104,7 @@ sgx.allowed_files = [
   "file:/etc/sgx_default_qcnl.conf",
   "file:/etc/ssl/certs/ca-certificates.crt",
   "file:/proc/stat",
-  "file:/tmp",
+  "file:/tmp/",
   "file:data/",
   "file:model/",
   "file:/root/.keras/keras.json",

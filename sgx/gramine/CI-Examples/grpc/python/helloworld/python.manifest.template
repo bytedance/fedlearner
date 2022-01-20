@@ -83,6 +83,6 @@ sgx.allowed_files = [
   "file:/etc/hosts",
   "file:/etc/group",
   "file:/etc/passwd",
-  "file:/proc/stat",
+  "file:/proc/",
   "file:dynamic_config.json"
 ]

@@ -3,7 +3,7 @@ set -ex
 
 function make_custom_env() {
     export CUDA_VISIBLE_DEVICES=""
-    export DNNL_VERBOSE=1
+    export DNNL_VERBOSE=0
     export GRPC_VERBOSITY=ERROR
     export GRPC_POLL_STRATEGY=epoll1
     export TF_CPP_MIN_LOG_LEVEL=1
