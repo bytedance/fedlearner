@@ -56,7 +56,7 @@ cdef class SGXChannelCredentials(ChannelCredentials):
 
   def __dealloc__(self):
     if self.c_pairs != NULL:
-      grpc_tls_identity_pairs_destroy(self.c_pairs)
+      # grpc_tls_identity_pairs_destroy(self.c_pairs)
       self.c_pairs = NULL
 
     if self.c_provider != NULL:
