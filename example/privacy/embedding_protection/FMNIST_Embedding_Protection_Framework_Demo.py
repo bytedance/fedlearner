@@ -2,8 +2,8 @@ import argparse
 import datetime
 import time
 import tensorflow.compat.v1 as tf
-from tensorflow.keras import layers
-from tensorflow.keras.datasets import fashion_mnist
+from tensorflow.compat.v1.keras import layers
+from tensorflow.compat.v1.datasets import fashion_mnist
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--batch_size", type=int, default=200)

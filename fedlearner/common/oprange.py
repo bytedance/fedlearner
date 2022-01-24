@@ -1,28 +1,29 @@
-import tensorflow.compat.v1 as tf
 from collections import deque
+import tensorflow.compat.v1 as tf
 
 
 def oprange(inputs, outputs):
     inputs = inputs if inputs is not None else []
     outputs = outputs if outputs is not None else []
-    input_name_set = set([i.op.name for i in inputs])
+    input_name_set = {[i.op.name for i in inputs]}
     que = deque(outputs)
     ops = []
     while len(que) > 0:
         o = que.popleft()
         ops.append(o)
         for i in o.op.inputs:
-            if (i.op.name not in input_name_set):
+            if i.op.name not in input_name_set:
                 input_name_set.add(i.op.name)
-                que.append(i.op.outputs[0]) 
+                que.append(i.op.outputs[0])
         for op in o.op.control_inputs:
-            if (op.name not in input_name_set):
+            if op.name not in input_name_set:
                 input_name_set.add(op.name)
-                que.append(op.outputs[0]) 
+                que.append(op.outputs[0])
 
     ops += inputs
     return ops
-            
+
+
 if __name__ == "__main__":
     a1 = tf.placeholder(tf.int32, name="a1")
     a2 = tf.placeholder(tf.int32, name="a2")
