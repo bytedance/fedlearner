@@ -100,7 +100,7 @@ function make_custom_env() {
     export GRPC_POLL_STRATEGY=epoll1
     export TF_CPP_MIN_LOG_LEVEL=1
     export TF_GRPC_SGX_RA_TLS_ENABLE=on
-    export FL_GRPC_SGX_RA_TLS_ENABLE=off
+    export FL_GRPC_SGX_RA_TLS_ENABLE=on
     export TF_DISABLE_MKL=0
     export TF_ENABLE_MKL_NATIVE_FORMAT=1
     export parallel_num_threads=$1
