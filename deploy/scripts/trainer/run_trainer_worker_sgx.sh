@@ -51,7 +51,7 @@ fi
 
 cd ${ROLE}
 cp /app/sgx/gramine/CI-Examples/tensorflow_io.py ./
-cp /app/sgx/token/python.* ./
+cp /app/sgx/token/* ./
 unset HTTPS_PROXY https_proxy http_proxy ftp_proxy
 
 mode=$(normalize_env_to_args "--mode" "$MODE")

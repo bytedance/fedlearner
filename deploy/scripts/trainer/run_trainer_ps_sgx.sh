@@ -20,7 +20,7 @@ export CUDA_VISIBLE_DEVICES=
 source /app/deploy/scripts/hdfs_common.sh || true
 
 cp /app/sgx/gramine/CI-Examples/tensorflow_io.py ./
-cp /app/sgx/token/python.* ./
+cp /app/sgx/token/* ./
 unset HTTPS_PROXY https_proxy http_proxy ftp_proxy
 
 function get_env() {
