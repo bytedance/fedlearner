@@ -43,7 +43,7 @@ if __name__ == "__main__":
                         help='Check that a _SUCCESS file exists before '
                              'processing files in a subfolder')
     parser.add_argument('--input_format', type=str, default='TF_RECORD',
-                        help='input format: [TF_RECORD|CSV]')
+                        help='input format: [TF_RECORD|CSV_DICT]')
     parser.add_argument('--input_file_wildcard', type=str, default='',
                         help='the wildcard filter for input file')
     parser.add_argument('--single_subfolder', action="store_true",
@@ -54,7 +54,7 @@ if __name__ == "__main__":
                         choices=['raw_data', 'data_block'],
                         help='output type of data')
     parser.add_argument('--output_format', type=str, default='TF_RECORD',
-                        help='output format: [TF_RECORD|CSV]')
+                        help='output format: [TF_RECORD|CSV_DICT]')
     parser.add_argument("--compressed_type", type=str, default='',
                         choices=['', 'GZIP'],
                         help='the compressed type of output data block')
