@@ -27,7 +27,7 @@ class DataKeyword:
 
 class FileFormat:
     TF_RECORD = "TF_RECORD"
-    CSV = "CSV"
+    CSV = "CSV_DICT"
 
     @classmethod
     def check_format(cls, in_type):

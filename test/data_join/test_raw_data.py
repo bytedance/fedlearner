@@ -166,7 +166,7 @@ class TestDataGenerator(object):
                     eids.append(str(example_id))
                 etime_eid_dict[event_times[-1]] = [str(example_id)]
                 example_id += 1
-            if input_format == "CSV":
+            if input_format == "CSV_DICT":
                 filename = self._generate_csv_partition(
                     output_dir, partition_id,
                     eids, event_times, is_miss, is_wrong)
@@ -298,7 +298,7 @@ class RawDataTests(unittest.TestCase):
         processor.stop()
 
         total_num = self._num_partition * self._num_item_per_partition
-        if output_format == "CSV":
+        if output_format == "CSV_DICT":
             file_paths = []
             for file in gfile.ListDirectory(output_path):
                 if file.endswith("csv"):
@@ -319,10 +319,10 @@ class RawDataTests(unittest.TestCase):
         self._test_raw_data("TF_RECORD", "TF_RECORD")
 
     def test_from_csv_to_tfrecord(self):
-        self._test_raw_data("CSV", "TF_RECORD")
+        self._test_raw_data("CSV_DICT", "TF_RECORD")
 
     def test_from_csv_to_csv(self):
-        self._test_raw_data("CSV", "CSV")
+        self._test_raw_data("CSV_DICT", "CSV_DICT")
 
     def _test_dirty_input(self, input_format, is_miss, is_wrong):
         # generate test data
@@ -361,7 +361,7 @@ class RawDataTests(unittest.TestCase):
         self._test_dirty_input("TF_RECORD", is_miss=True, is_wrong=False)
 
     def test_missed_field_csv(self):
-        self._test_dirty_input("CSV", is_miss=True, is_wrong=False)
+        self._test_dirty_input("CSV_DICT", is_miss=True, is_wrong=False)
 
     def test_wrong_field_tfrecord(self):
         self._test_dirty_input("TF_RECORD", is_miss=False, is_wrong=True)
