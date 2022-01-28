@@ -50,6 +50,8 @@ function make_custom_env() {
     export ISV_SVN=`get_env isv_svn`
     # network proxy
     unset http_proxy https_proxy
+    jq ' .sgx_mrs[0].mr_enclave = ''"'`get_env mr_enclave`'" | .sgx_mrs[0].mr_signer = ''"'`get_env mr_signer`'" ' \
+        $GRPC_PATH/examples/dynamic_config.json > ./dynamic_config.json
 }
 
 make_custom_env 4
