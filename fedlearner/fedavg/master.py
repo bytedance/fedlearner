@@ -86,7 +86,7 @@ class _Master:
 
         if self._save_filepath:
             filepath = os.path.join(self._save_filepath, str(self._timestamp))
-            self._model.save(filepath)
+            self._model.save(filepath, save_format='tf')
 
     def _done(self):
         logging.debug("master quit")
