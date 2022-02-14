@@ -50,6 +50,7 @@ else
 fi
 
 cd ${ROLE}
+cp /app/sgx/gramine/CI-Examples/tensorflow_io.py ./
 
 mode=$(normalize_env_to_args "--mode" "$MODE")
 sparse_estimator=$(normalize_env_to_args "--sparse-estimator" "$SPARSE_ESTIMATOR")

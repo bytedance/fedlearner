@@ -19,4 +19,6 @@ set -ex
 export CUDA_VISIBLE_DEVICES=
 source /app/deploy/scripts/hdfs_common.sh || true
 
+cp /app/sgx/gramine/CI-Examples/tensorflow_io.py ./
+
 python -m fedlearner.trainer.parameter_server $POD_IP:50051 
