@@ -72,6 +72,7 @@ else
   pull_code ${CODE_TAR} $PWD
 fi
 cd ${ROLE}
+cp /app/sgx/gramine/CI-Examples/tensorflow_io.py ./
 
 python main.py --master \
     --application-id=$APPLICATION_ID \
