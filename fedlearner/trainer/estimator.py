@@ -170,13 +170,9 @@ class FLEstimator(object):
         self._input_hooks = []
 
     def _get_features_and_labels_from_input_fn(self, input_fn, mode):
-        if mode == 'train':
-            features, labels, input_hooks = parse_input_fn_result(
-                input_fn(self._bridge, self._trainer_master))
-            self._input_hooks = input_hooks
-        else:  # eval
-            dataset = input_fn(self._bridge, self._trainer_master)
-            features, labels = dataset.make_one_shot_iterator().get_next()
+        features, labels, input_hooks = parse_input_fn_result(
+            input_fn(self._bridge, self._trainer_master))
+        self._input_hooks = input_hooks
         return features, labels
 
     def _get_model_spec(self, features, labels, mode):
@@ -265,6 +261,9 @@ class FLEstimator(object):
                 all_hooks.extend(spec.evaluation_hooks)
             final_ops_hook = tf.train.FinalOpsHook(eval_dict)
             all_hooks.append(final_ops_hook)
+
+            if self._input_hooks:
+                all_hooks.extend(self._input_hooks)
 
             session_creator = tf.train.WorkerSessionCreator(
                 master=self._cluster_server.target,
