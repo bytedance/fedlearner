@@ -170,9 +170,13 @@ class FLEstimator(object):
         self._input_hooks = []
 
     def _get_features_and_labels_from_input_fn(self, input_fn, mode):
-        features, labels, input_hooks = parse_input_fn_result(
-            input_fn(self._bridge, self._trainer_master))
-        self._input_hooks = input_hooks
+        if mode == 'train':
+            features, labels, input_hooks = parse_input_fn_result(
+                input_fn(self._bridge, self._trainer_master))
+            self._input_hooks = input_hooks
+        else:  # eval
+            dataset = input_fn(self._bridge, self._trainer_master)
+            features, labels = dataset.make_one_shot_iterator().get_next()
         return features, labels
 
     def _get_model_spec(self, features, labels, mode):
