@@ -22,7 +22,7 @@ enclave_size = "16G"
 thread_num = 512
 rpc_thread_num = 0
 protected_files_key = "ffeeddccbbaa99887766554433221100"
-allowed_files = [ "file:main.py", "file:config.py", "file:tensorflow_io.py", "file:/data/", "file:/usr/lib/python3.6/", "file:/usr/lib/python3/dist-packages/", "file:/usr/local/lib/python3.6/dist-packages/", "file:/usr/lib/ssl/openssl.cnf", "file:/usr/lib/gcc", "file:/usr/bin/ld", "file:/usr/bin/gcc", "file:/usr/bin/objdump", "file:/etc/ethers", "file:/etc/hosts", "file:/etc/group", "file:/etc/passwd", "file:/etc/ld.so.conf", "file:/etc/gai.conf", "file:/etc/host.conf", "file:/etc/resolv.conf", "file:/etc/nsswitch.conf", "file:/etc/sgx_default_qcnl.conf", "file:/etc/ssl/certs/ca-certificates.crt", "file:/proc/stat", "file:/tmp/", "file:/root/.keras/keras.json", "file:dynamic_config.json",]
+allowed_files = [ "file:tensorflow_io.py", "file:main.py", "file:config.py", "file:/data/", "file:/usr/lib/python3.6/", "file:/usr/lib/python3/dist-packages/", "file:/usr/local/lib/python3.6/dist-packages/", "file:/usr/lib/ssl/openssl.cnf", "file:/usr/lib/gcc", "file:/usr/bin/ld", "file:/usr/bin/gcc", "file:/usr/bin/objdump", "file:/etc/ethers", "file:/etc/hosts", "file:/etc/group", "file:/etc/passwd", "file:/etc/ld.so.conf", "file:/etc/gai.conf", "file:/etc/host.conf", "file:/etc/resolv.conf", "file:/etc/nsswitch.conf", "file:/etc/sgx_default_qcnl.conf", "file:/etc/ssl/certs/ca-certificates.crt", "file:/proc/stat", "file:/tmp/", "file:/root/.keras/keras.json", "file:dynamic_config.json",]
 isvprodid = 0
 isvsvn = 0
 require_avx = false
@@ -3625,19 +3625,19 @@ sha256 = "21f2deb4e7c3ee50e8315a38a63684f59b1ee8b70f88ee955764e7142522c963"
 
 [[sgx.trusted_files]]
 uri = "file:/usr/lib/x86_64-linux-gnu/libmysqlclient.a"
-sha256 = "58d79b25c36064b86d801e947c52da5804468b38f814a44a91556330a9993ce7"
+sha256 = "4fe458957f305839eb3fe47e6f392d4463a8698d262a83adf45b36b417cc356a"
 
 [[sgx.trusted_files]]
 uri = "file:/usr/lib/x86_64-linux-gnu/libmysqlclient.so"
-sha256 = "d4fff48e7085e733f1da813ee4f4e42eaee820fea6e30be25f81a773f5ba90f4"
+sha256 = "3c65a4b6392e013994f954cde19e3eb68634440ee9d11aa7eda92f87ba4e7792"
 
 [[sgx.trusted_files]]
 uri = "file:/usr/lib/x86_64-linux-gnu/libmysqlclient.so.20"
-sha256 = "d4fff48e7085e733f1da813ee4f4e42eaee820fea6e30be25f81a773f5ba90f4"
+sha256 = "3c65a4b6392e013994f954cde19e3eb68634440ee9d11aa7eda92f87ba4e7792"
 
 [[sgx.trusted_files]]
-uri = "file:/usr/lib/x86_64-linux-gnu/libmysqlclient.so.20.3.23"
-sha256 = "d4fff48e7085e733f1da813ee4f4e42eaee820fea6e30be25f81a773f5ba90f4"
+uri = "file:/usr/lib/x86_64-linux-gnu/libmysqlclient.so.20.3.24"
+sha256 = "3c65a4b6392e013994f954cde19e3eb68634440ee9d11aa7eda92f87ba4e7792"
 
 [[sgx.trusted_files]]
 uri = "file:/usr/lib/x86_64-linux-gnu/libnettle.so.6"
@@ -7861,7 +7861,7 @@ sha256 = "7edb0312849446b7db12c5f4140c9a6e498280113de63e114783ce5554711602"
 
 [[sgx.trusted_files]]
 uri = "file:/usr/lib/x86_64-linux-gnu/pkgconfig/mysqlclient.pc"
-sha256 = "6f5ca6c08b881bc69e0476b362ce543baf64b22ec694086e4f8d0bbfa597c3b5"
+sha256 = "6a33010de6a877f4f039392d1f3bb2a0355001eac69628abd45fc2b4447ff4f1"
 
 [[sgx.trusted_files]]
 uri = "file:/usr/lib/x86_64-linux-gnu/pkgconfig/openssl.pc"
@@ -8030,12 +8030,12 @@ type = "chroot"
 path = "/etc"
 uri = "file:/etc"
 
-[fs.mount.data]
-type = "chroot"
-path = "/data"
-uri = "file:/data"
-
 [fs.mount.keras]
 type = "chroot"
 path = "/root/.keras/keras.json"
 uri = "file:/root/.keras/keras.json"
+
+[fs.mount.data]
+type = "chroot"
+path = "/data"
+uri = "file:/data"
