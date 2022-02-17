@@ -21,7 +21,7 @@ train_from_keras_model(model,
                        x,
                        y,
                        batch_size=30,
-                       epochs=2,
+                       epochs=1,
                        fl_name=fl_name,
                        fl_cluster=fl_cluster,
                        steps_per_sync=10)

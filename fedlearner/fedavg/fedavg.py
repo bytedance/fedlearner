@@ -1,7 +1,10 @@
 import os
 import tensorflow as tf
+import numpy as np
 from fedlearner.cluster.cluster_spec import FLClusterSpec
+from fedlearner.common import metrics
 from .master import LeaderMaster, FollowerMaster
+from ._global_context import global_context as _gtx
 
 
 class MasterControlKerasCallback(tf.keras.callbacks.Callback):
@@ -21,6 +24,22 @@ class MasterControlKerasCallback(tf.keras.callbacks.Callback):
 
     def on_train_batch_end(self, batch, logs=None):
         self._master.on_train_batch_end()
+        self.emit_metrics(logs)
+
+    def emit_metrics(self, logs):
+        if 'batch' not in logs:
+            return
+        global_step = logs['batch']
+
+        stats_pipe = _gtx.stats_client.pipeline()
+        stats_pipe.gauge("trainer.metric_global_step", global_step)
+        for key, value in logs.items():
+            if key in ('size', 'batch'):
+                continue
+            stats_pipe.gauge("trainer.metric_value",
+                             value, tags={"metric": key})
+            metrics.emit_store(name=key, value=logs[key])
+        stats_pipe.send()
 
 
 def train_from_keras_model(model,

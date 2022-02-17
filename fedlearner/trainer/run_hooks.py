@@ -94,7 +94,7 @@ class GlobalStepMetricTensorHook(tf.train.SessionRunHook):
                            tags={"metric": key})
 
                 # for compatibility, also write to metrics(es)
-                metrics.emit_store(name=key, value=value, tags={})
+                metrics.emit_store(name=key, value=value)
 
 
 class StepMetricsHook(GlobalStepMetricTensorHook):
