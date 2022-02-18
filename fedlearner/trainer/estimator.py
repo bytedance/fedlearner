@@ -262,6 +262,9 @@ class FLEstimator(object):
             final_ops_hook = tf.train.FinalOpsHook(eval_dict)
             all_hooks.append(final_ops_hook)
 
+            if self._input_hooks:
+                all_hooks.extend(self._input_hooks)
+
             session_creator = tf.train.WorkerSessionCreator(
                 master=self._cluster_server.target,
                 config=self._cluster_server.cluster_config)
