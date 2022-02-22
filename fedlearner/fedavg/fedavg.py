@@ -1,9 +1,8 @@
 import os
 import tensorflow as tf
-import numpy as np
-from fedlearner.cluster.cluster_spec import FLClusterSpec
 from fedlearner.common import metrics
 from .master import LeaderMaster, FollowerMaster
+from .cluster.cluster_spec import FLClusterSpec
 from ._global_context import global_context as _gtx
 
 
@@ -12,33 +11,43 @@ class MasterControlKerasCallback(tf.keras.callbacks.Callback):
     def __init__(self, master):
         self._master = master
         super().__init__()
+        self._global_step = None
+        self._metrics = {}
 
     def on_train_begin(self, logs):
         self._master.on_train_begin()
 
     def on_train_end(self, logs):
         self._master.on_train_end()
+        self.emit_metrics()
 
     def on_train_batch_begin(self, batch, logs=None):
         self._master.on_train_batch_begin()
 
     def on_train_batch_end(self, batch, logs=None):
         self._master.on_train_batch_end()
-        self.emit_metrics(logs)
+        self.update_metrics(logs)
 
-    def emit_metrics(self, logs):
+    def update_metrics(self, logs):
         if 'batch' not in logs:
             return
-        global_step = logs['batch']
 
+        self._global_step = logs['batch']
+        self._metrics = logs
+        if self._global_step % 10 == 0:
+            self.emit_metrics()
+
+    def emit_metrics(self):
+        if self._global_step is None:
+            return
         stats_pipe = _gtx.stats_client.pipeline()
-        stats_pipe.gauge("trainer.metric_global_step", global_step)
-        for key, value in logs.items():
+        stats_pipe.gauge("trainer.metric_global_step", self._global_step)
+        for key, value in self._metrics.items():
             if key in ('size', 'batch'):
                 continue
             stats_pipe.gauge("trainer.metric_value",
                              value, tags={"metric": key})
-            metrics.emit_store(name=key, value=logs[key])
+            metrics.emit_store(name=key, value=value)
         stats_pipe.send()
 
 
@@ -73,10 +82,11 @@ def train_from_keras_model(model,
     master = master_class(model, fl_name, fl_cluster_spec, steps_per_sync,
                           save_filepath)
     master.start()
-    model.fit(x,
-              y,
-              batch_size=batch_size,
-              epochs=epochs,
-              callbacks=[MasterControlKerasCallback(master)])
-
+    history = model.fit(x,
+                        y,
+                        batch_size=batch_size,
+                        epochs=epochs,
+                        callbacks=[MasterControlKerasCallback(master)])
     master.wait()
+
+    return history

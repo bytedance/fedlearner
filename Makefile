@@ -25,7 +25,7 @@ protobuf:
 
 	python -m grpc_tools.protoc -I. \
 		--python_out=. \
-		fedlearner/cluster/cluster.proto
+		fedlearner/fedavg/cluster/cluster.proto
 	python -m grpc_tools.protoc -I. \
 		--python_out=. \
 		--grpc_python_out=. \
