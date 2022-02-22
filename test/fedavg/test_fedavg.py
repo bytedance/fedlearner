@@ -77,7 +77,7 @@ class TestFedavgTrain(unittest.TestCase):
         l_thread.start()
         f_thread.start()
         l_thread.join()
-        l_thread.join()
+        f_thread.join()
 
     def tearDown(self):
         assert len(self._l_eval_result) == 2
