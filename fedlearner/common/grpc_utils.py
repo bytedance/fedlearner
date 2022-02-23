@@ -1,4 +1,3 @@
-import os
 import time
 import collections
 import grpc
@@ -76,41 +75,41 @@ def call_with_retry(call, max_retry_times=None, retry_interval=1):
                 raise e
 
 
-def remote_insecure_channel(address, options=None, compression=None):
-    EGRESS_URL = os.getenv('EGRESS_URL', None)
-    EGRESS_HOST = os.environ.get('EGRESS_HOST', None)
-    EGRESS_DOMAIN = os.environ.get('EGRESS_DOMAIN', None)
-    if not EGRESS_URL:
-        return grpc.insecure_channel(address, options, compression)
-
-    options = list(options) if options else list()
-    default_authority = EGRESS_HOST or address
-    options.append(('grpc.default_authority', default_authority))
-    channel = grpc.insecure_channel(EGRESS_URL, options, compression)
-
-    if EGRESS_DOMAIN:
-        address = address + '.' + EGRESS_DOMAIN
-        channel = grpc.intercept_channel(
-            channel, add_metadata_interceptor({'x-host': address}))
-
-    return channel
-
-
-def add_metadata_interceptor(headers):
-    if not isinstance(headers, dict):
-        raise TypeError("headers must be a dict")
-    headers = list(headers.items())
-
-    def add_metadata_fn(client_call_details, request_iterator,
-                        request_streaming, response_streaming):
-        metadata = list(client_call_details.metadata or [])
-        metadata.extend(headers)
-        client_call_details = _ClientCallDetails(
-            client_call_details.method, client_call_details.timeout, metadata,
-            client_call_details.credentials)
-        return client_call_details, request_iterator, None
-
-    return _GenericClientInterceptor(add_metadata_fn)
+#def remote_insecure_channel(address, options=None, compression=None):
+#    EGRESS_URL = os.getenv('EGRESS_URL', None)
+#    EGRESS_HOST = os.environ.get('EGRESS_HOST', None)
+#    EGRESS_DOMAIN = os.environ.get('EGRESS_DOMAIN', None)
+#    if not EGRESS_URL:
+#        return grpc.insecure_channel(address, options, compression)
+#
+#    options = list(options) if options else list()
+#    default_authority = EGRESS_HOST or address
+#    options.append(('grpc.default_authority', default_authority))
+#    channel = grpc.insecure_channel(EGRESS_URL, options, compression)
+#
+#    if EGRESS_DOMAIN:
+#        address = address + '.' + EGRESS_DOMAIN
+#        channel = grpc.intercept_channel(
+#            channel, add_metadata_interceptor({'x-host': address}))
+#
+#    return channel
+#
+#
+#def add_metadata_interceptor(headers):
+#    if not isinstance(headers, dict):
+#        raise TypeError("headers must be a dict")
+#    headers = list(headers.items())
+#
+#    def add_metadata_fn(client_call_details, request_iterator,
+#                        request_streaming, response_streaming):
+#        metadata = list(client_call_details.metadata or [])
+#        metadata.extend(headers)
+#        client_call_details = _ClientCallDetails(
+#            client_call_details.method, client_call_details.timeout, metadata,
+#            client_call_details.credentials)
+#        return client_call_details, request_iterator, None
+#
+#    return _GenericClientInterceptor(add_metadata_fn)
 
 
 class _ClientCallDetails(

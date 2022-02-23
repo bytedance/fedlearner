@@ -1,9 +1,9 @@
 import os
 import tensorflow as tf
 from fedlearner.common import metrics
-from .master import LeaderMaster, FollowerMaster
-from .cluster.cluster_spec import FLClusterSpec
-from ._global_context import global_context as _gtx
+from fedlearner.fedavg.master import LeaderMaster, FollowerMaster
+from fedlearner.fedavg.cluster.cluster_spec import FLClusterSpec
+from fedlearner.fedavg._global_context import global_context as _gtx
 
 
 class MasterControlKerasCallback(tf.keras.callbacks.Callback):

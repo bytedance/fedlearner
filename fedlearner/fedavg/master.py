@@ -8,6 +8,7 @@ import numpy as np
 
 import fedlearner.common.fl_logging as logging
 import fedlearner.common.grpc_utils as grpc_utils
+from fedlearner.proxy.channel import make_insecure_channel, ChannelType
 from .training_service_pb2 import \
     JoinRequest, JoinResponse, QuitRequest, QuitResponse, \
     PullRequest, PullResponse, PushRequest, PushResponse, Weight, Status
@@ -414,8 +415,8 @@ class FollowerMaster(_Master):
         self._leader = self._fl_cluster_spec.leader
 
     def start(self):
-        self._grpc_channel = \
-            grpc_utils.remote_insecure_channel(self._leader.address)
+        self._grpc_channel = make_insecure_channel(
+                self._leader.address, ChannelType.REMOTE)
         self._grpc_client = TrainingServiceStub(self._grpc_channel)
 
     def wait(self):
