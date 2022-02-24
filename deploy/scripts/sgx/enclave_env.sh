@@ -44,3 +44,14 @@ function make_custom_env() {
     jq ' .sgx_mrs[0].mr_enclave = ''"'`get_env mr_enclave`'" | .sgx_mrs[0].mr_signer = ''"'`get_env mr_signer`'" ' \
         $GRPC_PATH/examples/dynamic_config.json > ./dynamic_config.json
 }
+
+function generate_token() {
+    cd /gramine/CI-Examples/generate-token/
+    ./generate.sh
+    cp python.sig /app/sgx/token/
+    cp python.token /app/sgx/token/
+    cp python.manifest.sgx /app/sgx/token/
+    cd -
+}
+
+generate_token
