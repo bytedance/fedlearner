@@ -48,6 +48,7 @@ function make_custom_env() {
 function generate_token() {
     cd /gramine/CI-Examples/generate-token/
     ./generate.sh
+    mkdir -p /app/sgx/token/
     cp python.sig /app/sgx/token/
     cp python.token /app/sgx/token/
     cp python.manifest.sgx /app/sgx/token/
