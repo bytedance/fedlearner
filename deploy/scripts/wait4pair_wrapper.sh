@@ -12,6 +12,7 @@ while [[ true ]]; do
 		export PEER_ADDR=`cat ${pair}`
 		break
 	else
+		echo "still waiting for peer addr"
 		sleep 1
 	fi
 done
