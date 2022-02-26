@@ -1,0 +1,68 @@
+syntax = "proto3";
+
+package fedlearner.fedavg;
+
+service TrainingService {
+  rpc Join(JoinRequest) returns (JoinResponse);
+  rpc Quit(QuitRequest) returns (QuitResponse);
+
+  rpc Pull(PullRequest) returns (PullResponse);
+  rpc Push(PushRequest) returns (PushResponse);
+}
+
+message Status {
+  enum Code {
+    OK = 0;
+    ERROR = 1;
+    NOT_READY = 2;
+  }
+  Code code = 1;
+  string message = 2;
+}
+
+message JoinRequest {
+  string name = 1;
+}
+
+message JoinResponse {
+  Status status = 1;
+}
+
+message QuitRequest {
+  string name = 1;
+}
+
+message QuitResponse {
+  Status status = 1;
+}
+
+message PullRequest {
+  string name = 1;
+  int64 version = 2;
+  bool is_last_pull = 3;
+}
+
+message PullResponse {
+  Status status = 1;
+  repeated Weight weights = 2;
+  int64 version = 3;
+  int64 timestamp = 4;
+}
+
+message PushRequest {
+  string name = 1;
+  int64 step = 2;
+  repeated Weight weights = 3;
+  int64 version = 4;
+  bool is_train_end = 5;
+}
+
+message PushResponse {
+  Status status = 1;
+  int64 version = 2;
+}
+
+message Weight {
+  string name = 1;
+  bytes ndarray = 2;
+}

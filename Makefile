@@ -23,6 +23,14 @@ protobuf:
 		--grpc_python_out=. \
 		protocols/fedlearner/channel/*.proto
 
+	python -m grpc_tools.protoc -I. \
+		--python_out=. \
+		fedlearner/fedavg/cluster/cluster.proto
+	python -m grpc_tools.protoc -I. \
+		--python_out=. \
+		--grpc_python_out=. \
+		fedlearner/fedavg/training_service.proto
+
 lint:
 	pylint --rcfile ci/pylintrc fedlearner example
 
