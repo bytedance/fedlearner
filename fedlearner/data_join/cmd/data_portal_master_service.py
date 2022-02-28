@@ -24,6 +24,7 @@ from fedlearner.common.db_client import DBClient
 from fedlearner.common.common import set_logger
 
 from fedlearner.data_join import common
+from fedlearner.data_join.common import InputPathUtil
 from fedlearner.data_join.data_portal_master import DataPortalMasterService
 
 if __name__ == "__main__":
@@ -88,11 +89,13 @@ if __name__ == "__main__":
         portal_manifest = \
             text_format.Parse(portal_manifest, dp_pb.DataPortalManifest(),
                               allow_unknown_field=True)
+
         parameter_pairs = [
+            (InputPathUtil.format_path(portal_manifest.input_base_dir),
+             InputPathUtil.format_path(args.input_base_dir)),
             (portal_manifest.data_portal_type, data_portal_type),
             (portal_manifest.output_partition_num, args.output_partition_num),
             (portal_manifest.input_file_wildcard, args.input_file_wildcard),
-            (portal_manifest.input_base_dir, args.input_base_dir),
             (portal_manifest.output_base_dir, args.output_base_dir),
             (portal_manifest.raw_data_publish_dir, args.raw_data_publish_dir)
         ]
@@ -103,6 +106,11 @@ if __name__ == "__main__":
                     "forbidden, you should create a new job to do this",
                     old, new)
                 sys.exit(-1)
+        # update if oss key changed
+        if portal_manifest.input_base_dir != args.input_base_dir:
+            portal_manifest.input_base_dir = args.input_base_dir
+            kvstore.set_data(kvstore_key, text_format. \
+                             MessageToString(portal_manifest))
 
     options = dp_pb.DataPotraMasterlOptions(
         use_mock_etcd=use_mock_etcd,

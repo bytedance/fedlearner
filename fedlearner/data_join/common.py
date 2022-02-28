@@ -425,3 +425,18 @@ def convert_to_str(value):
     if isinstance(value, bytes):
         value = value.decode()
     return str(value)
+
+
+class InputPathUtil:
+    @staticmethod
+    def format_path(raw_path):
+        if raw_path.startswith('oss://'):
+            return InputPathUtil.oss_file_path(raw_path)
+        return raw_path
+
+    @staticmethod
+    def oss_file_path(raw_dir):
+        if '?' not in raw_dir:
+            return raw_dir
+        # e.g. oss://fff?key=value/foo/bar -> /foo/bar
+        return '/' + raw_dir.split("/", 3)[-1]
