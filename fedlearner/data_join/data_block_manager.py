@@ -137,13 +137,17 @@ class DataBlockBuilder(object):
     def set_join_stats_info(self, join_stats_info):
         self._data_block_meta.joiner_stats_info.MergeFrom(join_stats_info)
 
-    def finish_data_block(self, emit_logger=False, metrics_tags=None):
+    def finish_data_block(self, emit_logger=False, metrics_tags=None,
+                          set_start_time=None, set_end_time=None):
         assert self._example_num == len(self._data_block_meta.example_ids)
         self._writer.close()
         if len(self._data_block_meta.example_ids) > 0:
             self._data_block_meta.block_id = \
                     encode_block_id(self._data_source_name,
                                          self._data_block_meta)
+            if set_start_time and set_end_time:
+                self._data_block_meta.start_time = set_start_time
+                self._data_block_meta.end_time = set_end_time
             data_block_path = os.path.join(
                     self._get_data_block_dir(),
                     encode_data_block_fname(

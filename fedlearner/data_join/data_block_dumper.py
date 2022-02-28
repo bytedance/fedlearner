@@ -170,8 +170,14 @@ class DataBlockDumperManager(object):
                     return meta.indices[match_index] == index
                 return example_id == meta.example_ids[match_index]
 
+            set_end_time, set_start_time = None, None
             for (index, item) in self._raw_data_visitor:
                 example_id = item.example_id
+                if self._data_block_builder_options.encode_by_leader_time:
+                    if not set_end_time or item.event_time > set_end_time:
+                        set_end_time = item.event_time
+                    if not set_start_time or item.event_time < set_start_time:
+                        set_start_time = item.event_time
                 joined = False
                 # Elements in meta.example_ids maybe duplicated
                 while match_index < example_num and \
@@ -197,7 +203,9 @@ class DataBlockDumperManager(object):
                     )
                 traceback.print_stack()
                 os._exit(-1) # pylint: disable=protected-access
-            dumped_meta = data_block_builder.finish_data_block(True)
+            dumped_meta = data_block_builder.finish_data_block(
+                True, set_start_time=set_start_time,
+                set_end_time=set_end_time)
             self._optional_stats.emit_optional_stats()
             assert dumped_meta == meta, "the generated dumped meta should "\
                                         "be the same with input mata"

@@ -55,6 +55,8 @@ if [ -n "$JOIN_KEY_MAPPER" ]; then
     join_key_mapper=$(normalize_env_to_args '--join_key_mapper' "${mapper[0]}")
 fi
 
+data_block_encode_by_leader_time=$(normalize_env_to_args '--data_block_encode_by_leader_time' ${DATA_BLOCK_ENCODE_BY_LEADER_TIME})
+
 python -m fedlearner.data_join.cmd.data_join_worker_service \
     $PEER_ADDR \
     $MASTER_POD_NAMES \
@@ -67,4 +69,5 @@ python -m fedlearner.data_join.cmd.data_join_worker_service \
     $data_block_builder $data_block_compressed_type \
     $kvstore_type $max_conversion_delay \
     $enable_negative_example_generator $negative_sampling_rate \
-    $join_expr $join_key_mapper $optional_fields $raw_data_cache_type $negative_sampling_filter_expr
+    $join_expr $join_key_mapper $optional_fields $raw_data_cache_type $negative_sampling_filter_expr \
+    $data_block_encode_by_leader_time
