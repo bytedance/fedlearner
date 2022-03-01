@@ -40,7 +40,7 @@ python -m fedlearner.data_join.cmd.prepare_launch_data_join_cli \
     --raw_data_sub_dir=$RAW_DATA_SUB_DIR \
     $kvstore_type
 
-taskset -c 0-3 stdbuf -o0 gramine-sgx python -m fedlearner.data_join.cmd.data_join_master_service \
+python -m fedlearner.data_join.cmd.data_join_master_service \
     $PEER_ADDR \
     --listen_port=50051 \
     --data_source_name=$APPLICATION_ID $BATCH_MODE \

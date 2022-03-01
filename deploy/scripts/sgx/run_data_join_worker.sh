@@ -60,7 +60,7 @@ unset HTTPS_PROXY https_proxy http_proxy ftp_proxy
 
 make_custom_env 4
 
-taskset -c 0-3 stdbuf -o0 gramine-sgx python -m fedlearner.data_join.cmd.data_join_worker_service \
+python -m fedlearner.data_join.cmd.data_join_worker_service \
     $PEER_ADDR \
     $MASTER_POD_NAMES \
     $INDEX \
