@@ -18,6 +18,9 @@ set -ex
 
 export CUDA_VISIBLE_DEVICES=
 source /app/deploy/scripts/hdfs_common.sh || true
+source /app/deploy/scripts/env_to_args.sh
+
+kvstore_type=$(normalize_env_to_args '--kvstore_type' $KVSTORE_TYPE)
 
 source /app/deploy/scripts/sgx/enclave_env.sh
 cp /app/sgx/gramine/CI-Examples/tensorflow_io.py ./
@@ -26,4 +29,19 @@ unset HTTPS_PROXY https_proxy http_proxy ftp_proxy
 
 make_custom_env 4
 
-taskset -c 0-3 stdbuf -o0 gramine-sgx python -m fedlearner.trainer.parameter_server $POD_IP:50051 
+python -m fedlearner.data_join.cmd.prepare_launch_data_join_cli \
+    --data_source_name=$APPLICATION_ID \
+    --partition_num=$PARTITION_NUM \
+    --start_time=$START_TIME \
+    --end_time=$END_TIME \
+    --negative_sampling_rate=$NEGATIVE_SAMPLING_RATE \
+    --role=$ROLE \
+    --output_base_dir=$OUTPUT_BASE_DIR \
+    --raw_data_sub_dir=$RAW_DATA_SUB_DIR \
+    $kvstore_type
+
+python -m fedlearner.data_join.cmd.data_join_master_service \
+    $PEER_ADDR \
+    --listen_port=50051 \
+    --data_source_name=$APPLICATION_ID $BATCH_MODE \
+    $kvstore_type

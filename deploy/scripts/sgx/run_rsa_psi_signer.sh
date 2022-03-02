@@ -18,12 +18,20 @@ set -ex
 
 export CUDA_VISIBLE_DEVICES=
 source /app/deploy/scripts/hdfs_common.sh || true
+source /app/deploy/scripts/env_to_args.sh
 
-source /app/deploy/scripts/sgx/enclave_env.sh
+slow_sign_threshold=$(normalize_env_to_args "--slow_sign_threshold" $SLOW_SIGN_THRESHOLD)
+worker_num=$(normalize_env_to_args "--worker_num" $WORKER_NUM)
+signer_offload_processor_number=$(normalize_env_to_args "--signer_offload_processor_number" $SIGNER_OFFLOAD_PROCESSOR_NUMBER)
+
+# Turn off display to avoid RSA_KEY_PEM showing in log
+set +x
+
 cp /app/sgx/gramine/CI-Examples/tensorflow_io.py ./
-cp /app/sgx/token/* ./
 unset HTTPS_PROXY https_proxy http_proxy ftp_proxy
 
-make_custom_env 4
-
-taskset -c 0-3 stdbuf -o0 gramine-sgx python -m fedlearner.trainer.parameter_server $POD_IP:50051 
+python -m fedlearner.data_join.cmd.rsa_psi_signer_service \
+    --listen_port=50051 \
+    --rsa_private_key_path="$RSA_PRIVATE_KEY_PATH" \
+    --rsa_privet_key_pem="$RSA_KEY_PEM" \
+    $slow_sign_threshold $worker_num $signer_offload_processor_number

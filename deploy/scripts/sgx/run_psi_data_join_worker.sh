@@ -16,14 +16,13 @@
 
 set -ex
 
-export CUDA_VISIBLE_DEVICES=
-source /app/deploy/scripts/hdfs_common.sh || true
+psi_data_join_leader_worker_cmd=/app/deploy/scripts/sgx/run_psi_data_join_leader_worker_v2.sh
+psi_data_join_follower_worker_cmd=/app/deploy/scripts/sgx/run_psi_data_join_follower_worker_v2.sh
 
-source /app/deploy/scripts/sgx/enclave_env.sh
-cp /app/sgx/gramine/CI-Examples/tensorflow_io.py ./
-cp /app/sgx/token/* ./
-unset HTTPS_PROXY https_proxy http_proxy ftp_proxy
-
-make_custom_env 4
-
-taskset -c 0-3 stdbuf -o0 gramine-sgx python -m fedlearner.trainer.parameter_server $POD_IP:50051 
+export INPUT_FILE_SUBSCRIBE_DIR=$RAW_DATA_SUB_DIR
+export RAW_DATA_PUBLISH_DIR="portal_publish_dir/${APPLICATION_ID}_psi_preprocess"
+if [ $ROLE == "leader" ]; then
+    ${psi_data_join_leader_worker_cmd}
+else
+    ${psi_data_join_follower_worker_cmd}
+fi

@@ -16,14 +16,17 @@
 
 set -ex
 
-export CUDA_VISIBLE_DEVICES=
-source /app/deploy/scripts/hdfs_common.sh || true
+data_join_master_cmd=/app/deploy/scripts/sgx/run_data_join_master.sh
 
-source /app/deploy/scripts/sgx/enclave_env.sh
-cp /app/sgx/gramine/CI-Examples/tensorflow_io.py ./
-cp /app/sgx/token/* ./
-unset HTTPS_PROXY https_proxy http_proxy ftp_proxy
+export RAW_DATA_SUB_DIR="portal_publish_dir/${APPLICATION_ID}_psi_preprocess"
 
-make_custom_env 4
+# Reverse the role assignment for data join so that leader for PSI preprocessor
+# becomes follower for data join. Data join's workers get their role from
+# master so we don't need to do this for worker.
+if [ $ROLE == "leader" ]; then
+    export ROLE="follower"
+else
+    export ROLE="leader"
+fi
 
-taskset -c 0-3 stdbuf -o0 gramine-sgx python -m fedlearner.trainer.parameter_server $POD_IP:50051 
+${data_join_master_cmd}
