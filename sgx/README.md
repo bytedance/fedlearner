@@ -11,13 +11,28 @@ FL on SGX is a privacy-preserving federated machine learning framework. In this 
 
 ## Build
 
+- Develop version
+
+    ```
+    image_type=dev
+    image_tag=latest
+    ```
+
+- Release version
+
+    ```
+    image_type=release
+    image_tag=latest
+    ```
+
 ```
-./build_docker_image.sh ${tag}
+./build_docker_image.sh ${image_type} ${image_tag}
 ```
 
 # Run in container
 
 ## Test
+
 ```
 cd ${gramine}/CI-Examples/mnist
 test-ps-sgx.sh data

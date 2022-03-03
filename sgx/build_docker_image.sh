@@ -1,10 +1,16 @@
 #!/bin/bash
 set -e
 
-if  [ ! -n "$1" ] ; then
-    tag=latest
+if  [ ! -n "$2" ] ; then
+    image_tag=latest
 else
-    tag=$1
+    image_tag=$2
+fi
+
+if  [ "$1" = "release" ] ; then
+    image=fedlearner-sgx-release
+else
+    image=fedlearner-sgx-dev
 fi
 
 cd `dirname "$0"`/..
@@ -14,8 +20,8 @@ no_proxy="localhost,127.0.0.1"
 proxy_server="http://test-proxy:port"
 
 DOCKER_BUILDKIT=0 docker build \
-    -f fedlearner-sgx-dev.dockerfile \
-    -t fedlearner-sgx-dev:${tag} \
+    -f ${image}.dockerfile \
+    -t ${image}:${image_tag} \
     --network=host \
     --build-arg http_proxy=${proxy_server} \
     --build-arg https_proxy=${proxy_server} \
