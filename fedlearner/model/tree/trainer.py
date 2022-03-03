@@ -25,6 +25,7 @@ import numpy as np
 
 import tensorflow.compat.v1 as tf
 
+from fedlearner.common.argparse_util import str_as_bool
 from fedlearner.trainer.bridge import Bridge
 from fedlearner.model.tree.tree import BoostingTreeEnsamble
 from fedlearner.model.tree.trainer_master_client import LocalTrainerMasterClient
@@ -57,7 +58,8 @@ def create_argument_parser():
     parser.add_argument('--validation-data-path', type=str, default=None,
                         help='Path to validation data file. ' \
                              'Only used in train mode.')
-    parser.add_argument('--no-data', type=bool, default=False,
+    parser.add_argument('--no-data', type=str_as_bool,
+                        default=False, const=True, nargs='?',
                         help='Run prediction without data.')
     parser.add_argument('--file-ext', type=str, default='.csv',
                         help='File extension to use')
@@ -112,8 +114,8 @@ def create_argument_parser():
                         default=1,
                         help='Number of parallel threads.')
     parser.add_argument('--verify-example-ids',
-                        type=bool,
-                        default=False,
+                        type=str_as_bool,
+                        default=False, const=True, nargs='?',
                         help='If set to true, the first column of the '
                              'data will be treated as example ids that '
                              'must match between leader and follower')
@@ -127,20 +129,20 @@ def create_argument_parser():
                         help='Field names of categorical features. Feature'
                              ' values should be non-negtive integers')
     parser.add_argument('--use-streaming',
-                        type=bool,
-                        default=False,
+                        type=str_as_bool,
+                        default=False, const=True, nargs='?',
                         help='Whether to use streaming transmit.')
     parser.add_argument('--send-scores-to-follower',
-                        type=bool,
-                        default=False,
+                        type=str_as_bool,
+                        default=False, const=True, nargs='?',
                         help='Whether to send prediction scores to follower.')
     parser.add_argument('--send-metrics-to-follower',
-                        type=bool,
-                        default=False,
+                        type=str_as_bool,
+                        default=False, const=True, nargs='?',
                         help='Whether to send metrics to follower.')
     parser.add_argument('--enable-packing',
-                        type=bool,
-                        default=False,
+                        type=str_as_bool,
+                        default=False, const=True, nargs='?',
                         help='Whether to enable packing grad and hess')
 
     return parser

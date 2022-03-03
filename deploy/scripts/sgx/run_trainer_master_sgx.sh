@@ -32,18 +32,17 @@ end_date=$(normalize_env_to_args "--end-date" $END_DATE)
 shuffle=$(normalize_env_to_args "--shuffle" $SUFFLE_DATA_BLOCK)
 
 if [ -n "$CHECKPOINT_PATH" ]; then
-    checkpoint_path="--checkpoint-path=$CHECKPOINT_PATH"
+    checkpoint_path="$CHECKPOINT_PATH"
 else
-    checkpoint_path="--checkpoint-path=$OUTPUT_BASE_DIR/checkpoints"
+    checkpoint_path="$OUTPUT_BASE_DIR/checkpoints"
 fi
-load_checkpoint_path=$(normalize_env_to_args "--load-checkpoint-path" "$LOAD_CHECKPOINT_PATH")
 load_checkpoint_filename=$(normalize_env_to_args "--load-checkpoint-filename" "$LOAD_CHECKPOINT_FILENAME")
 load_checkpoint_filename_with_path=$(normalize_env_to_args "--load-checkpoint-filename-with-path" "$LOAD_CHECKPOINT_FILENAME_WITH_PATH")
 
 if [[ -n "$EXPORT_PATH" ]]; then
-    export_path="--export-path=$EXPORT_PATH"
+    export_path="$EXPORT_PATH"
 else
-    export_path="--export-path=$OUTPUT_BASE_DIR/exported_models"
+    export_path="$OUTPUT_BASE_DIR/exported_models"
 fi
 
 if [ -n "$CLUSTER_SPEC" ]; then
@@ -73,15 +72,21 @@ else
   pull_code ${CODE_TAR} $PWD
 fi
 cd ${ROLE}
+source /app/deploy/scripts/sgx/enclave_env.sh
+cp /app/sgx/gramine/CI-Examples/tensorflow_io.py ./
+cp /app/sgx/token/* ./
+unset HTTPS_PROXY https_proxy http_proxy ftp_proxy
 
-python main.py --master \
+make_custom_env 4
+
+taskset -c 0-3 stdbuf -o0 gramine-sgx python main.py --master \
     --application-id=$APPLICATION_ID \
     --data-source=$DATA_SOURCE \
     --master-addr=0.0.0.0:50051 \
     --cluster-spec="$CLUSTER_SPEC" \
-    $checkpoint_path $load_checkpoint_path \
+    --checkpoint-path=$checkpoint_path \
     $load_checkpoint_filename $load_checkpoint_filename_with_path \
-    $export_path \
+    --export-path=$export_path \
     $mode $sparse_estimator \
     $save_checkpoint_steps $save_checkpoint_secs \
     $summary_save_steps $summary_save_secs \

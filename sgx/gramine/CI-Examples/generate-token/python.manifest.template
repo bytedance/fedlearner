@@ -54,6 +54,10 @@ fs.mount.keras.type = "chroot"
 fs.mount.keras.path = "/root/.keras/keras.json"
 fs.mount.keras.uri = "file:/root/.keras/keras.json"
 
+fs.mount.data.type = "chroot"
+fs.mount.data.path = "/data"
+fs.mount.data.uri = "file:/data"
+
 # Note that Gramine also creates an internal
 # thread for handling inter-process communication (IPC), and potentially another
 # thread for asynchronous events. Therefore, the actual number of threads that
@@ -77,13 +81,13 @@ sgx.trusted_files = [
   "file:/etc/ssl/certs/ca-certificates.crt",
   "file:/etc/default/apport",
   "file:/etc/mime.types",
-  "file:make_data.py",
-  "file:leader.py",
-  "file:follower.py",
-  "file:tensorflow_io.py",
 ]
 
 sgx.allowed_files = [
+  "file:tensorflow_io.py",
+  "file:main.py",
+  "file:config.py",
+  "file:/data/",
   "file:{{ python.stdlib }}/",
   "file:{{ python.distlib }}/",
   "file:/usr/local/lib/python3.6/dist-packages/",
@@ -105,8 +109,6 @@ sgx.allowed_files = [
   "file:/etc/ssl/certs/ca-certificates.crt",
   "file:/proc/stat",
   "file:/tmp/",
-  "file:data/",
-  "file:model/",
   "file:/root/.keras/keras.json",
   "file:dynamic_config.json",
 ]

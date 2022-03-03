@@ -19,6 +19,7 @@ import threading
 
 import tensorflow.compat.v1 as tf
 from fedlearner.common import fl_logging, stats
+from fedlearner.common.argparse_util import str_as_bool
 from fedlearner.trainer.bridge import Bridge
 from fedlearner.trainer.estimator import FLEstimator
 from fedlearner.trainer.sparse_estimator import SparseFLEstimator
@@ -93,18 +94,23 @@ def create_argument_parser():
                         help='number of epoch for training, not '\
                              'support in online training')
     parser.add_argument('--shuffle',
-                        type=bool,
+                        type=str_as_bool,
+                        default=False, const=True, nargs='?',
                         help='shuffle the data block or not')
     parser.add_argument('--export-path',
                         type=str,
                         help='Path to save exported models.')
     parser.add_argument('--checkpoint-path',
                         type=str,
-                        help='Path to save and load model checkpoints.')
+                        help='path to save and load model checkpoints.')
+    parser.add_argument('--load-checkpoint-path',
+                        type=str,
+                        help='path to load model checkpoints.')
     parser.add_argument('--load-checkpoint-filename',
                         type=str,
                         help='filename to load model checkpoints, ' \
-                             'Relative path to checkpoint-path')
+                             'relative path to load-checkpoint-path ' \
+                             'or checkpoint-path')
     parser.add_argument('--load-checkpoint-filename-with-path',
                         type=str,
                         help='filename with path to load model checkpoints')
@@ -125,7 +131,8 @@ def create_argument_parser():
                         type=int,
                         help='Number of secs to save summary files.')
     parser.add_argument('--sparse-estimator',
-                        type=bool,
+                        type=str_as_bool,
+                        default=False, const=True, nargs='?',
                         help='Whether using sparse estimator.')
     parser.add_argument('--mode',
                         type=str,
@@ -293,18 +300,21 @@ def _run_local(role,
 
 def _get_checkpoint_filename_with_path(args):
     checkpoint_filename_with_path = None
+
     if args.load_checkpoint_filename_with_path:
         checkpoint_filename_with_path = args.load_checkpoint_filename_with_path
 
     elif args.load_checkpoint_filename:
-        if not args.checkpoint_path:
-            raise ValueError("checkpoint_path is required "
-                "when provide checkpoint_filename")
+        load_checkpoint_path = args.load_checkpoint_path or args.checkpoint_path
+        if not load_checkpoint_path:
+            raise ValueError("load_checkpoint_path or checkpoint_path is "
+                             "required when provide load_checkpoint_filename")
         checkpoint_filename_with_path = \
-            os.path.join(args.checkpoint_path, args.checkpoint_filename)
-    elif args.checkpoint_path:
+            os.path.join(load_checkpoint_path, args.checkpoint_filename)
+    elif args.load_checkpoint_path or args.checkpoint_path:
+        load_checkpoint_path = args.load_checkpoint_path or args.checkpoint_path
         checkpoint_filename_with_path = \
-            tf.train.latest_checkpoint(args.checkpoint_path)
+            tf.train.latest_checkpoint(load_checkpoint_path)
 
     if not checkpoint_filename_with_path:
         return None

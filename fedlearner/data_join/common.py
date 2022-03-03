@@ -302,6 +302,11 @@ class _MemUsageProxy(object, metaclass=Singleton):
         return hpy().heap().size
 
     def _update_rss_mem_usage(self):
+        use_sgx = os.getenv('SGX') == '1'
+        # cannot get Process in sgx enclave
+        if use_sgx:
+            self._rss_mem_usage = 0
+            return self._rss_mem_usage
         with self._lock:
             if time.time() - self._rss_updated_tm >= 0.25:
                 self._rss_mem_usage = psutil.Process().memory_info().rss
