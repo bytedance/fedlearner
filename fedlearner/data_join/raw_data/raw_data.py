@@ -51,6 +51,19 @@ def start_spark(app_name='my_spark_app',
         spark_files = ','.join(list(files))
         spark_builder.config('spark.files', spark_files)
 
+    # ---------- speculation related
+    # Re-launches tasks if they are running slowly in a stage
+    spark_builder.config('spark.speculation', 'true')
+    # Checks tasks to speculate every 100ms
+    spark_builder.config('spark.speculation.interval', 100)
+    # Fraction of tasks which must be complete before
+    # speculation is enabled for a particular stage.
+    spark_builder.config('spark.speculation.quantile', 0.9)
+    # How many times slower a task is than the median
+    # to be considered for speculation.
+    spark_builder.config('spark.speculation.multiplier', 2)
+    # ---------- end of speculation related
+
     if spark_config:
         # add other config params
         for key, val in spark_config.items():
