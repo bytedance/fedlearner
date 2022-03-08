@@ -509,6 +509,7 @@ def test(args, bridge, booster):
         test_one_file(
             args, bridge, booster, data_block.data_path, output_file)
 
+
 def verify_secure_predict(args, bridge):
     assert bridge is not None
 
@@ -520,17 +521,20 @@ def verify_secure_predict(args, bridge):
         bridge.send_proto('verify', msg)
         status = common_pb2.Status()
         bridge.receive_proto('status').Unpack(status)
-        assert status.code == common_pb2.STATUS_SUCCESS, f'Parameters mismatch between leader and follower\n {status.error_message}'
+        assert status.code == common_pb2.STATUS_SUCCESS,\
+            f'Parameters mismatch between leader and follower\n {status.error_message}'
     else:
         msg = tree_model_pb2.VerifySecurePredict()
         bridge.receive_proto('verify').Unpack(msg)
-        if msg.mode != args.mode or not math.isclose(msg.top_percent,args.top_percent,abs_tol=0.0001):
+        if msg.mode != args.mode or not math.isclose(msg.top_percent, args.top_percent, abs_tol=0.0001):
             err_msg = ''
             if msg.mode != args.mode:
                 err_msg += "Error: mode mismatch between leader and follower\n"
-            if not math.isclose(msg.top_percent,args.top_percent,abs_tol=0.0001):
+            if not math.isclose(msg.top_percent, args.top_percent, abs_tol=0.0001):
                 err_msg += "Error: top_percent mismatch between leader and follower\n"
-            bridge.send_proto('status', common_pb2.Status(code=common_pb2.STATUS_UNKNOWN_ERROR, error_message=err_msg))
+            bridge.send_proto('status', common_pb2.Status(
+                code=common_pb2.STATUS_UNKNOWN_ERROR,
+                error_message=err_msg))
             bridge.commit()
             raise RuntimeError(err_msg)
         bridge.send_proto('status', common_pb2.Status(code=common_pb2.STATUS_SUCCESS))
@@ -543,22 +547,21 @@ def secure_predict(args):
         if files:
             data = []
             for file in files:
-                filepath = os.path.join(args.output_path,file)
+                filepath = os.path.join(args.output_path, file)
                 reader = csv.DictReader(tf.io.gfile.GFile(filepath, 'r'))
                 for row in reader:
                     if row not in data:
                         data.append(row)
-                tf.io.gfile.remove(filepath)    
+                tf.io.gfile.remove(filepath)
             data.sort(key=lambda k: k['prediction'], reverse=True)
             top = int(len(data) * args.top_percent)
             data = data[:top]
             fieldnames = reader.fieldnames
-            writer = csv.DictWriter(tf.io.gfile.GFile(os.path.join(args.output_path,'result.output'), 'w'), fieldnames=fieldnames)
+            writer = csv.DictWriter(tf.io.gfile.GFile(os.path.join(args.output_path, 'result.output'), 'w'),
+                                    fieldnames=fieldnames)
             writer.writeheader()
             for item in data:
                 writer.writerow(item)
-
-
 
 
 def run(args):
