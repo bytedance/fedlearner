@@ -7,27 +7,24 @@ FL on SGX is a privacy-preserving federated machine learning framework. In this 
 ## Update etc
 
 1. set PCCS_URL in `configs/etc/sgx_default_qcnl.conf` 
-2. set proxy_server in `build_docker_image.sh`
+2. set proxy_server in `build_dev_docker_image.sh` and `build_release_docker_image.sh`
 
 ## Build
 
 - Develop version
 
     ```
-    image_type=dev
     image_tag=latest
+    ./build_dev_docker_image.sh ${image_tag}
     ```
 
 - Release version
 
     ```
-    image_type=release
     image_tag=latest
+    base_image=fedlearner-sgx-dev:latest
+    ./build_release_docker_image.sh ${image_tag} ${base_image}
     ```
-
-```
-./build_docker_image.sh ${image_type} ${image_tag}
-```
 
 # Run in container
 
