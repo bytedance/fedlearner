@@ -19,9 +19,13 @@ import csv
 import queue
 import logging
 import argparse
+import math
 import traceback
 import itertools
 import numpy as np
+from fedlearner.common import tree_model_pb2
+from fedlearner.common import common_pb2
+from fedlearner.common.common_pb2 import Status
 
 import tensorflow.compat.v1 as tf
 
@@ -52,7 +56,7 @@ def create_argument_parser():
     parser.add_argument('--num-workers', type=int, default=1,
                         help='total number of workers')
     parser.add_argument('--mode', type=str, default='train',
-                        help='Running mode in train, test or eval.')
+                        help='Running mode in train, test eval or secure_predict.')
     parser.add_argument('--data-path', type=str, default=None,
                         help='Path to data file.')
     parser.add_argument('--validation-data-path', type=str, default=None,
@@ -148,6 +152,10 @@ def create_argument_parser():
                         type=str,
                         default='label',
                         help='selected label name')
+    parser.add_argument('--top-percent',
+                        type=float,
+                        default=1.0,
+                        help='the percent of top N')
 
     return parser
 
@@ -501,6 +509,57 @@ def test(args, bridge, booster):
         test_one_file(
             args, bridge, booster, data_block.data_path, output_file)
 
+def verify_secure_predict(args, bridge):
+    assert bridge is not None
+
+    bridge.start()
+    if args.role == 'leader':
+        msg = tree_model_pb2.VerifySecurePredict(
+            mode=args.mode,
+            top_percent=args.top_percent)
+        bridge.send_proto('verify', msg)
+        status = common_pb2.Status()
+        bridge.receive_proto('status').Unpack(status)
+        assert status.code == common_pb2.STATUS_SUCCESS, f'Parameters mismatch between leader and follower\n {status.error_message}'
+    else:
+        msg = tree_model_pb2.VerifySecurePredict()
+        bridge.receive_proto('verify').Unpack(msg)
+        if msg.mode != args.mode or not math.isclose(msg.top_percent,args.top_percent,abs_tol=0.0001):
+            err_msg = ''
+            if msg.mode != args.mode:
+                err_msg += "Error: mode mismatch between leader and follower\n"
+            if not math.isclose(msg.top_percent,args.top_percent,abs_tol=0.0001):
+                err_msg += "Error: top_percent mismatch between leader and follower\n"
+            bridge.send_proto('status', common_pb2.Status(code=common_pb2.STATUS_UNKNOWN_ERROR, error_message=err_msg))
+            bridge.commit()
+            raise RuntimeError(err_msg)
+        bridge.send_proto('status', common_pb2.Status(code=common_pb2.STATUS_SUCCESS))
+    bridge.commit()
+
+
+def secure_predict(args):
+    if args.role == 'leader':
+        files = tf.io.gfile.listdir(args.output_path)
+        if files:
+            data = []
+            for file in files:
+                filepath = os.path.join(args.output_path,file)
+                reader = csv.DictReader(tf.io.gfile.GFile(filepath, 'r'))
+                for row in reader:
+                    if row not in data:
+                        data.append(row)
+                tf.io.gfile.remove(filepath)    
+            data.sort(key=lambda k: k['prediction'], reverse=True)
+            top = int(len(data) * args.top_percent)
+            data = data[:top]
+            fieldnames = reader.fieldnames
+            writer = csv.DictWriter(tf.io.gfile.GFile(os.path.join(args.output_path,'result.output'), 'w'), fieldnames=fieldnames)
+            writer.writeheader()
+            for item in data:
+                writer.writerow(item)
+
+
+
 
 def run(args):
     if args.verbosity == 0:
@@ -512,8 +571,8 @@ def run(args):
 
     assert args.role in ['leader', 'follower', 'local'], \
         "role must be leader, follower, or local"
-    assert args.mode in ['train', 'test', 'eval'], \
-        "mode must be train, test, or eval"
+    assert args.mode in ['train', 'test', 'eval', 'secure_predict'], \
+        "mode must be train, test, eval or secure_predict"
 
     if args.role != 'local':
         bridge = Bridge(args.role, int(args.local_addr.split(':')[1]),
@@ -537,9 +596,14 @@ def run(args):
 
         if args.load_model_path:
             booster.load_saved_model(args.load_model_path)
+        
+        verify_secure_predict(args, bridge)
 
         if args.mode == 'train':
             train(args, booster)
+        elif args.mode == 'secure_predict':
+            test(args, bridge, booster)
+            secure_predict(args)
         else:  # args.mode == 'test, eval'
             test(args, bridge, booster)
 
