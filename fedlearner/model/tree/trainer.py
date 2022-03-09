@@ -540,7 +540,7 @@ def verify_secure_predict(args, bridge):
         bridge.send_proto('status', common_pb2.Status(code=common_pb2.STATUS_SUCCESS))
     bridge.commit()
 
-
+# TODO(gezhengqiang): improve to the implementation of HE or MPC version
 def secure_predict(args):
     if args.role == 'leader':
         files = tf.io.gfile.listdir(args.output_path)
@@ -599,12 +599,12 @@ def run(args):
 
         if args.load_model_path:
             booster.load_saved_model(args.load_model_path)
-        
-        verify_secure_predict(args, bridge)
+
 
         if args.mode == 'train':
             train(args, booster)
         elif args.mode == 'secure_predict':
+            verify_secure_predict(args, bridge)
             test(args, bridge, booster)
             secure_predict(args)
         else:  # args.mode == 'test, eval'
