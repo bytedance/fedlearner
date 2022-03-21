@@ -78,7 +78,7 @@ class ExampleIdManager(visitor.IndexMetaManager):
             else:
                 self._index_metas = self._index_metas[:
                         self._anchor.last_meta.process_index+1]
-            logging.info("***** index_metas %s", self._index_metas)
+            logging.info("***** index_metas %s", str(self._index_metas))
 
     def get_next_process_index(self):
         with self._lock:
@@ -222,7 +222,7 @@ class ExampleIdManager(visitor.IndexMetaManager):
                 self._anchor = \
                     text_format.Parse(data, dj_pb.DumpedExampleIdAnchor(),
                                       allow_unknown_field=True)
-        logging.info("***** dumped example id anchor %s", self._anchor)
+        logging.info("***** dumped example id anchor %s", str(self._anchor))
         return self._anchor
 
     def _example_dumped_dir(self):

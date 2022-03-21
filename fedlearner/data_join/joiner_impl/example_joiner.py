@@ -52,7 +52,7 @@ class ExampleJoiner(object):
         else:
             stats_info = meta.joiner_stats_info
             logging.info("***** joiner latest data block meta stats info %s",
-                         stats_info)
+                         str(stats_info))
             self._joiner_stats = JoinerStats(stats_info.stats_cum_join_num,
                                              stats_info.leader_stats_index,
                                              stats_info.follower_stats_index)
@@ -154,7 +154,7 @@ class ExampleJoiner(object):
         logging.info("***** got meta %d", meta is not None)
         if meta is not None:
             try:
-                logging.info("***** got meta leader end index",
+                logging.info("***** got meta leader end index %d",
                              meta.leader_end_index)
                 self._leader_visitor.seek(meta.leader_end_index)
             except StopIteration:
