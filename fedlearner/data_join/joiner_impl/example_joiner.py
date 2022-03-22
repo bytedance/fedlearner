@@ -51,6 +51,8 @@ class ExampleJoiner(object):
             self._joiner_stats = JoinerStats(0, -1, -1)
         else:
             stats_info = meta.joiner_stats_info
+            logging.info("***** joiner latest data block meta stats info %s",
+                         str(stats_info))
             self._joiner_stats = JoinerStats(stats_info.stats_cum_join_num,
                                              stats_info.leader_stats_index,
                                              stats_info.follower_stats_index)
@@ -149,8 +151,11 @@ class ExampleJoiner(object):
 
     def _sync_state(self):
         meta = self._data_block_manager.get_lastest_data_block_meta()
+        logging.info("***** got meta %d", meta is not None)
         if meta is not None:
             try:
+                logging.info("***** got meta leader end index %d",
+                             meta.leader_end_index)
                 self._leader_visitor.seek(meta.leader_end_index)
             except StopIteration:
                 logging.warning("leader visitor finished")

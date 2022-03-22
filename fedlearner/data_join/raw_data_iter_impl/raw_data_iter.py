@@ -119,6 +119,8 @@ class RawDataIter(object):
                     target_index, self._index_meta.start_index)
                 )
         try:
+            logging.info("***** raw data iter seek from %d to target %d",
+                         self._index, target_index)
             if self._index == target_index:
                 return
             if self._iter_failed or self._index > target_index:

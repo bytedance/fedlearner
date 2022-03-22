@@ -212,7 +212,7 @@ class StreamExampleJoiner(ExampleJoiner):
             return False
         leader_qt = self._leader_join_window.qt()
         follower_qt = self._follower_join_window.qt()
-        logging.info("delay dump leader %s, follower %s",
+        logging.info(" delay dump leader%s, follower %s",
                      leader_qt, follower_qt)
         if leader_qt is not None and follower_qt is not None and \
                 not follower_qt < leader_qt:
@@ -341,6 +341,9 @@ class StreamExampleJoiner(ExampleJoiner):
         outdated = self._leader_join_window.committed_pt() is None \
                    or _CmpCtnt(item) < self._leader_join_window.committed_pt()
         if outdated and item.example_id not in self._joined_cache:
+            logging.info("***** evict useless unjoined item: %s %d",
+                         item.example_id,
+                         item.event_time)
             self._optional_stats.update_stats(item, kind='unjoined')
         return outdated or item.example_id in self._joined_cache
 
@@ -348,6 +351,9 @@ class StreamExampleJoiner(ExampleJoiner):
         outdated = self._leader_join_window.qt() is None or \
                 _CmpCtnt(item) < self._leader_join_window.qt()
         if outdated:
+            logging.info("***** evict force unjoined item: %s %d",
+                         item.example_id,
+                         item.event_time)
             self._optional_stats.update_stats(item, kind='unjoined')
         return outdated
 

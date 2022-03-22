@@ -163,6 +163,8 @@ class Visitor(object):
         start_index = 0
         if process_index < len(self._index_metas):
             start_index = self._index_metas[process_index].start_index
+        logging.info("***** visitor seek to %d, %d, %d", process_index,
+                     start_index, target_index)
         return self._forward_to_target(process_index, start_index, target_index)
 
     def __iter__(self):

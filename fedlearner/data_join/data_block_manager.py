@@ -259,6 +259,8 @@ class DataBlockManager(object):
     def get_lastest_data_block_meta(self):
         with self._lock:
             self._sync_dumped_index()
+            logging.info("***** latest dumped data block meta index %d"
+                         , self._dumped_index)
             return self._sync_data_block_meta(self._dumped_index)
 
     def commit_data_block_meta(self, tmp_meta_fpath, data_block_meta):
@@ -284,6 +286,8 @@ class DataBlockManager(object):
 
     def _sync_dumped_index(self):
         if self._dumped_index is None:
+            logging.info("***** data block manager dumped index %d",
+                         self._dumped_index)
             assert self._dumping_index is None, \
                 "no index is dumping when no dumped index"
             left_index = 0
@@ -297,6 +301,8 @@ class DataBlockManager(object):
                     right_index = index - 1
             self._dumped_index = right_index
         elif self._dumping_index is not None:
+            logging.info("***** data block manager dumped index %d",
+                         self._dumping_index)
             assert self._dumping_index == self._dumped_index + 1, \
                 "the dumping index shoud be next of dumped index "\
                 "{} != {} + 1".format(self._dumping_index, self._dumped_index)

@@ -188,6 +188,7 @@ class TfRecordIter(RawDataIter):
     def _reset_iter(self, index_meta):
         if index_meta is not None:
             fpath = index_meta.fpath
+            logging.info("***** tfrecord iter reset iter to %s", fpath)
             fiter = self._inner_iter(fpath)
             item = next(fiter)
             return fiter, item
