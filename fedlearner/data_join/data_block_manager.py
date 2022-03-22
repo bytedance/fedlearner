@@ -67,9 +67,6 @@ class DataBlockBuilder(object):
         example_id = item.example_id
         if event_time is None:
             event_time = item.event_time
-        logging.info("***** append item leader_index %d, follower_index%d, "
-                     "eid %s, event time %s", leader_index, follower_index,
-                     example_id, str(event_time))
         self._data_block_meta.example_ids.append(example_id)
         if hasattr(item, 'id_type'):
             # v2
