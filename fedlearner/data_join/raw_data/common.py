@@ -52,17 +52,4 @@ class RawDataSchema:
         'example_id': ALLOWED_FIELD(InvalidBytes, "string", ["string"], True),
         'event_time': ALLOWED_FIELD(InvalidEventTime, "long",
                                     ["integer", "long"], False),
-        'index': ALLOWED_FIELD(InvalidInt, "long", ["integer", "long"], False),
-        'event_time_deep': ALLOWED_FIELD(InvalidEventTime, "long",
-                                         ["integer", "long"], False),
-        'raw_id': ALLOWED_FIELD(InvalidBytes, "string", ["string"], False),
-        'type': ALLOWED_FIELD(InvalidBytes, "string", ["string"], False),
-        'id_type': ALLOWED_FIELD(InvalidBytes, "string", ["string"], False),
-        'joined': ALLOWED_FIELD(InvalidInt, "integer",
-                                ["integer", "long"], False),
-        'click_id': ALLOWED_FIELD(InvalidBytes, "string", ["string"], False),
-        'req_id': ALLOWED_FIELD(InvalidBytes, "string", ["string"], False),
-        'label': ALLOWED_FIELD(InvalidInt, "integer",
-                               ["integer", "long"], False),
-        'cid': ALLOWED_FIELD(InvalidBytes, "string", ["string"], False)
     })
