@@ -185,5 +185,4 @@ class FeatureColumnV1(_FeatureColumn):
 
 
 class FeatureColumnV2(_FeatureColumn):
-    def __init__(self, fc_name, feature_slot):
-        super(FeatureColumnV2, self).__init__(fc_name, feature_slot)
+    pass
