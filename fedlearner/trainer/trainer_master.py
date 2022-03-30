@@ -293,9 +293,10 @@ class _TrainerMaster(tm_grpc.TrainerMasterServiceServicer):
         fl_logging.info("start session_run")
         self._session_run(estimator)
         fl_logging.info("session_run done")
-        fl_logging.info("start export_model")
-        self._export_model(estimator)
-        fl_logging.info("export_model done")
+        if self._mode == 'train':
+            fl_logging.info("start export_model")
+            self._export_model(estimator)
+            fl_logging.info("export_model done")
         self._transfer_status(tm_pb.MasterStatus.WORKER_COMPLETED,
                               tm_pb.MasterStatus.COMPLETED)
 
@@ -519,10 +520,11 @@ class LeaderTrainerMaster(_TrainerMaster):
         self._last_global_step = -1
 
         # datavisitor checkpoint hook
-        hook = _DataVisitorCheckpointHook(self._data_visitor)
-        self._add_checkpoint_listener(
-            hook.create_checkpoint_saver_listener())
-        self._add_session_hook(hook)
+        if mode == 'train':
+            hook = _DataVisitorCheckpointHook(self._data_visitor)
+            self._add_checkpoint_listener(
+                hook.create_checkpoint_saver_listener())
+            self._add_session_hook(hook)
 
         # trigger hook
         self._last_trigger_time = 0
