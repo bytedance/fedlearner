@@ -72,16 +72,21 @@ def model_fn(model, features, labels, mode):
     flt.feature.FeatureSlot.set_default_vec_optimizer(
         tf.train.AdagradOptimizer(learning_rate=0.01))
 
-    slots = [0, 1, 2, 511]
     hash_size = 101
     embed_size = 16
 
-    if args.fid_version == 2:
+    if args.fid_version == 1:
+        slots = [0, 1, 2, 511]
+    else:
         model.set_use_fid_v2(True)
+        slots = [0, 1, 2, 511, 1025]
 
     for slot_id in slots:
         fs = model.add_feature_slot(slot_id, hash_size)
-        fc = model.add_feature_column(fs)
+        if slot_id < 1024:
+            fc = model.add_feature_column(fs)
+        else:
+            fc = model.add_feature_column_v2("fc_v2_%d"%slot_id, fs)
         fc.add_vector(embed_size)
 
     model.freeze_slots(features)

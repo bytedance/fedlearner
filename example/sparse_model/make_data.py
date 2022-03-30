@@ -44,7 +44,7 @@ if args.fid_version == 1:
     FOLLOWER_SLOTS = [512, 1023]
 elif args.fid_version == 2:
     FEATURE_BITS = 48
-    LEADER_SLOTS = [0, 1, 2, 511]
+    LEADER_SLOTS = [0, 1, 2, 511, 1025]
     FOLLOWER_SLOTS = [512, 1023, 32767]
 else:
     raise ValueError("fid_version should be 1 or 2")
