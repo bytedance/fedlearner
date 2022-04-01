@@ -87,13 +87,13 @@ class _TriggerHook(tf.train.SessionRunHook):
         self._last_triggered_step = global_step
 
 
-#class _CheckpointSaverHook(tf.train.CheckpointSaverHook):
-#    def _save(self, session, step):
-#        if self._timer.last_triggered_step() is None:
-#            # skip save checkpoint
-#            fl_logging.info("skip save checkpoint")
-#            return False
-#        return super(_CheckpointSaverHook, self)._save(session, step)
+class _CheckpointSaverHook(tf.train.CheckpointSaverHook):
+    def _save(self, session, step):
+        if self._timer.last_triggered_step() is None:
+            # skip save checkpoint
+            fl_logging.info("skip save checkpoint at first time")
+            return False
+        return super(_CheckpointSaverHook, self)._save(session, step)
 
 
 class _DataVisitorCheckpointHook(tf.train.SessionRunHook):
@@ -328,7 +328,7 @@ class _TrainerMaster(tm_grpc.TrainerMasterServiceServicer):
                 and (self._save_checkpoint_secs \
                     or self._save_checkpoint_steps):
                 hooks.append(
-                    tf.train.CheckpointSaverHook(
+                    _CheckpointSaverHook(
                         checkpoint_dir=self._checkpoint_path,
                         save_secs=self._save_checkpoint_secs,
                         save_steps=self._save_checkpoint_steps,
