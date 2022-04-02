@@ -167,7 +167,7 @@ class RawData:
                 .option("recordType", "Example") \
                 .load(",".join(input_files))
 
-        data_df = self._format_data_frame(data_df)
+        data_df = self._format_data_frame(data_df, job_type)
 
         data_df.printSchema()
         if validation:
@@ -249,7 +249,7 @@ class RawData:
         logging.info("Export data to %s finished", output_path)
 
     @staticmethod
-    def _format_data_frame(data_df):
+    def _format_data_frame(data_df, job_type):
 
         def cast(fname, target_type):
             if target_type == "string":
@@ -269,7 +269,10 @@ class RawData:
         for field in data_schema:
             field_value = field.jsonValue()
             field_types[field_value["name"]] = field_value["type"]
-        for name, field in RawDataSchema.Schema.items():
+        schema = RawDataSchema.StreamSchema
+        if job_type == JobType.PSI:
+            schema = RawDataSchema.PSISchema
+        for name, field in schema.items():
             if field.required and name not in field_types:
                 raise RuntimeError("Field %s is required" % name)
             if name in field_types and \

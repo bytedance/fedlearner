@@ -35,7 +35,7 @@ cd $TMP_DIR
 touch fedlearner/__init__.py
 touch fedlearner/data_join/__init__.py
 touch fedlearner/data_join/raw_data/__init__.py
-python /app/deploy/scripts/zip.py -c ${DEP_FILE} fedlearner
+python /app/deploy/scripts/zip.py ${DEP_FILE} fedlearner
 push_file ${DEP_FILE} ${UPLOAD_DIR}
 cd $CUR_DIR
 rm -rf $TMP_DIR

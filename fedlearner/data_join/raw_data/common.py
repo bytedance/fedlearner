@@ -48,8 +48,14 @@ class RawDataSchema:
     InvalidInt = -1
     ALLOWED_FIELD = namedtuple('ALLOW_FIELD', ['default_value', 'default_type',
                                                'types', 'required'])
-    Schema = dict({
+    StreamSchema = dict({
         'example_id': ALLOWED_FIELD(InvalidBytes, "string", ["string"], True),
+        'event_time': ALLOWED_FIELD(InvalidEventTime, "long",
+                                    ["integer", "long"], False),
+    })
+
+    PSISchema = dict({
+        'raw_id': ALLOWED_FIELD(InvalidBytes, "string", ["string"], True),
         'event_time': ALLOWED_FIELD(InvalidEventTime, "long",
                                     ["integer", "long"], False),
     })
