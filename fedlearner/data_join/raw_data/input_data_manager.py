@@ -100,7 +100,7 @@ class InputDataManager(object):
         return True
 
     def list_input_dir(self, root, processed_fpath):
-        logging.info("List input directory, it will take some time...")
+        logging.info("List input directory %s, it will take some time...", root)
 
         if root.startswith('oss://'):
             all_files = set(self._list_dir_helper_oss(root))
@@ -160,8 +160,17 @@ class InputDataManager(object):
             self._num_files, num_new_files)
         return by_folder
 
-    def iterator(self, input_path, processed_fpath):
-        files_by_folder = self.list_input_dir(input_path, processed_fpath)
+    def iterator(self, input_paths, processed_fpath):
+        input_paths = input_paths.strip().split(",")
+        files_by_folder = {}
+        for input_path in input_paths:
+            files_dict = self.list_input_dir(input_path, processed_fpath)
+            for folder, files in files_dict.items():
+                if folder in files_by_folder:
+                    files_by_folder[folder].extend(files)
+                else:
+                    files_by_folder[folder] = files
+
         while files_by_folder:
             rest_fpaths = []
             if self._single_subfolder:
