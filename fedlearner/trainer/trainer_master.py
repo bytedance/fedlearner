@@ -87,13 +87,13 @@ class _TriggerHook(tf.train.SessionRunHook):
         self._last_triggered_step = global_step
 
 
-#class _CheckpointSaverHook(tf.train.CheckpointSaverHook):
-#    def _save(self, session, step):
-#        if self._timer.last_triggered_step() is None:
-#            # skip save checkpoint
-#            fl_logging.info("skip save checkpoint")
-#            return False
-#        return super(_CheckpointSaverHook, self)._save(session, step)
+class _CheckpointSaverHook(tf.train.CheckpointSaverHook):
+    def _save(self, session, step):
+        if self._timer.last_triggered_step() is None:
+            # skip save checkpoint
+            fl_logging.info("skip save checkpoint at first time")
+            return False
+        return super(_CheckpointSaverHook, self)._save(session, step)
 
 
 class _DataVisitorCheckpointHook(tf.train.SessionRunHook):
@@ -293,9 +293,10 @@ class _TrainerMaster(tm_grpc.TrainerMasterServiceServicer):
         fl_logging.info("start session_run")
         self._session_run(estimator)
         fl_logging.info("session_run done")
-        fl_logging.info("start export_model")
-        self._export_model(estimator)
-        fl_logging.info("export_model done")
+        if self._mode == 'train':
+            fl_logging.info("start export_model")
+            self._export_model(estimator)
+            fl_logging.info("export_model done")
         self._transfer_status(tm_pb.MasterStatus.WORKER_COMPLETED,
                               tm_pb.MasterStatus.COMPLETED)
 
@@ -327,7 +328,7 @@ class _TrainerMaster(tm_grpc.TrainerMasterServiceServicer):
                 and (self._save_checkpoint_secs \
                     or self._save_checkpoint_steps):
                 hooks.append(
-                    tf.train.CheckpointSaverHook(
+                    _CheckpointSaverHook(
                         checkpoint_dir=self._checkpoint_path,
                         save_secs=self._save_checkpoint_secs,
                         save_steps=self._save_checkpoint_steps,
@@ -519,10 +520,11 @@ class LeaderTrainerMaster(_TrainerMaster):
         self._last_global_step = -1
 
         # datavisitor checkpoint hook
-        hook = _DataVisitorCheckpointHook(self._data_visitor)
-        self._add_checkpoint_listener(
-            hook.create_checkpoint_saver_listener())
-        self._add_session_hook(hook)
+        if mode == 'train':
+            hook = _DataVisitorCheckpointHook(self._data_visitor)
+            self._add_checkpoint_listener(
+                hook.create_checkpoint_saver_listener())
+            self._add_session_hook(hook)
 
         # trigger hook
         self._last_trigger_time = 0

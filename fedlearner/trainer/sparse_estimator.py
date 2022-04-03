@@ -33,8 +33,7 @@ class SparseFLModel(estimator.FLModel):
     def __init__(self, role, bridge, example_ids, exporting=False,
                  config_run=True,
                  bias_tensor=None, vec_tensor=None,
-                 bias_embedding=None, vec_embedding=None,
-                 feature_columns=None):
+                 bias_embedding=None, vec_embedding=None):
         super(SparseFLModel, self).__init__(role,
             bridge, example_ids, exporting)
 
@@ -48,12 +47,11 @@ class SparseFLModel(estimator.FLModel):
             self._vec_tensor = vec_tensor
         self._bias_embedding = bias_embedding
         self._vec_embedding = vec_embedding
-        self._feature_columns = feature_columns
 
         self._frozen = False
         self._slot_ids = []
         self._feature_slots = {}
-        self._feature_column_v1s = {}
+        self._feature_columns = {}
         self._use_fid_v2 = False
         self._num_embedding_groups = 3
 
@@ -77,9 +75,24 @@ class SparseFLModel(estimator.FLModel):
         assert slot_id in self._feature_slots and \
             self._feature_slots[slot_id] is fc.feature_slot, \
             "FeatureSlot with id %d must be added to Model first"%slot_id
-        assert slot_id not in self._feature_column_v1s, \
-            "Only one FeatureColumnV1 can be created for each slot"
-        self._feature_column_v1s[slot_id] = fc
+        assert slot_id not in self._feature_columns, \
+            "Only one FeatureColumn can be created for each slot"
+        self._feature_columns[slot_id] = fc
+        return fc
+
+    def add_feature_column_v1(self, *args, **kwargs):
+        self.add_feature_column(*args, **kwargs)
+
+    def add_feature_column_v2(self, *args, **kwargs):
+        assert not self._frozen, "Cannot modify model after finalization"
+        fc = feature.FeatureColumnV2(*args, **kwargs)
+        slot_id = fc.feature_slot.slot_id
+        assert slot_id in self._feature_slots and \
+            self._feature_slots[slot_id] is fc.feature_slot, \
+            "FeatureSlot with id %d must be added to Model first"%slot_id
+        assert slot_id not in self._feature_columns, \
+            "Only one FeatureColumn can be created for each slot"
+        self._feature_columns[slot_id] = fc
         return fc
 
     def set_use_fid_v2(self, use_fid_v2):
@@ -123,9 +136,9 @@ class SparseFLModel(estimator.FLModel):
         slot_list = []
         fs_map = {}
         for slot_id in self._slot_ids:
-            if slot_id not in self._feature_column_v1s:
+            if slot_id not in self._feature_columns:
                 continue
-            fc = self._feature_column_v1s[slot_id]
+            fc = self._feature_columns[slot_id]
             fs = fc.feature_slot
             if fc.feature_slot.dim > 1:
                 key = (id(fs._vec_initializer), id(fs._vec_optimizer))
@@ -145,9 +158,6 @@ class SparseFLModel(estimator.FLModel):
             for i in vec_config['weight_group_keys']]
         vec_config['use_fid_v2'] = self._use_fid_v2
         return vec_config
-
-    def get_feature_columns(self):
-        return self._feature_column_v1s
 
     def freeze_slots(self, features):
         assert not self._frozen, "Already finalized"
@@ -172,7 +182,7 @@ class SparseFLModel(estimator.FLModel):
             placeholders = []
             dims = []
             for slot_id, _, _, _ in vec_config['slot_list']:
-                fc = self._feature_column_v1s[slot_id]
+                fc = self._feature_columns[slot_id]
                 for sslice in fc.feature_slot.feature_slices:
                     dims.append(sslice.len)
                     placeholders.append(fc.get_vector(sslice))
@@ -229,7 +239,6 @@ class SparseFLEstimator(estimator.FLEstimator):
             except ConfigRunError as e:
                 self._bias_slot_configs = M._get_bias_slot_configs()
                 self._vec_slot_configs = M._get_vec_slot_configs()
-                self._feature_columns = M.get_feature_columns()
                 self._slot_configs = [self._bias_slot_configs,
                                       self._vec_slot_configs]
                 return self._slot_configs
@@ -279,8 +288,7 @@ class SparseFLEstimator(estimator.FLEstimator):
                               bias_tensor=bias_tensor,
                               bias_embedding=bias_embedding,
                               vec_tensor=vec_tensor,
-                              vec_embedding=vec_embedding,
-                              feature_columns=self._feature_columns)
+                              vec_embedding=vec_embedding)
 
         spec = self._model_fn(model, features, labels, mode)
         assert model._frozen, "Please finalize model in model_fn"
