@@ -107,7 +107,6 @@ class InputDataManager(object):
         else:
             all_files = set(self._list_dir_helper(root))
 
-        self._num_files = 0
         self._num_allocated_files = len(processed_fpath)
         logging.info("%s: %s", root, all_files)
 
@@ -161,6 +160,8 @@ class InputDataManager(object):
         return by_folder
 
     def iterator(self, input_paths, processed_fpath):
+        self._num_files = 0
+
         input_paths = input_paths.strip().split(",")
         files_by_folder = {}
         for input_path in input_paths:
