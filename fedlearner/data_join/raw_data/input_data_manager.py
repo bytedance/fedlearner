@@ -192,8 +192,9 @@ class InputDataManager(object):
                     rest_fpaths.extend(v)
                 for folder in rest_folders:
                     del files_by_folder[folder]
+                rest_folder = ",".join(rest_folders)
             self._num_allocated_files += len(rest_fpaths)
-            yield rest_fpaths
+            yield rest_folder, rest_fpaths
 
     def summary(self):
         return self._num_files, self._num_allocated_files

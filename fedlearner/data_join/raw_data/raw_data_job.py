@@ -120,11 +120,11 @@ class RawDataJob:
         job_id = self._next_job_id
         while True:
             prev_job_id = job_id
-            for rest_fpaths in self._input_data_manager.iterator(
+            for rest_folder, rest_fpaths in self._input_data_manager.iterator(
                     input_path, self._meta.processed_fpath):
                 self._num_processing_file = len(rest_fpaths)
                 with Timer("RawData Job {}".format(job_id)):
-                    self._run(job_id, input_path, rest_fpaths, input_format,
+                    self._run(job_id, rest_folder, rest_fpaths, input_format,
                               output_format)
                 job_id += 1
             if not self._long_running:
@@ -133,12 +133,12 @@ class RawDataJob:
                 logging.info("No new file to process, Wait 60s...")
                 time.sleep(60)
 
-    def _run(self, job_id, input_root_dir, input_files, input_format,
+    def _run(self, job_id, input_dir, input_files, input_format,
              output_format):
         logging.info("Processing %s in job %d", input_files, job_id)
         # 0. launch new spark job
         if self._output_type == OutputType.DataBlock:
-            self._run_data_block_job(job_id, input_root_dir, input_files,
+            self._run_data_block_job(job_id, input_dir, input_files,
                                      input_format,
                                      output_format)
         else:
@@ -177,7 +177,7 @@ class RawDataJob:
         else:
             self._publish_raw_data(job_id, output_path)
 
-    def _run_data_block_job(self, job_id, input_root_dir,
+    def _run_data_block_job(self, job_id, input_dir,
                             input_files, input_format, output_format):
         data_source = self._create_data_source(job_id, self._root_path)
         output_base_path = data_source_data_block_dir(data_source)
@@ -198,10 +198,8 @@ class RawDataJob:
             logging.warning("Encounter empty inputs, no data generated")
             return
 
-        folder_name = os.path.relpath(input_files[0],
-                                      input_root_dir).split("/", 1)[0]
         try:
-            date_time = datetime.strptime(folder_name, '%Y%m%d')
+            date_time = datetime.strptime(input_dir, '%Y%m%d')
             start_time_str = date_time.strftime("%Y%m%d%H%M%S")
             end_time_str = (date_time + timedelta(hours=23, minutes=59,
                                                   seconds=59)) \
@@ -211,7 +209,7 @@ class RawDataJob:
                                      end_time_str)
         except ValueError as e:
             logging.error("Input data's folder format is %s, want %s",
-                          folder_name, "%Y%m%d")
+                          input_dir, "%Y%m%d")
             sys.exit(-1)
 
     def _progress(self):

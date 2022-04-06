@@ -71,8 +71,8 @@ class SparkApplication(object):
                         self._name))
                     sys.exit(-1)
                 else:
-                    logging.info("Sleep 10s to wait spark job done...")
-                    time.sleep(10)
+                    logging.info("Sleep 60s to wait spark job done...")
+                    time.sleep(60)
             self._client.delete_sparkapplication(self._name)
         except RuntimeError as error:
             logging.fatal("Spark application error %s", error)

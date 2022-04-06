@@ -80,7 +80,7 @@ class TestInputDataManager(unittest.TestCase):
             max_files_per_job,
             start_date=start_date,
             end_date=end_date)
-        fpaths = next(manager.iterator(input_dir, []))
+        _, fpaths = next(manager.iterator(input_dir, []))
         fpaths.sort()
         target_fnames.sort()
         self.assertEqual(len(target_fnames), len(fpaths))
