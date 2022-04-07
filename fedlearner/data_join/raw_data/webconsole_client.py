@@ -54,45 +54,67 @@ class SparkAPPStatus(enum.Enum):
     SUCCEEDING = "SUCCEEDING"
     FAILED = "FAILED"
     FAILING = "FAILING"
+    NOT_FOUND = "NOT_FOUND"
+    UNKNOWN = "UNKNOWN"
 
 
 class WebConsoleClient(object):
-    def __init__(self, base_url, username, password):
+    def __init__(self, base_url, username, password, num_retries=3):
         token = login_webconsole(base_url, username, password)
         self._headers = {
             'Authorization': f'Bearer {token}'
         }
         self._spark_api_url = os.path.join(base_url, "sparkapps")
+        self._num_retries = num_retries
 
-    def _raise_runtime_error(self, status, message):
-        raise RuntimeError('Status: {}, Message: {}'.format(
-            status, message))
+    @staticmethod
+    def _check_response(response):
+        status = None
+        msg = ''
+        if 'code' in response:
+            if int(response['code']) == 404:
+                status = SparkAPPStatus.NOT_FOUND
+            else:
+                status = SparkAPPStatus.FAILED
+        if 'message' in response:
+            msg = 'Status: {}, Message: {}'.format(response['code'],
+                                                   response['message'])
 
-    def _check_response(self, response):
-        if 'code' in response and 'message' in response:
-            self._raise_runtime_error(response['code'], response['message'])
+        return status, msg
 
     def get_sparkapplication(self,
                              name: str) \
             -> (SparkAPPStatus, str):
         spark_job_url = os.path.join(self._spark_api_url, name)
-        response = requests.get(url=spark_job_url, headers=self._headers)
-        response = json.loads(response.text)
-        self._check_response(response)
-        k8s_status = set(item.value for item in SparkAPPStatus)
-        if 'data' in response and 'state' in response['data'] and \
-            response['data']['state'] in k8s_status:
-            return SparkAPPStatus[response['data']['state']], response
+        for _ in range(self._num_retries):
+            response = requests.get(url=spark_job_url, headers=self._headers)
+            if response is None:
+                time.sleep(10)
+                continue
+            response = json.loads(response.text)
+            status, msg = self._check_response(response)
+            if status == SparkAPPStatus.NOT_FOUND:
+                return status, msg
+            if status is not None:
+                logging.error("Get spark application error %s", msg)
+                time.sleep(10)
+                continue
+            k8s_status = set(item.value for item in SparkAPPStatus)
+            if 'data' in response and 'state' in response['data'] and \
+                response['data']['state'] in k8s_status:
+                return SparkAPPStatus[response['data']['state']], response
         return SparkAPPStatus.PENDING, ''
 
     def get_sparkapplication_log(self,
                                  name: str) -> str:
         spark_job_url = os.path.join(self._spark_api_url, name, "log")
         params = {"lines": "10000"}
-        # retry 3 times
-        for i in range(3):
+        for i in range(self._num_retries):
             response = requests.get(url=spark_job_url, headers=self._headers,
                                     params=params)
+            if response is None:
+                time.sleep(10)
+                continue
             response = json.loads(response.text)
             if 'data' in response:
                 return '\n'.join(sorted(response['data']))
@@ -128,21 +150,36 @@ class WebConsoleClient(object):
             task_name,
             file_config,
             driver_config,
-            executor_config) -> dict:
+            executor_config) -> bool:
         task_config = self._spark_task_config(task_name, file_config,
                                               driver_config, executor_config)
-        response = requests.post(url=self._spark_api_url,
-                                 json=task_config,
-                                 headers=self._headers)
-        response = json.loads(response.text)
-        self._check_response(response)
-        return response
+        for i in range(self._num_retries):
+            response = requests.post(url=self._spark_api_url,
+                                     json=task_config,
+                                     headers=self._headers)
+            if response is None:
+                logging.error("Create spark application failed")
+                time.sleep(10)
+                continue
+            response = json.loads(response.text)
+            status, msg = self._check_response(response)
+            if status is None:
+                return True
+            logging.error("Create spark application error %s", msg)
+            time.sleep(10)
+        return False
 
     def delete_sparkapplication(self,
-                                name: str) -> dict:
+                                name: str) -> bool:
         spark_job_url = os.path.join(self._spark_api_url, name)
-        response = requests.delete(url=spark_job_url, headers=self._headers)
-        return json.loads(response.text)
+        for i in range(self._num_retries):
+            requests.delete(url=spark_job_url, headers=self._headers)
+            status, msg = self.get_sparkapplication(name)
+            if status == SparkAPPStatus.NOT_FOUND:
+                return True
+            logging.info("Sleep 60s to wait spark app killed. msg: %s", msg)
+            time.sleep(60)
+        return False
 
 
 class FakeWebConsoleClient(object):
@@ -158,11 +195,10 @@ class FakeWebConsoleClient(object):
         stdout_data, stderr_data = self._process.communicate()
         logging.info(stdout_data.decode('utf-8'))
         if not self._process:
-            self._raise_runtime_error(
-                ApiException("Task {} not exist".format(name)))
-        elif self._process.returncode is None:
+            return SparkAPPStatus.NOT_FOUND, ''
+        if self._process.returncode is None:
             return SparkAPPStatus.RUNNING, ''
-        elif self._process.returncode == 0:
+        if self._process.returncode == 0:
             return SparkAPPStatus.COMPLETED, ''
         return SparkAPPStatus.FAILED, 'Failed'
 
@@ -171,7 +207,7 @@ class FakeWebConsoleClient(object):
         task_name,
         file_config,
         driver_config,
-        executor_config) -> dict:
+        executor_config) -> bool:
         entry_script = file_config.entry_file
         args = file_config.config_file
         cmd = ['python', entry_script] + args
@@ -180,18 +216,7 @@ class FakeWebConsoleClient(object):
             cmd,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT)
-        return {
-            'apiVersion': 'sparkoperator.k8s.io/v1beta2',
-            'kind': 'SparkApplication',
-            'metadata': {
-                'creationTimestamp': '2021-05-13T08:41:48Z',
-                'generation': 1,
-                'name': task_name,
-                'resourceVersion': '2894990020',
-                'selfLink': '/apis/sparkoperator.k8s.io/v1beta2/namespaces',
-                'uid': "123-ds3"
-            }
-        }
+        return True
 
     def get_sparkapplication_log(self,
                                  name: str) -> str:
@@ -199,6 +224,6 @@ class FakeWebConsoleClient(object):
         return ""
 
     def delete_sparkapplication(self,
-                                name: str,) -> dict:
+                                name: str,) -> bool:
         logging.info("Delete spark application %s", name)
-        return {}
+        return True

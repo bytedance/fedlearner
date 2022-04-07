@@ -41,42 +41,33 @@ class SparkApplication(object):
                                             web_console_password)
 
     def launch(self):
-        try:
-            self._client.delete_sparkapplication(self._name)
-        except RuntimeError as error:
-            logging.info("Spark application %s not exist",
-                         self._name)
+        self._client.delete_sparkapplication(self._name)
 
-        try:
-            self._client.create_sparkapplication(
+        succeeded = self._client.create_sparkapplication(
                 self._name, self._file_config, self._driver_config,
                 self._executor_config)
-        except RuntimeError as error:
-            logging.fatal("Spark application error %s", error)
+        if not succeeded:
             sys.exit(-1)
 
     def join(self):
-        try:
-            while True:
-                logging.info(self._progress_fn())
-                status, msg = self._client.get_sparkapplication(self._name)
-                if status == SparkAPPStatus.COMPLETED:
-                    logging.info("Spark job %s completed", self._name)
-                    break
-                if status == SparkAPPStatus.FAILED:
-                    logging.error("Spark job %s failed, with response %s",
-                                  self._name, msg)
-                    logging.error("-" * 80)
-                    logging.error(self._client.get_sparkapplication_log(
-                        self._name))
-                    sys.exit(-1)
-                else:
-                    logging.info("Sleep 60s to wait spark job done...")
-                    time.sleep(60)
-            self._client.delete_sparkapplication(self._name)
-        except RuntimeError as error:
-            logging.fatal("Spark application error %s", error)
-            sys.exit(-1)
+        while True:
+            logging.info(self._progress_fn())
+            status, msg = self._client.get_sparkapplication(self._name)
+            if status == SparkAPPStatus.COMPLETED:
+                logging.info("Spark job %s completed", self._name)
+                break
+            if status == SparkAPPStatus.FAILED:
+                logging.error("Spark job %s failed, with response %s",
+                              self._name, msg)
+                logging.error("-" * 80)
+                logging.error(self._client.get_sparkapplication_log(
+                    self._name))
+                sys.exit(-1)
+            else:
+                logging.info("Sleep 60s to wait spark job done...")
+                logging.info("Spark app status: %s", msg)
+                time.sleep(60)
+        self._client.delete_sparkapplication(self._name)
 
     def _update_local_file_config(self):
         local_jars = os.environ.get("SPARK_JARS", "")

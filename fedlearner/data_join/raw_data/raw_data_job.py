@@ -5,6 +5,7 @@ import time
 from datetime import datetime, timedelta
 
 from google.protobuf import text_format
+import tensorflow.compat.v1 as tf
 from tensorflow.compat.v1 import gfile
 
 from fedlearner.common.common import Timer
@@ -152,8 +153,7 @@ class RawDataJob:
     def _run_raw_data_job(self, job_id, input_files, input_format,
                           output_format):
         output_path = os.path.join(self._root_path, str(job_id))
-        if gfile.Exists(output_path):
-            gfile.DeleteRecursively(output_path)
+        self._clear_dir(output_path)
 
         # 1. write config
         job_config = RawDataJobConfig(self._upload_dir, job_id)
@@ -182,8 +182,7 @@ class RawDataJob:
         data_source = self._create_data_source(job_id, self._root_path)
         output_base_path = data_source_data_block_dir(data_source)
         temp_output_path = os.path.join(output_base_path, str(job_id))
-        if gfile.Exists(temp_output_path):
-            gfile.DeleteRecursively(temp_output_path)
+        self._clear_dir(temp_output_path)
         # 1. write config
         job_config = RawDataJobConfig(self._upload_dir, job_id)
         job_config.data_block_config(
@@ -218,6 +217,18 @@ class RawDataJob:
         num_processed_file = num_allocated_files - self._num_processing_file
         return "Input files processed: {}/{}, Processing: {}".format(
             num_processed_file, num_total_files, self._num_processing_file)
+
+    @staticmethod
+    def _clear_dir(dirname):
+        while True:
+            try:
+                if gfile.Exists(dirname):
+                    gfile.DeleteRecursively(dirname)
+                break
+            except tf.errors.OpError as e:
+                logging.error("Clear directory %s failed, with exception: %s",
+                              dirname, e)
+                time.sleep(10)
 
     @staticmethod
     def _is_flag_file(filename: str):
@@ -304,8 +315,7 @@ class RawDataJob:
             block_id += 1
         # 2. move to destination path
         output_path = os.path.join(output_base_path, partition_repr(job_id))
-        if gfile.Exists(output_path):
-            gfile.DeleteRecursively(output_path)
+        self._clear_dir(output_path)
         logging.info("Rename %s to %s", temp_output_path, output_path)
         gfile.Rename(temp_output_path, output_path)
 
