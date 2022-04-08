@@ -86,24 +86,18 @@ class WebConsoleClient(object):
                              name: str) \
             -> (SparkAPPStatus, str):
         spark_job_url = os.path.join(self._spark_api_url, name)
-        for _ in range(self._num_retries):
-            response = requests.get(url=spark_job_url, headers=self._headers)
-            if response is None:
-                time.sleep(10)
-                continue
-            response = json.loads(response.text)
-            status, msg = self._check_response(response)
-            if status == SparkAPPStatus.NOT_FOUND:
-                return status, msg
-            if status is not None:
-                logging.error("Get spark application error %s", msg)
-                time.sleep(10)
-                continue
-            k8s_status = set(item.value for item in SparkAPPStatus)
-            if 'data' in response and 'state' in response['data'] and \
-                response['data']['state'] in k8s_status:
-                return SparkAPPStatus[response['data']['state']], response
-        return SparkAPPStatus.PENDING, ''
+        response = requests.get(url=spark_job_url, headers=self._headers)
+        if response is None:
+            return SparkAPPStatus.FAILED, ""
+        response = json.loads(response.text)
+        status, msg = self._check_response(response)
+        if status is not None:
+            return status, msg
+        k8s_status = set(item.value for item in SparkAPPStatus)
+        if 'data' in response and 'state' in response['data'] and \
+            response['data']['state'] in k8s_status:
+            return SparkAPPStatus[response['data']['state']], response
+        return SparkAPPStatus.UNKNOWN, ''
 
     def get_sparkapplication_log(self,
                                  name: str) -> str:
@@ -159,14 +153,15 @@ class WebConsoleClient(object):
                                      headers=self._headers)
             if response is None:
                 logging.error("Create spark application failed")
-                time.sleep(10)
+                time.sleep(60)
                 continue
             response = json.loads(response.text)
             status, msg = self._check_response(response)
             if status is None:
+                time.sleep(60)
                 return True
             logging.error("Create spark application error %s", msg)
-            time.sleep(10)
+            time.sleep(60)
         return False
 
     def delete_sparkapplication(self,
@@ -175,10 +170,10 @@ class WebConsoleClient(object):
         for i in range(self._num_retries):
             requests.delete(url=spark_job_url, headers=self._headers)
             status, msg = self.get_sparkapplication(name)
+            logging.info("Sleep 60s to wait spark app killed, msg: %s", msg)
+            time.sleep(60)
             if status == SparkAPPStatus.NOT_FOUND:
                 return True
-            logging.info("Sleep 60s to wait spark app killed. msg: %s", msg)
-            time.sleep(60)
         return False
 
 
@@ -192,15 +187,18 @@ class FakeWebConsoleClient(object):
 
     def get_sparkapplication(self,
                              name: str) -> (SparkAPPStatus, str):
-        stdout_data, stderr_data = self._process.communicate()
-        logging.info(stdout_data.decode('utf-8'))
-        if not self._process:
-            return SparkAPPStatus.NOT_FOUND, ''
-        if self._process.returncode is None:
+        ret_code = self._process.poll()
+        if ret_code is None:
+            stdout_data, stderr_data = self._process.communicate()
+            logging.info(stdout_data.decode('utf-8'))
+            if not self._process:
+                return SparkAPPStatus.NOT_FOUND, ''
+            ret_code = self._process.returncode
+        if ret_code is None:
             return SparkAPPStatus.RUNNING, ''
-        if self._process.returncode == 0:
+        if ret_code == 0:
             return SparkAPPStatus.COMPLETED, ''
-        return SparkAPPStatus.FAILED, 'Failed'
+        return SparkAPPStatus.FAILED, ''
 
     def create_sparkapplication(
         self,

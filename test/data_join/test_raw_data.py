@@ -175,7 +175,6 @@ class TestDataGenerator(object):
                     output_dir, partition_id,
                     eids, event_times, is_miss, is_wrong)
             output_files.append(filename)
-            print(event_times, eids)
             start_time += timedelta(days=1)
         return etime_eid_dict, output_files
 
@@ -234,13 +233,10 @@ class RawDataTests(unittest.TestCase):
     def _check_tfrecord(self, file_paths, output_partitions, wanted_cnt):
         total_cnt = 0
         for partition_id, fpath in enumerate(sorted(file_paths)):
-            print(fpath, partition_id)
             event_time = 0
             options = tf.io.TFRecordOptions(compression_type='GZIP')
             for record in tf.python_io.tf_record_iterator(fpath, options):
                 tf_item = convert_tf_example_to_dict(parse_example(record))
-                print(tf_item[DataKeyword.example_id],
-                      tf_item[DataKeyword.event_time])
                 new_event_time = tf_item[DataKeyword.event_time]
                 self.assertTrue(new_event_time >= event_time,
                                 "{}, {}".format(new_event_time, event_time))
@@ -253,7 +249,6 @@ class RawDataTests(unittest.TestCase):
     def _check_csv(self, file_paths, output_partitions, wanted_cnt):
         total_cnt = 0
         for partition_id, fpath in enumerate(sorted(file_paths)):
-            print(fpath, partition_id)
             event_time = 0
             with open(fpath) as f:
                 for item in csv.DictReader(f):

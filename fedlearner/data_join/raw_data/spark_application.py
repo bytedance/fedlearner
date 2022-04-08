@@ -41,13 +41,19 @@ class SparkApplication(object):
                                             web_console_password)
 
     def launch(self):
-        self._client.delete_sparkapplication(self._name)
+        while True:
+            self._client.delete_sparkapplication(self._name)
 
-        succeeded = self._client.create_sparkapplication(
-                self._name, self._file_config, self._driver_config,
-                self._executor_config)
-        if not succeeded:
-            sys.exit(-1)
+            succeeded = self._client.create_sparkapplication(
+                    self._name, self._file_config, self._driver_config,
+                    self._executor_config)
+            if not succeeded:
+                sys.exit(-1)
+            status, msg = self._client.get_sparkapplication(self._name)
+            if status != SparkAPPStatus.UNKNOWN:
+                return
+            logging.info("Spark job is in unknown state, relaunch it")
+            time.sleep(60)
 
     def join(self):
         while True:

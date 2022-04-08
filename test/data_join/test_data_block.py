@@ -54,8 +54,6 @@ class RawDataTests(unittest.TestCase):
             logging.info("check %s", fpath)
             for record in tf.python_io.tf_record_iterator(fpath, options):
                 tf_item = convert_tf_example_to_dict(parse_example(record))
-                print(tf_item[DataKeyword.example_id],
-                      tf_item[DataKeyword.event_time])
                 event_time = tf_item[DataKeyword.event_time]
                 if event_time not in etime_eid_dict:
                     etime_eid_dict[event_time] = []
