@@ -23,8 +23,6 @@ source /app/deploy/scripts/hdfs_common.sh || true
 source /app/deploy/scripts/pre_start_hook.sh || true
 source /app/deploy/scripts/env_to_args.sh
 
-PEER_ADDR=${APPLICATION_ID}-RemoteWorker-${INDEX}.${EGRESS_DOMAIN}
-
 # When the WORKER_GROUPS is "2,4", this script would update the INDEX
 # to the worker's index within their own group, e.g.
 #
@@ -58,7 +56,6 @@ mode=$(normalize_env_to_args "--mode" "$MODE")
 sparse_estimator=$(normalize_env_to_args "--sparse-estimator" "$SPARSE_ESTIMATOR")
 batch_size=$(normalize_env_to_args "--batch-size" "$BATCH_SIZE")
 learning_rate=$(normalize_env_to_args "--learning-rate" "$LEARNING_RATE")
-extra_params=$(normalize_env_to_args "--extra-params" "$EXTRA_PARAMS")
 
 if [ -n "$CLUSTER_SPEC" ]; then
   # get master address from clusteSpec["master"]
@@ -81,8 +78,6 @@ def rewrite_port(address, old, new):
   return address
 
 cluster_spec = json.loads('$CLUSTER_SPEC')['clusterSpec']
-for i, ps in enumerate(cluster_spec.get('PS', [])):
-  cluster_spec['PS'][i] = rewrite_port(ps, '50051', '50052')
 for i, master in enumerate(cluster_spec.get('Master', [])):
   cluster_spec['Master'][i] = rewrite_port(master, '50051', '50052')
 for i, worker in enumerate(cluster_spec.get('Worker', [])):
@@ -92,11 +87,10 @@ print(json.dumps({'clusterSpec': cluster_spec}))
 fi
 
 echo python main.py --worker \
+    --local-worker \
     --application-id="$APPLICATION_ID" \
     --master-addr="$MASTER_HOST:50051" \
     --cluster-spec="$CLUSTER_SPEC" \
-    --local-addr="$POD_IP:${LISTEN_PORT}" \
-    --peer-addr="$PEER_ADDR" \
-    --worker-rank="$WORKER_RANK" \
-    $server_port $mode $batch_size \
+    --worker-rank="$INDEX" \
+    $mode $batch_size \
     $sparse_estimator $learning_rate
