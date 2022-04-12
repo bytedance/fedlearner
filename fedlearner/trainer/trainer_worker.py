@@ -229,7 +229,7 @@ def _run_worker(role, args, input_fn, model_fn):
     mode = args.mode.lower()
 
     worker_type = tm_pb.WorkerType.REMOTE_WORKER
-    if args.local_worker:
+    if hasattr(args, "local_worker") and args.local_worker:
         worker_type = tm_pb.WorkerType.LOCAL_WORKER
         bridge = FakeBridge()
     else:
@@ -280,10 +280,6 @@ def _run_local(role,
                model_fn,
                serving_input_receiver_fn,
                export_model_hook=None):
-    if not args.local_addr:
-        raise ValueError("local-addr is required")
-    if not args.peer_addr:
-        raise ValueError("peer-addr is required")
     mode = args.mode.lower()
 
     cluster_spec = _create_cluster_spec(args)
@@ -317,14 +313,22 @@ def _run_local(role,
     master_thread.start()
 
     # run worker
+    if hasattr(args, "local_worker") and args.local_worker:
+        bridge = FakeBridge()
+    else:
+        if not args.local_addr:
+            raise ValueError("local-addr is required")
+        if not args.peer_addr:
+            raise ValueError("peer-addr is required")
+        bridge = Bridge(role,
+                        int(args.local_addr.split(':')[1]),
+                        args.peer_addr,
+                        args.application_id,
+                        0)
+
     trainer_master = LocalTrainerMasterClient(local_master, 0)
     if not trainer_master.worker_register():
         return
-    bridge = Bridge(role,
-                    int(args.local_addr.split(':')[1]),
-                    args.peer_addr,
-                    args.application_id,
-                    0)
 
     estimator_factory = \
         SparseFLEstimator if args.sparse_estimator else FLEstimator

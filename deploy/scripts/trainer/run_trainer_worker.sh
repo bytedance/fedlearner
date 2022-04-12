@@ -23,7 +23,7 @@ source /app/deploy/scripts/hdfs_common.sh || true
 source /app/deploy/scripts/pre_start_hook.sh || true
 source /app/deploy/scripts/env_to_args.sh
 
-PEER_ADDR=${APPLICATION_ID}-RemoteWorker-${INDEX}.${EGRESS_DOMAIN}
+PEER_ADDR=${APPLICATION_ID}-worker-${INDEX}.${EGRESS_DOMAIN}
 
 # When the WORKER_GROUPS is "2,4", this script would update the INDEX
 # to the worker's index within their own group, e.g.
@@ -87,6 +87,10 @@ for i, master in enumerate(cluster_spec.get('Master', [])):
   cluster_spec['Master'][i] = rewrite_port(master, '50051', '50052')
 for i, worker in enumerate(cluster_spec.get('Worker', [])):
   cluster_spec['Worker'][i] = rewrite_port(worker, '50051', '50052')
+if 'LocalWorker' in cluster_spec:
+  for i, worker in enumerate(cluster_spec.get('LocalWorker', [])):
+    cluster_spec['Worker'].append(rewrite_port(worker, '50051', '50052'))
+  del cluster_spec['LocalWorker']
 print(json.dumps({'clusterSpec': cluster_spec}))
 """`
 fi
