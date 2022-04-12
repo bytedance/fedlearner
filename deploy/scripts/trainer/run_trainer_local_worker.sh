@@ -82,6 +82,10 @@ for i, master in enumerate(cluster_spec.get('Master', [])):
   cluster_spec['Master'][i] = rewrite_port(master, '50051', '50052')
 for i, worker in enumerate(cluster_spec.get('Worker', [])):
   cluster_spec['Worker'][i] = rewrite_port(worker, '50051', '50052')
+if 'LocalWorker' in cluster_spec:
+  for i, worker in enumerate(cluster_spec.get('LocalWorker', [])):
+    cluster_spec['Worker'].append(rewrite_port(worker, '50051', '50052'))
+  del cluster_spec['LocalWorker']
 print(json.dumps({'clusterSpec': cluster_spec}))
 """`
 fi
