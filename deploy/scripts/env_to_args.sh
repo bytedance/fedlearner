@@ -33,3 +33,17 @@ pull_code() {
   cd $cwd
   fi
 }
+
+push_file() {
+  filename=`basename $1`
+  target_path=$2/${filename}
+  if [[ $2 == "hdfs://"* ]]; then
+      ${HADOOP_HOME}/bin/hadoop fs -mkdir -p $2
+      ${HADOOP_HOME}/bin/hadoop fs -put -f $1 $target_path
+  elif [[ $2 == "oss://"* ]]; then
+      python -c "import tensorflow as tf; import tensorflow_io; tf.io.gfile.makedirs('$2'); open('${target_path}', 'wb').write(tf.io.gfile.GFile('$1', 'rb').read())"
+  else
+      mkdir -p $2
+      cp $1 $target_path
+  fi
+}
