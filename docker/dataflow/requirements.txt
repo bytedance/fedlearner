@@ -1,0 +1,3 @@
+tensorflow==1.15.3
+cityhash
+psutil==5.8.0
