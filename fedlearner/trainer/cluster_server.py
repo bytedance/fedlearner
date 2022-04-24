@@ -65,7 +65,8 @@ class ClusterServer():
         # modify cluster_spec
         cluster_dict = dict()
         cluster_dict[self._job_name] = {
-            self._task_index: self._tf_target[len("grpc://"):]
+            self._task_index: cluster_spec.task_address(
+                self._job_name, self._task_index)
         }
         for job_name in cluster_spec.jobs:
             if job_name == self._job_name:
