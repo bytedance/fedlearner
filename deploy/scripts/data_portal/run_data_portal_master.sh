@@ -27,8 +27,13 @@ files_per_job_limit=$(normalize_env_to_args '--files_per_job_limit' $FILES_PER_J
 start_date=$(normalize_env_to_args '--start_date' $START_DATE)
 end_date=$(normalize_env_to_args '--end_date' $END_DATE)
 
+LISTEN_PORT=50052
+if [[ -n "${PORT1}" ]]; then
+  LISTEN_PORT=${PORT1}
+fi
+
 python -m fedlearner.data_join.cmd.data_portal_master_service \
-    --listen_port=50051 \
+    --listen_port=${LISTEN_PORT} \
     --data_portal_name=$DATA_PORTAL_NAME \
     --data_portal_type=$DATA_PORTAL_TYPE \
     --output_partition_num=$OUTPUT_PARTITION_NUM \
