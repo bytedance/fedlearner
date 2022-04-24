@@ -57,6 +57,10 @@ sparse_estimator=$(normalize_env_to_args "--sparse-estimator" "$SPARSE_ESTIMATOR
 batch_size=$(normalize_env_to_args "--batch-size" "$BATCH_SIZE")
 learning_rate=$(normalize_env_to_args "--learning-rate" "$LEARNING_RATE")
 
+WORKER_PORT=50052
+if [[ -n "${PORT1}" ]]; then
+  LISTEN_PORT=${PORT1}
+fi
 if [ -n "$CLUSTER_SPEC" ]; then
   # get master address from clusteSpec["master"]
   MASTER_HOST=`python -c "
@@ -81,6 +85,8 @@ cluster_spec = json.loads('$CLUSTER_SPEC')['clusterSpec']
 for i, master in enumerate(cluster_spec.get('Master', [])):
   cluster_spec['Master'][i] = rewrite_port(master, '50051', '50052')
 for i, worker in enumerate(cluster_spec.get('Worker', [])):
+  if i == int('$WORKER_RANK'):
+    cluster_spec['Worker'][i] = rewrite_port(worker, '50051', '$WORKER_PORT')
   cluster_spec['Worker'][i] = rewrite_port(worker, '50051', '50052')
 print(json.dumps({'clusterSpec': cluster_spec}))
 """`
