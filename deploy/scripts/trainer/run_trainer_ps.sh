@@ -25,4 +25,4 @@ if [[ -n "${PORT0}" ]]; then
   LISTEN_PORT=${PORT0}
 fi
 
-python -m fedlearner.trainer.parameter_server $POD_IP:{LISTEN_PORT}
+python -m fedlearner.trainer.parameter_server $POD_IP:${LISTEN_PORT}
