@@ -87,7 +87,8 @@ for i, master in enumerate(cluster_spec.get('Master', [])):
 for i, worker in enumerate(cluster_spec.get('Worker', [])):
   if i == int('$WORKER_RANK'):
     cluster_spec['Worker'][i] = rewrite_port(worker, '50051', '$WORKER_PORT')
-  cluster_spec['Worker'][i] = rewrite_port(worker, '50051', '50052')
+  else:
+    cluster_spec['Worker'][i] = rewrite_port(worker, '50051', '50052')
 print(json.dumps({'clusterSpec': cluster_spec}))
 """`
 fi
