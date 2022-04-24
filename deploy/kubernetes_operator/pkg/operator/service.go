@@ -164,9 +164,8 @@ func (am *appManager) createNewService(ctx context.Context, app *v1alpha1.FLApp,
 	}
 	service := &v1.Service{
 		Spec: v1.ServiceSpec{
-			ClusterIP: "None",
-			Selector:  labels,
-			Ports:     servicePorts,
+			Selector: labels,
+			Ports:    servicePorts,
 		},
 	}
 
