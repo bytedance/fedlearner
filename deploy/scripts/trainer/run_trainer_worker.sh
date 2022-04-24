@@ -59,7 +59,7 @@ learning_rate=$(normalize_env_to_args "--learning-rate" "$LEARNING_RATE")
 
 WORKER_PORT=50052
 if [[ -n "${PORT1}" ]]; then
-  LISTEN_PORT=${PORT1}
+  WORKER_PORT=${PORT1}
 fi
 if [ -n "$CLUSTER_SPEC" ]; then
   # get master address from clusteSpec["master"]
