@@ -61,6 +61,8 @@ def rewrite_port(address, old, new):
   return address
 
 cluster_spec = json.loads('$CLUSTER_SPEC')['clusterSpec']
+for i, ps in enumerate(cluster_spec.get('PS', [])):
+  cluster_spec['PS'][i] = rewrite_port(ps, '50051', '50052')
 for i, master in enumerate(cluster_spec.get('Master', [])):
   cluster_spec['Master'][i] = rewrite_port(master, '50051', '50052')
 for i, worker in enumerate(cluster_spec.get('Worker', [])):
