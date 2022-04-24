@@ -52,7 +52,8 @@ class ClusterServer():
                                      },
                                      protocol="grpc",
                                      config=self._tf_config)
-            self._tf_target = "grpc://" + address
+            self._tf_target = "grpc://" + cluster_spec.task_address(
+                self._job_name, self._task_index)
         except ValueError:
             self._tf_server = \
                 tf.distribute.Server({"server":
