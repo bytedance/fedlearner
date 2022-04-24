@@ -10,6 +10,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/klog"
 
 	"github.com/bytedance/fedlearner/deploy/kubernetes_operator/pkg/apis/fedlearner.k8s.io/v1alpha1"
@@ -145,21 +146,27 @@ func (am *appManager) createNewService(ctx context.Context, app *v1alpha1.FLApp,
 	labels[flReplicaTypeLabel] = rt
 	labels[flReplicaIndexLabel] = index
 
-	port, err := GetPortFromApp(app, rtype)
+	ports, err := GetPortsFromApp(app, rtype)
 	if err != nil {
 		return err
 	}
-
+	var servicePorts []v1.ServicePort
+	for _, port := range ports {
+		servicePort := v1.ServicePort{
+			Name: port.Name,
+			Port: port.ContainerPort,
+			TargetPort: intstr.IntOrString{
+				Type:   1, // means string
+				StrVal: port.Name,
+			},
+		}
+		servicePorts = append(servicePorts, servicePort)
+	}
 	service := &v1.Service{
 		Spec: v1.ServiceSpec{
 			ClusterIP: "None",
 			Selector:  labels,
-			Ports: []v1.ServicePort{
-				{
-					Name: v1alpha1.DefaultPortName,
-					Port: port,
-				},
-			},
+			Ports:     servicePorts,
 		},
 	}
 

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/bytedance/fedlearner/deploy/kubernetes_operator/pkg/apis/fedlearner.k8s.io/v1alpha1"
@@ -51,20 +52,32 @@ func RecheckDeletionTimestamp(getObject func() (metav1.Object, error)) func() er
 	}
 }
 
-// GetPortFromApp gets the port of tensorflow container.
+// GetPortFromApp gets the flapp-port port of tensorflow container.
 func GetPortFromApp(app *v1alpha1.FLApp, rtype v1alpha1.FLReplicaType) (int32, error) {
+	ports, err := GetPortsFromApp(app, rtype)
+	if err != nil {
+		return -1, err
+	}
+	for _, port := range ports {
+		if port.Name == v1alpha1.DefaultPortName {
+			return port.ContainerPort, nil
+		}
+	}
+
+	return -1, fmt.Errorf("port not found")
+}
+
+// GetPortsFromApp gets the ports of tensorflow container.
+func GetPortsFromApp(app *v1alpha1.FLApp, rtype v1alpha1.FLReplicaType) ([]v1.ContainerPort, error) {
+	var ports []v1.ContainerPort
 	containers := app.Spec.FLReplicaSpecs[rtype].Template.Spec.Containers
 	for _, container := range containers {
 		if container.Name == v1alpha1.DefaultContainerName {
-			ports := container.Ports
-			for _, port := range ports {
-				if port.Name == v1alpha1.DefaultPortName {
-					return port.ContainerPort, nil
-				}
-			}
+			ports = container.Ports
+			return ports, nil
 		}
 	}
-	return -1, fmt.Errorf("port not found")
+	return ports, fmt.Errorf("container %v not found", v1alpha1.DefaultContainerName)
 }
 
 func IsLeader(role string) bool {
