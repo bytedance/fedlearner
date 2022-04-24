@@ -20,4 +20,9 @@ export CUDA_VISIBLE_DEVICES=
 source /app/deploy/scripts/hdfs_common.sh || true
 source /app/deploy/scripts/pre_start_hook.sh || true
 
-python -m fedlearner.trainer.parameter_server $POD_IP:50051 
+LISTEN_PORT=50051
+if [[ -n "${PORT0}" ]]; then
+  LISTEN_PORT=${PORT0}
+fi
+
+python -m fedlearner.trainer.parameter_server $POD_IP:{LISTEN_PORT}
