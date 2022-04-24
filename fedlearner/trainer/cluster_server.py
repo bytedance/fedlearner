@@ -13,7 +13,7 @@
 # limitations under the License.
 
 # coding: utf-8
-
+import os
 import tensorflow.compat.v1 as tf
 from fedlearner.common import fl_logging
 
@@ -43,6 +43,9 @@ class ClusterServer():
         try:
             address = cluster_spec.task_address(
                 self._job_name, self._task_index)
+            PORT1 = os.getenv('PORT1')
+            if PORT1:
+                address = f'0.0.0.0:{PORT1}'
             self._tf_server = \
                 tf.distribute.Server({"server": {
                                         self._task_index: address}

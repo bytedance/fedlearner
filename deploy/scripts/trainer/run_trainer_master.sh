@@ -47,10 +47,6 @@ else
     export_path="--export-path=$OUTPUT_BASE_DIR/exported_models"
 fi
 
-MASTER_PORT=50052
-if [[ -n "${PORT1}" ]]; then
-  MASTER_PORT=${PORT1}
-fi
 
 if [ -n "$CLUSTER_SPEC" ]; then
   # rewrite tensorflow ClusterSpec for compatibility
@@ -66,7 +62,7 @@ def rewrite_port(address, old, new):
 
 cluster_spec = json.loads('$CLUSTER_SPEC')['clusterSpec']
 for i, master in enumerate(cluster_spec.get('Master', [])):
-  cluster_spec['Master'][i] = rewrite_port(master, '50051', '${MASTER_PORT}')
+  cluster_spec['Master'][i] = rewrite_port(master, '50051', '50052')
 for i, worker in enumerate(cluster_spec.get('Worker', [])):
   cluster_spec['Worker'][i] = rewrite_port(worker, '50051', '50052')
 print(json.dumps({'clusterSpec': cluster_spec}))
