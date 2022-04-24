@@ -78,6 +78,8 @@ def rewrite_port(address, old, new):
   return address
 
 cluster_spec = json.loads('$CLUSTER_SPEC')['clusterSpec']
+for i, ps in enumerate(cluster_spec.get('PS', [])):
+  cluster_spec['PS'][i] = rewrite_port(ps, '50051', '50052')
 for i, master in enumerate(cluster_spec.get('Master', [])):
   cluster_spec['Master'][i] = rewrite_port(master, '50051', '50052')
 for i, worker in enumerate(cluster_spec.get('Worker', [])):
@@ -86,11 +88,16 @@ print(json.dumps({'clusterSpec': cluster_spec}))
 """`
 fi
 
+LISTEN_PORT=50051
+if [[ -n "${PORT0}" ]]; then
+  LISTEN_PORT=${PORT0}
+fi
+
 python main.py --worker \
     --application-id="$APPLICATION_ID" \
     --master-addr="$MASTER_HOST:50051" \
     --cluster-spec="$CLUSTER_SPEC" \
-    --local-addr="$POD_IP:50051" \
+    --local-addr="$POD_IP:${LISTEN_PORT}" \
     --peer-addr="$PEER_ADDR" \
     --worker-rank="$WORKER_RANK" \
     $mode $batch_size \

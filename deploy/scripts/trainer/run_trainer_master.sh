@@ -47,6 +47,7 @@ else
     export_path="--export-path=$OUTPUT_BASE_DIR/exported_models"
 fi
 
+
 if [ -n "$CLUSTER_SPEC" ]; then
   # rewrite tensorflow ClusterSpec for compatibility
   # master port 50051 is used for fedlearner master server, so rewrite to 50052
@@ -60,6 +61,8 @@ def rewrite_port(address, old, new):
   return address
 
 cluster_spec = json.loads('$CLUSTER_SPEC')['clusterSpec']
+for i, ps in enumerate(cluster_spec.get('PS', [])):
+  cluster_spec['PS'][i] = rewrite_port(ps, '50051', '50052')
 for i, master in enumerate(cluster_spec.get('Master', [])):
   cluster_spec['Master'][i] = rewrite_port(master, '50051', '50052')
 for i, worker in enumerate(cluster_spec.get('Worker', [])):
@@ -75,10 +78,15 @@ else
 fi
 cd ${ROLE}
 
+LISTEN_PORT=50051
+if [[ -n "${PORT0}" ]]; then
+  LISTEN_PORT=${PORT0}
+fi
+
 python main.py --master \
     --application-id=$APPLICATION_ID \
     --data-source=$DATA_SOURCE \
-    --master-addr=0.0.0.0:50051 \
+    --master-addr=0.0.0.0:${LISTEN_PORT} \
     --cluster-spec="$CLUSTER_SPEC" \
     $checkpoint_path $load_checkpoint_path \
     $load_checkpoint_filename $load_checkpoint_filename_with_path \
