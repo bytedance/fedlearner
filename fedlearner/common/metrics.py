@@ -32,6 +32,7 @@ from elasticsearch6 import helpers as helpers6
 from .common import Config, INDEX_NAME, INDEX_TYPE, get_es_template
 
 from . import fl_logging
+from .metric_collector import MetricCollector
 
 
 class Handler(object):
@@ -238,6 +239,8 @@ def emit(name, value, tags=None, index_type='metrics'):
 emit_counter = emit
 emit_store = emit
 emit_timer = emit
+
+metric_collector = MetricCollector()
 
 
 def timer(func_name, tags=None):

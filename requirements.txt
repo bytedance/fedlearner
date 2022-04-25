@@ -30,4 +30,6 @@ matplotlib
 flatten_dict
 pyspark==3.0.2
 pandas==1.1.5
-
+opentelemetry-api==1.10.0
+opentelemetry-sdk==1.10.0
+opentelemetry-exporter-otlp==1.10.0
