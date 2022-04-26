@@ -1297,8 +1297,12 @@ class BoostingTreeEnsamble(object):
             logging.error(f'lxg log, iter_metrics_handler, name={name}, value={value}, iter={len(self._trees)}, mode={mode}')
             # new version
             metrics_name = f'model.{mode}.tree_vertical.{name}'
-            k8s_job_name = os.environ.get('APPLICATION_ID', 'default_k8s_job_name')
-            metrics_label = {'iteration': {len(self._trees)}, 'k8s_job_name': k8s_job_name}
+            k8s_job_name = os.environ.get('APPLICATION_ID',
+                                          'default_k8s_job_name')
+            metrics_label = {
+                'iteration': {len(self._trees)},
+                'k8s_job_name': k8s_job_name
+            }
             metric_collector.record(metrics_name, value, metrics_label)
 
     def fit(self,
