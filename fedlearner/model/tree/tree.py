@@ -1294,7 +1294,6 @@ class BoostingTreeEnsamble(object):
             # old version
             emit_store(name=name, value=value,
                        tags={'iteration': len(self._trees), 'mode': mode})
-            logging.error(f'lxg log, iter_metrics_handler, name={name}, value={value}, iter={len(self._trees)}, mode={mode}')
             # new version
             metrics_name = f'model.{mode}.tree_vertical.{name}'
             k8s_job_name = os.environ.get('APPLICATION_ID',
