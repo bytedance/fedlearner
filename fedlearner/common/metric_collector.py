@@ -21,7 +21,8 @@ from opentelemetry import _metrics as metrics
 from opentelemetry.sdk._metrics import MeterProvider
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk._metrics.export import PeriodicExportingMetricReader
-from opentelemetry.exporter.otlp.proto.grpc._metric_exporter import OTLPMetricExporter
+from opentelemetry.exporter.otlp.proto.grpc._metric_exporter \
+    import OTLPMetricExporter
 
 
 _logger = logging.getLogger(__name__)
@@ -43,24 +44,37 @@ class MetricCollector:
             return
 
         if service_name is None:
-            service_name = environ.get('METRIC_COLLECTOR_SERVICE_NAME', 'default_metric_service')
+            service_name = environ.get('METRIC_COLLECTOR_SERVICE_NAME',
+                                       'default_metric_service')
         if export_interval_millis is None:
             try:
                 export_interval_millis = float(
-                    environ.get('METRIC_COLLECTOR_EXPORT_INTERVAL_MILLIS', self._DEFAULT_EXPORT_INTERVAL)
+                    environ.get('METRIC_COLLECTOR_EXPORT_INTERVAL_MILLIS',
+                                self._DEFAULT_EXPORT_INTERVAL)
                 )
             except ValueError:
-                _logger.info(f'Invalid value for export interval, using default {self._DEFAULT_EXPORT_INTERVAL} ms')
+                _logger.info(
+                    'Invalid value for export interval, using default %s ms',
+                    self._DEFAULT_EXPORT_INTERVAL)
                 export_interval_millis = 60000
 
         exporter = OTLPMetricExporter(endpoint=endpoint, insecure=True)
-        reader = PeriodicExportingMetricReader(exporter=exporter, export_interval_millis=export_interval_millis)
-        provider = MeterProvider(metric_readers=[reader], resource=Resource.create({'service.name': service_name}))
+        reader = PeriodicExportingMetricReader(
+            exporter=exporter,
+            export_interval_millis=export_interval_millis
+        )
+        provider = MeterProvider(
+            metric_readers=[reader],
+            resource=Resource.create({'service.name': service_name})
+        )
         metrics.set_meter_provider(provider)
         self._meter = metrics.get_meter_provider().get_meter(__name__)
         self._ready = True
 
-    def record(self, name: str, value: Union[int, float], labels: Dict[str, str] = None):
+    def record(self,
+               name: str,
+               value: Union[int, float],
+               labels: Dict[str, str] = None):
         if self._ready is False:
             return
         # counter

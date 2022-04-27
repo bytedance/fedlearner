@@ -1300,7 +1300,7 @@ class BoostingTreeEnsamble(object):
             k8s_job_name = os.environ.get('APPLICATION_ID',
                                           'default_k8s_job_name')
             metrics_label = {
-                'iteration': {len(self._trees)},
+                'iteration': len(self._trees),
                 'k8s_job_name': k8s_job_name
             }
             metric_collector.record(metrics_name, value, metrics_label)
