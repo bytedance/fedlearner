@@ -83,11 +83,14 @@ if [[ -n "${PORT0}" ]]; then
   LISTEN_PORT=${PORT0}
 fi
 
+server_port=$(normalize_env_to_args "--server-port" "$PORT1")
+
 python main.py --master \
     --application-id=$APPLICATION_ID \
     --data-source=$DATA_SOURCE \
     --master-addr=0.0.0.0:${LISTEN_PORT} \
     --cluster-spec="$CLUSTER_SPEC" \
+    $server_port \
     $checkpoint_path $load_checkpoint_path \
     $load_checkpoint_filename $load_checkpoint_filename_with_path \
     $export_path \
