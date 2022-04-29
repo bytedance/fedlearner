@@ -4,14 +4,14 @@
 
 With the increasing concerns on data security and user privacy in machine learning, federated learning becomes a promising solution to privacy and security challenges.  Federated Learning can be classified into Vertical Federated Learning, Horizontal Federated Learning, Federated Transfer Learning (FTL) according to  how sensitive data are distributed among participating parties. 
 
-Federated Learning usually adopts three major technologies in protecting privacy: Differential Privacy (DP), Homomorphic Encryption (HE) and Private Set Intersection (PSI). This solution presents an innovative way to presents an secure enhanced Vertical Federated Learning  by integrating Intel SGX technology.
+Federated Learning usually adopts three major technologies in protecting privacy: Differential Privacy (DP), Homomorphic Encryption (HE) and  Muti-Party Computation (MPC). The privacy protection technologies that are adopted  in deep neural networks are DP and MPC and TEE (Trusted Executing Environment).
+This solution presents an innovative way to presents an secure enhanced Vertical Federated Learning  by integrating Intel SGX technology.
 
-Vertical Federated Learning assumes that the data are partitioned by different features (including labels). A typical scenario of Vertical Federated Learning is including two parts: online reference and offline training. When an online media platform A displays ads of an ecommerce company B to its users and charges B for each conversion (e.g., user clicking the ad and buying the product). 
+Vertical Federated Learning assumes that the data are partitioned by different features (including labels). A typical scenario of Vertical Federated Learning is including two parts: online reference and offline training. When an online media platform A displays ads of an e-commerce company B to its users and charges B for each conversion (e.g., user clicking the ad and buying the product).
 
 ![vertical FL](./imgs/vfl.png)
 
-During offline training, e-commerce advertisers and the Data Management Platform (DMP), both parties use the example_id recorded online to align the data and label, and then read the data in the order of alignment. The model is divided into two parts. The DMP inputs the data into the first half, obtains the intermediate result (embedding) and then sends it to the e-commerce
-advertisers. E-commerce advertisers calculate the second half of the model, then use the label they record to calculate the loss and gradient, and then pass the gradient back to the DMP. Finally, the e-commerce advertisers and DMP update their models.
+During offline training, active party and passive party , both parties use the example_id recorded online to align the data and label, and then read the data in the order of alignment. The model is divided into two parts. The passive party inputs the data into the first half, obtains the intermediate result (embedding) and then sends it to active party. Active party calculates the second half of the model, then use the label they record to calculate the loss and gradient, and then pass the gradient back to the passive party. Finally, the active party and passive party update their models.
 
 ## Introduction
 
@@ -33,7 +33,7 @@ In this solution, it focuses on online training part and the main involved modul
 
 ![Vertical FL with SGX](./imgs/vfl_with_sgx.png)
 
-Usually, there are two roles during model training - parameter server and workers. Each worker computes the gradient of the loss on its portion of the data, and then a parameter server sums each worker’s gradient to yield the full mini-batch gradient. After using this gradient to update the model parameters, the parameter server must send back the updated weights to the worker.  Workers from DMP and e-commerce advertisers will transfer labels and gradients via gRPC.
+Usually, there are two roles during model training - parameter server and workers. Each worker computes the gradient of the loss on its portion of the data, and then a parameter server sums each worker’s gradient to yield the full mini-batch gradient. After using this gradient to update the model parameters, the parameter server must send back the updated weights to the worker.  Workers from active party and passive party will transfer labels and gradients via gRPC.
 
 **Runtime security with Intel SGX**
 
