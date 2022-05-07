@@ -57,6 +57,11 @@ sparse_estimator=$(normalize_env_to_args "--sparse-estimator" "$SPARSE_ESTIMATOR
 batch_size=$(normalize_env_to_args "--batch-size" "$BATCH_SIZE")
 learning_rate=$(normalize_env_to_args "--learning-rate" "$LEARNING_RATE")
 
+LISTEN_PORT=50051
+if [[ -n "${PORT0}" ]]; then
+  LISTEN_PORT=${PORT0}
+fi
+
 if [ -n "$CLUSTER_SPEC" ]; then
   # get master address from clusteSpec["master"]
   MASTER_HOST=`python -c "
@@ -84,7 +89,7 @@ def rewrite_port(address, old, new):
 
 cluster_spec = json.loads('$CLUSTER_SPEC')['clusterSpec']
 for i, ps in enumerate(cluster_spec.get('PS', [])):
-  cluster_spec['PS'][i] = rewrite_port(ps, '50051', '50052')
+  cluster_spec['PS'][i] = rewrite_port(ps, '50051', '$LISTEN_PORT')
 for i, master in enumerate(cluster_spec.get('Master', [])):
   cluster_spec['Master'][i] = rewrite_port(master, '50051', '50052')
 for i, worker in enumerate(cluster_spec.get('Worker', [])):
@@ -97,11 +102,6 @@ for m_idx in range($LOCAL_WORKER_MULTIPLIER):
                                                str(50052+gap)))
 print(json.dumps({'clusterSpec': cluster_spec}))
 """`
-fi
-
-LISTEN_PORT=50051
-if [[ -n "${PORT0}" ]]; then
-  LISTEN_PORT=${PORT0}
 fi
 
 local_worker_pids=()

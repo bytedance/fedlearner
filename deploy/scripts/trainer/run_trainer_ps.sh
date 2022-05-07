@@ -20,7 +20,7 @@ export CUDA_VISIBLE_DEVICES=
 source /app/deploy/scripts/hdfs_common.sh || true
 source /app/deploy/scripts/pre_start_hook.sh || true
 
-LISTEN_PORT=50052
+LISTEN_PORT=50051
 if [[ -n "${PORT1}" ]]; then
   LISTEN_PORT=${PORT1}
 fi
