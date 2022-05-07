@@ -103,7 +103,7 @@ def train_from_keras_model(model,
                         batch_size=batch_size,
                         epochs=epochs,
                         callbacks=[MasterControlKerasCallback(master),
-                                   MetricsKerasCallback])
+                                   MetricsKerasCallback()])
     master.wait()
 
     return history
