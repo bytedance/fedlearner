@@ -11,24 +11,40 @@ class MasterControlKerasCallback(tf.keras.callbacks.Callback):
     def __init__(self, master):
         self._master = master
         super().__init__()
-        self._global_step = None
-        self._metrics = {}
 
-    def on_train_begin(self, logs):
+    def on_train_begin(self, logs=None):
         self._master.on_train_begin()
 
-    def on_train_end(self, logs):
+    def on_train_end(self, logs=None):
         self._master.on_train_end()
-        self.emit_metrics()
 
     def on_train_batch_begin(self, batch, logs=None):
         self._master.on_train_batch_begin()
 
     def on_train_batch_end(self, batch, logs=None):
         self._master.on_train_batch_end()
+
+
+class MetricsKerasCallback(tf.keras.callbacks.Callback):
+
+    def __init__(self):
+        super().__init__()
+        self._global_step = None
+        self._metrics = {}
+
+    def on_train_end(self, logs=None):
+        self.emit_metrics()
+
+    def on_train_batch_end(self, batch, logs=None):
         self.update_metrics(logs)
 
-    def update_metrics(self, logs):
+    def on_test_end(self, logs=None):
+        self.emit_metrics()
+
+    def on_test_batch_end(self, batch, logs=None):
+        self.update_metrics(logs)
+
+    def update_metrics(self, logs: dict):
         if 'batch' not in logs:
             return
 
@@ -86,7 +102,15 @@ def train_from_keras_model(model,
                         y,
                         batch_size=batch_size,
                         epochs=epochs,
-                        callbacks=[MasterControlKerasCallback(master)])
+                        callbacks=[MasterControlKerasCallback(master),
+                                   MetricsKerasCallback()])
     master.wait()
 
+    return history
+
+
+def eval_from_keras_model(model: tf.keras.Model, x=None, y=None,
+                          batch_size=None):
+    history = model.evaluate(x, y, batch_size=batch_size,
+                             callbacks=[MetricsKerasCallback()])
     return history
