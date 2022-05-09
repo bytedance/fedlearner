@@ -25,27 +25,6 @@ source /app/deploy/scripts/env_to_args.sh
 
 PEER_ADDR=${APPLICATION_ID}-worker-${INDEX}.${EGRESS_DOMAIN}
 
-# When the WORKER_GROUPS is "2,4", this script would update the INDEX
-# to the worker's index within their own group, e.g.
-#
-# + INDEX 0 -> 0
-# + INDEX 1 -> 1
-# + INDEX 2 -> 0
-# + INDEX 3 -> 1
-# + INDEX 4 -> 2
-# + INDEX 5 -> 3
-#
-if [ -n "$WORKER_GROUPS" ]; then
-IFS=',' read -ra WORKER_GROUPS <<< "$WORKER_GROUPS"
-for i in "${WORKER_GROUPS[@]}"; do
-    if (( $INDEX - $i < 0 )); then
-        break
-    else
-        INDEX=$( expr $INDEX - $i )
-    fi
-done
-fi
-
 if [[ -n "${CODE_KEY}" ]]; then
   pull_code ${CODE_KEY} $PWD
 else
@@ -94,12 +73,19 @@ print(json.dumps({'clusterSpec': cluster_spec}))
 """`
 fi
 
-echo python main.py --worker \
+LISTEN_PORT=50051
+if [[ -n "${PORT0}" ]]; then
+  LISTEN_PORT=${PORT0}
+fi
+
+server_port=$(normalize_env_to_args "--server-port" "$PORT1")
+
+python main.py --worker \
     --application-id="$APPLICATION_ID" \
     --master-addr="$MASTER_HOST:50051" \
     --cluster-spec="$CLUSTER_SPEC" \
     --local-addr="$POD_IP:${LISTEN_PORT}" \
     --peer-addr="$PEER_ADDR" \
-    --worker-rank="$WORKER_RANK" \
+    --worker-rank="$INDEX" \
     $server_port $mode $batch_size \
     $sparse_estimator $learning_rate
