@@ -15,9 +15,10 @@
 # coding: utf-8
 # pylint: disable=no-else-return, inconsistent-return-statements
 
+import logging
+
 import tensorflow.compat.v1 as tf
 import fedlearner.trainer as flt
-import logging
 
 ROLE = 'leader'
 
