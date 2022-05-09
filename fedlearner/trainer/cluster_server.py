@@ -29,8 +29,8 @@ class ClusterServer:
         self._task_index = task_index
         self._extra_reserve_jobs = set(extra_reserve_jobs) \
             if extra_reserve_jobs is not None else set(["ps"])
-        self._create_tf_server(cluster_spec)
         self._server_port = server_port
+        self._create_tf_server(cluster_spec)
 
     def _create_tf_server(self, cluster_spec):
         self._tf_config = tf.ConfigProto()
