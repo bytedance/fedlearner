@@ -167,7 +167,7 @@ class _FakeTrainerMasterClient():
 
 class _TrainerMaster(tm_grpc.TrainerMasterServiceServicer):
     def __init__(self,
-                 cluster_server,
+                 cluster_server: ClusterServer,
                  role,
                  mode,
                  model_fn,

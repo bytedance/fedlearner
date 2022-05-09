@@ -61,6 +61,10 @@ def create_argument_parser():
                         type=str,
                         help='Address of peer\'s bridge, ' \
                              'in [IP]:[PORT] format')
+    parser.add_argument('--server-port',
+                        type=int,
+                        default=None,
+                        help='server port of tensorflow server, e.g. 50052')
     parser.add_argument('--cluster-spec',
                         type=str,
                         help='ClusterSpec description for master/ps/worker, '\
@@ -163,7 +167,8 @@ def _run_master(role,
 
     cluster_server = None
     if cluster_spec:
-        cluster_server = ClusterServer(cluster_spec, "master")
+        cluster_server = ClusterServer(cluster_spec, "master",
+                                       server_port=args.server_port)
 
     checkpoint_filename_with_path = _get_checkpoint_filename_with_path(args)
     data_visitor = _create_data_visitor(args)
@@ -201,7 +206,8 @@ def _run_worker(role, args, input_fn, model_fn):
     cluster_spec = _create_cluster_spec(args, require_ps=True)
     cluster_server = ClusterServer(cluster_spec,
                                    "worker",
-                                   task_index=args.worker_rank)
+                                   task_index=args.worker_rank,
+                                   server_port=args.server_port)
 
     trainer_master = TrainerMasterClient(args.master_addr,
                                          args.worker_rank)
