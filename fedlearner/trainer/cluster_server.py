@@ -13,22 +13,24 @@
 # limitations under the License.
 
 # coding: utf-8
-
+from typing import Optional
 import tensorflow.compat.v1 as tf
 from fedlearner.common import fl_logging
 
 
-class ClusterServer():
+class ClusterServer:
     def __init__(self,
                  cluster_spec,
                  job_name,
                  task_index=0,
-                 extra_reserve_jobs=None):
+                 extra_reserve_jobs=None,
+                 server_port: Optional[int] = None):
         self._job_name = job_name
         self._task_index = task_index
         self._extra_reserve_jobs = set(extra_reserve_jobs) \
             if extra_reserve_jobs is not None else set(["ps"])
         self._create_tf_server(cluster_spec)
+        self._server_port = server_port
 
     def _create_tf_server(self, cluster_spec):
         self._tf_config = tf.ConfigProto()
@@ -41,29 +43,31 @@ class ClusterServer():
         self._tf_config.rpc_options.disable_session_connection_sharing = True
 
         try:
-            address = cluster_spec.task_address(
+            task_address = cluster_spec.task_address(
                 self._job_name, self._task_index)
+            address = task_address
+            if self._server_port:
+                address = f'0.0.0.0:{self._server_port}'
             self._tf_server = \
                 tf.distribute.Server({"server": {
                                         self._task_index: address}
                                      },
                                      protocol="grpc",
                                      config=self._tf_config)
-            self._tf_target = "grpc://" + address
+            self._tf_target = "grpc://" + task_address
         except ValueError:
             self._tf_server = \
                 tf.distribute.Server({"server":
-                                        {self._task_index: "localhost:0"}
-                                     },
+                                          {self._task_index: "localhost:0"}
+                                      },
                                      protocol="grpc",
                                      config=self._tf_config)
             self._tf_target = self._tf_server.target
+            task_address = self._tf_target[len("grpc://"):]
 
         # modify cluster_spec
         cluster_dict = dict()
-        cluster_dict[self._job_name] = {
-            self._task_index: self._tf_target[len("grpc://"):]
-        }
+        cluster_dict[self._job_name] = {self._task_index: task_address}
         for job_name in cluster_spec.jobs:
             if job_name == self._job_name:
                 continue

@@ -55,10 +55,14 @@ send_metrics_to_follower=$(normalize_env_to_args "--send-metrics-to-follower" "$
 enable_packing=$(normalize_env_to_args "--enable-packing" "$ENABLE_PACKING")
 label_field=$(normalize_env_to_args "--label-field" "$LABEL_FIELD")
 
+LISTEN_PORT=50051
+if [[ -n "${PORT0}" ]]; then
+  LISTEN_PORT=${PORT0}
+fi
 
 python -m fedlearner.model.tree.trainer \
     "${ROLE}" \
-    --local-addr="$POD_IP:50051" \
+    --local-addr="$POD_IP:${LISTEN_PORT}" \
     --peer-addr="$PEER_ADDR" \
     --num-workers="$NUM_WORKERS" \
     --worker-rank="$WORKER_RANK" \
