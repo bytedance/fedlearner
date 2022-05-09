@@ -43,9 +43,9 @@ class ClusterServer:
         self._tf_config.rpc_options.disable_session_connection_sharing = True
 
         try:
-            tf_target = cluster_spec.task_address(
+            task_address = cluster_spec.task_address(
                 self._job_name, self._task_index)
-            address = tf_target
+            address = task_address
             if self._server_port:
                 address = f'0.0.0.0:{self._server_port}'
             self._tf_server = \
@@ -54,7 +54,7 @@ class ClusterServer:
                                      },
                                      protocol="grpc",
                                      config=self._tf_config)
-            self._tf_target = "grpc://" + tf_target
+            self._tf_target = "grpc://" + task_address
         except ValueError:
             self._tf_server = \
                 tf.distribute.Server({"server":
@@ -63,10 +63,11 @@ class ClusterServer:
                                      protocol="grpc",
                                      config=self._tf_config)
             self._tf_target = self._tf_server.target
+            task_address = self._tf_target[len("grpc://"):]
 
         # modify cluster_spec
         cluster_dict = dict()
-        cluster_dict[self._job_name] = {self._task_index: tf_target}
+        cluster_dict[self._job_name] = {self._task_index: task_address}
         for job_name in cluster_spec.jobs:
             if job_name == self._job_name:
                 continue
