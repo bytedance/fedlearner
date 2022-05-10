@@ -23,7 +23,7 @@ source /app/deploy/scripts/hdfs_common.sh || true
 source /app/deploy/scripts/pre_start_hook.sh || true
 source /app/deploy/scripts/env_to_args.sh
 
-PEER_ADDR=${APPLICATION_ID}-worker-${INDEX}.${EGRESS_DOMAIN}
+PEER_ADDR=${APPLICATION_ID}-worker-${INDEX}
 
 if [[ -n "${CODE_KEY}" ]]; then
   pull_code ${CODE_KEY} $PWD
