@@ -98,9 +98,9 @@ class TestLeaderDataVisitor(unittest.TestCase):
 class TestDataBlockDealer(unittest.TestCase):
     def setUp(self):
         start_time = datetime.strptime('20210101', '%Y%m%d')
-        hour_delta = timedelta(hours=1)
+        hour_delta = timedelta(hours=4)
         self._datablocks = []
-        for i in range(100):
+        for i in range(20):
             end_time = start_time + hour_delta
             self._datablocks.append(_RawDataBlock(
                 "id_" + str(i), "path/to/" + str(i),

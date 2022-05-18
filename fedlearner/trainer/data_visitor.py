@@ -96,11 +96,11 @@ class RawDataBlockDealer(object):
         start_index = 0
         end_index = 1
         num_data_blocks = len(self._data_blocks)
-        if not self._data_blocks or not self._data_blocks[0].start_time:
+        if not self._data_blocks or not self._data_blocks[0].end_time:
             return self
-        start_day = str(self._data_blocks[0].start_time)[:8]
+        start_day = str(self._data_blocks[0].end_time)[:8]
         while end_index < num_data_blocks:
-            new_day = str(self._data_blocks[end_index].start_time)[:8]
+            new_day = str(self._data_blocks[end_index].end_time)[:8]
             if new_day != start_day:
                 _shuffle(start_index, end_index-1)
                 start_index = end_index
@@ -116,8 +116,6 @@ class _DataVisitor(object):
         self._datablocks = list(datablocks)
         self._datablock_dict = {}
         for datablock in datablocks:
-            fl_logging.info("load datablock, id: %s, data_path: %s, type %s",
-                            datablock.id, datablock.data_path, datablock.type)
             self._datablock_dict[datablock.id] = datablock
         self._epoch_num = epoch_num if epoch_num > 0 else 1
         self._shuffle_type = shuffle_type
@@ -128,6 +126,9 @@ class _DataVisitor(object):
         self._allocated = {} # epoch -> set(datablock.id)
 
         self._shuffle_data_blocks()
+        for datablock in self._datablocks:
+            fl_logging.info("load datablock, id: %s, data_path: %s, type %s",
+                            datablock.id, datablock.data_path, datablock.type)
 
     @property
     def epoch_num(self):
@@ -289,7 +290,7 @@ class DataSourceVisitor(_DataVisitor):
                                   datablock.start_time,
                                   datablock.end_time,
                                   tm_pb.LOCAL))
-        data_blocks.sort(key=lambda x: (x.start_time, x.end_time))
+        data_blocks.sort(key=lambda x: x.end_time)
 
         super(DataSourceVisitor, self).__init__(
             data_blocks, epoch_num, shuffle_type)
