@@ -14,32 +14,77 @@
 
 # coding: utf-8
 import logging
+from dataclasses import dataclass
 from os import environ
+from threading import Lock
 from typing import Optional, Union, Dict
 
-from opentelemetry import _metrics as metrics
-from opentelemetry.sdk._metrics import MeterProvider
+from opentelemetry import trace, _metrics as metrics
+from opentelemetry._metrics.instrument import UpDownCounter
+from opentelemetry._metrics.measurement import Measurement
 from opentelemetry.sdk.resources import Resource
-from opentelemetry.sdk._metrics.export import PeriodicExportingMetricReader
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk._metrics import MeterProvider
+from opentelemetry.sdk._metrics.export import \
+    ConsoleMetricExporter, PeriodicExportingMetricReader
+from opentelemetry.exporter.otlp.proto.grpc.trace_exporter \
+    import OTLPSpanExporter
 from opentelemetry.exporter.otlp.proto.grpc._metric_exporter \
     import OTLPMetricExporter
-
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
 _logger = logging.getLogger(__name__)
 
 
-class MetricCollector:
+@dataclass
+class Sample:
+    value: Union[int, float]
+    labels: Dict[str, str] = None
 
+
+class MetricCollector:
     _DEFAULT_EXPORT_INTERVAL = 60000
+
+    class Callback:
+
+        def __init__(self) -> None:
+            self._measurement_list = []
+
+        def record(self, value: Union[int, float], tags: dict):
+            self._measurement_list.append(
+                Measurement(value=value, attributes=tags))
+
+        def __iter__(self):
+            return self
+
+        def __next__(self):
+            if len(self._measurement_list) == 0:
+                raise StopIteration
+            return self._measurement_list.pop(0)
+
+        def __call__(self):
+            return iter(self)
+
+    class EmptyTrace(object):
+        def __init__(self):
+            pass
+
+        def __enter__(self):
+            pass
+
+        def __exit__(self, *a):
+            pass
 
     def __init__(
         self,
         service_name: Optional[str] = None,
         export_interval_millis: Optional[float] = None,
     ):
-        # for example, 'http://apm-server-apm-server:8200'
-        endpoint = environ.get('METRIC_COLLECTOR_EXPORT_ENDPOINT')
-        if endpoint is None:
+        enable = environ.get('METRIC_COLLECTOR_ENABLE')
+        if enable is None:
+            self._ready = False
+            return
+        elif enable.lower() in ['false', 'f']:
             self._ready = False
             return
 
@@ -56,28 +101,88 @@ class MetricCollector:
                 _logger.info(
                     'Invalid value for export interval, using default %s ms',
                     self._DEFAULT_EXPORT_INTERVAL)
-                export_interval_millis = 60000
+                export_interval_millis = self._DEFAULT_EXPORT_INTERVAL
 
-        exporter = OTLPMetricExporter(endpoint=endpoint, insecure=True)
+        # for example, 'http://apm-server-apm-server:8200'
+        endpoint = environ.get('METRIC_COLLECTOR_EXPORT_ENDPOINT')
+        if endpoint is not None:
+            exporter = OTLPMetricExporter(endpoint=endpoint, insecure=True)
+        else:
+            exporter = ConsoleMetricExporter()
+
         reader = PeriodicExportingMetricReader(
             exporter=exporter,
-            export_interval_millis=export_interval_millis
-        )
-        provider = MeterProvider(
+            export_interval_millis=export_interval_millis)
+        resource = Resource.create({'service.name': service_name})
+        self._meter_provider = MeterProvider(
             metric_readers=[reader],
-            resource=Resource.create({'service.name': service_name})
+            resource=resource
         )
-        metrics.set_meter_provider(provider)
-        self._meter = metrics.get_meter_provider().get_meter(__name__)
-        self._ready = True
+        metrics.set_meter_provider(self._meter_provider)
+        self._meter = metrics.get_meter_provider().get_meter(service_name)
 
-    def record(self,
-               name: str,
-               value: Union[int, float],
-               labels: Dict[str, str] = None):
+        tracer_provider = TracerProvider(resource=resource)
+        tracer_provider.add_span_processor(
+            BatchSpanProcessor(OTLPSpanExporter(endpoint=endpoint))
+        )
+        trace.set_tracer_provider(tracer_provider)
+        self._tracer = trace.get_tracer_provider().get_tracer(service_name)
+
+        self._ready = True
+        self._lock = Lock()
+        self._cache: \
+            Dict[str, Union[UpDownCounter, MetricCollector.Callback]] = {}
+
+    def emit_single_point(self,
+                          name: str,
+                          value: Union[int, float],
+                          tags: Dict[str, str] = None):
         if self._ready is False:
             return
-        # counter
-        name = 'values.' + name
-        up_down_counter = self._meter.create_up_down_counter(name=name)
-        up_down_counter.add(value, attributes=labels)
+        cb = self.Callback()
+        self._meter.create_observable_gauge(
+            name=f'values.{name}', callback=cb
+        )
+        cb.record(value=value, tags=tags)
+
+    def emit_timing(self,
+                    name: str,
+                    tags: Dict[str, str] = None):
+        if self._ready is False:
+            return self.EmptyTrace()
+        return self._tracer.start_as_current_span(name=name, attributes=tags)
+
+    def emit_counter(self,
+                     name: str,
+                     value: Union[int, float],
+                     tags: Dict[str, str] = None):
+        if self._ready is False:
+            return
+        if name not in self._cache:
+            with self._lock:
+                # Double check `self._cache` content.
+                if name not in self._cache:
+                    counter = self._meter.create_up_down_counter(
+                        name=f'values.{name}'
+                    )
+                    self._cache[name] = counter
+        assert isinstance(self._cache[name], UpDownCounter)
+        self._cache[name].add(value, attributes=tags)
+
+    def emit_store(self,
+                   name: str,
+                   value: Union[int, float],
+                   tags: Dict[str, str] = None):
+        if self._ready is False:
+            return
+        if name not in self._cache:
+            with self._lock:
+                # Double check `self._cache` content.
+                if name not in self._cache:
+                    cb = self.Callback()
+                    self._meter.create_observable_gauge(
+                        name=f'values.{name}', callback=cb
+                    )
+                    self._cache[name] = cb
+        assert isinstance(self._cache[name], self.Callback)
+        self._cache[name].record(value=value, tags=tags)

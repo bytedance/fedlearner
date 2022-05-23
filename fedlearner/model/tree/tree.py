@@ -1302,7 +1302,7 @@ class BoostingTreeEnsamble(object):
                 'iteration': len(self._trees),
                 'k8s_job_name': k8s_job_name
             }
-            metric_collector.record(metrics_name, value, metrics_label)
+            metric_collector.emit_store(metrics_name, value, metrics_label)
 
     def fit(self,
             features,
