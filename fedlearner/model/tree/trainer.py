@@ -22,6 +22,7 @@ import argparse
 import traceback
 import itertools
 import numpy as np
+from fnmatch import fnmatch
 
 import tensorflow.compat.v1 as tf
 
@@ -61,8 +62,10 @@ def create_argument_parser():
     parser.add_argument('--no-data', type=str_as_bool,
                         default=False, const=True, nargs='?',
                         help='Run prediction without data.')
-    parser.add_argument('--file-ext', type=str, default='.csv',
+    parser.add_argument('--file-ext', type=str, default='',
                         help='File extension to use')
+    parser.add_argument('--file-wildcard', type=str, default='',
+                        help='the wildcard filter for the file')
     parser.add_argument('--file-type', type=str, default='csv',
                         help='input file type: csv or tfrecord')
     parser.add_argument('--load-model-path',
@@ -183,6 +186,21 @@ def extract_field(field_names, field_name, required):
     return None
 
 
+def filter_files(path, file_ext, file_wildcard):
+    files = []
+    for dirname, _, filenames in tf.io.gfile.walk(path):
+        for filename in filenames:
+            _, ext = os.path.splitext(filename)
+            subdirname = os.path.join(path, os.path.relpath(dirname, path))
+            fpath = os.path.join(subdirname, filename)
+            if file_ext and ext != file_ext:
+                continue
+            if file_wildcard and not fnmatch(fpath, file_wildcard):
+                continue
+            files.append(fpath)
+    return files
+
+
 def read_data(file_type, filename, require_example_ids, require_labels,
               ignore_fields, cat_fields, label_field):
     logging.debug('Reading data file from %s', filename)
@@ -242,22 +260,14 @@ def read_data(file_type, filename, require_example_ids, require_labels,
         labels, example_ids, raw_ids
 
 
-def read_data_dir(file_ext, file_type, path, require_example_ids,
+def read_data_dir(file_ext, file_wildcard, file_type, path, require_example_ids,
                   require_labels, ignore_fields, cat_fields, label_field):
     if not tf.io.gfile.isdir(path):
         return read_data(
             file_type, path, require_example_ids,
             require_labels, ignore_fields, cat_fields, label_field)
 
-    files = []
-    for dirname, _, filenames in tf.io.gfile.walk(path):
-        for filename in filenames:
-            _, ext = os.path.splitext(filename)
-            if file_ext and ext != file_ext:
-                continue
-            subdirname = os.path.join(path, os.path.relpath(dirname, path))
-            files.append(os.path.join(subdirname, filename))
-
+    files = filter_files(path, file_ext, file_wildcard)
     files.sort()
     features = None
     for fullname in files:
@@ -299,7 +309,7 @@ def read_data_dir(file_ext, file_type, path, require_example_ids,
 
 def train(args, booster):
     X, cat_X, X_names, cat_X_names, y, example_ids, _ = read_data_dir(
-        args.file_ext, args.file_type, args.data_path, args.verify_example_ids,
+        args.file_ext, args.file_wildcard, args.file_type, args.data_path, args.verify_example_ids,
         args.role != 'follower', args.ignore_fields, args.cat_fields,
         args.label_field)
 
@@ -307,7 +317,7 @@ def train(args, booster):
         val_X, val_cat_X, val_X_names, val_cat_X_names, val_y, \
             val_example_ids, _ = \
             read_data_dir(
-                args.file_ext, args.file_type, args.validation_data_path,
+                args.file_ext, args.file_wildcard, args.file_type, args.validation_data_path,
                 args.verify_example_ids, args.role != 'follower',
                 args.ignore_fields, args.cat_fields, args.label_field)
         assert X_names == val_X_names, \
