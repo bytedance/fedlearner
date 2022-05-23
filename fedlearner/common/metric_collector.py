@@ -84,7 +84,7 @@ class MetricCollector:
         if enable is None:
             self._ready = False
             return
-        elif enable.lower() in ['false', 'f']:
+        if enable.lower() in ['false', 'f']:
             self._ready = False
             return
 
