@@ -536,45 +536,42 @@ class LeaderTrainerMaster(_TrainerMaster):
         if self._last_global_step >= 0:
             speed = (global_step-self._last_global_step) \
                 / (now-self._last_trigger_time)
-            allocated_epoch, allocated_datablock = self._data_visitor.summary()
-            total_epoch, total_datablock = \
+            allocated_epoch, allocated_datablock, allocated_local_datablock \
+                = self._data_visitor.summary()
+            total_epoch, total_datablock, total_local_datablock = \
                 self._data_visitor.epoch_num, \
-                    self._data_visitor.datablock_size
+                    self._data_visitor.datablock_size, \
+                        self._data_visitor.local_datablock_size
             fl_logging.info("global_step: %d, speed: %0.2f step/sec, "
                             "epoch: %d/%d, datablock allocated: %d/%d, "
+                            "local datablock allocated: %d/%d, "
                             "worker: %d/%d(running/completed)",
                             global_step, speed,
                             allocated_epoch, total_epoch,
                             allocated_datablock, total_datablock,
+                            allocated_local_datablock, total_local_datablock,
                             len(self._running_workers),
                             len(self._completed_workers))
             with _gctx.stats_client.pipeline() as pipe:
                 pipe.gauge("trainer.global_step", global_step)
                 pipe.gauge("trainer.datablock_total", total_datablock)
                 pipe.gauge("trainer.datablock_allocated", allocated_datablock)
+                pipe.gauge("trainer.local_datablock_total",
+                           total_local_datablock)
+                pipe.gauge("trainer.local_datablock_allocated",
+                           allocated_local_datablock)
                 pipe.gauge("trainer.speed", speed)
         self._last_trigger_time = now
         self._last_global_step = global_step
 
     def _request_data_block(self, request):
-        need_waiting = False
         try:
             data_block = self._data_visitor.next_with_type(
                 self._worker_data_source_map[request.worker_type])
-            if not data_block:
-                need_waiting = True
         except StopIteration:
             data_block = None
 
-        if need_waiting:
-            fl_logging.info("Worker %s with type %s need to wait data block",
-                            request.worker_rank,
-                            request.worker_type)
-            response = tm_pb.DataBlockResponse(
-                status=common_pb.Status(
-                    code=common_pb.StatusCode.STATUS_WAIT_FOR_DATA_BLOCK),
-            )
-        elif data_block:
+        if data_block:
             fl_logging.info("allocated worker_%d with block: %s",
                             request.worker_rank,
                             data_block.id)
@@ -651,16 +648,21 @@ class FollowerTrainerMaster(_TrainerMaster):
             speed = (global_step-self._last_global_step) \
                 / (now-self._last_trigger_time)
             total_datablock = self._data_visitor.datablock_size
+            total_local_datablock = self._data_visitor.local_datablock_size
             fl_logging.info("global_step: %d, speed: %0.2f step/sec, "
                             "datablock size: %d, "
+                            "local datablock size: %d, "
                             "worker: %d/%d(running/completed)",
                             global_step, speed,
                             total_datablock,
+                            total_local_datablock,
                             len(self._running_workers),
                             len(self._completed_workers))
             with _gctx.stats_client.pipeline() as pipe:
                 pipe.gauge("trainer.global_step", global_step)
                 pipe.gauge("trainer.datablock_total", total_datablock)
+                pipe.gauge("trainer.local_datablock_total",
+                           total_local_datablock)
                 pipe.gauge("trainer.speed", speed)
         self._last_trigger_time = now
         self._last_global_step = global_step

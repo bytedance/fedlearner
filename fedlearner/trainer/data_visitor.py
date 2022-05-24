@@ -111,24 +111,40 @@ class RawDataBlockDealer(object):
 
 
 class _DataVisitor(object):
-    def __init__(self, datablocks, epoch_num=1,
+    def __init__(self, datablocks, local_datablocks=None, epoch_num=1,
                  shuffle_type=None):
-        self._datablocks = list(datablocks)
+        self._datablocks = {
+            tm_pb.JOINED: list(datablocks),
+        }
         self._datablock_dict = {}
         for datablock in datablocks:
             self._datablock_dict[datablock.id] = datablock
+        if local_datablocks:
+            self._datablocks[tm_pb.LOCAL] = list(local_datablocks)
+            for datablock in local_datablocks:
+                self._datablock_dict[datablock.id] = datablock
         self._epoch_num = epoch_num if epoch_num > 0 else 1
         self._shuffle_type = shuffle_type
 
         self._lock = threading.Lock()
-        self._datablock_index = 0
+        self._datablock_index = {
+            tm_pb.JOINED: 0,
+            tm_pb.LOCAL: 0
+        }
+
         self._current_epoch = 1
         self._allocated = {} # epoch -> set(datablock.id)
 
         self._shuffle_data_blocks()
-        for datablock in self._datablocks:
-            fl_logging.info("load datablock, id: %s, data_path: %s, type %s",
+        for datablock in self._datablocks[tm_pb.JOINED]:
+            fl_logging.info("load data block, id: %s, data_path: %s, type %s",
                             datablock.id, datablock.data_path, datablock.type)
+        if local_datablocks:
+            for datablock in self._datablocks[tm_pb.LOCAL]:
+                fl_logging.info("load data block, id: %s, data_path: %s, "
+                                "type %s",
+                                datablock.id, datablock.data_path,
+                                datablock.type)
 
     @property
     def epoch_num(self):
@@ -136,24 +152,38 @@ class _DataVisitor(object):
 
     @property
     def datablock_size(self):
-        return len(self._datablocks) * self._epoch_num
+        return len(self._datablocks[tm_pb.JOINED]) * self._epoch_num
+
+    @property
+    def local_datablock_size(self):
+        if tm_pb.LOCAL in self._datablocks:
+            return len(self._datablocks[tm_pb.LOCAL]) * self._epoch_num
+        return 0
 
     def _shuffle_data_blocks(self):
-        dealer = RawDataBlockDealer(self._datablocks)
-        if self._shuffle_type == ShuffleType.ALL:
-            dealer.shuffle()
-        elif self._shuffle_type == ShuffleType.DAY:
-            dealer.shuffle_in_day()
-        elif self._shuffle_type:
-            fl_logging.fatal("Not supported shuffle type %s",
-                             self._shuffle_type)
-            sys.exit(-1)
+        for datablocks in self._datablocks.values():
+            dealer = RawDataBlockDealer(datablocks)
+            if self._shuffle_type == ShuffleType.ALL:
+                dealer.shuffle()
+            elif self._shuffle_type == ShuffleType.DAY:
+                dealer.shuffle_in_day()
+            elif self._shuffle_type:
+                fl_logging.fatal("Not supported shuffle type %s",
+                                 self._shuffle_type)
+                sys.exit(-1)
 
     def summary(self):
         with self._lock:
+            local_allocated_blocks = 0
+            if tm_pb.LOCAL in self._datablocks:
+                local_allocated_blocks = (self._current_epoch - 1) * \
+                                         len(self._datablocks[tm_pb.LOCAL]) \
+                                         + self._datablock_index[tm_pb.LOCAL]
             return (self._current_epoch,
-                    (self._current_epoch-1) * len(self._datablocks) \
-                        + self._datablock_index)
+                    (self._current_epoch-1) *
+                    len(self._datablocks[tm_pb.JOINED]) \
+                        + self._datablock_index[tm_pb.JOINED],
+                    local_allocated_blocks)
 
     def dump(self):
         with self._lock:
@@ -223,33 +253,35 @@ class _DataVisitor(object):
             self._allocated[epoch] = set()
         self._allocated[epoch].add(datablock.id)
 
-    def _next(self, peek=False):
+    def _next(self, peek=False, data_type=tm_pb.JOINED):
         while True:
-            while self._datablock_index < len(self._datablocks):
-                datablock = self._datablocks[self._datablock_index]
+            while self._datablock_index[data_type] < \
+                    len(self._datablocks[data_type]):
+                datablock = self._datablocks[data_type][
+                    self._datablock_index[data_type]]
                 if self._check_allocated(self._current_epoch, datablock):
                     if not peek:
-                        self._datablock_index += 1
+                        self._datablock_index[data_type] += 1
                         self._allocate(self._current_epoch, datablock)
                     return DataBlock(datablock.id,
                                      self._current_epoch,
                                      datablock.data_path,
                                      datablock.type)
-                self._datablock_index += 1
+                self._datablock_index[data_type] += 1
 
             if self._current_epoch == self._epoch_num:
                 raise StopIteration()
 
             self._current_epoch += 1
-            self._datablock_index = 0
+            self._datablock_index = {
+                tm_pb.JOINED: 0,
+                tm_pb.LOCAL: 0
+            }
             self._shuffle_data_blocks()
 
     def next_with_type(self, data_block_type):
         with self._lock:
-            data_block = self._next(peek=True)
-            if data_block.type == data_block_type:
-                return self._next()
-            return None
+            return self._next(data_type=data_block_type)
 
     def __next__(self):
         with self._lock:
@@ -278,22 +310,24 @@ class DataSourceVisitor(_DataVisitor):
                 _RawDataBlock(datablock.block_id, datablock.data_block_fpath,
                               datablock.start_time, datablock.end_time,
                               tm_pb.JOINED))
+        local_data_blocks = []
         if local_data_source:
             fl_logging.info("Load local data_source: %s", local_data_source)
             data_block_visitor = DataBlockVisitor(
                 local_data_source, kvstore_type, kvstore_use_mock)
             for datablock in data_block_visitor.LoadDataBlockRepByTimeFrame(
                     local_start_date, local_end_date).values():
-                data_blocks.append(
+                local_data_blocks.append(
                     _RawDataBlock(datablock.block_id,
                                   datablock.data_block_fpath,
                                   datablock.start_time,
                                   datablock.end_time,
                                   tm_pb.LOCAL))
         data_blocks.sort(key=lambda x: x.end_time)
+        local_data_blocks.sort(key=lambda x: x.end_time)
 
         super(DataSourceVisitor, self).__init__(
-            data_blocks, epoch_num, shuffle_type)
+            data_blocks, local_data_blocks, epoch_num, shuffle_type)
 
 
 class DataPathVisitor(_DataVisitor):
@@ -320,5 +354,5 @@ class DataPathVisitor(_DataVisitor):
                 datablocks.append(datablock)
         datablocks.sort()
 
-        super(DataPathVisitor, self).__init__(datablocks, epoch_num,
+        super(DataPathVisitor, self).__init__(datablocks, None, epoch_num,
                                               shuffle_type)
