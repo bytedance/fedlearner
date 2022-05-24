@@ -32,7 +32,7 @@ class _TrainerMasterClient(object):
         self._client = client
         self._worker_type = worker_type
 
-    def request_data_block(self, block_id, data_source_type=tm_pb.JOINED):
+    def request_data_block(self, block_id):
         request = tm_pb.DataBlockRequest(
             worker_rank=self._worker_rank,
             block_id=block_id,
@@ -42,7 +42,7 @@ class _TrainerMasterClient(object):
         while response.status.code == \
             common_pb.StatusCode.STATUS_WAIT_FOR_DATA_BLOCK:
             fl_logging.info("Sleep 5s to wait for data block of type %s",
-                            data_source_type)
+                            self._worker_type)
             time.sleep(5)
             response = _grpc_with_retry(
                 lambda: self._client.RequestDataBlock(request))

@@ -31,7 +31,7 @@ class TestLeaderDataVisitor(unittest.TestCase):
     def test_next(self):
         epoch_num = 5
         visitor = _DataVisitor(
-            self._datablocks, epoch_num)
+            self._datablocks, None, epoch_num)
         try:
             i = 0
             c = 0
@@ -47,7 +47,7 @@ class TestLeaderDataVisitor(unittest.TestCase):
     def test_shuffle_next(self):
         epoch_num = 5
         visitor = _DataVisitor(
-            self._datablocks, epoch_num, shuffle_type=ShuffleType.ALL)
+            self._datablocks, None, epoch_num, shuffle_type=ShuffleType.ALL)
         try:
             i = 0
             c = 0
@@ -72,7 +72,7 @@ class TestLeaderDataVisitor(unittest.TestCase):
         for i in range(epoch_num):
             output[i+1] = set()
         visitor = _DataVisitor(
-            self._datablocks, epoch_num, shuffle_type=ShuffleType.ALL)
+            self._datablocks, None, epoch_num, shuffle_type=ShuffleType.ALL)
         for i in range(len(self._datablocks)*3 + 2):
             b = next(visitor)
             output[b.epoch].add(b.id)
@@ -81,7 +81,7 @@ class TestLeaderDataVisitor(unittest.TestCase):
         print(data)
 
         visitor2 = _DataVisitor(
-            self._datablocks, epoch_num)
+            self._datablocks, None, epoch_num)
         visitor2.restore(buff)
         try:
             while True:
