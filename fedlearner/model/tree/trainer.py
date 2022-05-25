@@ -23,6 +23,7 @@ import traceback
 import itertools
 import numpy as np
 from fnmatch import fnmatch
+from typing import List
 
 import tensorflow.compat.v1 as tf
 
@@ -186,7 +187,7 @@ def extract_field(field_names, field_name, required):
     return None
 
 
-def filter_files(path, file_ext, file_wildcard):
+def filter_files(path: str, file_ext: str, file_wildcard: str) -> List[str]:
     files = []
     for dirname, _, filenames in tf.io.gfile.walk(path):
         for filename in filenames:
@@ -260,8 +261,8 @@ def read_data(file_type, filename, require_example_ids, require_labels,
         labels, example_ids, raw_ids
 
 
-def read_data_dir(file_ext, file_wildcard, file_type, path, require_example_ids,
-                  require_labels, ignore_fields, cat_fields, label_field):
+def read_data_dir(file_ext: str, file_wildcard: str, file_type: str, path: str, require_example_ids: bool,
+                  require_labels: bool, ignore_fields: str, cat_fields: str, label_field: str):
     if not tf.io.gfile.isdir(path):
         return read_data(
             file_type, path, require_example_ids,
