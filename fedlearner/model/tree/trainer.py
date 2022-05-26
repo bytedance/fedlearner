@@ -21,9 +21,9 @@ import logging
 import argparse
 import traceback
 import itertools
-import numpy as np
 from fnmatch import fnmatch
 from typing import List
+import numpy as np
 
 import tensorflow.compat.v1 as tf
 
@@ -261,8 +261,9 @@ def read_data(file_type, filename, require_example_ids, require_labels,
         labels, example_ids, raw_ids
 
 
-def read_data_dir(file_ext: str, file_wildcard: str, file_type: str, path: str, require_example_ids: bool,
-                  require_labels: bool, ignore_fields: str, cat_fields: str, label_field: str):
+def read_data_dir(file_ext: str, file_wildcard: str, file_type: str, path: str,
+                  require_example_ids: bool, require_labels: bool,
+                  ignore_fields: str, cat_fields: str, label_field: str):
     if not tf.io.gfile.isdir(path):
         return read_data(
             file_type, path, require_example_ids,
@@ -310,17 +311,18 @@ def read_data_dir(file_ext: str, file_wildcard: str, file_type: str, path: str, 
 
 def train(args, booster):
     X, cat_X, X_names, cat_X_names, y, example_ids, _ = read_data_dir(
-        args.file_ext, args.file_wildcard, args.file_type, args.data_path, args.verify_example_ids,
-        args.role != 'follower', args.ignore_fields, args.cat_fields,
-        args.label_field)
+        args.file_ext, args.file_wildcard, args.file_type, args.data_path,
+        args.verify_example_ids, args.role != 'follower', args.ignore_fields,
+        args.cat_fields, args.label_field)
 
     if args.validation_data_path:
         val_X, val_cat_X, val_X_names, val_cat_X_names, val_y, \
             val_example_ids, _ = \
             read_data_dir(
-                args.file_ext, args.file_wildcard, args.file_type, args.validation_data_path,
-                args.verify_example_ids, args.role != 'follower',
-                args.ignore_fields, args.cat_fields, args.label_field)
+                args.file_ext, args.file_wildcard, args.file_type,
+                args.validation_data_path, args.verify_example_ids,
+                args.role != 'follower', args.ignore_fields,
+                args.cat_fields, args.label_field)
         assert X_names == val_X_names, \
             "Train data and validation data must have same features"
         assert cat_X_names == val_cat_X_names, \
