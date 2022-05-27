@@ -29,3 +29,5 @@ prison==0.1.3
 matplotlib
 flatten_dict
 pyspark==3.0.2
+pandas==1.1.5
+
