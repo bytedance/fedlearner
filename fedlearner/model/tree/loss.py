@@ -64,8 +64,8 @@ class LogisticLoss(object):
         fn = (label * (1 - pred)).sum()
         return {'tp': tp, 'tn': tn, 'fp': fp, 'fn': fn}
 
-    def top_metrics(pred, label):
-        dt = pd.DataFrame({'preds': pred,'labels': label})
+    def top_metrics(self, pred, label):
+        dt = pd.DataFrame({'preds': pred, 'labels': label})
         dt = dt.sort_values('preds', ascending=False)
 
         _total_tp = sum(dt['labels'])
@@ -81,7 +81,7 @@ class LogisticLoss(object):
             diff = tp / (idx * _total_tp / _total)
             per_metrics['{}_per_recall'.format(i)] = recall
             per_metrics['{}_per_precise'.format(i)] = precise
-            per_metrics['{}_per_diff'.format(i)] = (diff-1)*100
+            per_metrics['{}_per_diff'.format(i)] = (diff - 1) * 100
 
         return per_metrics
 
