@@ -230,7 +230,7 @@ class MetricCollector(AbstractCollector):
 
 
 enable = True
-enable_env = str(environ.get('METRIC_COLLECTOR_ENABLE'))
+enable_env = environ.get('METRIC_COLLECTOR_ENABLE')
 if enable_env is None:
     enable = False
 elif enable_env.lower() in ['false', 'f']:
