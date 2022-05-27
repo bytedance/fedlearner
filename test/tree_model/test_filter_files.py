@@ -17,11 +17,15 @@ class TestFilterFiles(unittest.TestCase):
         path.joinpath('test1').joinpath('2.tfrecord').touch()
         path.joinpath('test2').joinpath('2.csv').touch()
         path.joinpath('test2').joinpath('1.tfrecord').touch()
+        path.joinpath('test1/test').mkdir()
+        path.joinpath('test1/test').joinpath('4.csv').touch()
+        path.joinpath('test2/test').mkdir()
+        path.joinpath('test2/test').joinpath('4.tfrecord').touch()
         
         files = filter_files(path, '.csv', '')
-        self.assertEqual(len(files), 3)
+        self.assertEqual(len(files), 4)
         files = filter_files(path, '', '*tfr*')
-        self.assertEqual(len(files), 3)
+        self.assertEqual(len(files), 4)
             
 
 if __name__ == '__main__':
