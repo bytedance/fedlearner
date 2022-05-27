@@ -31,15 +31,10 @@ from opentelemetry.exporter.otlp.proto.grpc.trace_exporter \
     import OTLPSpanExporter
 from opentelemetry.exporter.otlp.proto.grpc._metric_exporter \
     import OTLPMetricExporter
-from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from opentelemetry.sdk.trace.export import \
+    BatchSpanProcessor, ConsoleSpanExporter
 
 _logger = logging.getLogger(__name__)
-
-
-@dataclass
-class Sample:
-    value: Union[int, float]
-    labels: Dict[str, str] = None
 
 
 class MetricCollector:
@@ -98,7 +93,7 @@ class MetricCollector:
                                 self._DEFAULT_EXPORT_INTERVAL)
                 )
             except ValueError:
-                _logger.info(
+                _logger.error(
                     'Invalid value for export interval, using default %s ms',
                     self._DEFAULT_EXPORT_INTERVAL)
                 export_interval_millis = self._DEFAULT_EXPORT_INTERVAL
@@ -121,9 +116,13 @@ class MetricCollector:
         metrics.set_meter_provider(self._meter_provider)
         self._meter = metrics.get_meter_provider().get_meter(service_name)
 
+        if endpoint is not None:
+            exporter = OTLPSpanExporter(endpoint=endpoint)
+        else:
+            exporter = ConsoleSpanExporter()
         tracer_provider = TracerProvider(resource=resource)
         tracer_provider.add_span_processor(
-            BatchSpanProcessor(OTLPSpanExporter(endpoint=endpoint))
+            BatchSpanProcessor(exporter)
         )
         trace.set_tracer_provider(tracer_provider)
         self._tracer = trace.get_tracer_provider().get_tracer(service_name)
