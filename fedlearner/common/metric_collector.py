@@ -136,7 +136,6 @@ class MetricCollector(AbstractCollector):
             service_name = environ.get('METRIC_COLLECTOR_SERVICE_NAME',
                                        'default_metric_service')
         cluster_name = environ.get('CLOUDNATIVE_CLUSTER', 'default_cluster')
-        service_name = f'{cluster_name}:{service_name}'
         if export_interval_millis is None:
             try:
                 export_interval_millis = float(
@@ -159,7 +158,10 @@ class MetricCollector(AbstractCollector):
         reader = PeriodicExportingMetricReader(
             exporter=exporter,
             export_interval_millis=export_interval_millis)
-        resource = Resource.create({'service.name': service_name})
+        resource = Resource.create({
+            'service.name': service_name,
+            'deployment.environment': cluster_name
+        })
         self._meter_provider = MeterProvider(
             metric_readers=[reader],
             resource=resource
