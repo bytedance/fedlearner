@@ -14,16 +14,17 @@
 
 # coding: utf-8
 import logging
-from dataclasses import dataclass
+from abc import ABC, abstractmethod
+
 from os import environ
 from threading import Lock
-from typing import Optional, Union, Dict
+from typing import Optional, Union, Dict, Iterator
 
 from opentelemetry import trace, _metrics as metrics
 from opentelemetry._metrics.instrument import UpDownCounter
 from opentelemetry._metrics.measurement import Measurement
 from opentelemetry.sdk.resources import Resource
-from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace import TracerProvider, Span
 from opentelemetry.sdk._metrics import MeterProvider
 from opentelemetry.sdk._metrics.export import \
     ConsoleMetricExporter, PeriodicExportingMetricReader
@@ -37,7 +38,73 @@ from opentelemetry.sdk.trace.export import \
 _logger = logging.getLogger(__name__)
 
 
-class MetricCollector:
+class AbstractCollector(ABC):
+
+    @abstractmethod
+    def emit_single_point(self,
+                          name: str,
+                          value: Union[int, float],
+                          tags: Dict[str, str] = None):
+        pass
+
+    @abstractmethod
+    def emit_timing(self,
+                    name: str,
+                    tags: Dict[str, str] = None):
+        pass
+
+    @abstractmethod
+    def emit_counter(self,
+                     name: str,
+                     value: Union[int, float],
+                     tags: Dict[str, str] = None):
+        pass
+
+    @abstractmethod
+    def emit_store(self,
+                   name: str,
+                   value: Union[int, float],
+                   tags: Dict[str, str] = None):
+        pass
+
+
+class StubCollector(AbstractCollector):
+
+    class EmptyTrace(object):
+        def __init__(self):
+            pass
+
+        def __enter__(self):
+            pass
+
+        def __exit__(self, *a):
+            pass
+
+    def emit_single_point(self,
+                          name: str,
+                          value: Union[int, float],
+                          tags: Dict[str, str] = None):
+        pass
+
+    def emit_timing(self,
+                    name: str,
+                    tags: Dict[str, str] = None):
+        return self.EmptyTrace()
+
+    def emit_counter(self,
+                     name: str,
+                     value: Union[int, float],
+                     tags: Dict[str, str] = None):
+        pass
+
+    def emit_store(self,
+                   name: str,
+                   value: Union[int, float],
+                   tags: Dict[str, str] = None):
+        pass
+
+
+class MetricCollector(AbstractCollector):
     _DEFAULT_EXPORT_INTERVAL = 60000
 
     class Callback:
@@ -60,32 +127,16 @@ class MetricCollector:
         def __call__(self):
             return iter(self)
 
-    class EmptyTrace(object):
-        def __init__(self):
-            pass
-
-        def __enter__(self):
-            pass
-
-        def __exit__(self, *a):
-            pass
-
     def __init__(
         self,
         service_name: Optional[str] = None,
         export_interval_millis: Optional[float] = None,
     ):
-        enable = environ.get('METRIC_COLLECTOR_ENABLE')
-        if enable is None:
-            self._ready = False
-            return
-        if enable.lower() in ['false', 'f']:
-            self._ready = False
-            return
-
         if service_name is None:
             service_name = environ.get('METRIC_COLLECTOR_SERVICE_NAME',
                                        'default_metric_service')
+        cluster_name = environ.get('CLOUDNATIVE_CLUSTER', 'default_cluster')
+        service_name = f'{cluster_name}:{service_name}'
         if export_interval_millis is None:
             try:
                 export_interval_millis = float(
@@ -127,7 +178,6 @@ class MetricCollector:
         trace.set_tracer_provider(tracer_provider)
         self._tracer = trace.get_tracer_provider().get_tracer(service_name)
 
-        self._ready = True
         self._lock = Lock()
         self._cache: \
             Dict[str, Union[UpDownCounter, MetricCollector.Callback]] = {}
@@ -136,8 +186,6 @@ class MetricCollector:
                           name: str,
                           value: Union[int, float],
                           tags: Dict[str, str] = None):
-        if self._ready is False:
-            return
         cb = self.Callback()
         self._meter.create_observable_gauge(
             name=f'values.{name}', callback=cb
@@ -146,17 +194,13 @@ class MetricCollector:
 
     def emit_timing(self,
                     name: str,
-                    tags: Dict[str, str] = None):
-        if self._ready is False:
-            return self.EmptyTrace()
+                    tags: Dict[str, str] = None) -> Iterator[Span]:
         return self._tracer.start_as_current_span(name=name, attributes=tags)
 
     def emit_counter(self,
                      name: str,
                      value: Union[int, float],
                      tags: Dict[str, str] = None):
-        if self._ready is False:
-            return
         if name not in self._cache:
             with self._lock:
                 # Double check `self._cache` content.
@@ -172,8 +216,6 @@ class MetricCollector:
                    name: str,
                    value: Union[int, float],
                    tags: Dict[str, str] = None):
-        if self._ready is False:
-            return
         if name not in self._cache:
             with self._lock:
                 # Double check `self._cache` content.
@@ -185,3 +227,12 @@ class MetricCollector:
                     self._cache[name] = cb
         assert isinstance(self._cache[name], self.Callback)
         self._cache[name].record(value=value, tags=tags)
+
+
+enable = True
+enable_env = str(environ.get('METRIC_COLLECTOR_ENABLE'))
+if enable_env is None:
+    enable = False
+elif enable_env.lower() in ['false', 'f']:
+    enable = False
+metric_collector = MetricCollector() if enable else StubCollector()

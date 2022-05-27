@@ -24,12 +24,14 @@ from concurrent.futures import ProcessPoolExecutor
 import numpy as np
 from google.protobuf import text_format
 import tensorflow.compat.v1 as tf
+
+from fedlearner.common.metric_collector import metric_collector
 from fedlearner.model.tree.packing import GradHessPacker
 from fedlearner.model.tree.loss import LogisticLoss, MSELoss
 from fedlearner.model.crypto import paillier, fixed_point_number
 from fedlearner.common import tree_model_pb2 as tree_pb2
 from fedlearner.common import common_pb2
-from fedlearner.common.metrics import emit_store, metric_collector
+from fedlearner.common.metrics import emit_store
 
 BST_TYPE = np.float32
 PRECISION = 1e38
