@@ -17,13 +17,9 @@
 
 import os
 
-try:
-    import tensorflow.compat.v1 as tf
-    from tensorflow.compat.v1 import gfile
-except ImportError:
-    import tensorflow as tf
-    from tensorflow import gfile
-from tensorflow.python.lib.io import file_io
+import tensorflow.compat.v1 as tf
+from tensorflow.compat.v1 import gfile
+from tensorflow.python.lib.io import file_io #pylint: disable=no-name-in-module
 
 from . import fl_logging
 

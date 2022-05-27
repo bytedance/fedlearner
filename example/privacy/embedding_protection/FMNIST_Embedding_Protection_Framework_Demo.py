@@ -1,7 +1,7 @@
 import argparse
 import datetime
 import time
-import tensorflow as tf
+import tensorflow.compat.v1 as tf
 from tensorflow.keras import layers
 from tensorflow.keras.datasets import fashion_mnist
 

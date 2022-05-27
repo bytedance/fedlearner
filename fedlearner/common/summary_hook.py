@@ -19,7 +19,7 @@ import datetime
 try:
     import tensorflow.compat.v1 as tf
 except ImportError:
-    import tensorflow as tf
+    import tensorflow.compat.v1 as tf
 from . import fl_logging
 
 
