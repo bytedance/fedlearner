@@ -858,7 +858,80 @@ def _vectorize_tree(tree):
     vec['children'] = np.asarray([
         [n.left_child for n in tree.nodes],
         [n.right_child for n in tree.nodes]])
+    vec['parent'] = np.asarray([n.parent for n in tree.nodes])
     return vec
+
+def _compare_features_with_threshold(vec, features, cat_features):
+    N = features.shape[0]
+    node_num = vec['feature_id'].size
+
+    is_cont = vec['feature_id'] < features.shape[1]
+    cont_fid = np.where(is_cont, vec['feature_id'], 0)
+    row = np.arange(N).repeat(node_num).reshape(N, node_num)
+    cont_X = features[row, cont_fid]
+
+    is_nan = np.isnan(cont_X) 
+    threshold = np.tile(vec['threshold'], (N, 1))
+    less = cont_X < threshold
+    d = ~np.where(is_nan, vec['default_left'], less)
+
+    if is_cont.sum() < is_cont.size:
+        is_cat = ~is_cont
+        cat_fid = np.where(is_cat, vec['feature_id'] - features.shape[1], 0)
+        cat_X = cat_features[row, cat_fid]
+
+        cat_in = np.empty(0, dtype=np.bool)
+        for i, cat_threshold in enumerate(vec['cat_threshold']):
+            tmp = ~np.in1d(cat_X[:,i], cat_threshold)
+            cat_in = np.concatenate((cat_in, tmp), axis=0)
+        cat_in = np.transpose(cat_in.reshape(node_num, N))
+
+        d = np.where(is_cont, d, cat_in)
+
+    return d
+
+def _assign_direction_to_node(vec, direction):
+    N = direction.shape[0]
+    node_num = vec['feature_id'].size
+
+    col = np.tile(np.arange(node_num), (N, 1))
+    selected_child = vec['children'][direction.astype(np.int32), col]
+    non_leaf_num = vec['is_leaf'].size - vec['is_leaf'].sum()
+    non_leaf = ~np.tile(vec['is_leaf'], (N, 1))
+    node_ids = np.tile(np.arange(node_num), (N, 1))
+
+    assignment = np.empty(0, dtype=np.bool)
+    for i, assign in enumerate(selected_child[non_leaf].reshape(N, non_leaf_num)):
+        tmp = np.in1d(node_ids[i], assign)
+        assignment = np.concatenate((assignment, tmp), axis=0)
+    assignment = assignment.reshape(N, node_num)
+
+    own_id = np.arange(node_num)[vec['is_owner']]
+    not_own = (~np.in1d(vec['parent'], own_id))
+
+    assignment = (assignment | not_own).astype(np.int32)
+    return assignment
+
+def _get_leaf_vec(vec, assignment):
+    N = assignment.shape[0]
+    node_num = vec['feature_id'].size
+
+    leaf = np.arange(node_num)[vec['is_leaf']]
+    parent = np.tile(vec['parent'], (N, 1))
+    row = np.arange(N).repeat(leaf.size).reshape(N, leaf.size)
+    leaf_N = np.tile(leaf, (N, 1))
+    
+    res = np.ones(leaf_N.shape)
+    while(leaf_N.sum() != 0):
+        tmp = assignment[row, leaf_N]
+        res = res * tmp
+        leaf_N = parent[row, leaf_N] 
+    return res
+
+def _get_leaf_node(vec, assignment):
+    is_leaf = vec['is_leaf']
+    leaf = np.arange(is_leaf.size)[is_leaf]
+    return (assignment * leaf).sum(1).astype(np.int32)
 
 def _vectorized_direction(vec, features, cat_features, assignment):
     fid = vec['feature_id'][assignment]
@@ -1123,7 +1196,8 @@ class BoostingTreeEnsamble(object):
 
     def batch_predict(self, features, cat_features=None,
                       get_raw_score=False, example_ids=None,
-                      feature_names=None, cat_feature_names=None):
+                      feature_names=None, cat_feature_names=None,
+                      predict_type=0):
         if feature_names and self._feature_names:
             assert feature_names == self._feature_names, \
                 "Predict data's feature names does not match loaded model"
@@ -1136,7 +1210,7 @@ class BoostingTreeEnsamble(object):
 
         if self._bridge is None:
             return self._batch_predict_local(
-                features, cat_features, get_raw_score)
+                features, cat_features, get_raw_score, predict_type)
 
         if self._role == 'leader':
             leader_no_data = True
@@ -1156,13 +1230,13 @@ class BoostingTreeEnsamble(object):
                 return self._batch_predict_one_side_leader(
                     get_raw_score)
             return self._batch_predict_one_side_follower(
-                features, cat_features, get_raw_score)
+                features, cat_features, get_raw_score, predict_type)
 
         return self._batch_predict_two_side(
-            features, cat_features, get_raw_score)
+            features, cat_features, get_raw_score, predict_type)
 
 
-    def _batch_predict_local(self, features, cat_features, get_raw_score):
+    def _batch_predict_local(self, features, cat_features, get_raw_score, predict_type):
         N = features.shape[0]
 
         raw_prediction = np.zeros(N, dtype=BST_TYPE)
@@ -1170,12 +1244,18 @@ class BoostingTreeEnsamble(object):
             logging.debug("Running prediction for tree %d", idx)
 
             vec_tree = _vectorize_tree(tree)
-            assignment = np.zeros(N, dtype=np.int32)
-            while vec_tree['is_leaf'][assignment].sum() < N:
-                direction = _vectorized_direction(
-                    vec_tree, features, cat_features, assignment)
-                assignment = _vectorized_assignment(
-                    vec_tree, assignment, direction)
+            if predict_type == 0:
+                assignment = np.zeros(N, dtype=np.int32)
+                while vec_tree['is_leaf'][assignment].sum() < N:
+                    direction = _vectorized_direction(
+                        vec_tree, features, cat_features, assignment)
+                    assignment = _vectorized_assignment(
+                        vec_tree, assignment, direction)
+            else:
+                direction = _compare_features_with_threshold(vec_tree, features, cat_features)
+                assignment = _assign_direction_to_node(vec_tree, direction)
+                res_vec = _get_leaf_vec(vec_tree, assignment)
+                assignment = _get_leaf_node(vec_tree, res_vec)
 
             raw_prediction += vec_tree['weight'][assignment]
 
@@ -1184,20 +1264,26 @@ class BoostingTreeEnsamble(object):
         return self._loss.predict(raw_prediction)
 
     def _batch_predict_one_side_follower(self, features, cat_features,
-                                         get_raw_score):
+                                         get_raw_score, predict_type):
         N = features.shape[0]
 
         for idx, tree in enumerate(self._trees):
             logging.debug("Running prediction for tree %d", idx)
 
             vec_tree = _vectorize_tree(tree)
-            assignment = np.zeros(
-                N, dtype=_get_dtype_for_max_value(len(tree.nodes)))
-            while vec_tree['is_leaf'][assignment].sum() < N:
-                direction = _vectorized_direction(
-                    vec_tree, features, cat_features, assignment)
-                assignment = _vectorized_assignment(
-                    vec_tree, assignment, direction)
+            if predict_type == 0:
+                assignment = np.zeros(
+                    N, dtype=_get_dtype_for_max_value(len(tree.nodes)))
+                while vec_tree['is_leaf'][assignment].sum() < N:
+                    direction = _vectorized_direction(
+                        vec_tree, features, cat_features, assignment)
+                    assignment = _vectorized_assignment(
+                        vec_tree, assignment, direction)
+            else:
+                direction = _compare_features_with_threshold(vec_tree, features, cat_features)
+                assignment = _assign_direction_to_node(vec_tree, direction)
+                res_vec = _get_leaf_vec(vec_tree, assignment)
+                assignment = _get_leaf_node(vec_tree, res_vec).astype(_get_dtype_for_max_value(len(tree.nodes)))
 
             self._bridge.start()
             self._bridge.send(
@@ -1240,30 +1326,48 @@ class BoostingTreeEnsamble(object):
         return self._loss.predict(raw_prediction)
 
 
-    def _batch_predict_two_side(self, features, cat_features, get_raw_score):
+    def _batch_predict_two_side(self, features, cat_features, get_raw_score, predict_type):
         N = features.shape[0]
         peer_role = 'leader' if self._role == 'follower' else 'follower'
         raw_prediction = np.zeros(N, dtype=BST_TYPE)
         for idx, tree in enumerate(self._trees):
             logging.debug("Running prediction for tree %d", idx)
             vec_tree = _vectorize_tree(tree)
-            assignment = np.zeros(N, dtype=np.int32)
-            while vec_tree['is_leaf'][assignment].sum() < N:
-                direction = _vectorized_direction(
-                    vec_tree, features, cat_features, assignment)
+            if predict_type == 0:
+                assignment = np.zeros(N, dtype=np.int32)
+                while vec_tree['is_leaf'][assignment].sum() < N:
+                    direction = _vectorized_direction(
+                        vec_tree, features, cat_features, assignment)
 
+                    self._bridge.start()
+                    self._bridge.send(
+                        '%s_direction_%d'%(self._role, idx),
+                        direction)
+                    peer_direction = self._bridge.receive(
+                        '%s_direction_%d'%(peer_role, idx))
+                    self._bridge.commit()
+
+                    assignment = _vectorized_assignment(
+                        vec_tree, assignment, direction, peer_direction)
+            else:
+                direction = _compare_features_with_threshold(vec_tree, features, cat_features)
+                assignment = _assign_direction_to_node(vec_tree, direction)
+                res_vec = _get_leaf_vec(vec_tree, assignment).astype(_get_dtype_for_max_value(len(tree.nodes)))
+            
                 self._bridge.start()
-                self._bridge.send(
-                    '%s_direction_%d'%(self._role, idx),
-                    direction)
-                peer_direction = self._bridge.receive(
-                    '%s_direction_%d'%(peer_role, idx))
+                if self._role == 'follower':
+                    self._bridge.send(
+                        'follower_assignment_%d'%idx,
+                         res_vec)
+                else:
+                    peer_res_vec = self._bridge.receive('follower_assignment_%d'%idx)
+                    res_vec = peer_res_vec & res_vec
                 self._bridge.commit()
-
-                assignment = _vectorized_assignment(
-                    vec_tree, assignment, direction, peer_direction)
-
-            raw_prediction += vec_tree['weight'][assignment]
+            
+                assignment = _get_leaf_node(vec_tree, res_vec)
+                
+            if self._role == 'leader':
+                raw_prediction += vec_tree['weight'][assignment]
 
         self._bridge.start()
         if self._role == 'leader':

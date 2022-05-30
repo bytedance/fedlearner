@@ -148,6 +148,10 @@ def create_argument_parser():
                         type=str,
                         default='label',
                         help='selected label name')
+    parser.add_argument('--predict-type',
+                        type=int,
+                        default=0,
+                        help='predict type')
 
     return parser
 
@@ -373,7 +377,8 @@ def test_one_file(args, bridge, booster, data_file, output_file):
         example_ids=example_ids,
         cat_features=cat_X,
         feature_names=X_names,
-        cat_feature_names=cat_X_names)
+        cat_feature_names=cat_X_names,
+        predict_type=args.predict_type)
 
     if y is not None:
         metrics = booster.loss.metrics(pred, y)

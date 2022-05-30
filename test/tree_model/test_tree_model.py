@@ -54,9 +54,11 @@ class TestBoostingTree(unittest.TestCase):
             num_parallel=2,
             loss_type=loss_type)
         train_pred = booster.fit(X, y, cat_features=cat_X)
-        pred = booster.batch_predict(X, cat_features=cat_X)
-        np.testing.assert_almost_equal(train_pred, pred)
-        return pred
+        pred_0 = booster.batch_predict(X, cat_features=cat_X, predict_type=0)
+        pred_1 = booster.batch_predict(X, cat_features=cat_X, predict_type=1)
+        np.testing.assert_almost_equal(pred_0, pred_1)
+        np.testing.assert_almost_equal(train_pred, pred_0)
+        return pred_0
 
     def leader_test_boosting_tree_helper(self, X, y, cat_X):
         bridge = fl.trainer.bridge.Bridge(
@@ -66,10 +68,12 @@ class TestBoostingTree(unittest.TestCase):
             max_iters=3,
             max_depth=2)
         train_pred = booster.fit(X, y, cat_features=cat_X)
-        pred = booster.batch_predict(X, cat_features=cat_X)
+        pred_0 = booster.batch_predict(X, cat_features=cat_X, predict_type=0)
+        pred_1 = booster.batch_predict(X, cat_features=cat_X, predict_type=1)
         bridge.terminate()
-        np.testing.assert_almost_equal(train_pred, pred)
-        return pred
+        np.testing.assert_almost_equal(pred_0, pred_1)
+        np.testing.assert_almost_equal(train_pred, pred_0)
+        return pred_0
 
     def follower_test_boosting_tree_helper(self, X, cat_X):
         bridge = fl.trainer.bridge.Bridge(
@@ -79,9 +83,12 @@ class TestBoostingTree(unittest.TestCase):
             max_iters=3,
             max_depth=2)
         booster.fit(X, None, cat_features=cat_X)
-        pred = booster.batch_predict(X, cat_features=cat_X, get_raw_score=True)
+        pred_0 = booster.batch_predict(X, cat_features=cat_X, get_raw_score=True, predict_type=0)
+        pred_1 = booster.batch_predict(X, cat_features=cat_X, get_raw_score=True, predict_type=1)
         bridge.terminate()
-        np.testing.assert_almost_equal(pred, 0)
+        np.testing.assert_almost_equal(pred_0, pred_1)
+        np.testing.assert_almost_equal(pred_0, 0)
+        return pred_0
 
     def boosting_tree_helper(self, X, y, cat_X):
         local_pred = self.local_test_boosting_tree_helper(X, y, cat_X, 'mse')
