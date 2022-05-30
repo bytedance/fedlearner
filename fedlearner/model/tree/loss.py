@@ -14,9 +14,9 @@
 
 # coding: utf-8
 
-import pandas as pd
 import numpy as np
 from scipy import special as sp_special
+import pandas as pd
 
 
 def _roc_auc_score(label, pred):
