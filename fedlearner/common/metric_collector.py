@@ -131,6 +131,7 @@ class MetricCollector(AbstractCollector):
         self,
         service_name: Optional[str] = None,
         export_interval_millis: Optional[float] = None,
+        custom_service_label: Optional[dict] = None,
     ):
         if service_name is None:
             service_name = environ.get('METRIC_COLLECTOR_SERVICE_NAME',
@@ -161,7 +162,7 @@ class MetricCollector(AbstractCollector):
         resource = Resource.create({
             'service.name': service_name,
             'deployment.environment': cluster_name
-        })
+        }.update(custom_service_label))
         self._meter_provider = MeterProvider(
             metric_readers=[reader],
             resource=resource
@@ -237,4 +238,8 @@ if enable_env is None:
     enable = False
 elif enable_env.lower() in ['false', 'f']:
     enable = False
-metric_collector = MetricCollector() if enable else StubCollector()
+
+k8s_job_name = environ.get('APPLICATION_ID',
+                           'default_k8s_job_name')
+service_label = {'k8s_job_name': k8s_job_name}
+metric_collector = MetricCollector(custom_service_label=service_label) if enable else StubCollector()
