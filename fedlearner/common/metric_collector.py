@@ -244,6 +244,6 @@ elif enable_env.lower() in ['false', 'f']:
 
 k8s_job_name = environ.get('APPLICATION_ID',
                            'default_k8s_job_name')
-service_label = {'k8s_job_name': k8s_job_name}
+global_service_label = {'k8s_job_name': k8s_job_name}
 metric_collector = MetricCollector(
-    custom_service_label=service_label) if enable else StubCollector()
+    custom_service_label=global_service_label) if enable else StubCollector()
