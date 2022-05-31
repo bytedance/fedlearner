@@ -136,7 +136,7 @@ class MetricCollector(AbstractCollector):
         if service_name is None:
             service_name = environ.get('METRIC_COLLECTOR_SERVICE_NAME',
                                        'default_metric_service')
-        cluster_name = environ.get('CLOUDNATIVE_CLUSTER', 'default_cluster')
+        cluster_name = environ.get('CLUSTER', 'default_cluster')
         if export_interval_millis is None:
             try:
                 export_interval_millis = float(
@@ -159,10 +159,13 @@ class MetricCollector(AbstractCollector):
         reader = PeriodicExportingMetricReader(
             exporter=exporter,
             export_interval_millis=export_interval_millis)
-        resource = Resource.create({
+        service_label = {
             'service.name': service_name,
             'deployment.environment': cluster_name
-        }.update(custom_service_label))
+        }
+        if custom_service_label is not None:
+            service_label.update(custom_service_label)
+        resource = Resource.create(service_label)
         self._meter_provider = MeterProvider(
             metric_readers=[reader],
             resource=resource
@@ -241,6 +244,6 @@ elif enable_env.lower() in ['false', 'f']:
 
 k8s_job_name = environ.get('APPLICATION_ID',
                            'default_k8s_job_name')
-service_label = {'k8s_job_name': k8s_job_name}
+global_service_label = {'k8s_job_name': k8s_job_name}
 metric_collector = MetricCollector(
-    custom_service_label=service_label) if enable else StubCollector()
+    custom_service_label=global_service_label) if enable else StubCollector()
