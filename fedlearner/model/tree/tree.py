@@ -24,6 +24,7 @@ from concurrent.futures import ProcessPoolExecutor
 import numpy as np
 from google.protobuf import text_format
 import tensorflow.compat.v1 as tf
+from fedlearner.common.metric_collector import metric_collector
 from fedlearner.model.tree.packing import GradHessPacker
 from fedlearner.model.tree.loss import LogisticLoss, MSELoss
 from fedlearner.model.crypto import paillier, fixed_point_number
@@ -1292,8 +1293,15 @@ class BoostingTreeEnsamble(object):
 
     def iter_metrics_handler(self, metrics, mode):
         for name, value in metrics.items():
+            # TODO @lixiaoguang.01 old version, to be deleted
             emit_store(name=name, value=value,
                        tags={'iteration': len(self._trees), 'mode': mode})
+            # new version
+            metrics_name = f'model.{mode}.tree_vertical.{name}'
+            metrics_label = {
+                'iteration': len(self._trees)
+            }
+            metric_collector.emit_store(metrics_name, value, metrics_label)
 
     def fit(self,
             features,
