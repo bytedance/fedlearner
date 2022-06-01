@@ -159,11 +159,11 @@ class RsaPsiPreProcessor(object):
             except Exception as e: # pylint: disable=broad-except
                 logging.warning("Failed to say bye to signer at "\
                                 "round %d, sleep 10s and retry", rnd)
-            time.sleep(10)
+            time.sleep(2)
         logging.warning("Give up to say bye to signer after try 60"\
                         "times, rsa_psi_preprocessor will exit as -1")
         traceback.print_stack()
-        os._exit(-1) # pylint: disable=protected-access
+        os._exit(-1)  # pylint: disable=protected-access
 
     def _id_batch_fetcher_name(self):
         return self._repr + ':id_batch_fetcher'
