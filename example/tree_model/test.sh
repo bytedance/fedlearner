@@ -14,6 +14,7 @@ python -m fedlearner.model.tree.trainer follower \
     --peer-addr=localhost:50051 \
     --verify-example-ids=true \
     --file-ext=.tfrecord \
+    --file-wildcard=*tfrecord \
     --file-type=tfrecord \
     --data-path=data/follower_train.tfrecord \
     --validation-data-path=data/follower_test \
@@ -27,6 +28,7 @@ python -m fedlearner.model.tree.trainer leader \
     --peer-addr=localhost:50052 \
     --verify-example-ids=true \
     --file-ext=.tfrecord \
+    --file-wildcard=*tfrecord \
     --file-type=tfrecord \
     --data-path=data/leader_train.tfrecord \
     --validation-data-path=data/leader_test \
@@ -44,6 +46,7 @@ python -m fedlearner.model.tree.trainer leader \
     --verify-example-ids=true \
     --file-type=tfrecord \
     --file-ext=.tfrecord \
+    --file-wildcard=*tfrecord \
     --data-path=data/leader_test/ \
     --cat-fields=f00001 \
     --load-model-path=exp/leader_checkpoints/checkpoint-0004.proto \
@@ -57,6 +60,7 @@ python -m fedlearner.model.tree.trainer follower \
     --verify-example-ids=true \
     --file-type=tfrecord \
     --file-ext=.tfrecord \
+    --file-wildcard=*tfrecord \
     --data-path=data/follower_test/ \
     --cat-fields=f00001 \
     --load-model-path=exp/follower_checkpoints/checkpoint-0004.proto \
@@ -75,6 +79,7 @@ python -m fedlearner.model.tree.trainer follower \
     --peer-addr=localhost:50051 \
     --file-ext=.csv \
     --file-type=csv \
+    --file-wildcard=*csv \
     --data-path=data/follower_train.csv \
     --cat-fields=f00001 \
     --checkpoint-path=exp/follower_checkpoints \
@@ -86,6 +91,7 @@ python -m fedlearner.model.tree.trainer leader \
     --peer-addr=localhost:50052 \
     --file-ext=.csv \
     --file-type=csv \
+    --file-wildcard=*csv \
     --data-path=data/leader_train.csv \
     --ignore-fields=f00000,f00001 \
     --checkpoint-path=exp/leader_checkpoints \
@@ -99,6 +105,7 @@ python -m fedlearner.model.tree.trainer follower \
     --peer-addr=localhost:50051 \
     --mode=test \
     --file-ext=.csv \
+    --file-wildcard=*csv \
     --file-type=csv \
     --data-path=data/follower_test/ \
     --cat-fields=f00001 \
@@ -111,6 +118,7 @@ python -m fedlearner.model.tree.trainer leader \
     --peer-addr=localhost:50052 \
     --mode=test \
     --file-ext=.csv \
+    --file-wildcard=*csv \
     --no-data=true \
     --load-model-path=exp/leader_checkpoints/checkpoint-0004.proto \
     --output-path=exp/leader_test_output

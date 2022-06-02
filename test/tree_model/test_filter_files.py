@@ -26,7 +26,11 @@ class TestFilterFiles(unittest.TestCase):
         self.assertEqual(len(files), 4)
         files = filter_files(path, '', '*tfr*')
         self.assertEqual(len(files), 4)
-            
+        files = filter_files(path, '', '')
+        self.assertEqual(len(files), 8)
+        files = filter_files(path, '.csv', '*1.*')
+        self.assertEqual(len(files), 1)
+
 
 if __name__ == '__main__':
     unittest.main()

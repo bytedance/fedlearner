@@ -64,7 +64,9 @@ def create_argument_parser():
                         default=False, const=True, nargs='?',
                         help='Run prediction without data.')
     parser.add_argument('--file-ext', type=str, default='',
-                        help='File extension to use')
+                        help='File extension to use including .' \
+                             'for example: .csv')
+    # TODO(gezhengqiang): delete file_ext
     parser.add_argument('--file-wildcard', type=str, default='',
                         help='the wildcard filter for the file')
     parser.add_argument('--file-type', type=str, default='csv',
