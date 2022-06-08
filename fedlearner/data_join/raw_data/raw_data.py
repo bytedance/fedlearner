@@ -295,7 +295,7 @@ class RawData:
         if job_type == JobType.Streaming:
             return data_df.sortWithinPartitions(DataKeyword.event_time,
                                                 DataKeyword.example_id)
-        return data_df  # PSI
+        return data_df.sortWithinPartitions(DataKeyword.raw_id)  # PSI
 
     @staticmethod
     def _get_partition_field(job_type):
