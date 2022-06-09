@@ -99,7 +99,7 @@ def get_config(config_filename):
 
 def validate(data_df, job_type):
     if job_type == JobType.PSI:
-        field_names = [DataKeyword.raw_id, DataKeyword.example_id]
+        field_names = [DataKeyword.raw_id]
     else:
         field_names = [DataKeyword.example_id, DataKeyword.event_time]
     columns = data_df.columns
@@ -131,7 +131,6 @@ class RawData:
 
         if config_file:
             self._config = get_config(os.path.basename(config_file))
-
 
     def run(self, config=None):
         set_logger()
@@ -296,7 +295,7 @@ class RawData:
         if job_type == JobType.Streaming:
             return data_df.sortWithinPartitions(DataKeyword.event_time,
                                                 DataKeyword.example_id)
-        return data_df.sortWithinPartitions(DataKeyword.example_id)  # PSI
+        return data_df.sortWithinPartitions(DataKeyword.raw_id)  # PSI
 
     @staticmethod
     def _get_partition_field(job_type):
