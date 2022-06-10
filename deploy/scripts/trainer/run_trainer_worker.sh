@@ -56,6 +56,7 @@ mode=$(normalize_env_to_args "--mode" "$MODE")
 sparse_estimator=$(normalize_env_to_args "--sparse-estimator" "$SPARSE_ESTIMATOR")
 batch_size=$(normalize_env_to_args "--batch-size" "$BATCH_SIZE")
 learning_rate=$(normalize_env_to_args "--learning-rate" "$LEARNING_RATE")
+extra_params=$(normalize_env_to_args "--extra-params" "$EXTRA_PARAMS")
 
 if [ -n "$CLUSTER_SPEC" ]; then
   # get master address from clusteSpec["master"]
@@ -103,4 +104,4 @@ python main.py --worker \
     --peer-addr="$PEER_ADDR" \
     --worker-rank="$WORKER_RANK" \
     $server_port $mode $batch_size \
-    $sparse_estimator $learning_rate
+    $sparse_estimator $learning_rate $extra_params
