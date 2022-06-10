@@ -147,6 +147,10 @@ def create_argument_parser():
                         default=None,
                         help="Specify verbosity level. It can be one of "
                              "'debug', 'info', 'warning', 'error', 'critical'")
+    parser.add_argument('--extra-params',
+                        type=str,
+                        default=None,
+                        help="extra params string for training")
 
     return parser
 
