@@ -296,7 +296,8 @@ class _TrainerMaster(tm_grpc.TrainerMasterServiceServicer):
         fl_logging.info("start session_run")
         self._session_run(estimator)
         fl_logging.info("session_run done")
-        if self._export_model or (self._mode == 'train' and self._export_model is None):
+        if self._export_model or \
+            (self._mode == 'train' and self._export_model is None):
             fl_logging.info("start export_model")
             self._export_model(estimator)
             fl_logging.info("export_model done")
