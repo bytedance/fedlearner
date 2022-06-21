@@ -32,6 +32,7 @@ start_date=$(normalize_env_to_args "--start-date" $START_DATE)
 end_date=$(normalize_env_to_args "--end-date" $END_DATE)
 shuffle=$(normalize_env_to_args "--shuffle" $SUFFLE_DATA_BLOCK)
 extra_params=$(normalize_env_to_args "--extra-params" "$EXTRA_PARAMS")
+export_model=$(normalize_env_to_args "--export-model" $EXPORT_MODEL)
 
 if [ -n "$CHECKPOINT_PATH" ]; then
     checkpoint_path="--checkpoint-path=$CHECKPOINT_PATH"
@@ -98,4 +99,4 @@ python main.py --master \
     $mode $sparse_estimator \
     $save_checkpoint_steps $save_checkpoint_secs \
     $summary_save_steps $summary_save_secs \
-    $epoch_num $start_date $end_date $shuffle $extra_params
+    $epoch_num $start_date $end_date $shuffle $extra_params $export_model
