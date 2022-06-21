@@ -144,7 +144,7 @@ def create_argument_parser():
                         help='Train or eval.')
     parser.add_argument('--export_model',
                         type=str_as_bool,
-                        default=False, const=True, nargs='?',
+                        default=None, nargs='?',
                         help='export model to export_path')
     parser.add_argument('--loglevel',
                         type=str,
