@@ -371,7 +371,6 @@ class _TrainerMaster(tm_grpc.TrainerMasterServiceServicer):
                             break
                     time.sleep(0.2)
 
-
     def _export_model(self, estimator):
         if self._export_path:
             export_path = os.path.join(
