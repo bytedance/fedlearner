@@ -18,6 +18,7 @@
 import os
 import signal
 import time
+from typing import Optional
 from concurrent import futures
 import threading
 import grpc
@@ -182,7 +183,8 @@ class _TrainerMaster(tm_grpc.TrainerMasterServiceServicer):
                  summary_save_secs=None,
                  export_path=None,
                  sparse_estimator=False,
-                 export_model_hook=None):
+                 export_model_hook=None,
+                 export_model: Optional[bool] = None):
         self._cluster_server = cluster_server
         self._role = role
         self._mode = mode
@@ -199,6 +201,7 @@ class _TrainerMaster(tm_grpc.TrainerMasterServiceServicer):
         self._export_path = export_path
         self._sparse_estimator = sparse_estimator
         self._export_model_hook = export_model_hook
+        self._should_export_model = export_model
 
         self._lock = threading.RLock()
         self._status = tm_pb.MasterStatus.CREATED
@@ -293,7 +296,8 @@ class _TrainerMaster(tm_grpc.TrainerMasterServiceServicer):
         fl_logging.info("start session_run")
         self._session_run(estimator)
         fl_logging.info("session_run done")
-        if self._mode == 'train':
+        if self._should_export_model or \
+            (self._mode == 'train' and self._should_export_model is None):
             fl_logging.info("start export_model")
             self._export_model(estimator)
             fl_logging.info("export_model done")
@@ -497,7 +501,8 @@ class LeaderTrainerMaster(_TrainerMaster):
                  summary_save_secs=None,
                  export_path=None,
                  sparse_estimator=False,
-                 export_model_hook=None):
+                 export_model_hook=None,
+                 export_model: Optional[bool] = None):
         super(LeaderTrainerMaster, self).__init__(
             cluster_server,
             "leader",
@@ -514,7 +519,9 @@ class LeaderTrainerMaster(_TrainerMaster):
             summary_save_secs,
             export_path,
             sparse_estimator,
-            export_model_hook)
+            export_model_hook,
+            export_model=export_model
+        )
 
         self._data_visitor = data_visitor
         self._last_global_step = -1
@@ -602,7 +609,9 @@ class FollowerTrainerMaster(_TrainerMaster):
                  summary_save_secs=None,
                  export_path=None,
                  sparse_estimator=False,
-                 export_model_hook=None):
+                 export_model_hook=None,
+                 export_model: Optional[bool] = None
+                 ):
 
         super(FollowerTrainerMaster, self).__init__(
             cluster_server,
@@ -620,7 +629,9 @@ class FollowerTrainerMaster(_TrainerMaster):
             summary_save_secs,
             export_path,
             sparse_estimator,
-            export_model_hook)
+            export_model_hook,
+            export_model=export_model
+        )
 
         self._data_visitor = data_visitor
         self._last_global_step = -1

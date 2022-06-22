@@ -142,11 +142,19 @@ def create_argument_parser():
                         type=str,
                         default='train',
                         help='Train or eval.')
+    parser.add_argument('--export_model',
+                        type=str_as_bool,
+                        default=None, nargs='?',
+                        help='export model to export_path')
     parser.add_argument('--loglevel',
                         type=str,
                         default=None,
                         help="Specify verbosity level. It can be one of "
                              "'debug', 'info', 'warning', 'error', 'critical'")
+    parser.add_argument('--extra-params',
+                        type=str,
+                        default=None,
+                        help="extra params string for training")
 
     return parser
 
@@ -191,7 +199,8 @@ def _run_master(role,
              summary_save_secs=args.summary_save_secs,
              export_path=args.export_path,
              sparse_estimator=args.sparse_estimator,
-             export_model_hook=export_model_hook)
+             export_model_hook=export_model_hook,
+             export_model=args.export_model)
     master.run_forever(args.master_addr)
 
 def _run_worker(role, args, input_fn, model_fn):
