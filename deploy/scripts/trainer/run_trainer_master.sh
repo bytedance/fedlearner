@@ -99,4 +99,5 @@ python main.py --master \
     $mode $sparse_estimator \
     $save_checkpoint_steps $save_checkpoint_secs \
     $summary_save_steps $summary_save_secs \
-    $epoch_num $start_date $end_date $shuffle $extra_params $export_model
+    $epoch_num $start_date $end_date $shuffle $extra_params \
+    $export_model
