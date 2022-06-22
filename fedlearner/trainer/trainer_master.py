@@ -201,7 +201,7 @@ class _TrainerMaster(tm_grpc.TrainerMasterServiceServicer):
         self._export_path = export_path
         self._sparse_estimator = sparse_estimator
         self._export_model_hook = export_model_hook
-        self._is_export_model = export_model
+        self._should_export_model = export_model
 
         self._lock = threading.RLock()
         self._status = tm_pb.MasterStatus.CREATED
@@ -296,8 +296,8 @@ class _TrainerMaster(tm_grpc.TrainerMasterServiceServicer):
         fl_logging.info("start session_run")
         self._session_run(estimator)
         fl_logging.info("session_run done")
-        if self._is_export_model or \
-            (self._mode == 'train' and self._is_export_model is None):
+        if self._should_export_model or \
+            (self._mode == 'train' and self._should_export_model is None):
             fl_logging.info("start export_model")
             self._export_model(estimator)
             fl_logging.info("export_model done")
