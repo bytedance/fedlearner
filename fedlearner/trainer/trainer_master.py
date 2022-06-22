@@ -570,7 +570,6 @@ class LeaderTrainerMaster(_TrainerMaster):
         except StopIteration:
             data_block = None
 
-        response = tm_pb.DataBlockResponse()
         if data_block:
             fl_logging.info("allocated worker_%d with block: %s",
                             request.worker_rank,
