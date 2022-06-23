@@ -11,7 +11,7 @@ python leader.py --local-addr=localhost:50051     \
                  --save-checkpoint-steps=10       \
                  --summary-save-steps=10          \
                  --epoch-num=1                  \
-                 --export-model=false # not export model &
+                 --export-model=false & # not export model
 
 python follower.py --local-addr=localhost:50052     \
                    --peer-addr=localhost:50051      \
