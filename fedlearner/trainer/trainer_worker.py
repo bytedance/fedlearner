@@ -142,7 +142,7 @@ def create_argument_parser():
                         type=str,
                         default='train',
                         help='Train or eval.')
-    parser.add_argument('--export_model',
+    parser.add_argument('--export-model',
                         type=str_as_bool,
                         default=None, nargs='?',
                         help='export model to export_path')
@@ -282,7 +282,8 @@ def _run_local(role,
              summary_save_secs=args.summary_save_secs,
              export_path=args.export_path,
              sparse_estimator=args.sparse_estimator,
-             export_model_hook=export_model_hook)
+             export_model_hook=export_model_hook,
+             export_model=args.export_model)
     master_thread = threading.Thread(target=local_master.run_forever)
     master_thread.setDaemon(True)
     master_thread.start()
