@@ -91,6 +91,7 @@ python main.py --master \
     --application-id=$APPLICATION_ID \
     --data-source=$DATA_SOURCE \
     --data-path=$DATA_PATH \
+    --data-path-wildcard=$DATA_PATH_WILDCARD \
     --master-addr=0.0.0.0:${LISTEN_PORT} \
     --cluster-spec="$CLUSTER_SPEC" \
     $server_port \

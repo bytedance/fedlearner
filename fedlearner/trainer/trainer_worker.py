@@ -86,6 +86,11 @@ def create_argument_parser():
                         type=str,
                         help='path to data block files for training.'
                              'Ignore if data-source is set')
+    parser.add_argument('--data-path-wildcard',
+                        type=str,
+                        default='part-*',
+                        help='file wildcard under data path for training.'
+                        '* for any files')
     parser.add_argument('--start-date',
                         type=int,
                         help='training data start time')
@@ -373,13 +378,15 @@ def _create_data_visitor(args):
                                     end_date=end_date,
                                     epoch_num=args.epoch_num,
                                     shuffle=args.shuffle)
-    elif args.data_path:
+    elif args.data_path and args.data_path_wildcard:
         visitor = DataPathVisitor(args.data_path,
+                                  wildcard=args.data_path_wildcard,
                                   epoch_num=args.epoch_num,
                                   shuffle=args.shuffle)
     if not visitor:
         raise ValueError("cannot found any data to train, "
-                   "please specify --data-source or --data-path")
+                         "please specify [--data-source] or "
+                         "[--data-path and --data-path-wildcard]")
     return visitor
 
 def train(role,
