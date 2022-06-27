@@ -15,6 +15,7 @@
 # coding: utf-8
 # pylint: disable=broad-except
 
+from fnmatch import fnmatch
 import os
 import zlib
 import json
@@ -196,7 +197,7 @@ class DataSourceVisitor(_DataVisitor):
 class DataPathVisitor(_DataVisitor):
     def __init__(self,
                  data_path,
-                 ext=".tfrecord",
+                 wildcard,
                  epoch_num=1,
                  shuffle=False):
         fl_logging.info("create DataVisitor by data_path: %s", data_path)
@@ -206,8 +207,7 @@ class DataPathVisitor(_DataVisitor):
         datablocks = []
         for dirname, _, filenames in tf.io.gfile.walk(data_path):
             for filename in filenames:
-                _, fileext = os.path.splitext(filename)
-                if ext and fileext != ext:
+                if not fnmatch(os.path.join(dirname, filename), wildcard):
                     continue
                 subdirname = os.path.relpath(dirname, data_path)
                 block_id = os.path.join(subdirname, filename)
