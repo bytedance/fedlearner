@@ -24,12 +24,12 @@ try:
 except ImportError:
     import tensorflow as tf
 
+from fnmatch import fnmatch
 from fedlearner.common import trainer_master_service_pb2 as tm_pb
 from fedlearner.common import trainer_master_service_pb2_grpc as tm_grpc
 from fedlearner.proxy.channel import make_insecure_channel, ChannelType
 from fedlearner.common import common_pb2 as common_pb
 from fedlearner.data_join.data_block_visitor import DataBlockVisitor
-from fnmatch import fnmatch
 
 DataBlockInfo = collections.namedtuple('DataBlockInfo',
                                        ['block_id', 'data_path'])

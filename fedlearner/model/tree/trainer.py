@@ -325,17 +325,17 @@ def read_data_dir(file_wildcard: str, file_type: str, path: str,
 
 def train(args, booster):
     X, cat_X, X_names, cat_X_names, y, example_ids, _ = read_data_dir(
-        args.file_wildcard, args.file_type, args.data_path, args.verify_example_ids,
-        args.role != 'follower', args.ignore_fields, args.cat_fields,
-        args.label_field)
+        args.file_wildcard, args.file_type, args.data_path,
+        args.verify_example_ids, args.role != 'follower',
+        args.ignore_fields, args.cat_fields, args.label_field)
 
     if args.validation_data_path:
         val_X, val_cat_X, val_X_names, val_cat_X_names, val_y, \
             val_example_ids, _ = \
             read_data_dir(
                 args.file_wildcard, args.file_type, args.validation_data_path,
-                args.verify_example_ids, args.role != 'follower', args.ignore_fields,
-                args.cat_fields, args.label_field)
+                args.verify_example_ids, args.role != 'follower',
+                args.ignore_fields, args.cat_fields, args.label_field)
         assert X_names == val_X_names, \
             "Train data and validation data must have same features"
         assert cat_X_names == val_cat_X_names, \
