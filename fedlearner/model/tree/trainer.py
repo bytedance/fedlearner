@@ -63,10 +63,6 @@ def create_argument_parser():
     parser.add_argument('--no-data', type=str_as_bool,
                         default=False, const=True, nargs='?',
                         help='Run prediction without data.')
-    parser.add_argument('--file-ext', type=str, default='',
-                        help='File extension to use including .' \
-                             'for example: .csv')
-    # TODO(gezhengqiang): delete file_ext
     parser.add_argument('--file-wildcard', type=str, default='',
                         help='the wildcard filter for the file')
     parser.add_argument('--file-type', type=str, default='csv',
@@ -189,15 +185,12 @@ def extract_field(field_names, field_name, required):
     return None
 
 
-def filter_files(path: str, file_ext: str, file_wildcard: str) -> List[str]:
+def filter_files(path: str, file_wildcard: str) -> List[str]:
     files = []
     for dirname, _, filenames in tf.io.gfile.walk(path):
         for filename in filenames:
-            _, ext = os.path.splitext(filename)
             subdirname = os.path.join(path, os.path.relpath(dirname, path))
             fpath = os.path.join(subdirname, filename)
-            if file_ext and ext != file_ext:
-                continue
             if file_wildcard and not fnmatch(fpath, file_wildcard):
                 continue
             files.append(fpath)
@@ -254,6 +247,14 @@ def read_data(file_type, filename, require_example_ids, require_labels,
         features.append([to_float(line.get(i)) for i in cont_columns])
         cat_features.append([int(line[i]) for i in cat_columns])
 
+    _, features = zip(*sorted(zip(example_ids, features)))
+    _, cat_features = zip(*sorted(zip(example_ids, cat_features)))
+    if raw_ids is not None:
+        _, raw_ids = zip(*sorted(zip(example_ids, raw_ids)))
+    if labels is not None:
+        _, labels = zip(*sorted(zip(example_ids, labels)))
+    example_ids = sorted(example_ids)
+
     features = np.array(features, dtype=np.float)
     cat_features = np.array(cat_features, dtype=np.int32)
     if labels is not None:
@@ -263,7 +264,7 @@ def read_data(file_type, filename, require_example_ids, require_labels,
         labels, example_ids, raw_ids
 
 
-def read_data_dir(file_ext: str, file_wildcard: str, file_type: str, path: str,
+def read_data_dir(file_wildcard: str, file_type: str, path: str,
                   require_example_ids: bool, require_labels: bool,
                   ignore_fields: str, cat_fields: str, label_field: str):
     if not tf.io.gfile.isdir(path):
@@ -271,7 +272,7 @@ def read_data_dir(file_ext: str, file_wildcard: str, file_type: str, path: str,
             file_type, path, require_example_ids,
             require_labels, ignore_fields, cat_fields, label_field)
 
-    files = filter_files(path, file_ext, file_wildcard)
+    files = filter_files(path, file_wildcard)
     files.sort()
     features = None
     for fullname in files:
@@ -307,23 +308,33 @@ def read_data_dir(file_ext: str, file_wildcard: str, file_type: str, path: str,
 
     assert features is not None, "No data found in %s"%path
 
+    _, features = zip(*sorted(zip(example_ids, features.tolist())))
+    features = np.array(features, dtype=np.float)
+    _, cat_features = zip(*sorted(zip(example_ids, cat_features.tolist())))
+    cat_features = np.array(cat_features, dtype=np.int32)
+    if labels is not None:
+        _, labels = zip(*sorted(zip(example_ids, labels.tolist())))
+        labels = np.asarray(labels, dtype=np.float)
+    if raw_ids is not None:
+        _, raw_ids = zip(*sorted(zip(example_ids, raw_ids)))
+    example_ids = sorted(example_ids)
+
     return features, cat_features, cont_columns, cat_columns, \
         labels, example_ids, raw_ids
 
 
 def train(args, booster):
     X, cat_X, X_names, cat_X_names, y, example_ids, _ = read_data_dir(
-        args.file_ext, args.file_wildcard, args.file_type, args.data_path,
-        args.verify_example_ids, args.role != 'follower', args.ignore_fields,
-        args.cat_fields, args.label_field)
+        args.file_wildcard, args.file_type, args.data_path, args.verify_example_ids,
+        args.role != 'follower', args.ignore_fields, args.cat_fields,
+        args.label_field)
 
     if args.validation_data_path:
         val_X, val_cat_X, val_X_names, val_cat_X_names, val_y, \
             val_example_ids, _ = \
             read_data_dir(
-                args.file_ext, args.file_wildcard, args.file_type,
-                args.validation_data_path, args.verify_example_ids,
-                args.role != 'follower', args.ignore_fields,
+                args.file_wildcard, args.file_type, args.validation_data_path,
+                args.verify_example_ids, args.role != 'follower', args.ignore_fields,
                 args.cat_fields, args.label_field)
         assert X_names == val_X_names, \
             "Train data and validation data must have same features"
@@ -413,7 +424,7 @@ def test_one_file(args, bridge, booster, data_file, output_file):
 
 
 class DataBlockLoader(object):
-    def __init__(self, role, bridge, data_path, ext,
+    def __init__(self, role, bridge, data_path, wildcard,
                  worker_rank=0, num_workers=1, output_path=None):
         self._role = role
         self._bridge = bridge
@@ -429,7 +440,7 @@ class DataBlockLoader(object):
                 files = [os.path.basename(data_path)]
                 data_path = os.path.dirname(data_path)
             self._trainer_master = LocalTrainerMasterClient(
-                self._tm_role, data_path, files=files, ext=ext,
+                self._tm_role, data_path, files=files, wildcard=wildcard,
                 skip_datablock_checkpoint=True)
         else:
             self._trainer_master = None
@@ -501,7 +512,7 @@ def test(args, bridge, booster):
         assert not args.data_path and args.role == 'leader'
 
     data_loader = DataBlockLoader(
-        args.role, bridge, args.data_path, args.file_ext,
+        args.role, bridge, args.data_path, args.file_wildcard,
         args.worker_rank, args.num_workers, args.output_path)
 
     while True:

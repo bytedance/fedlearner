@@ -13,7 +13,6 @@ python -m fedlearner.model.tree.trainer follower \
     --local-addr=localhost:50052 \
     --peer-addr=localhost:50051 \
     --verify-example-ids=true \
-    --file-ext=.tfrecord \
     --file-wildcard=*tfrecord \
     --file-type=tfrecord \
     --data-path=data/follower_train.tfrecord \
@@ -27,7 +26,6 @@ python -m fedlearner.model.tree.trainer leader \
     --local-addr=localhost:50051 \
     --peer-addr=localhost:50052 \
     --verify-example-ids=true \
-    --file-ext=.tfrecord \
     --file-wildcard=*tfrecord \
     --file-type=tfrecord \
     --data-path=data/leader_train.tfrecord \
@@ -45,7 +43,6 @@ python -m fedlearner.model.tree.trainer leader \
     --mode=test \
     --verify-example-ids=true \
     --file-type=tfrecord \
-    --file-ext=.tfrecord \
     --file-wildcard=*tfrecord \
     --data-path=data/leader_test/ \
     --cat-fields=f00001 \
@@ -59,7 +56,6 @@ python -m fedlearner.model.tree.trainer follower \
     --mode=test \
     --verify-example-ids=true \
     --file-type=tfrecord \
-    --file-ext=.tfrecord \
     --file-wildcard=*tfrecord \
     --data-path=data/follower_test/ \
     --cat-fields=f00001 \
@@ -77,7 +73,6 @@ python -m fedlearner.model.tree.trainer follower \
     --verbosity=1 \
     --local-addr=localhost:50052 \
     --peer-addr=localhost:50051 \
-    --file-ext=.csv \
     --file-type=csv \
     --file-wildcard=*csv \
     --data-path=data/follower_train.csv \
@@ -89,7 +84,6 @@ python -m fedlearner.model.tree.trainer leader \
     --verbosity=1 \
     --local-addr=localhost:50051 \
     --peer-addr=localhost:50052 \
-    --file-ext=.csv \
     --file-type=csv \
     --file-wildcard=*csv \
     --data-path=data/leader_train.csv \
@@ -104,7 +98,6 @@ python -m fedlearner.model.tree.trainer follower \
     --local-addr=localhost:50052 \
     --peer-addr=localhost:50051 \
     --mode=test \
-    --file-ext=.csv \
     --file-wildcard=*csv \
     --file-type=csv \
     --data-path=data/follower_test/ \
@@ -117,7 +110,6 @@ python -m fedlearner.model.tree.trainer leader \
     --local-addr=localhost:50051 \
     --peer-addr=localhost:50052 \
     --mode=test \
-    --file-ext=.csv \
     --file-wildcard=*csv \
     --no-data=true \
     --load-model-path=exp/leader_checkpoints/checkpoint-0004.proto \
@@ -127,9 +119,9 @@ wait
 
 python merge_scores.py \
     --left-data-path=data/follower_test/ \
-    --left-file-ext=.csv \
+    --left-file-wildcard=*csv \
     --left-select-fields=example_id \
     --right-data-path=exp/leader_test_output \
-    --right-file-ext=.output \
+    --right-file-wildcard=*output \
     --right-select-fields=prediction \
     --output-path=exp/merge_output

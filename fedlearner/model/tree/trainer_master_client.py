@@ -29,6 +29,7 @@ from fedlearner.common import trainer_master_service_pb2_grpc as tm_grpc
 from fedlearner.proxy.channel import make_insecure_channel, ChannelType
 from fedlearner.common import common_pb2 as common_pb
 from fedlearner.data_join.data_block_visitor import DataBlockVisitor
+from fnmatch import fnmatch
 
 DataBlockInfo = collections.namedtuple('DataBlockInfo',
                                        ['block_id', 'data_path'])
@@ -41,7 +42,7 @@ class LocalTrainerMasterClient(object):
                  role,
                  path,
                  files=None,
-                 ext='.tfrecord',
+                 wildcard='*tfrecord',
                  start_time=None,
                  end_time=None,
                  from_data_source=False,
@@ -65,11 +66,11 @@ class LocalTrainerMasterClient(object):
                 files = []
                 for dirname, _, filenames in tf.io.gfile.walk(path):
                     for filename in filenames:
-                        _, fileext = os.path.splitext(filename)
-                        if ext and fileext != ext:
-                            continue
                         subdirname = os.path.relpath(dirname, path)
-                        files.append(os.path.join(subdirname, filename))
+                        fpath = os.path.join(subdirname, filename)
+                        if wildcard and not fnmatch(fpath, wildcard):
+                            continue
+                        files.append(fpath)
             files.sort()
 
             # Hack way for supporting multiple epochs
