@@ -22,14 +22,14 @@ class TestFilterFiles(unittest.TestCase):
         path.joinpath('test2/test').mkdir()
         path.joinpath('test2/test').joinpath('4.tfrecord').touch()
         
-        files = filter_files(path, '.csv', '')
-        self.assertEqual(len(files), 4)
-        files = filter_files(path, '', '*tfr*')
-        self.assertEqual(len(files), 4)
-        files = filter_files(path, '', '')
+        files = filter_files(path, '')
         self.assertEqual(len(files), 8)
-        files = filter_files(path, '.csv', '*1.*')
-        self.assertEqual(len(files), 1)
+        files = filter_files(path, '*tfrecord')
+        self.assertEqual(len(files), 4)
+        files = filter_files(path, '*1.*')
+        self.assertEqual(len(files), 2)
+        files = filter_files(path, '*data')
+        self.assertEqual(len(files), 0)
 
 
 if __name__ == '__main__':
