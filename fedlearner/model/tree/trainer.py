@@ -272,7 +272,7 @@ def read_data_dir(file_wildcard: str, file_type: str, path: str,
             file_type, path, require_example_ids,
             require_labels, ignore_fields, cat_fields, label_field)
 
-    files = filter_files(path, file_wildcard)
+    files = filter_files(path=path, file_wildcard=file_wildcard)
     files.sort()
     features = None
     for fullname in files:
@@ -325,9 +325,15 @@ def read_data_dir(file_wildcard: str, file_type: str, path: str,
 
 def train(args, booster):
     X, cat_X, X_names, cat_X_names, y, example_ids, _ = read_data_dir(
-        args.file_wildcard, args.file_type, args.data_path,
-        args.verify_example_ids, args.role != 'follower',
-        args.ignore_fields, args.cat_fields, args.label_field)
+        file_wildcard=args.file_wildcard,
+        file_type=args.file_type,
+        path=args.data_path,
+        require_example_ids=args.verify_example_ids,
+        require_labels=(args.role != 'follower'),
+        ignore_fields=args.ignore_fields,
+        cat_fields=args.cat_fields,
+        label_field=args.label_field
+        )
 
     if args.validation_data_path:
         val_X, val_cat_X, val_X_names, val_cat_X_names, val_y, \
