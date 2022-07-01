@@ -308,15 +308,23 @@ def read_data_dir(file_wildcard: str, file_type: str, path: str,
 
     assert features is not None, "No data found in %s"%path
 
-    _, features = zip(*sorted(zip(example_ids, features.tolist())))
-    features = np.array(features, dtype=np.float)
-    _, cat_features = zip(*sorted(zip(example_ids, cat_features.tolist())))
-    cat_features = np.array(cat_features, dtype=np.int32)
+    ids = np.array(example_ids, dtype=np.int32).reshape(-1, 1)
+    if features.size != 0:
+        ids_features = np.concatenate((ids, features), axis=1)
+        ids_features = ids_features[np.argsort(ids_features[:, 0])]
+        features = ids_features[:, 1].reshape(-1, 1)
+    if cat_features.size != 0:
+        ids_cat_features = np.concatenate((ids, cat_features), axis=1)
+        ids_cat_features = ids_cat_features[np.argsort(ids_cat_features[:, 0])]
+        cat_features = ids_cat_features[:, 1].reshape(-1, 1)
     if labels is not None:
-        _, labels = zip(*sorted(zip(example_ids, labels.tolist())))
-        labels = np.asarray(labels, dtype=np.float)
+        ids_labels = np.concatenate((ids, labels.reshape(-1, 1)), axis=1)
+        ids_labels = ids_labels[np.argsort(ids_labels[:, 0])]
+        labels = ids_labels[:, 1].flatten()
     if raw_ids is not None:
-        _, raw_ids = zip(*sorted(zip(example_ids, raw_ids)))
+        ids_raw_ids = np.concatenate((ids, raw_ids.reshape(-1, 1)), axis=1)
+        ids_raw_ids = ids_raw_ids[np.argsort(ids_raw_ids[:, 0])]
+        raw_ids = ids_raw_ids[:, 1].flatten()
     example_ids = sorted(example_ids)
 
     return features, cat_features, cont_columns, cat_columns, \
