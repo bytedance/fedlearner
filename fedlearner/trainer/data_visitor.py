@@ -215,6 +215,7 @@ class _DataVisitor(object):
                     self._allocated[epoch].add(block_id)
             try:
                 self._next(peek=True)
+                self._next(peek=True, data_type=tm_pb.LOCAL)
             except Exception:
                 pass
 

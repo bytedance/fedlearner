@@ -89,4 +89,4 @@ python main.py --worker \
     --peer-addr="$PEER_ADDR" \
     --worker-rank="$INDEX" \
     $server_port $mode $batch_size \
-    $sparse_estimator $learning_rate
+    $sparse_estimator $learning_rate $extra_params
