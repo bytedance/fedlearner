@@ -327,7 +327,8 @@ class _TrainerMaster(tm_grpc.TrainerMasterServiceServicer):
             hooks = self._session_hooks
 
             # saver hook
-            if mode_key == tf.estimator.ModeKeys.TRAIN \
+            if (mode_key == tf.estimator.ModeKeys.TRAIN or
+                self._should_export_model) \
                 and self._checkpoint_path \
                 and (self._save_checkpoint_secs \
                     or self._save_checkpoint_steps):
