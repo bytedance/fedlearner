@@ -326,7 +326,7 @@ def _get_checkpoint_filename_with_path(args):
             raise ValueError("load_checkpoint_path or checkpoint_path is "
                              "required when provide load_checkpoint_filename")
         checkpoint_filename_with_path = \
-            os.path.join(load_checkpoint_path, args.checkpoint_filename)
+            os.path.join(load_checkpoint_path, args.load_checkpoint_filename)
     elif args.load_checkpoint_path or args.checkpoint_path:
         load_checkpoint_path = args.load_checkpoint_path or args.checkpoint_path
         checkpoint_filename_with_path = \
