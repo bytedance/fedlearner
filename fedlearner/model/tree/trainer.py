@@ -149,10 +149,9 @@ def create_argument_parser():
                         default='label',
                         help='selected label name')
     parser.add_argument('--predict-type',
-                        type=int,
-                        default=0,
-                        help='predict type')
-
+                        default='iteration',
+                        choices=['vectorization', 'iteration'],
+                        help='which type for tree prediction')
     return parser
 
 
@@ -538,7 +537,8 @@ def run(args):
             loss_type=args.loss_type,
             send_scores_to_follower=args.send_scores_to_follower,
             send_metrics_to_follower=args.send_metrics_to_follower,
-            enable_packing=args.enable_packing)
+            enable_packing=args.enable_packing,
+            predict_type=args.predict_type)
 
         if args.load_model_path:
             booster.load_saved_model(args.load_model_path)
