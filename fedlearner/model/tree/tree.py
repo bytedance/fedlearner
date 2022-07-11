@@ -848,7 +848,7 @@ class FollowerGrower(BaseGrower):
 def _vectorize_tree(tree):
     """
     vectorize the tree
-    Args: 
+    Args:
         tree: RegressionTreeProto
     Returns:
         vec: vectorized information dict in a tree
