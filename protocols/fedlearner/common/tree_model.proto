@@ -70,3 +70,8 @@ message VerifyParams {
     bool leader_no_data = 11;
     bool enable_packing = 12;
 }
+
+message VerifySecurePredict {
+    string mode = 1;
+    float top_percent = 2;
+}
