@@ -27,7 +27,7 @@ import tensorflow.compat.v1 as tf
 
 from fedlearner.common.argparse_util import str_as_bool
 from fedlearner.trainer.bridge import Bridge
-from fedlearner.model.tree.tree import BoostingTreeEnsamble
+from fedlearner.model.tree.tree import BoostingTreeEnsamble, PredictType
 from fedlearner.model.tree.trainer_master_client import LocalTrainerMasterClient
 from fedlearner.model.tree.trainer_master_client import DataBlockInfo
 
@@ -149,8 +149,11 @@ def create_argument_parser():
                         default='label',
                         help='selected label name')
     parser.add_argument('--predict-type',
-                        default='iteration',
-                        choices=['vectorization', 'iteration'],
+                        default=PredictType.ITERATION.value,
+                        choices=[
+                            PredictType.ITERATION.value,
+                            PredictType.VECTORIZATION.value
+                            ],
                         help='which type for tree prediction')
     return parser
 
