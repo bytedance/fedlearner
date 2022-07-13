@@ -927,11 +927,9 @@ def _compare_features_with_threshold(vec: Dict, features: np.ndarray,
         cat_fid = np.where(is_cat, vec['feature_id'] - features.shape[1], 0)
         cat_X = cat_features[row, cat_fid]
 
-        cat_in = np.empty(0, dtype=np.bool)
-        for i, cat_threshold in enumerate(vec['cat_threshold']):
-            tmp = ~np.in1d(cat_X[:, i], cat_threshold)
-            cat_in = np.concatenate((cat_in, tmp), axis=0)
-        cat_in = np.transpose(cat_in.reshape(node_num, N))
+        tmp = [~np.in1d(cat_X[:, i], cat_threshold) for i, cat_threshold in
+               enumerate(vec['cat_threshold'])]
+        cat_in = np.transpose(np.concatenate(tmp, axis=0).reshape(node_num, N))
 
         d = np.where(is_cont, d, cat_in)
 
