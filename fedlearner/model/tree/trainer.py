@@ -380,7 +380,7 @@ def test_one_file(args, bridge, booster, data_file, output_file):
         cat_features=cat_X,
         feature_names=X_names,
         cat_feature_names=cat_X_names,
-        predict_type=args.predict_type)
+        predict_type=PredictType(args.predict_type))
 
     if y is not None:
         metrics = booster.loss.metrics(pred, y)
@@ -540,8 +540,7 @@ def run(args):
             loss_type=args.loss_type,
             send_scores_to_follower=args.send_scores_to_follower,
             send_metrics_to_follower=args.send_metrics_to_follower,
-            enable_packing=args.enable_packing,
-            predict_type=args.predict_type)
+            enable_packing=args.enable_packing)
 
         if args.load_model_path:
             booster.load_saved_model(args.load_model_path)

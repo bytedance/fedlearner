@@ -22,7 +22,7 @@ import enum
 import logging
 import collections
 from concurrent.futures import ProcessPoolExecutor
-from typing import Dict
+from typing import Dict, Optional, List
 import numpy as np
 from google.protobuf import text_format
 import tensorflow.compat.v1 as tf
@@ -927,9 +927,9 @@ def _compare_features_with_threshold(vec: Dict, features: np.ndarray,
         cat_fid = np.where(is_cat, vec['feature_id'] - features.shape[1], 0)
         cat_X = cat_features[row, cat_fid]
 
-        tmp = [~np.in1d(cat_X[:, i], cat_threshold) for i, cat_threshold in
-               enumerate(vec['cat_threshold'])]
-        cat_in = np.transpose(np.concatenate(tmp, axis=0).reshape(node_num, N))
+        tmp = [~np.in1d(cat_X[:, i], cat_threshold).reshape(-1, 1)
+                for i, cat_threshold in enumerate(vec['cat_threshold'])]
+        cat_in = np.concatenate(tmp, axis=1)
 
         d = np.where(is_cont, d, cat_in)
 
@@ -1061,8 +1061,7 @@ class BoostingTreeEnsamble(object):
                  max_leaves=0, l2_regularization=1.0, max_bins=33,
                  grow_policy='depthwise', num_parallel=1,
                  loss_type='logistic', send_scores_to_follower=False,
-                 send_metrics_to_follower=False, enable_packing=False,
-                 predict_type=PredictType.ITERATION.value):
+                 send_metrics_to_follower=False, enable_packing=False):
         self._learning_rate = learning_rate
         self._max_iters = max_iters
         self._max_depth = max_depth
@@ -1070,7 +1069,6 @@ class BoostingTreeEnsamble(object):
         self._l2_regularization = l2_regularization
         self._grow_policy = grow_policy
         self._num_parallel = num_parallel
-        self._predict_type = predict_type
         self._pool = None
         if self._num_parallel > 1:
             self._pool = ProcessPoolExecutor(num_parallel)
@@ -1150,7 +1148,7 @@ class BoostingTreeEnsamble(object):
         self._bridge.commit()
 
     def _verify_params(self, example_ids, is_training, validation=False,
-                       leader_no_data=False):
+                       leader_no_data=False, predict_type_value=''):
         assert self._bridge is not None
 
         self._bridge.start()
@@ -1168,7 +1166,7 @@ class BoostingTreeEnsamble(object):
                 num_trees=len(self._trees),
                 leader_no_data=leader_no_data,
                 enable_packing=self._enable_packing,
-                predict_type=self._predict_type)
+                predict_type_value=predict_type_value)
             self._bridge.send_proto('verify', msg)
             status = common_pb2.Status()
             self._bridge.receive_proto('status').Unpack(status)
@@ -1203,7 +1201,7 @@ class BoostingTreeEnsamble(object):
             err_msg += check(
                 'num_trees', msg.num_trees, len(self._trees))
             err_msg += check(
-                'predict_type', msg.predict_type, self._predict_type)
+                'predict_type', msg.predict_type_value, predict_type_value)
 
             if is_training:
                 err_msg += check(
@@ -1289,10 +1287,13 @@ class BoostingTreeEnsamble(object):
         pred = self.batch_predict(features, example_ids=example_ids)
         return self._compute_metrics(pred, labels)
 
-    def batch_predict(self, features, cat_features=None,
-                      get_raw_score=False, example_ids=None,
-                      feature_names=None, cat_feature_names=None,
-                      predict_type=PredictType.ITERATION.value):
+    def batch_predict(self, features: np.ndarray, cat_features:
+                      Optional[np.ndarray] = None,
+                      get_raw_score: bool = False,
+                      example_ids: Optional[List] = None,
+                      feature_names: Optional[List] = None,
+                      cat_feature_names: Optional[List] = None,
+                      predict_type: PredictType = PredictType.ITERATION):
         if feature_names and self._feature_names:
             assert feature_names == self._feature_names, \
                 "Predict data's feature names does not match loaded model"
@@ -1305,7 +1306,10 @@ class BoostingTreeEnsamble(object):
 
         if self._bridge is None:
             return self._batch_predict_local(
-                features, cat_features, get_raw_score, predict_type)
+                features=features,
+                cat_features=cat_features,
+                get_raw_score=get_raw_score,
+                predict_type=predict_type)
 
         if self._role == 'leader':
             leader_no_data = True
@@ -1318,21 +1322,29 @@ class BoostingTreeEnsamble(object):
 
         msg = self._verify_params(
             example_ids, False,
-            leader_no_data=leader_no_data)
+            leader_no_data=leader_no_data,
+            predict_type_value=predict_type.value)
 
         if msg.leader_no_data:
             if self._role == 'leader':
                 return self._batch_predict_one_side_leader(
-                    get_raw_score)
+                    get_raw_score=get_raw_score)
             return self._batch_predict_one_side_follower(
-                features, cat_features, get_raw_score, predict_type)
+                features=features,
+                cat_features=cat_features,
+                get_raw_score=get_raw_score,
+                predict_type=predict_type)
 
         return self._batch_predict_two_side(
-            features, cat_features, get_raw_score, predict_type)
+            features=features,
+            cat_features=cat_features,
+            get_raw_score=get_raw_score,
+            predict_type=predict_type)
 
 
-    def _batch_predict_local(self, features, cat_features,
-                             get_raw_score, predict_type):
+    def _batch_predict_local(self, features: np.ndarray, cat_features:
+                             np.ndarray, get_raw_score: bool,
+                             predict_type: PredictType):
         N = features.shape[0]
 
         raw_prediction = np.zeros(N, dtype=BST_TYPE)
@@ -1340,36 +1352,38 @@ class BoostingTreeEnsamble(object):
             logging.debug("Running prediction for tree %d", idx)
 
             vec_tree = _vectorize_tree(tree)
-            if predict_type == PredictType.ITERATION.value:
+            if predict_type == PredictType.ITERATION:
                 assignment = np.zeros(N, dtype=np.int32)
                 while vec_tree['is_leaf'][assignment].sum() < N:
                     direction = _vectorized_direction(
                         vec_tree, features, cat_features, assignment)
                     assignment = _vectorized_assignment(
                         vec_tree, assignment, direction)
-            elif predict_type == PredictType.VECTORIZATION.value:
+            elif predict_type == PredictType.VECTORIZATION:
                 direction = _compare_features_with_threshold(
                     vec_tree, features, cat_features)
                 selected = _assign_direction_to_node(vec_tree, direction)
                 res_vec = _get_leaf_vec(vec_tree, selected)
                 assignment = _get_leaf_node(vec_tree, res_vec)
             else:
-                raise ValueError(f'Invalid predict type {predict_type}')
+                raise ValueError(f'Invalid predict type {predict_type.value}')
             raw_prediction += vec_tree['weight'][assignment]
 
         if get_raw_score:
             return raw_prediction
         return self._loss.predict(raw_prediction)
 
-    def _batch_predict_one_side_follower(self, features, cat_features,
-                                         get_raw_score, predict_type):
+    def _batch_predict_one_side_follower(self, features: np.ndarray,
+                                         cat_features: np.ndarray,
+                                         get_raw_score: bool,
+                                         predict_type: PredictType):
         N = features.shape[0]
 
         for idx, tree in enumerate(self._trees):
             logging.debug("Running prediction for tree %d", idx)
 
             vec_tree = _vectorize_tree(tree)
-            if predict_type == PredictType.ITERATION.value:
+            if predict_type == PredictType.ITERATION:
                 assignment = np.zeros(
                     N, dtype=_get_dtype_for_max_value(len(tree.nodes)))
                 while vec_tree['is_leaf'][assignment].sum() < N:
@@ -1377,7 +1391,7 @@ class BoostingTreeEnsamble(object):
                         vec_tree, features, cat_features, assignment)
                     assignment = _vectorized_assignment(
                         vec_tree, assignment, direction)
-            elif predict_type == PredictType.VECTORIZATION.value:
+            elif predict_type == PredictType.VECTORIZATION:
                 direction = _compare_features_with_threshold(
                     vec_tree, features, cat_features)
                 selected = _assign_direction_to_node(vec_tree, direction)
@@ -1385,7 +1399,7 @@ class BoostingTreeEnsamble(object):
                 assignment = _get_leaf_node(vec_tree, res_vec).astype(
                     _get_dtype_for_max_value(len(tree.nodes)))
             else:
-                raise ValueError(f'Invalid predict type {predict_type}')
+                raise ValueError(f'Invalid predict type {predict_type.value}')
             self._bridge.start()
             self._bridge.send(
                 'follower_assignment_%d'%idx,
@@ -1400,7 +1414,7 @@ class BoostingTreeEnsamble(object):
             return raw_prediction
         return self._loss.predict(raw_prediction)
 
-    def _batch_predict_one_side_leader(self, get_raw_score):
+    def _batch_predict_one_side_leader(self, get_raw_score: bool):
         raw_prediction = None
         for idx, tree in enumerate(self._trees):
             logging.debug("Running prediction for tree %d", idx)
@@ -1427,15 +1441,16 @@ class BoostingTreeEnsamble(object):
         return self._loss.predict(raw_prediction)
 
 
-    def _batch_predict_two_side(self, features, cat_features,
-                                get_raw_score, predict_type):
+    def _batch_predict_two_side(self, features: np.ndarray, cat_features:
+                                np.ndarray, get_raw_score: bool, predict_type:
+                                PredictType):
         N = features.shape[0]
         peer_role = 'leader' if self._role == 'follower' else 'follower'
         raw_prediction = np.zeros(N, dtype=BST_TYPE)
         for idx, tree in enumerate(self._trees):
             logging.debug("Running prediction for tree %d", idx)
             vec_tree = _vectorize_tree(tree)
-            if predict_type == PredictType.ITERATION.value:
+            if predict_type == PredictType.ITERATION:
                 assignment = np.zeros(N, dtype=np.int32)
                 while vec_tree['is_leaf'][assignment].sum() < N:
                     direction = _vectorized_direction(
@@ -1451,7 +1466,7 @@ class BoostingTreeEnsamble(object):
 
                     assignment = _vectorized_assignment(
                         vec_tree, assignment, direction, peer_direction)
-            elif predict_type == PredictType.VECTORIZATION.value:
+            elif predict_type == PredictType.VECTORIZATION:
                 direction = _compare_features_with_threshold(
                     vec_tree, features, cat_features)
                 selected = _assign_direction_to_node(vec_tree, direction)
@@ -1471,7 +1486,7 @@ class BoostingTreeEnsamble(object):
 
                 assignment = _get_leaf_node(vec_tree, res_vec)
             else:
-                raise ValueError(f'Invalid predict type {predict_type}')
+                raise ValueError(f'Invalid predict type {predict_type.value}')
 
             if self._role == 'leader':
                 raw_prediction += vec_tree['weight'][assignment]

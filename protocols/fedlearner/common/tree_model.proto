@@ -69,5 +69,5 @@ message VerifyParams {
     int32 num_trees = 10;
     bool leader_no_data = 11;
     bool enable_packing = 12;
-    string predict_type = 13;
+    string predict_type_value = 13;
 }
