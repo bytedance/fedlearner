@@ -904,10 +904,10 @@ def _compare_features_with_threshold(vec: Dict, features: np.ndarray,
                       of categorical features
 
     Returns:
-        d: Comparison results of features and thresholds, True
-           to the right, False to the left, np.bool, shape:
-           (N, node_num),N is number of data, node_num is the
-           node num in a tree.
+        d: Comparison of features and thresholds, True to the
+           right, False to the left, np.bool, shape: (N, node_num),
+           N is the number of data, node_num is the node num
+           in a tree.
     """
     N = features.shape[0]
     node_num = vec['feature_id'].size
