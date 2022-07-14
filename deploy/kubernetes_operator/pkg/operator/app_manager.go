@@ -111,6 +111,7 @@ func NewAppManager(
 		ingressSecretName:           ingressSecretName,
 		ingressEnableClientAuth:     ingressEnableClientAuth,
 		ingressClientAuthSecretName: ingressClientAuthSecretName,
+		ingressClassName:            ingressClassName,
 
 		kubeClient: kubeClient,
 		crdClient:  crdClient,
