@@ -179,7 +179,7 @@ class SortRunDumper(object):
             if gfile.Exists(self._fly_sort_run_dumper.tmp_fpath):
                 gfile.Remove(self._fly_sort_run_dumper.tmp_fpath)
             fpath = self._fly_sort_run_dumper.fpath
-            if fpath is None and gfile.Exists(fpath):
+            if fpath is not None and gfile.Exists(fpath):
                 fname = path.basename(fpath)
                 meta = SortRunMeta.decode_sort_run_meta_from_fname(fname)
                 self._dumped_sort_run_metas.append(meta)
