@@ -962,13 +962,9 @@ def _assign_direction_to_node(vec: Dict, direction: np.ndarray) -> np.ndarray:
     non_leaf = ~np.tile(vec['is_leaf'], (N, 1))
     node_ids = np.tile(np.arange(node_num), (N, 1))
 
-    assignment = np.empty(0, dtype=np.bool)
-    for i, assign in enumerate(
-        selected_child[non_leaf].reshape(N, non_leaf_num)
-    ):
-        tmp = np.in1d(node_ids[i], assign)
-        assignment = np.concatenate((assignment, tmp), axis=0)
-    assignment = assignment.reshape(N, node_num)
+    tmp = [np.in1d(node_ids[i], assign) for i, assign in
+           enumerate(selected_child[non_leaf].reshape(N, non_leaf_num))]
+    assignment = np.concatenate(tmp, axis=0).reshape(N, node_num)
 
     own_id = np.arange(node_num)[vec['is_owner']]
     not_own = (~np.in1d(vec['parent'], own_id))
@@ -1012,8 +1008,8 @@ def _get_leaf_node(vec: Dict, assignment: np.ndarray) -> np.ndarray:
     Args:
         vec: vectorized information dict in a tree, refer to
              _vectorize_tree(tree)
-        assignment: the possible leaf node selection vector,
-                    shape: (N, leaf_node_num),N is number of data,
+        assignment: one hot selection vector of leaf, shape:
+                    (N, leaf_node_num),N is number of data,
                     leaf_node_num is the node num in a tree.
 
     Returns:
