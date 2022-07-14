@@ -135,9 +135,7 @@ class RsaPsiSigner(object):
         logging.info('RsaPsiSigner Server start on port[%d].', listen_port)
 
     def stop(self):
-        # Sometimes the client does not receive the server's bye response,
-        # stops gracefully to wait client's retries.
-        self._server.stop(30)
+        self._server.stop(None)
         if self._process_pool_executor is not None:
             self._process_pool_executor.shutdown(True)
         logging.info('RsaPsiSigner Server stopped')
