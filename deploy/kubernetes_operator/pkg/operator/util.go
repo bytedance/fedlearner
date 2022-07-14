@@ -105,9 +105,9 @@ func GetIngressClientAuthSecretNameOrDefault(app *v1alpha1.FLApp, defaultName st
 	return defaultName
 }
 
-func GetIngressClassName(app *v1alpha1.FLApp) string {
+func GetIngressClassName(app *v1alpha1.FLApp, defaultName string) string {
 	if app.Spec.IngressSpec != nil && len(app.Spec.IngressSpec.IngressClassName) > 0 {
 		return app.Spec.IngressSpec.IngressClassName
 	}
-	return "nginx"
+	return defaultName
 }

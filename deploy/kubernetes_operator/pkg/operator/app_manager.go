@@ -58,6 +58,7 @@ type appManager struct {
 	ingressSecretName           string
 	ingressEnableClientAuth     bool
 	ingressClientAuthSecretName string
+	ingressClassName            string
 
 	kubeClient clientset.Interface
 	crdClient  crdclientset.Interface
@@ -91,6 +92,7 @@ func NewAppManager(
 	ingressSecretName string,
 	ingressEnableClientAuth bool,
 	ingressClientAuthSecretName string,
+	ingressClassName string,
 	kubeClient clientset.Interface,
 	crdClient crdclientset.Interface,
 	appLister crdlisters.FLAppLister,
@@ -325,7 +327,7 @@ func (am *appManager) createIngress(ctx context.Context, app *v1alpha1.FLApp) er
 	ingressName := GenName(name, strings.ToLower(app.Spec.Role))
 	ownerReference := am.GenOwnerReference(app)
 	labels := GenLabels(app)
-	ingressClassName := GetIngressClassName(app)
+	ingressClassName := GetIngressClassName(app, am.ingressClassName)
 	annotations := map[string]string{
 		"kubernetes.io/ingress.class":                       ingressClassName,
 		"nginx.ingress.kubernetes.io/backend-protocol":      "GRPC",
