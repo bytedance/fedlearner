@@ -407,7 +407,7 @@ class Bridge(object):
 
     def load_data_block(self, count, block_id):
         req = tws2_pb.LoadDataBlockRequest(count=count, block_id=block_id)
-        fl_logging.debug("[Bridge] sending DataBlock with id %s", block_id)
+        fl_logging.info("[Bridge] sending DataBlock with id %s", block_id)
         resp = self._client.LoadDataBlock(req)
         if resp.status.code == common_pb.STATUS_SUCCESS:
             fl_logging.info("[Bridge] remote succeeded to load data block %s",
