@@ -281,6 +281,9 @@ class Timer:
     def __enter__(self):
         self._start_time = time.time()
 
+    def duration(self):
+        return time.time() - self._start_time
+
     def __exit__(self, exc_type, exc_val, exc_tb):
         logging.info("%s takes %s second", self._content,
                      time.time() - self._start_time)

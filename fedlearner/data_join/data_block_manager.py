@@ -26,6 +26,7 @@ from tensorflow.compat.v1 import gfile
 
 from fedlearner.common import data_join_service_pb2 as dj_pb
 from fedlearner.common import metrics
+from fedlearner.data_join._stats_context import stats_context
 from fedlearner.data_join.common import (
     encode_data_block_meta_fname, partition_repr,
     load_data_block_meta, encode_block_id,
@@ -143,7 +144,7 @@ class DataBlockBuilder(object):
         if len(self._data_block_meta.example_ids) > 0:
             self._data_block_meta.block_id = \
                     encode_block_id(self._data_source_name,
-                                         self._data_block_meta)
+                                    self._data_block_meta)
             data_block_path = os.path.join(
                     self._get_data_block_dir(),
                     encode_data_block_fname(
@@ -155,9 +156,44 @@ class DataBlockBuilder(object):
             self._build_data_block_meta()
             if emit_logger:
                 self._emit_logger(metrics_tags)
+            self._emit_metric(metrics_tags)
             return self._data_block_meta
         gfile.Remove(self._tmp_fpath)
         return None
+
+    def _emit_metric(self, metrics_tags):
+        meta = self._data_block_meta
+        nmetric_tags = self._metrics_tags
+        if metrics_tags is not None and len(metrics_tags) > 0:
+            nmetric_tags = copy.deepcopy(self._metrics_tags)
+            nmetric_tags.update(metrics_tags)
+        leader_join_rate = 0.0
+        if meta.joiner_stats_info.leader_stats_index > 0:
+            leader_join_rate = meta.joiner_stats_info.actual_cum_join_num / \
+                               meta.joiner_stats_info.leader_stats_index
+        follower_join_rate = 0.0
+        if meta.joiner_stats_info.follower_stats_index > 0:
+            follower_join_rate = meta.joiner_stats_info.actual_cum_join_num / \
+                                 meta.joiner_stats_info.follower_stats_index
+        with stats_context.stats_client.pipeline() as pipe:
+            pipe.gauge('data_join.joiner.data_block_index',
+                       self._data_block_meta.data_block_index,
+                       tags=nmetric_tags)
+            pipe.gauge('data_join.joiner.joined_num',
+                       meta.joiner_stats_info.actual_cum_join_num,
+                       tags=nmetric_tags)
+            pipe.gauge('data_join.joiner.leader_stats_index',
+                       meta.joiner_stats_info.leader_stats_index,
+                       tags=nmetric_tags)
+            pipe.gauge('data_join.joiner.follower_stats_index',
+                       meta.joiner_stats_info.follower_stats_index,
+                       tags=nmetric_tags)
+            pipe.gauge('data_join.joiner.leader_join_rate',
+                       int(leader_join_rate*100),
+                       tags=nmetric_tags)
+            pipe.gauge('data_join.joiner.follower_join_rate',
+                       int(follower_join_rate*100),
+                       tags=nmetric_tags)
 
     def _emit_logger(self, metrics_tags):
         meta = self._data_block_meta

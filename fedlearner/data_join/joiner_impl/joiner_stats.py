@@ -55,6 +55,9 @@ class _SlideCache(object):
                 self._stats_windows_size
         return evict_hids
 
+    def update_stats_index(self, stats_index):
+        self._stats_index = stats_index
+
     def get_stats_index(self):
         return self._stats_index
 
@@ -102,6 +105,12 @@ class JoinerStats(object):
                 joined_num += 1
         return self._stats_cum_join_num + \
                 joined_num * JoinerStats._SampleRateReciprocal
+
+    def update_leader_stats_index(self, stats_index):
+        self._leader_cache.update_stats_index(stats_index)
+
+    def update_follower_stats_index(self, stats_index):
+        self._follower_cache.update_stats_index(stats_index)
 
     def get_leader_stats_index(self):
         return self._leader_cache.get_stats_index()

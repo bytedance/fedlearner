@@ -366,10 +366,10 @@ class UniversalJoiner(ExampleJoiner):
                  data_block_builder_options, kvstore, data_source,
                  partition_id):
         super(UniversalJoiner, self).__init__(example_joiner_options,
-                                                  raw_data_options,
-                                                  data_block_builder_options,
-                                                  kvstore, data_source,
-                                                  partition_id)
+                                              raw_data_options,
+                                              data_block_builder_options,
+                                              kvstore, data_source,
+                                              partition_id)
         self._min_window_size = example_joiner_options.min_matching_window
         self._max_window_size = example_joiner_options.max_matching_window
 
@@ -446,6 +446,11 @@ class UniversalJoiner(ExampleJoiner):
                         yield meta
                     self._leader_restart_index = pairs[len(pairs) - 1].li
                     self._follower_restart_index = pairs[len(pairs) - 1].fi
+                    # just stats data before watermark
+                    self._joiner_stats.update_leader_stats_index(
+                        self._leader_restart_index)
+                    self._joiner_stats.update_follower_stats_index(
+                        self._follower_restart_index)
                 logging.info("Restart index of leader %d, follwer %d,"
                              "pair_buf=%d, raw_pairs=%d, pairs=%d",
                              self._leader_restart_index,
