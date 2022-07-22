@@ -37,8 +37,8 @@ class _TrainerMasterClient(object):
         response = _grpc_with_retry(
             lambda: self._client.RequestDataBlock(request))
         if response.status.code == common_pb.StatusCode.STATUS_SUCCESS:
-            fl_logging.debug("succeeded to get datablock, id:%s, data_path: %s",
-                          response.block_id, response.data_path)
+            fl_logging.info("succeeded to get datablock, id:%s, data_path: %s",
+                            response.block_id, response.data_path)
             return response
         if response.status.code == \
             common_pb.StatusCode.STATUS_INVALID_DATA_BLOCK:
