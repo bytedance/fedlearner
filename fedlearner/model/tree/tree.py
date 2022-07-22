@@ -18,9 +18,11 @@ import os
 import math
 import queue
 import time
+import enum
 import logging
 import collections
 from concurrent.futures import ProcessPoolExecutor
+from typing import Dict, Optional, List
 import numpy as np
 from google.protobuf import text_format
 import tensorflow.compat.v1 as tf
@@ -42,6 +44,9 @@ CIPHER_NBYTES = (KEY_NBITS * 2)//8
 
 MAX_PARTITION_SIZE = 4096
 
+class PredictType(enum.Enum):
+    ITERATION = 'iteration'
+    VECTORIZATION = 'vectorization'
 
 def _send_public_key(bridge, public_key):
     msg = tree_pb2.EncryptedNumbers()
@@ -846,6 +851,29 @@ class FollowerGrower(BaseGrower):
         return left_child, right_child, split_info
 
 def _vectorize_tree(tree):
+    """
+    vectorize the tree
+    Args:
+        tree: RegressionTreeProto
+    Returns:
+        vec: vectorized information dict in a tree
+            {
+                'is_owner': np.bool, if it is the owner of the node,
+                'feature_id': np.int32, the serial number of each feature,
+                              continuous features first, categorical features
+                              after
+                'is_cat_feature': np.bool, if the feature is the categorical
+                                feature
+                'threshold': np.int32, the threshold of continuous features,
+                'cat_threshold': List, the threshold of categorical features,
+                'default_left': np.bool, if default left when it is null,
+                'is_leaf': np.bool, if it is the leaf node,
+                'weight': np.float, the weight of the node,
+                'children': np.int32, the left and the right child
+                            node serial number,
+                'parent': np.int32, the parent node serial number
+            }
+    """
     vec = {}
     vec['is_owner'] = np.asarray([n.is_owner for n in tree.nodes])
     vec['feature_id'] = np.asarray([n.feature_id for n in tree.nodes])
@@ -859,7 +887,138 @@ def _vectorize_tree(tree):
     vec['children'] = np.asarray([
         [n.left_child for n in tree.nodes],
         [n.right_child for n in tree.nodes]])
+    vec['parent'] = np.asarray([n.parent for n in tree.nodes])
     return vec
+
+def _compare_features_with_threshold(vec: Dict, features: np.ndarray,
+                                     cat_features: np.ndarray) -> np.ndarray:
+    """
+    Compare each feature with each corresponding threshold
+    Args:
+        vec: vectorized information dict in a tree, with reference
+             to response vec of function _vectorize_tree
+        features: continuous features, shape (N, fea_num),
+                  N is number of data, fea_num is the number
+                  of continuous features
+        cat_features: categorical features, shape (N, cat_fea_num),
+                      N is number of data, cat_feat_num is the number
+                      of categorical features
+
+    Returns:
+        d: Comparison of features and thresholds, True to the
+           right, False to the left, np.bool, shape: (N, node_num),
+           N is the number of data, node_num is the node num
+           in a tree.
+    """
+    N = features.shape[0]
+    node_num = vec['feature_id'].size
+
+    is_cont = vec['feature_id'] < features.shape[1]
+    cont_fid = np.where(is_cont, vec['feature_id'], 0)
+    row = np.arange(N).repeat(node_num).reshape(N, node_num)
+    cont_X = features[row, cont_fid]
+
+    is_nan = np.isnan(cont_X)
+    threshold = np.tile(vec['threshold'], (N, 1))
+    less = cont_X < threshold
+    d = ~np.where(is_nan, vec['default_left'], less)
+
+    if is_cont.sum() < is_cont.size:
+        is_cat = ~is_cont
+        cat_fid = np.where(is_cat, vec['feature_id'] - features.shape[1], 0)
+        cat_X = cat_features[row, cat_fid]
+
+        tmp = [~np.in1d(cat_X[:, i], cat_threshold).reshape(-1, 1)
+                for i, cat_threshold in enumerate(vec['cat_threshold'])]
+        cat_in = np.concatenate(tmp, axis=1)
+
+        d = np.where(is_cont, d, cat_in)
+
+    return d
+
+def _assign_direction_to_node(vec: Dict, direction: np.ndarray) -> np.ndarray:
+    """
+    According to the comparison result of the previous step,
+    determine the traversal direction of each node, assign 0 or
+    1 to the child nodes according to the traversal direction,
+    and then set all child nodes that belong to the not-own
+    parent nodes to 1
+    Args:
+        vec: vectorized information dict in a tree, with reference
+             to response vec of function _vectorize_tree
+        direction: Comparison results of features and thresholds,
+                   shape: (N, node_num), N is number of data,
+                   node_num is the node num in a tree.
+
+    Returns:
+        selected: assignment result for each node, shape: (N, node_num),
+                    N is number of data, node_num is the node num in a tree.
+    """
+    N = direction.shape[0]
+    node_num = vec['feature_id'].size
+
+    col = np.tile(np.arange(node_num), (N, 1))
+    selected_child = vec['children'][direction.astype(np.int32), col]
+    non_leaf_num = vec['is_leaf'].size - vec['is_leaf'].sum()
+    non_leaf = ~np.tile(vec['is_leaf'], (N, 1))
+    node_ids = np.tile(np.arange(node_num), (N, 1))
+
+    tmp = [np.in1d(node_ids[i], assign) for i, assign in
+           enumerate(selected_child[non_leaf].reshape(N, non_leaf_num))]
+    assignment = np.concatenate(tmp, axis=0).reshape(N, node_num)
+
+    own_id = np.arange(node_num)[vec['is_owner']]
+    not_own = (~np.in1d(vec['parent'], own_id))
+
+    selected = (assignment | not_own).astype(np.int32)
+    return selected
+
+def _get_leaf_vec(vec: Dict, selected: np.ndarray) -> np.ndarray:
+    """
+    From the assignment result of each node, multiply the traversal path from
+    the leaf node to obtain the possible selection vector of leaf node.
+    Args:
+        vec: vectorized information dict in a tree, with reference
+             to response vec of function _vectorize_tree
+        selected: assignment result for each node, shape: (N, node_num),
+                    N is number of data, node_num is the node num in a tree.
+
+    Returns:
+        res: the possible leaf node selection vector, shape: (N, leaf_node_num),
+             N is number of data, leaf_node_num is the node num in a tree.
+    """
+    N = selected.shape[0]
+    node_num = vec['feature_id'].size
+
+    leaf = np.arange(node_num)[vec['is_leaf']]
+    parent = np.tile(vec['parent'], (N, 1))
+    row = np.arange(N).repeat(leaf.size).reshape(N, leaf.size)
+    leaf_n = np.tile(leaf, (N, 1))
+
+    res = np.ones(leaf_n.shape)
+    while leaf_n.sum() != 0:
+        tmp = selected[row, leaf_n]
+        res = res * tmp
+        leaf_n = parent[row, leaf_n]
+    return res
+
+def _get_leaf_node(vec: Dict, assignment: np.ndarray) -> np.ndarray:
+    """
+    Get the sequence number of the selected leaf node from
+    the leaf node selection vector
+    Args:
+        vec: vectorized information dict in a tree, refer to
+             _vectorize_tree(tree)
+        assignment: one hot selection vector of leaf, shape:
+                    (N, leaf_node_num),N is number of data,
+                    leaf_node_num is the node num in a tree.
+
+    Returns:
+        (N,) The sequence number of the leaf node selected by all data
+    """
+    is_leaf = vec['is_leaf']
+    leaf = np.arange(is_leaf.size)[is_leaf]
+    return (assignment * leaf).sum(1).astype(np.int32)
 
 def _vectorized_direction(vec, features, cat_features, assignment):
     fid = vec['feature_id'][assignment]
@@ -986,7 +1145,7 @@ class BoostingTreeEnsamble(object):
         self._bridge.commit()
 
     def _verify_params(self, example_ids, is_training, validation=False,
-                       leader_no_data=False):
+                       leader_no_data=False, predict_type_value=''):
         assert self._bridge is not None
 
         self._bridge.start()
@@ -1003,7 +1162,8 @@ class BoostingTreeEnsamble(object):
                 validation=validation,
                 num_trees=len(self._trees),
                 leader_no_data=leader_no_data,
-                enable_packing=self._enable_packing)
+                enable_packing=self._enable_packing,
+                predict_type_value=predict_type_value)
             self._bridge.send_proto('verify', msg)
             status = common_pb2.Status()
             self._bridge.receive_proto('status').Unpack(status)
@@ -1037,6 +1197,8 @@ class BoostingTreeEnsamble(object):
 
             err_msg += check(
                 'num_trees', msg.num_trees, len(self._trees))
+            err_msg += check(
+                'predict_type', msg.predict_type_value, predict_type_value)
 
             if is_training:
                 err_msg += check(
@@ -1122,9 +1284,13 @@ class BoostingTreeEnsamble(object):
         pred = self.batch_predict(features, example_ids=example_ids)
         return self._compute_metrics(pred, labels)
 
-    def batch_predict(self, features, cat_features=None,
-                      get_raw_score=False, example_ids=None,
-                      feature_names=None, cat_feature_names=None):
+    def batch_predict(self, features: np.ndarray, cat_features:
+                      Optional[np.ndarray] = None,
+                      get_raw_score: bool = False,
+                      example_ids: Optional[List] = None,
+                      feature_names: Optional[List] = None,
+                      cat_feature_names: Optional[List] = None,
+                      predict_type: PredictType = PredictType.ITERATION):
         if feature_names and self._feature_names:
             assert feature_names == self._feature_names, \
                 "Predict data's feature names does not match loaded model"
@@ -1137,7 +1303,10 @@ class BoostingTreeEnsamble(object):
 
         if self._bridge is None:
             return self._batch_predict_local(
-                features, cat_features, get_raw_score)
+                features=features,
+                cat_features=cat_features,
+                get_raw_score=get_raw_score,
+                predict_type=predict_type)
 
         if self._role == 'leader':
             leader_no_data = True
@@ -1150,20 +1319,29 @@ class BoostingTreeEnsamble(object):
 
         msg = self._verify_params(
             example_ids, False,
-            leader_no_data=leader_no_data)
+            leader_no_data=leader_no_data,
+            predict_type_value=predict_type.value)
 
         if msg.leader_no_data:
             if self._role == 'leader':
                 return self._batch_predict_one_side_leader(
-                    get_raw_score)
+                    get_raw_score=get_raw_score)
             return self._batch_predict_one_side_follower(
-                features, cat_features, get_raw_score)
+                features=features,
+                cat_features=cat_features,
+                get_raw_score=get_raw_score,
+                predict_type=predict_type)
 
         return self._batch_predict_two_side(
-            features, cat_features, get_raw_score)
+            features=features,
+            cat_features=cat_features,
+            get_raw_score=get_raw_score,
+            predict_type=predict_type)
 
 
-    def _batch_predict_local(self, features, cat_features, get_raw_score):
+    def _batch_predict_local(self, features: np.ndarray, cat_features:
+                             np.ndarray, get_raw_score: bool,
+                             predict_type: PredictType):
         N = features.shape[0]
 
         raw_prediction = np.zeros(N, dtype=BST_TYPE)
@@ -1171,35 +1349,54 @@ class BoostingTreeEnsamble(object):
             logging.debug("Running prediction for tree %d", idx)
 
             vec_tree = _vectorize_tree(tree)
-            assignment = np.zeros(N, dtype=np.int32)
-            while vec_tree['is_leaf'][assignment].sum() < N:
-                direction = _vectorized_direction(
-                    vec_tree, features, cat_features, assignment)
-                assignment = _vectorized_assignment(
-                    vec_tree, assignment, direction)
-
+            if predict_type == PredictType.ITERATION:
+                assignment = np.zeros(N, dtype=np.int32)
+                while vec_tree['is_leaf'][assignment].sum() < N:
+                    direction = _vectorized_direction(
+                        vec_tree, features, cat_features, assignment)
+                    assignment = _vectorized_assignment(
+                        vec_tree, assignment, direction)
+            elif predict_type == PredictType.VECTORIZATION:
+                direction = _compare_features_with_threshold(
+                    vec_tree, features, cat_features)
+                selected = _assign_direction_to_node(vec_tree, direction)
+                res_vec = _get_leaf_vec(vec_tree, selected)
+                assignment = _get_leaf_node(vec_tree, res_vec)
+            else:
+                raise ValueError(f'Invalid predict type {predict_type.value}')
             raw_prediction += vec_tree['weight'][assignment]
 
         if get_raw_score:
             return raw_prediction
         return self._loss.predict(raw_prediction)
 
-    def _batch_predict_one_side_follower(self, features, cat_features,
-                                         get_raw_score):
+    def _batch_predict_one_side_follower(self, features: np.ndarray,
+                                         cat_features: np.ndarray,
+                                         get_raw_score: bool,
+                                         predict_type: PredictType):
         N = features.shape[0]
 
         for idx, tree in enumerate(self._trees):
             logging.debug("Running prediction for tree %d", idx)
 
             vec_tree = _vectorize_tree(tree)
-            assignment = np.zeros(
-                N, dtype=_get_dtype_for_max_value(len(tree.nodes)))
-            while vec_tree['is_leaf'][assignment].sum() < N:
-                direction = _vectorized_direction(
-                    vec_tree, features, cat_features, assignment)
-                assignment = _vectorized_assignment(
-                    vec_tree, assignment, direction)
-
+            if predict_type == PredictType.ITERATION:
+                assignment = np.zeros(
+                    N, dtype=_get_dtype_for_max_value(len(tree.nodes)))
+                while vec_tree['is_leaf'][assignment].sum() < N:
+                    direction = _vectorized_direction(
+                        vec_tree, features, cat_features, assignment)
+                    assignment = _vectorized_assignment(
+                        vec_tree, assignment, direction)
+            elif predict_type == PredictType.VECTORIZATION:
+                direction = _compare_features_with_threshold(
+                    vec_tree, features, cat_features)
+                selected = _assign_direction_to_node(vec_tree, direction)
+                res_vec = _get_leaf_vec(vec_tree, selected)
+                assignment = _get_leaf_node(vec_tree, res_vec).astype(
+                    _get_dtype_for_max_value(len(tree.nodes)))
+            else:
+                raise ValueError(f'Invalid predict type {predict_type.value}')
             self._bridge.start()
             self._bridge.send(
                 'follower_assignment_%d'%idx,
@@ -1214,7 +1411,7 @@ class BoostingTreeEnsamble(object):
             return raw_prediction
         return self._loss.predict(raw_prediction)
 
-    def _batch_predict_one_side_leader(self, get_raw_score):
+    def _batch_predict_one_side_leader(self, get_raw_score: bool):
         raw_prediction = None
         for idx, tree in enumerate(self._trees):
             logging.debug("Running prediction for tree %d", idx)
@@ -1241,30 +1438,55 @@ class BoostingTreeEnsamble(object):
         return self._loss.predict(raw_prediction)
 
 
-    def _batch_predict_two_side(self, features, cat_features, get_raw_score):
+    def _batch_predict_two_side(self, features: np.ndarray, cat_features:
+                                np.ndarray, get_raw_score: bool, predict_type:
+                                PredictType):
         N = features.shape[0]
         peer_role = 'leader' if self._role == 'follower' else 'follower'
         raw_prediction = np.zeros(N, dtype=BST_TYPE)
         for idx, tree in enumerate(self._trees):
             logging.debug("Running prediction for tree %d", idx)
             vec_tree = _vectorize_tree(tree)
-            assignment = np.zeros(N, dtype=np.int32)
-            while vec_tree['is_leaf'][assignment].sum() < N:
-                direction = _vectorized_direction(
-                    vec_tree, features, cat_features, assignment)
+            if predict_type == PredictType.ITERATION:
+                assignment = np.zeros(N, dtype=np.int32)
+                while vec_tree['is_leaf'][assignment].sum() < N:
+                    direction = _vectorized_direction(
+                        vec_tree, features, cat_features, assignment)
+
+                    self._bridge.start()
+                    self._bridge.send(
+                        '%s_direction_%d'%(self._role, idx),
+                        direction)
+                    peer_direction = self._bridge.receive(
+                        '%s_direction_%d'%(peer_role, idx))
+                    self._bridge.commit()
+
+                    assignment = _vectorized_assignment(
+                        vec_tree, assignment, direction, peer_direction)
+            elif predict_type == PredictType.VECTORIZATION:
+                direction = _compare_features_with_threshold(
+                    vec_tree, features, cat_features)
+                selected = _assign_direction_to_node(vec_tree, direction)
+                res_vec = _get_leaf_vec(vec_tree, selected).astype(
+                    _get_dtype_for_max_value(len(tree.nodes)))
 
                 self._bridge.start()
-                self._bridge.send(
-                    '%s_direction_%d'%(self._role, idx),
-                    direction)
-                peer_direction = self._bridge.receive(
-                    '%s_direction_%d'%(peer_role, idx))
+                if self._role == 'follower':
+                    self._bridge.send(
+                        'follower_assignment_%d' % idx,
+                         res_vec)
+                else:
+                    peer_res_vec = self._bridge.receive(
+                        'follower_assignment_%d' % idx)
+                    res_vec = peer_res_vec & res_vec
                 self._bridge.commit()
 
-                assignment = _vectorized_assignment(
-                    vec_tree, assignment, direction, peer_direction)
+                assignment = _get_leaf_node(vec_tree, res_vec)
+            else:
+                raise ValueError(f'Invalid predict type {predict_type.value}')
 
-            raw_prediction += vec_tree['weight'][assignment]
+            if self._role == 'leader':
+                raw_prediction += vec_tree['weight'][assignment]
 
         self._bridge.start()
         if self._role == 'leader':
