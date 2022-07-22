@@ -403,8 +403,8 @@ class _TrainerMaster(tm_grpc.TrainerMasterServiceServicer):
     def RequestDataBlock(self, request, context):
         if request.worker_rank not in self._running_workers:
             fl_logging.warning(
-                f'[RequestDataBlock] worker rank %d is not found in '
-                f'running workers %s', request.worker_rank,
+                '[RequestDataBlock] worker rank %d is not found in '
+                'running workers %s', request.worker_rank,
                 self._running_workers)
             return tm_pb.DataBlockResponse(
                 status=common_pb.Status(
