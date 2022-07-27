@@ -407,6 +407,7 @@ class UniversalJoiner(ExampleJoiner):
             return
         sync_example_id_finished, raw_data_finished = \
                 self._prepare_join(state_stale)
+        join_data_finished = False
 
         while True:
             fill_leader_enough = self._fill_leader_join_window(
@@ -476,9 +477,11 @@ class UniversalJoiner(ExampleJoiner):
                 self._max_watermark_delay):
                 join_data_finished = True
                 break
+            if leader_exhausted and follower_exhausted:
+                join_data_finished = True
+                break
 
             if self._leader_join_window.is_full() or not fill_leader_enough:
-                join_data_finished = True
                 break
 
         if self._get_data_block_builder(False) is not None and \
