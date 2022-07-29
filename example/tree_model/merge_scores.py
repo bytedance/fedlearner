@@ -34,15 +34,15 @@ def create_argument_parser():
 
     parser.add_argument('--left-data-path', type=str,
                         help="left side data path")
-    parser.add_argument('--left-file-ext', type=str,
-                        help="left side data file extension")
+    parser.add_argument('--left-file-wildcard', type=str,
+                        help="the wildcard filter for the left side data")
     parser.add_argument('--left-select-fields', type=str,
                         help="left side selected field names")
 
     parser.add_argument('--right-data-path', type=str,
                         help="right side data path")
-    parser.add_argument('--right-file-ext', type=str,
-                        help="right side data file extension")
+    parser.add_argument('--right-file-wildcard', type=str,
+                        help="the wildcard filter for the right side data")
     parser.add_argument('--right-select-fields', type=str,
                         help="right side selected field names")
 
@@ -89,11 +89,11 @@ def run(args):
     logging.basicConfig(level=logging.INFO)
 
     left_loader = DataBlockLoader(
-        'local', None, args.left_data_path, args.left_file_ext,
+        'local', None, args.left_data_path, args.left_file_wildcard,
         worker_rank=args.worker_rank, num_workers=args.num_workers,
         output_path=args.output_path)
     right_loader = DataBlockLoader(
-        'local', None, args.right_data_path, args.right_file_ext,
+        'local', None, args.right_data_path, args.right_file_wildcard,
         worker_rank=args.worker_rank, num_workers=args.num_workers,
         output_path=args.output_path)
 
