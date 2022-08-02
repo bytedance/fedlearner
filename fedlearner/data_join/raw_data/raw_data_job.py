@@ -35,7 +35,6 @@ class RawDataJob:
                  output_type=OutputType.RawData,
                  output_partition_num=0,
                  raw_data_publish_dir="",
-                 data_source_name="",
                  data_block_threshold=0,
                  compression_type=None,
                  check_success_tag=True,
