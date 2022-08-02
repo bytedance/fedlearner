@@ -119,7 +119,6 @@ class RawDataTests(unittest.TestCase):
         gfile.Copy(entry_file_path, target_dir)
         job = RawDataJob(self._job_name, output_path,
                          output_type=OutputType.DataBlock,
-                         data_source_name=data_source_name,
                          data_block_threshold=data_block_threshold,
                          compression_type="GZIP",
                          check_success_tag=True,
@@ -153,7 +152,6 @@ class RawDataTests(unittest.TestCase):
         gfile.Copy(entry_file_path, target_dir)
         job = RawDataJob(self._job_name, output_path,
                          output_type=OutputType.DataBlock,
-                         data_source_name=data_source_name,
                          data_block_threshold=data_block_threshold,
                          check_success_tag=True,
                          upload_dir=upload_dir,
