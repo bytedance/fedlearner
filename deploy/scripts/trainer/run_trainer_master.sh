@@ -111,4 +111,4 @@ python main.py --master \
     $summary_save_steps $summary_save_secs \
     $local_data_source $local_start_date $local_end_date \
     $epoch_num $start_date $end_date $shuffle $shuffle_in_day \
-    $export_model
+    $extra_params $export_model

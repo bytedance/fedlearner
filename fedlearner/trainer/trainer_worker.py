@@ -417,7 +417,6 @@ def _create_data_visitor(args):
                                     local_start_date=local_start_date,
                                     local_end_date=local_end_date,
                                     epoch_num=args.epoch_num,
-                                    shuffle=args.shuffle,
                                     shuffle_type=shuffle_type)
     elif args.data_path and args.data_path_wildcard:
         visitor = DataPathVisitor(args.data_path,
