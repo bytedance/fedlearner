@@ -66,7 +66,7 @@ class RawDataJob:
         self._raw_data_publish_dir = raw_data_publish_dir
         self._data_block_threshold = data_block_threshold
         self._compression_type = compression_type
-        self._data_source_name = data_source_name
+        self._data_source_name = job_name
         self._output_type = output_type
         self._upload_dir = upload_dir
         self._long_running = long_running
