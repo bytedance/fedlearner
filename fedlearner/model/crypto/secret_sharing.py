@@ -15,17 +15,14 @@ def reveal(data: np.ndarray, bridge: Bridge) -> np.ndarray:
 class MultiTriplets:
 
     def __init__(self, path: str):
-        self._path = path
-        self._count = 0
+        self._reader = pd.read_csv(path, header=None, index_col=False, iterator=True)
 
     def get_multi_triplets(self, num: int) -> Tuple[np.ndarray, np.ndarray,
                                                     np.ndarray]:
-        df = pd.read_csv(self._path, skiprows=self._count, nrows=num,
-                         header=None)
+        df = self._reader.get_chunk(num)
         x = df[0].to_numpy()
         y = df[1].to_numpy()
         z = df[2].to_numpy()
-        self._count = self._count + num
         return x, y, z
 
 
