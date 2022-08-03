@@ -15,7 +15,8 @@ def reveal(data: np.ndarray, bridge: Bridge) -> np.ndarray:
 class MultiTriplets:
 
     def __init__(self, path: str):
-        self._reader = pd.read_csv(path, header=None, index_col=False, iterator=True)
+        self._reader = pd.read_csv(path, header=None,
+                                   index_col=False, iterator=True)
 
     def get_multi_triplets(self, num: int) -> Tuple[np.ndarray, np.ndarray,
                                                     np.ndarray]:
