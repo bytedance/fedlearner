@@ -1,3 +1,4 @@
+import logging
 import os
 import sys
 from datetime import datetime, timedelta
@@ -6,16 +7,29 @@ from time import sleep
 import tensorflow as tf
 
 
+def set_logger():
+    verbosity = int(os.environ.get('VERBOSITY', 1))
+    if verbosity == 0:
+        logging.getLogger().setLevel(logging.WARNING)
+    elif verbosity == 1:
+        logging.getLogger().setLevel(logging.INFO)
+    elif verbosity > 1:
+        logging.getLogger().setLevel(logging.DEBUG)
+    logging.basicConfig(format="%(asctime)s %(filename)s "
+                                "%(lineno)s %(levelname)s - %(message)s")
+
+
 def check_file_exist_infinity(input_file):
     while True:
         if tf.io.gfile.exists(input_file):
             break
-        print('{} does not exist, sleep 10s...'.format(input_file))
+        logging.info('%s does not exist, sleep 10s...', input_file)
         sleep(10)
-    print('{} is ok'.format(input_file))
+    logging.info('%s is ready', input_file)
 
 
 def main():
+    set_logger()
     input_dir = os.getenv('INPUT_PATH')
     has_date = os.getenv('HAS_DATE', 0)
     offset = os.getenv('OFFSET')
