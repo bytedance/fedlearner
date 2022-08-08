@@ -196,10 +196,10 @@ class DataSourceVisitor(_DataVisitor):
 
 class DataPathVisitor(_DataVisitor):
     def __init__(self,
-                 data_path,
-                 wildcard,
-                 epoch_num=1,
-                 shuffle=False):
+                 data_path: str,
+                 wildcard: str,
+                 epoch_num: int = 1,
+                 shuffle: bool = False):
         fl_logging.info("create DataVisitor by data_path: %s", data_path)
         if not tf.io.gfile.exists(data_path):
             raise ValueError("data_path not found: %s"%data_path)
@@ -217,3 +217,13 @@ class DataPathVisitor(_DataVisitor):
         datablocks.sort()
 
         super(DataPathVisitor, self).__init__(datablocks, epoch_num, shuffle)
+
+    def _check_allocated(self, epoch: int, datablock: _RawDataBlock):
+        if epoch not in self._allocated:
+            return True
+        return datablock.data_path not in self._allocated[epoch]
+
+    def _allocate(self, epoch: int, datablock: _RawDataBlock):
+        if epoch not in self._allocated:
+            self._allocated[epoch] = set()
+        self._allocated[epoch].add(datablock.data_path)
