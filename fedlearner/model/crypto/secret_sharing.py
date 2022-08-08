@@ -1,15 +1,7 @@
-from typing import Tuple
+from typing import Tuple, Optional
 import numpy as np
 import pandas as pd
 from fedlearner.trainer.bridge import Bridge
-
-
-def reveal(data: np.ndarray, bridge: Bridge) -> np.ndarray:
-    bridge.start()
-    bridge.send('reveal_data', data)
-    peer_data = bridge.receive('reveal_data')
-    bridge.commit()
-    return data + peer_data
 
 
 class MultiTriplets:
@@ -29,8 +21,8 @@ class MultiTriplets:
 
 class SecretSharing:
 
-    def __init__(self, role: str, data: np.ndarray,
-                 multi_triplets: MultiTriplets, bridge: Bridge):
+    def __init__(self, data: np.ndarray, role: str, bridge: Bridge,
+                 multi_triplets: Optional[MultiTriplets] = None):
         self.data = data
         self._num = data.size
         self._multi_triplets = multi_triplets
@@ -43,11 +35,18 @@ class SecretSharing:
         b = other.data
         e = a - x
         f = b - y
-        E = reveal(e, self._bridge)
-        F = reveal(f, self._bridge)
+        E = SecretSharing(e, self._role, self._bridge).reveal()
+        F = SecretSharing(f, self._role, self._bridge).reveal()
 
         if self._role == 'leader':
             c = F * x + E * y + z
         else:
             c = F * x + E * y + z + E * F
         return c
+
+    def reveal(self) -> np.ndarray:
+        self._bridge.start()
+        self._bridge.send('reveal_data', self.data)
+        peer_data = self._bridge.receive('reveal_data')
+        self._bridge.commit()
+        return self.data + peer_data

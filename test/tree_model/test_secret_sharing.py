@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 import threading
 from fedlearner.trainer.bridge import Bridge
-from fedlearner.model.crypto.secret_sharing import reveal, SecretSharing, MultiTriplets
+from fedlearner.model.crypto.secret_sharing import SecretSharing, MultiTriplets
 
 
 def make_data(path: str):
@@ -30,14 +30,14 @@ class TestSecretSharing(unittest.TestCase):
     def leader_test_reveal(self, data: np.ndarray, expected_data: np.ndarray):
         bridge = Bridge('leader', 50051, 'localhost:50052')
         bridge.connect()
-        revealed_data = reveal(data, bridge)
+        revealed_data = SecretSharing(data, 'leader', bridge).reveal()
         bridge.terminate()
         np.testing.assert_almost_equal(revealed_data, expected_data)
 
     def follower_test_reveal(self, data: np.ndarray, expected_data: np.ndarray):
         bridge = Bridge('follower', 50052, 'localhost:50051')
         bridge.connect()
-        revealed_data = reveal(data, bridge)
+        revealed_data = SecretSharing(data, 'follower', bridge).reveal()
         bridge.terminate()
         np.testing.assert_almost_equal(revealed_data, expected_data)
 
@@ -46,10 +46,10 @@ class TestSecretSharing(unittest.TestCase):
         bridge.connect()
         role = 'leader'
         multi_triplets = MultiTriplets(path)
-        ss_a = SecretSharing(role, a, multi_triplets, bridge)
-        ss_b = SecretSharing(role, b, multi_triplets, bridge)
+        ss_a = SecretSharing(a, role, bridge, multi_triplets)
+        ss_b = SecretSharing(b, role, bridge, multi_triplets)
         ss_c = ss_a * ss_b
-        c = reveal(ss_c, bridge)
+        c = SecretSharing(ss_c, role, bridge).reveal()
         bridge.terminate()
         np.testing.assert_almost_equal(c, expected_c)
 
@@ -58,10 +58,10 @@ class TestSecretSharing(unittest.TestCase):
         bridge.connect()
         role = 'follower'
         multi_triplets = MultiTriplets(path)
-        ss_a = SecretSharing(role, a, multi_triplets, bridge)
-        ss_b = SecretSharing(role, b, multi_triplets, bridge)
+        ss_a = SecretSharing(a, role, bridge, multi_triplets)
+        ss_b = SecretSharing(b, role, bridge, multi_triplets)
         ss_c = ss_a * ss_b
-        c = reveal(ss_c, bridge)
+        c = SecretSharing(ss_c, role, bridge).reveal()
         bridge.terminate()
         np.testing.assert_almost_equal(c, expected_c)
 
