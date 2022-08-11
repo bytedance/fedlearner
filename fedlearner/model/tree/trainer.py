@@ -22,7 +22,7 @@ import argparse
 import traceback
 import itertools
 from fnmatch import fnmatch
-from typing import List
+from typing import List, Optional
 import numpy as np
 
 import tensorflow.compat.v1 as tf
@@ -420,8 +420,9 @@ def test_one_file(args, bridge, booster, data_file, output_file):
 
 
 class DataBlockLoader(object):
-    def __init__(self, role, bridge, data_path, ext,
-                 worker_rank=0, num_workers=1, output_path=None):
+    def __init__(self, role: str, bridge: Bridge, data_path, ext: str,
+                 file_wildcard: str, worker_rank: int = 0,
+                 num_workers: int = 1, output_path: Optional[str] = None):
         self._role = role
         self._bridge = bridge
         self._num_workers = num_workers
@@ -436,8 +437,10 @@ class DataBlockLoader(object):
                 files = [os.path.basename(data_path)]
                 data_path = os.path.dirname(data_path)
             self._trainer_master = LocalTrainerMasterClient(
-                self._tm_role, data_path, files=files, ext=ext,
-                skip_datablock_checkpoint=True)
+                role=self._tm_role, path=data_path, files=files,
+                ext=ext, file_wildcard=file_wildcard,
+                skip_datablock_checkpoint=True,
+                from_data_source=False)
         else:
             self._trainer_master = None
 
@@ -508,8 +511,10 @@ def test(args, bridge, booster):
         assert not args.data_path and args.role == 'leader'
 
     data_loader = DataBlockLoader(
-        args.role, bridge, args.data_path, args.file_ext,
-        args.worker_rank, args.num_workers, args.output_path)
+        role=args.role, bridge=bridge, data_path=args.data_path,
+        ext=args.file_ext, file_wildcard=args.file_wildcard,
+        worker_rank=args.worker_rank, num_workers=args.num_workers,
+        output_path=args.output_path)
 
     while True:
         data_block = data_loader.get_next_block()

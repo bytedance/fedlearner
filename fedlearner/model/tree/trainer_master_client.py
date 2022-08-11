@@ -23,7 +23,9 @@ try:
     import tensorflow.compat.v1 as tf
 except ImportError:
     import tensorflow as tf
+from typing import List, Optional
 
+from fedlearner.model.tree.trainer import filter_files
 from fedlearner.common import trainer_master_service_pb2 as tm_pb
 from fedlearner.common import trainer_master_service_pb2_grpc as tm_grpc
 from fedlearner.proxy.channel import make_insecure_channel, ChannelType
@@ -38,15 +40,16 @@ kvstore_type = os.environ.get('KVSTORE_TYPE', 'etcd')
 class LocalTrainerMasterClient(object):
     """Non-thread safe"""
     def __init__(self,
-                 role,
-                 path,
-                 files=None,
-                 ext='.tfrecord',
-                 start_time=None,
-                 end_time=None,
-                 from_data_source=False,
-                 skip_datablock_checkpoint=False,
-                 epoch_num=1):
+                 role: str,
+                 path: str,
+                 files: Optional[List[str]] = None,
+                 ext: Optional[str] = '.tfrecord',
+                 file_wildcard: Optional[str] = None,
+                 start_time: Optional[int] = None,
+                 end_time: Optional[int] = None,
+                 from_data_source: bool = False,
+                 skip_datablock_checkpoint: bool = False,
+                 epoch_num: int = 1):
         self._role = role
         self._path = path
         self._block_queue = []
@@ -61,15 +64,7 @@ class LocalTrainerMasterClient(object):
                 self._block_queue.append(block_item)
                 self._block_map[block_id] = block_item
         else:
-            if files is None:
-                files = []
-                for dirname, _, filenames in tf.io.gfile.walk(path):
-                    for filename in filenames:
-                        _, fileext = os.path.splitext(filename)
-                        if ext and fileext != ext:
-                            continue
-                        subdirname = os.path.relpath(dirname, path)
-                        files.append(os.path.join(subdirname, filename))
+            files = filter_files(path=path, file_ext=ext, file_wildcard=file_wildcard)
             files.sort()
 
             # Hack way for supporting multiple epochs
