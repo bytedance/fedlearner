@@ -25,7 +25,7 @@ except ImportError:
     import tensorflow as tf
 from typing import List, Optional
 
-from fedlearner.model.tree.trainer import filter_files
+from fedlearner.model.tree.utils import filter_files
 from fedlearner.common import trainer_master_service_pb2 as tm_pb
 from fedlearner.common import trainer_master_service_pb2_grpc as tm_grpc
 from fedlearner.proxy.channel import make_insecure_channel, ChannelType
@@ -64,13 +64,14 @@ class LocalTrainerMasterClient(object):
                 self._block_queue.append(block_item)
                 self._block_map[block_id] = block_item
         else:
-            files = filter_files(path=path, file_ext=ext, file_wildcard=file_wildcard)
+            if files is None:
+                files = filter_files(path=path, file_ext=ext, file_wildcard=file_wildcard)
             files.sort()
 
             # Hack way for supporting multiple epochs
             blocks = []
             for filename in files:
-                block_id, _ = os.path.splitext(os.path.basename(filename))
+                block_id = os.path.relpath(filename, path)
                 fullname = os.path.join(path, filename)
                 block = DataBlockInfo(block_id, fullname)
                 blocks.append(block)

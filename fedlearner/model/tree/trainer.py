@@ -21,8 +21,7 @@ import logging
 import argparse
 import traceback
 import itertools
-from fnmatch import fnmatch
-from typing import List, Optional
+from typing import Optional
 import numpy as np
 
 import tensorflow.compat.v1 as tf
@@ -32,6 +31,7 @@ from fedlearner.trainer.bridge import Bridge
 from fedlearner.model.tree.tree import BoostingTreeEnsamble, PredictType
 from fedlearner.model.tree.trainer_master_client import LocalTrainerMasterClient
 from fedlearner.model.tree.trainer_master_client import DataBlockInfo
+from fedlearner.model.tree.utils import filter_files
 
 
 def create_argument_parser():
@@ -193,21 +193,6 @@ def extract_field(field_names, field_name, required):
     assert not required, \
         "Field %s is required but missing in data"%field_name
     return None
-
-
-def filter_files(path: str, file_ext: str, file_wildcard: str) -> List[str]:
-    files = []
-    for dirname, _, filenames in tf.io.gfile.walk(path):
-        for filename in filenames:
-            _, ext = os.path.splitext(filename)
-            subdirname = os.path.join(path, os.path.relpath(dirname, path))
-            fpath = os.path.join(subdirname, filename)
-            if file_ext and ext != file_ext:
-                continue
-            if file_wildcard and not fnmatch(fpath, file_wildcard):
-                continue
-            files.append(fpath)
-    return files
 
 
 def read_data(file_type, filename, require_example_ids, require_labels,
@@ -420,8 +405,8 @@ def test_one_file(args, bridge, booster, data_file, output_file):
 
 
 class DataBlockLoader(object):
-    def __init__(self, role: str, bridge: Bridge, data_path, ext: str,
-                 file_wildcard: str, worker_rank: int = 0,
+    def __init__(self, role: str, bridge: Bridge, data_path, ext: Optional[str],
+                 file_wildcard: Optional[str], worker_rank: int = 0,
                  num_workers: int = 1, output_path: Optional[str] = None):
         self._role = role
         self._bridge = bridge
