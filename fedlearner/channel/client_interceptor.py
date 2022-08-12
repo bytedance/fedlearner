@@ -21,6 +21,7 @@ import time
 import grpc
 
 from fedlearner.common import fl_logging, stats
+from fedlearner.common.metric_collector import metric_collector
 from fedlearner.channel import channel_pb2
 
 class _MethodDetail(
@@ -288,8 +289,14 @@ class _SingleConsumerSendRequestQueue():
                 while len(self._deque) >= n:
                     req = self._deque.popleft()
                     self._offset -= 1
+                    # TODO(lixiaoguang.01) old version, to be deleted
                     pipe.timing("%s_timing"%self._stats_prefix,
                         (now-req.ts)*1000)
+                    # new version
+                    name_prefix = f'model.grpc.interceptor'
+                    value = (now - req.ts) * 1000
+                    metric_collector.emit_store(
+                        f'{name_prefix}.{self._stats_prefix}_timing', value)
             return True
 
     def next(self, consumer):

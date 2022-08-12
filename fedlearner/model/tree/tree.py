@@ -1515,7 +1515,7 @@ class BoostingTreeEnsamble(object):
 
     def iter_metrics_handler(self, metrics, mode):
         for name, value in metrics.items():
-            # TODO @lixiaoguang.01 old version, to be deleted
+            # TODO(lixiaoguang.01) old version, to be deleted
             emit_store(name=name, value=value,
                        tags={'iteration': len(self._trees), 'mode': mode})
             # new version
