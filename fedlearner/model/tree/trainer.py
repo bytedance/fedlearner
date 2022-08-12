@@ -405,9 +405,10 @@ def test_one_file(args, bridge, booster, data_file, output_file):
 
 
 class DataBlockLoader(object):
-    def __init__(self, role: str, bridge: Optional[Bridge], data_path: str, ext: Optional[str],
-                 file_wildcard: Optional[str], worker_rank: int = 0,
-                 num_workers: int = 1, output_path: Optional[str] = None):
+    def __init__(self, role: str, bridge: Optional[Bridge], data_path: str,
+                 ext: Optional[str], file_wildcard: Optional[str],
+                 worker_rank: int = 0, num_workers: int = 1,
+                 output_path: Optional[str] = None):
         self._role = role
         self._bridge = bridge
         self._num_workers = num_workers
