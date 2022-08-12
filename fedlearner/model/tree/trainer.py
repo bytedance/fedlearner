@@ -21,8 +21,7 @@ import logging
 import argparse
 import traceback
 import itertools
-from fnmatch import fnmatch
-from typing import List
+from typing import Optional
 import numpy as np
 
 import tensorflow.compat.v1 as tf
@@ -32,6 +31,7 @@ from fedlearner.trainer.bridge import Bridge
 from fedlearner.model.tree.tree import BoostingTreeEnsamble
 from fedlearner.model.tree.trainer_master_client import LocalTrainerMasterClient
 from fedlearner.model.tree.trainer_master_client import DataBlockInfo
+from fedlearner.model.tree.utils import filter_files
 
 
 def create_argument_parser():
@@ -187,21 +187,6 @@ def extract_field(field_names, field_name, required):
     assert not required, \
         "Field %s is required but missing in data"%field_name
     return None
-
-
-def filter_files(path: str, file_ext: str, file_wildcard: str) -> List[str]:
-    files = []
-    for dirname, _, filenames in tf.io.gfile.walk(path):
-        for filename in filenames:
-            _, ext = os.path.splitext(filename)
-            subdirname = os.path.join(path, os.path.relpath(dirname, path))
-            fpath = os.path.join(subdirname, filename)
-            if file_ext and ext != file_ext:
-                continue
-            if file_wildcard and not fnmatch(fpath, file_wildcard):
-                continue
-            files.append(fpath)
-    return files
 
 
 def read_data(file_type, filename, require_example_ids, require_labels,
@@ -413,8 +398,10 @@ def test_one_file(args, bridge, booster, data_file, output_file):
 
 
 class DataBlockLoader(object):
-    def __init__(self, role, bridge, data_path, ext,
-                 worker_rank=0, num_workers=1, output_path=None):
+    def __init__(self, role: str, bridge: Optional[Bridge], data_path: str,
+                 ext: Optional[str], file_wildcard: Optional[str],
+                 worker_rank: int = 0, num_workers: int = 1,
+                 output_path: Optional[str] = None):
         self._role = role
         self._bridge = bridge
         self._num_workers = num_workers
@@ -429,8 +416,10 @@ class DataBlockLoader(object):
                 files = [os.path.basename(data_path)]
                 data_path = os.path.dirname(data_path)
             self._trainer_master = LocalTrainerMasterClient(
-                self._tm_role, data_path, files=files, ext=ext,
-                skip_datablock_checkpoint=True)
+                role=self._tm_role, path=data_path, files=files,
+                ext=ext, file_wildcard=file_wildcard,
+                skip_datablock_checkpoint=True,
+                from_data_source=False)
         else:
             self._trainer_master = None
 
@@ -501,8 +490,10 @@ def test(args, bridge, booster):
         assert not args.data_path and args.role == 'leader'
 
     data_loader = DataBlockLoader(
-        args.role, bridge, args.data_path, args.file_ext,
-        args.worker_rank, args.num_workers, args.output_path)
+        role=args.role, bridge=bridge, data_path=args.data_path,
+        ext=args.file_ext, file_wildcard=args.file_wildcard,
+        worker_rank=args.worker_rank, num_workers=args.num_workers,
+        output_path=args.output_path)
 
     while True:
         data_block = data_loader.get_next_block()

@@ -89,11 +89,13 @@ def run(args):
     logging.basicConfig(level=logging.INFO)
 
     left_loader = DataBlockLoader(
-        'local', None, args.left_data_path, args.left_file_ext,
+        role='local', bridge=None, data_path=args.left_data_path,
+        ext=args.left_file_ext, file_wildcard=None,
         worker_rank=args.worker_rank, num_workers=args.num_workers,
         output_path=args.output_path)
     right_loader = DataBlockLoader(
-        'local', None, args.right_data_path, args.right_file_ext,
+        role='local', bridge=None, data_path=args.right_data_path,
+        ext=args.right_file_ext, file_wildcard=None,
         worker_rank=args.worker_rank, num_workers=args.num_workers,
         output_path=args.output_path)
 
@@ -111,6 +113,7 @@ def run(args):
         output_file = os.path.join(
             args.output_path, left_block.block_id + '.output')
         merge(args, left_block.data_path, right_block.data_path, output_file)
+
 
 if __name__ == '__main__':
     run(create_argument_parser().parse_args())
