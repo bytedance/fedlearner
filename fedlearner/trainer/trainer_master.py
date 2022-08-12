@@ -28,6 +28,7 @@ from fedlearner.common import fl_logging
 from fedlearner.common import trainer_master_service_pb2 as tm_pb
 from fedlearner.common import trainer_master_service_pb2_grpc as tm_grpc
 from fedlearner.common import common_pb2 as common_pb
+from fedlearner.common.metric_collector import metric_collector
 from fedlearner.trainer.estimator import FLEstimator
 from fedlearner.trainer.sparse_estimator import SparseFLEstimator
 from fedlearner.trainer.cluster_server import ClusterServer
@@ -557,11 +558,21 @@ class LeaderTrainerMaster(_TrainerMaster):
                             allocated_datablock, total_datablock,
                             len(self._running_workers),
                             len(self._completed_workers))
+            # TODO(lixiaoguang.01) old version, to be deleted
             with _gctx.stats_client.pipeline() as pipe:
                 pipe.gauge("trainer.global_step", global_step)
                 pipe.gauge("trainer.datablock_total", total_datablock)
                 pipe.gauge("trainer.datablock_allocated", allocated_datablock)
                 pipe.gauge("trainer.speed", speed)
+            # new version
+            name_prefix = f'model.{self._mode}.nn_vertical'
+            metric_collector.emit_store(
+                f'{name_prefix}.global_step', global_step)
+            metric_collector.emit_store(
+                f'{name_prefix}.datablock_total', total_datablock)
+            metric_collector.emit_store(
+                f'{name_prefix}.datablock_allocated', allocated_datablock)
+            metric_collector.emit_store(f'{name_prefix}.speed', speed)
         self._last_trigger_time = now
         self._last_global_step = global_step
 
@@ -655,10 +666,18 @@ class FollowerTrainerMaster(_TrainerMaster):
                             total_datablock,
                             len(self._running_workers),
                             len(self._completed_workers))
+            # TODO(lixiaoguang.01) old version, to be deleted
             with _gctx.stats_client.pipeline() as pipe:
                 pipe.gauge("trainer.global_step", global_step)
                 pipe.gauge("trainer.datablock_total", total_datablock)
                 pipe.gauge("trainer.speed", speed)
+            # new version
+            name_prefix = f'model.{self._mode}.nn_vertical'
+            metric_collector.emit_store(
+                f'{name_prefix}.global_step', global_step)
+            metric_collector.emit_store(
+                f'{name_prefix}.datablock_total', total_datablock)
+            metric_collector.emit_store(f'{name_prefix}.speed', speed)
         self._last_trigger_time = now
         self._last_global_step = global_step
 

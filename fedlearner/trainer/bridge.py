@@ -28,6 +28,7 @@ from fedlearner.channel import Channel
 from fedlearner.common import common_pb2 as common_pb
 from fedlearner.common import trainer_worker_service_pb2 as tws2_pb
 from fedlearner.common import trainer_worker_service_pb2_grpc as tws2_grpc
+from fedlearner.common.metric_collector import metric_collector
 from fedlearner.trainer._global_context import global_context as _gctx
 
 _BRIDGE_SUPERVISE_ENABLED = strtobool(
@@ -396,9 +397,14 @@ class Bridge(object):
             duration = (time.time() - self._iter_started_at) * 1000
             self._current_iter_id = None
 
+        # TODO(lixiaoguang.01) old version, to be deleted
         with _gctx.stats_client.pipeline() as pipe:
             pipe.gauge("trainer.bridge.iterator_step", iter_id)
             pipe.timing("trainer.bridge.iterator_timing", duration)
+        # new version
+        name_prefix = 'model.grpc.bridge'
+        metric_collector.emit_store(f'{name_prefix}.iterator_step', iter_id)
+        metric_collector.emit_store(f'{name_prefix}.iterator_timing', duration)
 
     def register_data_block_handler(self, func):
         assert self._data_block_handler_fn is None, \
