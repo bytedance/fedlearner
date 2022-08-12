@@ -1,11 +1,12 @@
 import os
 from fnmatch import fnmatch
-from typing import List
+from typing import List, Optional
 
 import tensorflow.compat.v1 as tf
 
 
-def filter_files(path: str, file_ext: str, file_wildcard: str) -> List[str]:
+def filter_files(path: str, file_ext: Optional[str],
+                 file_wildcard: Optional[str]) -> List[str]:
     files = []
     for dirname, _, filenames in tf.io.gfile.walk(path):
         for filename in filenames:

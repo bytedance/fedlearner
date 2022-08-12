@@ -19,10 +19,6 @@ import time
 import logging
 import collections
 import traceback
-try:
-    import tensorflow.compat.v1 as tf
-except ImportError:
-    import tensorflow as tf
 from typing import List, Optional
 
 from fedlearner.model.tree.utils import filter_files
