@@ -68,6 +68,7 @@ class LocalTrainerMasterClient(object):
             blocks = []
             for filename in files:
                 block_id = os.path.relpath(filename, path)
+                fullname = os.path.join(path, filename)
                 block = DataBlockInfo(block_id, filename)
                 blocks.append(block)
             self._block_map = {block.block_id: block for block in blocks}
