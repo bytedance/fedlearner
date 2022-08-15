@@ -22,7 +22,10 @@ import argparse
 import traceback
 import itertools
 from typing import Optional
+from concurrent.futures import ProcessPoolExecutor
+import multiprocessing
 import numpy as np
+import time
 
 import tensorflow.compat.v1 as tf
 
@@ -32,8 +35,6 @@ from fedlearner.model.tree.tree import BoostingTreeEnsamble, PredictType
 from fedlearner.model.tree.trainer_master_client import LocalTrainerMasterClient
 from fedlearner.model.tree.trainer_master_client import DataBlockInfo
 from fedlearner.model.tree.utils import filter_files
-from concurrent.futures import ProcessPoolExecutor, as_completed
-import multiprocessing
 
 def create_argument_parser():
     parser = argparse.ArgumentParser(
@@ -273,14 +274,17 @@ def read_data_dir(file_ext: str, file_wildcard: str, file_type: str, path: str,
         f'extension={file_ext} wild_card={file_wildcard})'
 
     if num_data_loaders:
-        assert 1 <= num_data_loaders, 'Invalid num_data_loaders'
+        assert num_data_loaders >= 1, 'Invalid num_data_loaders'
     else:
         num_data_loaders = 1
 
     num_data_loaders = min(num_data_loaders, len(files))
     features = None
 
-    logging.info(f'Reading data using multiprocessing({num_data_loaders})')
+    start_time = time.time()
+    logging.info('multiprocessing num_data_loaders=%s' % str(num_data_loaders))
+    logging.info('taskes start time: %s' % str(start_time))
+
     multiprocessing.set_start_method('spawn', force=True)
     with ProcessPoolExecutor(max_workers=num_data_loaders) as pool:
         futures = []
@@ -317,6 +321,11 @@ def read_data_dir(file_ext: str, file_wildcard: str, file_type: str, path: str,
                     example_ids.extend(iexample_ids)
                 if raw_ids is not None:
                     raw_ids.extend(iraw_ids)
+
+    end_time = time.time()
+    elapsed_time = end_time - start_time
+    logging.info('taskes end time: %s' % str(end_time))
+    logging.info('elapsed time for reading data: %ss' % str(elapsed_time))
 
     assert features is not None, "No data found in %s"%path
 
