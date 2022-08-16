@@ -16,6 +16,7 @@
 
 import os
 import csv
+import time
 import queue
 import logging
 import argparse
@@ -281,6 +282,8 @@ def read_data_dir(file_ext: str, file_wildcard: str, file_type: str, path: str,
     num_data_loaders = min(num_data_loaders, len(files))
     features = None
 
+    start_time = time.time()
+
     logging.info('Data loader count = %s', str(num_data_loaders))
     multiprocessing.set_start_method('spawn', force=True)
     with ProcessPoolExecutor(max_workers=num_data_loaders) as pool:
@@ -318,6 +321,10 @@ def read_data_dir(file_ext: str, file_wildcard: str, file_type: str, path: str,
                     example_ids.extend(iexample_ids)
                 if raw_ids is not None:
                     raw_ids.extend(iraw_ids)
+
+    end_time = time.time()
+    elapsed_time = end_time - start_time
+    logging.info('elapsed time for data loader: %s', str(elapsed_time))
 
     assert features is not None, "No data found in %s"%path
 
