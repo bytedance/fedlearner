@@ -275,7 +275,7 @@ def read_data_dir(file_ext: str, file_wildcard: str, file_type: str, path: str,
         f'extension={file_ext} wild_card={file_wildcard})'
 
     if num_data_loaders:
-        assert 1 <= num_data_loaders, 'Invalid num_data_loaders'
+        assert num_data_loaders >= 1, 'Invalid num_data_loaders'
     else:
         num_data_loaders = 1
 
