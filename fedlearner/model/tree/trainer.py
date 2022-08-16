@@ -22,6 +22,8 @@ import argparse
 import traceback
 import itertools
 from typing import Optional
+from concurrent.futures import ProcessPoolExecutor
+import multiprocessing
 import numpy as np
 
 import tensorflow.compat.v1 as tf
@@ -53,6 +55,8 @@ def create_argument_parser():
                         help='rank of the current worker')
     parser.add_argument('--num-workers', type=int, default=1,
                         help='total number of workers')
+    parser.add_argument('--num-data-loaders', type=int, default=4,
+                        help='total number of data loaders')
     parser.add_argument('--mode', type=str, default='train',
                         help='Running mode in train, test or eval.')
     parser.add_argument('--data-path', type=str, default=None,
@@ -256,7 +260,9 @@ def read_data(file_type, filename, require_example_ids, require_labels,
 
 def read_data_dir(file_ext: str, file_wildcard: str, file_type: str, path: str,
                   require_example_ids: bool, require_labels: bool,
-                  ignore_fields: str, cat_fields: str, label_field: str):
+                  ignore_fields: str, cat_fields: str, label_field: str,
+                  num_data_loaders: int):
+
     if not tf.io.gfile.isdir(path):
         return read_data(
             file_type, path, require_example_ids,
@@ -264,37 +270,54 @@ def read_data_dir(file_ext: str, file_wildcard: str, file_type: str, path: str,
 
     files = filter_files(path, file_ext, file_wildcard)
     files.sort()
+    assert len(files) > 0, f'No file exsists in directory(path={path} ' \
+        f'extension={file_ext} wild_card={file_wildcard})'
+
+    if num_data_loaders:
+        assert 1 <= num_data_loaders, 'Invalid num_data_loaders'
+    else:
+        num_data_loaders = 1
+
+    num_data_loaders = min(num_data_loaders, len(files))
     features = None
-    for fullname in files:
-        ifeatures, icat_features, icont_columns, icat_columns, \
-            ilabels, iexample_ids, iraw_ids = read_data(
-                file_type, fullname, require_example_ids, require_labels,
-                ignore_fields, cat_fields, label_field
-            )
-        if features is None:
-            features = ifeatures
-            cat_features = icat_features
-            cont_columns = icont_columns
-            cat_columns = icat_columns
-            labels = ilabels
-            example_ids = iexample_ids
-            raw_ids = iraw_ids
-        else:
-            assert cont_columns == icont_columns, \
-                "columns mismatch between files %s vs %s"%(
-                    cont_columns, icont_columns)
-            assert cat_columns == icat_columns, \
-                "columns mismatch between files %s vs %s"%(
-                    cat_columns, icat_columns)
-            features = np.concatenate((features, ifeatures), axis=0)
-            cat_features = np.concatenate(
-                (cat_features, icat_features), axis=0)
-            if labels is not None:
-                labels = np.concatenate((labels, ilabels), axis=0)
-            if example_ids is not None:
-                example_ids.extend(iexample_ids)
-            if raw_ids is not None:
-                raw_ids.extend(iraw_ids)
+
+    logging.info('Data loader count = %s', str(num_data_loaders))
+    multiprocessing.set_start_method('spawn', force=True)
+    with ProcessPoolExecutor(max_workers=num_data_loaders) as pool:
+        futures = []
+        for fullname in files:
+            future = pool.submit(
+                read_data, file_type, fullname,
+                require_example_ids, require_labels,
+                ignore_fields, cat_fields, label_field)
+            futures.append(future)
+        for future in futures:
+            ifeatures, icat_features, icont_columns, icat_columns, \
+                ilabels, iexample_ids, iraw_ids = future.result()
+            if features is None:
+                features = ifeatures
+                cat_features = icat_features
+                cont_columns = icont_columns
+                cat_columns = icat_columns
+                labels = ilabels
+                example_ids = iexample_ids
+                raw_ids = iraw_ids
+            else:
+                assert cont_columns == icont_columns, \
+                    "columns mismatch between files %s vs %s"%(
+                        cont_columns, icont_columns)
+                assert cat_columns == icat_columns, \
+                    "columns mismatch between files %s vs %s"%(
+                        cat_columns, icat_columns)
+                features = np.concatenate((features, ifeatures), axis=0)
+                cat_features = np.concatenate(
+                    (cat_features, icat_features), axis=0)
+                if labels is not None:
+                    labels = np.concatenate((labels, ilabels), axis=0)
+                if example_ids is not None:
+                    example_ids.extend(iexample_ids)
+                if raw_ids is not None:
+                    raw_ids.extend(iraw_ids)
 
     assert features is not None, "No data found in %s"%path
 
@@ -306,7 +329,7 @@ def train(args, booster):
     X, cat_X, X_names, cat_X_names, y, example_ids, _ = read_data_dir(
         args.file_ext, args.file_wildcard, args.file_type, args.data_path,
         args.verify_example_ids, args.role != 'follower', args.ignore_fields,
-        args.cat_fields, args.label_field)
+        args.cat_fields, args.label_field, args.num_data_loaders)
 
     if args.validation_data_path:
         val_X, val_cat_X, val_X_names, val_cat_X_names, val_y, \
@@ -315,7 +338,7 @@ def train(args, booster):
                 args.file_ext, args.file_wildcard, args.file_type,
                 args.validation_data_path, args.verify_example_ids,
                 args.role != 'follower', args.ignore_fields,
-                args.cat_fields, args.label_field)
+                args.cat_fields, args.label_field, args.num_data_loaders)
         assert X_names == val_X_names, \
             "Train data and validation data must have same features"
         assert cat_X_names == val_cat_X_names, \
