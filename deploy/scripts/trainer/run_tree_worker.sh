@@ -67,7 +67,6 @@ python -m fedlearner.model.tree.trainer \
     --local-addr="$POD_IP:${LISTEN_PORT}" \
     --peer-addr="$PEER_ADDR" \
     --num-workers="$NUM_WORKERS" \
-    --num-data-loaders="$NUM_DATALOADERS" \
     --worker-rank="$WORKER_RANK" \
     --application-id="$APPLICATION_ID" \
     --export-path="$OUTPUT_BASE_DIR/exported_models" \
