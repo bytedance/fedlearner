@@ -24,7 +24,6 @@ import traceback
 import itertools
 from typing import Optional
 from concurrent.futures import ProcessPoolExecutor
-import multiprocessing
 import numpy as np
 
 import tensorflow.compat.v1 as tf
