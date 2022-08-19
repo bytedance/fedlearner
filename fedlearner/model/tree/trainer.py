@@ -56,8 +56,6 @@ def create_argument_parser():
                         help='rank of the current worker')
     parser.add_argument('--num-workers', type=int, default=1,
                         help='total number of workers')
-    parser.add_argument('--num-data-loaders', type=int, default=4,
-                        help='total number of data loaders')
     parser.add_argument('--mode', type=str, default='train',
                         help='Running mode in train, test or eval.')
     parser.add_argument('--data-path', type=str, default=None,
@@ -336,7 +334,7 @@ def train(args, booster):
     X, cat_X, X_names, cat_X_names, y, example_ids, _ = read_data_dir(
         args.file_ext, args.file_wildcard, args.file_type, args.data_path,
         args.verify_example_ids, args.role != 'follower', args.ignore_fields,
-        args.cat_fields, args.label_field, args.num_data_loaders)
+        args.cat_fields, args.label_field, args.num_parallel)
 
     if args.validation_data_path:
         val_X, val_cat_X, val_X_names, val_cat_X_names, val_y, \
@@ -345,7 +343,7 @@ def train(args, booster):
                 args.file_ext, args.file_wildcard, args.file_type,
                 args.validation_data_path, args.verify_example_ids,
                 args.role != 'follower', args.ignore_fields,
-                args.cat_fields, args.label_field, args.num_data_loaders)
+                args.cat_fields, args.label_field, args.num_parallel)
         assert X_names == val_X_names, \
             "Train data and validation data must have same features"
         assert cat_X_names == val_cat_X_names, \
