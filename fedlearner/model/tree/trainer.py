@@ -285,7 +285,6 @@ def read_data_dir(file_ext: str, file_wildcard: str, file_type: str, path: str,
     start_time = time.time()
 
     logging.info('Data loader count = %s', str(num_data_loaders))
-    multiprocessing.set_start_method('spawn', force=True)
     with ProcessPoolExecutor(max_workers=num_data_loaders) as pool:
         futures = []
         for fullname in files:
