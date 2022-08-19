@@ -235,6 +235,7 @@ def read_data(file_type, filename, require_example_ids, require_labels,
 
     features = []
     cat_features = []
+
     def to_float(x):
         return float(x if x not in ['', None] else 'nan')
     for line in reader:
@@ -322,7 +323,7 @@ def read_data_dir(file_ext: str, file_wildcard: str, file_type: str, path: str,
 
     end_time = time.time()
     elapsed_time = end_time - start_time
-    logging.info('elapsed time for data loader: %s', str(elapsed_time))
+    logging.info('Elapsed time for loading data: %s', str(elapsed_time))
 
     assert features is not None, "No data found in %s"%path
 
@@ -392,6 +393,7 @@ def write_predictions(filename, pred, example_ids=None, raw_ids=None):
 
     logging.debug("Renaming %s.tmp to %s", filename, filename)
     tf.io.gfile.rename(filename+'.tmp', filename, overwrite=True)
+
 
 def test_one_file(args, bridge, booster, data_file, output_file):
     if data_file is None:
