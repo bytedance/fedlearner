@@ -24,6 +24,7 @@ import traceback
 import itertools
 from typing import Optional
 from concurrent.futures import ProcessPoolExecutor
+import multiprocessing
 import numpy as np
 
 import tensorflow.compat.v1 as tf
@@ -599,4 +600,5 @@ def run(args):
 
 
 if __name__ == '__main__':
+    multiprocessing.set_start_method('spawn')
     run(create_argument_parser().parse_args())
