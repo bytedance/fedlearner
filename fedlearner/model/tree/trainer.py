@@ -261,7 +261,7 @@ def read_data(file_type, filename, require_example_ids, require_labels,
 def read_data_dir(file_ext: str, file_wildcard: str, file_type: str, path: str,
                   require_example_ids: bool, require_labels: bool,
                   ignore_fields: str, cat_fields: str, label_field: str,
-                  num_data_loaders: int):
+                  num_parallel: int):
 
     if not tf.io.gfile.isdir(path):
         return read_data(
@@ -273,18 +273,18 @@ def read_data_dir(file_ext: str, file_wildcard: str, file_type: str, path: str,
     assert len(files) > 0, f'No file exsists in directory(path={path} ' \
         f'extension={file_ext} wild_card={file_wildcard})'
 
-    if num_data_loaders:
-        assert num_data_loaders >= 1, 'Invalid num_data_loaders'
+    if num_parallel:
+        assert num_parallel >= 1, 'Invalid num_parallel'
     else:
-        num_data_loaders = 1
+        num_parallel = 1
 
-    num_data_loaders = min(num_data_loaders, len(files))
+    num_parallel = min(num_parallel, len(files))
     features = None
 
     start_time = time.time()
 
-    logging.info('Data loader count = %s', str(num_data_loaders))
-    with ProcessPoolExecutor(max_workers=num_data_loaders) as pool:
+    logging.info('Data loader count = %s', str(num_parallel))
+    with ProcessPoolExecutor(max_workers=num_parallel) as pool:
         futures = []
         for fullname in files:
             future = pool.submit(
