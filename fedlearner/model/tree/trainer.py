@@ -55,8 +55,6 @@ def create_argument_parser():
                         help='rank of the current worker')
     parser.add_argument('--num-workers', type=int, default=1,
                         help='total number of workers')
-    parser.add_argument('--num-data-loaders', type=int, default=4,
-                        help='total number of data loaders')
     parser.add_argument('--mode', type=str, default='train',
                         help='Running mode in train, test or eval.')
     parser.add_argument('--data-path', type=str, default=None,
@@ -261,7 +259,7 @@ def read_data(file_type, filename, require_example_ids, require_labels,
 def read_data_dir(file_ext: str, file_wildcard: str, file_type: str, path: str,
                   require_example_ids: bool, require_labels: bool,
                   ignore_fields: str, cat_fields: str, label_field: str,
-                  num_data_loaders: int):
+                  num_parallel: int):
 
     if not tf.io.gfile.isdir(path):
         return read_data(
@@ -273,20 +271,19 @@ def read_data_dir(file_ext: str, file_wildcard: str, file_type: str, path: str,
     assert len(files) > 0, f'No file exsists in directory(path={path} ' \
         f'extension={file_ext} wild_card={file_wildcard})'
 
-    if num_data_loaders:
-        assert num_data_loaders >= 1, 'Invalid num_data_loaders'
+    if num_parallel:
+        assert num_parallel >= 1, 'Invalid num_parallel'
     else:
-        num_data_loaders = 1
+        num_parallel = 1
 
-    num_data_loaders = min(num_data_loaders, len(files))
+    num_parallel = min(num_parallel, len(files))
     features = None
 
     start_time = time.time()
-    logging.info('multiprocessing num_data_loaders=%s' % str(num_data_loaders))
     logging.info('taskes start time: %s' % str(start_time))
-
-    multiprocessing.set_start_method('spawn', force=True)
-    with ProcessPoolExecutor(max_workers=num_data_loaders) as pool:
+    logging.info('Data loader count = %s', str(num_parallel))
+    
+    with ProcessPoolExecutor(max_workers=num_parallel) as pool:
         futures = []
         for fullname in files:
             future = pool.submit(
@@ -337,7 +334,7 @@ def train(args, booster):
     X, cat_X, X_names, cat_X_names, y, example_ids, _ = read_data_dir(
         args.file_ext, args.file_wildcard, args.file_type, args.data_path,
         args.verify_example_ids, args.role != 'follower', args.ignore_fields,
-        args.cat_fields, args.label_field, args.num_data_loaders)
+        args.cat_fields, args.label_field, args.num_parallel)
 
     if args.validation_data_path:
         val_X, val_cat_X, val_X_names, val_cat_X_names, val_y, \
@@ -346,7 +343,7 @@ def train(args, booster):
                 args.file_ext, args.file_wildcard, args.file_type,
                 args.validation_data_path, args.verify_example_ids,
                 args.role != 'follower', args.ignore_fields,
-                args.cat_fields, args.label_field, args.num_data_loaders)
+                args.cat_fields, args.label_field, args.num_parallel)
         assert X_names == val_X_names, \
             "Train data and validation data must have same features"
         assert cat_X_names == val_cat_X_names, \
@@ -600,4 +597,5 @@ def run(args):
 
 
 if __name__ == '__main__':
+    multiprocessing.set_start_method('spawn')
     run(create_argument_parser().parse_args())
