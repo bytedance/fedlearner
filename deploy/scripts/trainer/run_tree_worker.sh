@@ -55,7 +55,6 @@ send_scores_to_follower=$(normalize_env_to_args "--send-scores-to-follower" "$SE
 send_metrics_to_follower=$(normalize_env_to_args "--send-metrics-to-follower" "$SEND_METRICS_TO_FOLLOWER")
 enable_packing=$(normalize_env_to_args "--enable-packing" "$ENABLE_PACKING")
 label_field=$(normalize_env_to_args "--label-field" "$LABEL_FIELD")
-num_data_loaders=$(normalize_env_to_args "--num-data-loaders" "$NUM_DATA_LOADERS")
 
 LISTEN_PORT=50051
 if [[ -n "${PORT0}" ]]; then
@@ -72,7 +71,7 @@ python -m fedlearner.model.tree.trainer \
     --export-path="$OUTPUT_BASE_DIR/exported_models" \
     --checkpoint-path="$OUTPUT_BASE_DIR/checkpoints" \
     --output-path="$OUTPUT_BASE_DIR/outputs" \
-    $num_data_loaders $mode $data_path $validation_data_path \
+    $mode $data_path $validation_data_path \
     $no_data $file_ext $file_type $load_model_path \
     $verbosity $loss_type $learning_rate $max_iters \
     $max_depth $l2_regularization $max_bins \
