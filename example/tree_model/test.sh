@@ -12,6 +12,7 @@ python -m fedlearner.model.tree.trainer follower \
     --verbosity=1 \
     --local-addr=localhost:50052 \
     --peer-addr=localhost:50051 \
+    --num-parallel=4 \
     --verify-example-ids=true \
     --file-ext=.tfrecord \
     --file-wildcard=*tfrecord \
@@ -26,6 +27,7 @@ python -m fedlearner.model.tree.trainer leader \
     --verbosity=1 \
     --local-addr=localhost:50051 \
     --peer-addr=localhost:50052 \
+    --num-parallel=4 \
     --verify-example-ids=true \
     --file-ext=.tfrecord \
     --file-wildcard=*tfrecord \
@@ -42,6 +44,7 @@ python -m fedlearner.model.tree.trainer leader \
     --verbosity=1 \
     --local-addr=localhost:50051 \
     --peer-addr=localhost:50052 \
+    --num-parallel=4 \
     --mode=test \
     --verify-example-ids=true \
     --file-type=tfrecord \
@@ -56,6 +59,7 @@ python -m fedlearner.model.tree.trainer follower \
     --verbosity=1 \
     --local-addr=localhost:50052 \
     --peer-addr=localhost:50051 \
+    --num-parallel=4 \
     --mode=test \
     --verify-example-ids=true \
     --file-type=tfrecord \
@@ -77,6 +81,7 @@ python -m fedlearner.model.tree.trainer follower \
     --verbosity=1 \
     --local-addr=localhost:50052 \
     --peer-addr=localhost:50051 \
+    --num-parallel=4 \
     --file-ext=.csv \
     --file-type=csv \
     --file-wildcard=*csv \
@@ -89,6 +94,7 @@ python -m fedlearner.model.tree.trainer leader \
     --verbosity=1 \
     --local-addr=localhost:50051 \
     --peer-addr=localhost:50052 \
+    --num-parallel=4 \
     --file-ext=.csv \
     --file-type=csv \
     --file-wildcard=*csv \
@@ -103,6 +109,7 @@ python -m fedlearner.model.tree.trainer follower \
     --verbosity=2 \
     --local-addr=localhost:50052 \
     --peer-addr=localhost:50051 \
+    --num-parallel=4 \
     --mode=test \
     --file-ext=.csv \
     --file-wildcard=*csv \
@@ -116,6 +123,7 @@ python -m fedlearner.model.tree.trainer leader \
     --verbosity=2 \
     --local-addr=localhost:50051 \
     --peer-addr=localhost:50052 \
+    --num-parallel=4 \
     --mode=test \
     --file-ext=.csv \
     --file-wildcard=*csv \

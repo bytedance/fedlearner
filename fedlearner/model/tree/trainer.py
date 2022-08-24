@@ -16,6 +16,7 @@
 
 import os
 import csv
+import time
 import queue
 import logging
 import argparse
@@ -25,7 +26,6 @@ from typing import Optional
 from concurrent.futures import ProcessPoolExecutor
 import multiprocessing
 import numpy as np
-import time
 
 import tensorflow.compat.v1 as tf
 
@@ -233,6 +233,7 @@ def read_data(file_type, filename, require_example_ids, require_labels,
 
     features = []
     cat_features = []
+
     def to_float(x):
         return float(x if x not in ['', None] else 'nan')
     for line in reader:
@@ -282,7 +283,7 @@ def read_data_dir(file_ext: str, file_wildcard: str, file_type: str, path: str,
     start_time = time.time()
     logging.info('taskes start time: %s' % str(start_time))
     logging.info('Data loader count = %s', str(num_parallel))
-    
+
     with ProcessPoolExecutor(max_workers=num_parallel) as pool:
         futures = []
         for fullname in files:
