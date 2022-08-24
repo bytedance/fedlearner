@@ -403,14 +403,8 @@ class Bridge(object):
             pipe.timing("trainer.bridge.iterator_timing", duration)
         # new version
         name_prefix = 'model.grpc.bridge'
-        metric_tags = {
-            'task': _gctx.task,
-            'task_index': str(_gctx.task_index),
-        }
-        metric_collector.emit_store(f'{name_prefix}.iterator_step', iter_id,
-                                    metric_tags)
-        metric_collector.emit_store(f'{name_prefix}.iterator_timing', duration,
-                                    metric_tags)
+        metric_collector.emit_store(f'{name_prefix}.iterator_step', iter_id)
+        metric_collector.emit_store(f'{name_prefix}.iterator_timing', duration)
 
     def register_data_block_handler(self, func):
         assert self._data_block_handler_fn is None, \
