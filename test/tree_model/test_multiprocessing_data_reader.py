@@ -30,11 +30,6 @@ class TestBoostingTree(unittest.TestCase):
                 features['i_0'] = Feature(
                     int64_list=Int64List(value=[random.randint(0, 100)])
                 )
-                # Bytes features are not supported at this level of tree model.
-                # features['name'] = Feature(
-                #     bytes_list=BytesList(
-                #         value=[bytes(f'test_1', encoding='utf-8')])
-                # )
                 features['label'] = Feature(
                     int64_list=Int64List(value=[random.randint(0, 1)])
                 )
