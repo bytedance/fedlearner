@@ -281,7 +281,7 @@ def read_data_dir(file_ext: str, file_wildcard: str, file_type: str, path: str,
     features = None
 
     start_time = time.time()
-    logging.info('taskes start time: %s' % str(start_time))
+    logging.info('taskes start time: %s', str(start_time))
     logging.info('Data loader count = %s', str(num_parallel))
 
     with ProcessPoolExecutor(max_workers=num_parallel) as pool:
@@ -322,8 +322,8 @@ def read_data_dir(file_ext: str, file_wildcard: str, file_type: str, path: str,
 
     end_time = time.time()
     elapsed_time = end_time - start_time
-    logging.info('taskes end time: %s' % str(end_time))
-    logging.info('elapsed time for reading data: %ss' % str(elapsed_time))
+    logging.info('taskes end time: %s', str(end_time))
+    logging.info('elapsed time for reading data: %ss', str(elapsed_time))
 
     assert features is not None, "No data found in %s"%path
 
