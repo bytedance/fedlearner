@@ -333,6 +333,7 @@ class DataSourceVisitor(_DataVisitor):
 class DataPathVisitor(_DataVisitor):
     def __init__(self,
                  data_path: str,
+                 local_data_path: str,
                  wildcard: str,
                  epoch_num: int = 1,
                  shuffle_type=None):
@@ -352,10 +353,27 @@ class DataPathVisitor(_DataVisitor):
                                           None, None,
                                           tm_pb.JOINED)
                 datablocks.append(datablock)
-        datablocks.sort()
+        datablocks.sort(key=lambda x: x.end_time)
 
-        super(DataPathVisitor, self).__init__(datablocks, None, epoch_num,
-                                              shuffle_type)
+        fl_logging.info("create DataVisitor by local_data_path: %s",
+                        local_data_path)
+        local_datablocks = []
+        if local_data_path and tf.io.gfile.exists(local_data_path):
+            for dirname, _, filenames in tf.io.gfile.walk(local_data_path):
+                for filename in filenames:
+                    if not fnmatch(os.path.join(dirname, filename), wildcard):
+                        continue
+                    subdirname = os.path.relpath(dirname, local_data_path)
+                    block_id = os.path.join(subdirname, filename)
+                    datablock = _RawDataBlock(block_id,
+                                              os.path.join(dirname, filename),
+                                              None, None,
+                                              tm_pb.LOCAL)
+                    local_datablocks.append(datablock)
+        local_datablocks.sort(key=lambda x: x.end_time)
+
+        super(DataPathVisitor, self).__init__(datablocks, local_datablocks,
+                                              epoch_num, shuffle_type)
 
     def _check_allocated(self, epoch: int, datablock: _RawDataBlock):
         if epoch not in self._allocated:

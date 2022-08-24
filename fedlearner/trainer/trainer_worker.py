@@ -92,6 +92,10 @@ def create_argument_parser():
                         type=str,
                         help='path to data block files for training.'
                              'Ignore if data-source is set')
+    parser.add_argument('--local-data-path',
+                        type=str,
+                        help='path to local data block files for training.'
+                             'Ignore if local-data-source is set')
     parser.add_argument('--data-path-wildcard',
                         type=str,
                         default='part-*',
@@ -420,6 +424,7 @@ def _create_data_visitor(args):
                                     shuffle_type=shuffle_type)
     elif args.data_path and args.data_path_wildcard:
         visitor = DataPathVisitor(args.data_path,
+                                  args.local_data_path,
                                   wildcard=args.data_path_wildcard,
                                   epoch_num=args.epoch_num,
                                   shuffle_type=shuffle_type)
