@@ -403,8 +403,14 @@ class Bridge(object):
             pipe.timing("trainer.bridge.iterator_timing", duration)
         # new version
         name_prefix = 'model.grpc.bridge'
-        metric_collector.emit_store(f'{name_prefix}.iterator_step', iter_id)
-        metric_collector.emit_store(f'{name_prefix}.iterator_timing', duration)
+        metric_tags = {
+            'task': _gctx.task,
+            'task_index': str(_gctx.task_index),
+        }
+        metric_collector.emit_store(f'{name_prefix}.iterator_step', iter_id,
+                                    metric_tags)
+        metric_collector.emit_store(f'{name_prefix}.iterator_timing', duration,
+                                    metric_tags)
 
     def register_data_block_handler(self, func):
         assert self._data_block_handler_fn is None, \
@@ -485,10 +491,15 @@ class Bridge(object):
             data = self._received_data[iter_id][name]
 
         duration = time.time() - start_time
+        # TODO(lixiaoguang.01) old version, to be deleted
         _gctx.stats_client.timing(
             "trainer.bridge.receive_timing", duration * 1000,
             {"bridge_receive_name": name}
         )
+        # new version
+        metric_collector.emit_store(f'model.grpc.bridge.receive_timing',
+                                    duration * 1000,
+                                    {'bridge_receive_name': name})
         fl_logging.debug("[Bridge] Data: received iter_id: %d, name: %s "
                          "after %f sec",
                          iter_id, name, duration)

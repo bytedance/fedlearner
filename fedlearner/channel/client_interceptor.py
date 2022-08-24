@@ -103,11 +103,19 @@ class ClientInterceptor(grpc.UnaryUnaryClientInterceptor,
             self._wait()
             return continuation(client_call_details, request)
 
-        with self._stats_client.timer("channel.client.unary_unary_timing",
-            tags={"grpc_method": method_details.method}):
-            _call = _grpc_with_retry(call, self._retry_interval)
-            return _UnaryOutcome(
-                method_details.response_deserializer, _call, self._check_fn)
+        # TODO(lixiaoguang.01) old version, to be deleted
+        with self._stats_client.timer(
+            "channel.client.unary_unary_timing",
+            tags={"grpc_method": method_details.method}
+        ):
+            # new version
+            with metric_collector.emit_timing(
+                'model.grpc.interceptor.channel.client.unary_unary_timing',
+                tags={'grpc_method': method_details.method}
+            ):
+                _call = _grpc_with_retry(call, self._retry_interval)
+                return _UnaryOutcome(
+                    method_details.response_deserializer, _call, self._check_fn)
 
     def intercept_unary_stream(self, continuation, client_call_details,
                                request):

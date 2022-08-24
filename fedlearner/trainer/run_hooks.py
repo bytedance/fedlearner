@@ -104,6 +104,9 @@ class GlobalStepMetricTensorHook(tf.train.SessionRunHook):
 
                 metric_collector.emit_store(
                     f'{name_prefix}.{key}', value.sum())
+                # for compatibility, also emit one with metric name in tags
+                metric_collector.emit_store(f'{name_prefix}.metric_value',
+                                            value.sum(), tags={'metric': key})
 
 
 class StepMetricsHook(GlobalStepMetricTensorHook):
