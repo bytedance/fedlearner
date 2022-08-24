@@ -408,7 +408,9 @@ class Channel():
             # TODO(lixiaoguang.01) old version, to be deleted
             timer = self._stats_client.timer("channel.call_timing").start()
             # new version
-            with metric_collector.emit_timing('model.grpc.channel.call_timing'):
+            with metric_collector.emit_timing(
+                'model.grpc.channel.call_timing'
+            ):
                 res = self._channel_call.Call(req,
                                               timeout=self._heartbeat_interval,
                                               wait_for_ready=True)
@@ -417,7 +419,7 @@ class Channel():
             # TODO(lixiaoguang.01) old version, to be deleted
             self._stats_client.incr("channel.call_error")
             # new version
-            metric_collector.emit_counter('model.grpc.channel.call_error')
+            metric_collector.emit_counter('model.grpc.channel.call_error', 1)
             if isinstance(e, grpc.RpcError):
                 fl_logging.warning("[Channel] grpc error, code: %s, "
                     "details: %s.(call type: %s)",
