@@ -41,6 +41,10 @@ _logger = logging.getLogger(__name__)
 class AbstractCollector(ABC):
 
     @abstractmethod
+    def add_global_tags(self, global_tags: Dict[str, str]):
+        pass
+
+    @abstractmethod
     def emit_single_point(self,
                           name: str,
                           value: Union[int, float],
@@ -79,6 +83,9 @@ class StubCollector(AbstractCollector):
 
         def __exit__(self, *a):
             pass
+
+    def add_global_tags(self, global_tags: Dict[str, str]):
+        pass
 
     def emit_single_point(self,
                           name: str,
