@@ -474,15 +474,13 @@ def train(role,
     global_tags = {
         'task': _gctx.task,
         'task_index': str(_gctx.task_index),
-    }
-    metric_collector.add_global_tags(global_tags)
-    name_prefix = f'model.{mode}.nn_vertical'
-    metric_tags = {
         'role': role.lower(),
         'node_name': os.environ.get('HOSTNAME', 'default_node_name'),
         'pod_name': os.environ.get('POD_NAME', 'default_pod_name'),
     }
-    metric_collector.emit_counter(f'{name_prefix}.start_count', 1, metric_tags)
+    metric_collector.add_global_tags(global_tags)
+    name_prefix = f'model.{mode}.nn_vertical'
+    metric_collector.emit_counter(f'{name_prefix}.start_count', 1)
 
     if _gctx.task == "local":
         _run_local(role, args, input_fn, model_fn,
