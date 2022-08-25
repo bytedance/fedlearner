@@ -270,14 +270,19 @@ def read_data_dir(file_ext: str, file_wildcard: str, file_type: str, path: str,
     files = filter_files(path, file_ext, file_wildcard)
     files.sort()
     assert len(files) > 0, f'No file exsists in directory(path={path} ' \
-        f'extension={file_ext} wild_card={file_wildcard})'
+        f'extension={file_ext} wildcard={file_wildcard})'
 
     if num_parallel:
         assert num_parallel >= 1, 'Invalid num_parallel'
     else:
         num_parallel = 1
 
-    num_parallel = min(num_parallel, len(files))
+    if num_parallel > len(files):
+        logging.info('Number of files(%s) is less than num_parallel(%s), '
+                     'switch num_parallel to %s',
+                     len(files), num_parallel, len(files))
+        num_parallel = len(files)
+
     features = None
 
     start_time = time.time()
@@ -598,5 +603,10 @@ def run(args):
 
 
 if __name__ == '__main__':
+    # Experiments show `spawn` method is essential for ProcessPoolExecutor
+    # to get stable performance in multiprocessing HDFS data read.
+    # Otherwise, forked processes may lead to deadlock problems.
+    # Similar cases reported: https://github.com/crs4/pydoop/issues/311
+    # Reason discussed: https://github.com/dask/hdfs3/issues/100
     multiprocessing.set_start_method('spawn')
     run(create_argument_parser().parse_args())
