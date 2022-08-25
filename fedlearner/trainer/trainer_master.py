@@ -33,7 +33,6 @@ from fedlearner.trainer.bridge import FakeBridge
 from fedlearner.trainer.estimator import FLEstimator
 from fedlearner.trainer.sparse_estimator import SparseFLEstimator
 from fedlearner.trainer.cluster_server import ClusterServer
-from fedlearner.trainer._global_context import global_context as _gctx
 
 
 class ExportModelHook():

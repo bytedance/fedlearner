@@ -18,7 +18,7 @@ import json
 import threading
 
 import tensorflow.compat.v1 as tf
-from fedlearner.common import fl_logging, stats
+from fedlearner.common import fl_logging
 from fedlearner.common.argparse_util import str_as_bool
 from fedlearner.common import trainer_master_service_pb2 as tm_pb
 from fedlearner.trainer.bridge import Bridge, FakeBridge
