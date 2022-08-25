@@ -405,20 +405,13 @@ class Channel():
                 token=self._token,
                 identifier=self._identifier,
                 peer_identifier=self._peer_identifier)
-            # TODO(lixiaoguang.01) old version, to be deleted
-            timer = self._stats_client.timer("channel.call_timing").start()
-            # new version
             with metric_collector.emit_timing(
                 'model.grpc.channel.call_timing'
             ):
                 res = self._channel_call.Call(req,
                                               timeout=self._heartbeat_interval,
                                               wait_for_ready=True)
-            timer.stop()
         except Exception as e:
-            # TODO(lixiaoguang.01) old version, to be deleted
-            self._stats_client.incr("channel.call_error")
-            # new version
             metric_collector.emit_counter('model.grpc.channel.call_error', 1)
             if isinstance(e, grpc.RpcError):
                 fl_logging.warning("[Channel] grpc error, code: %s, "
@@ -478,9 +471,6 @@ class Channel():
             saved_state = self._state
             wait_timeout = 10
 
-            # TODO(lixiaoguang.01) old version, to be deleted
-            self._stats_client.gauge("channel.status", self._state.value)
-            # new version
             metric_collector.emit_store('model.grpc.channel.status',
                                         self._state.value)
             if self._state in (Channel.State.DONE, Channel.State.ERROR):

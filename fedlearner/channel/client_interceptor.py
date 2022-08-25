@@ -103,19 +103,13 @@ class ClientInterceptor(grpc.UnaryUnaryClientInterceptor,
             self._wait()
             return continuation(client_call_details, request)
 
-        # TODO(lixiaoguang.01) old version, to be deleted
-        with self._stats_client.timer(
-            "channel.client.unary_unary_timing",
-            tags={"grpc_method": method_details.method}
+        with metric_collector.emit_timing(
+            'model.grpc.interceptor.channel.client.unary_unary_timing',
+            tags={'grpc_method': method_details.method}
         ):
-            # new version
-            with metric_collector.emit_timing(
-                'model.grpc.interceptor.channel.client.unary_unary_timing',
-                tags={'grpc_method': method_details.method}
-            ):
-                _call = _grpc_with_retry(call, self._retry_interval)
-                return _UnaryOutcome(
-                    method_details.response_deserializer, _call, self._check_fn)
+            _call = _grpc_with_retry(call, self._retry_interval)
+            return _UnaryOutcome(
+                method_details.response_deserializer, _call, self._check_fn)
 
     def intercept_unary_stream(self, continuation, client_call_details,
                                request):
@@ -297,10 +291,6 @@ class _SingleConsumerSendRequestQueue():
                 while len(self._deque) >= n:
                     req = self._deque.popleft()
                     self._offset -= 1
-                    # TODO(lixiaoguang.01) old version, to be deleted
-                    pipe.timing("%s_timing"%self._stats_prefix,
-                        (now-req.ts)*1000)
-                    # new version
                     name_prefix = f'model.grpc.interceptor'
                     value = (now - req.ts) * 1000
                     metric_collector.emit_store(

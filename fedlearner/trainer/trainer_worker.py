@@ -471,10 +471,6 @@ def train(role,
     else:
         raise ValueError("duplication specify --master and --worker")
 
-    # TODO(lixiaoguang.01) old version, to be deleted
-    stats.enable_cpu_stats(_gctx.stats_client)
-    stats.enable_mem_stats(_gctx.stats_client)
-    # new version
     global_tags = {
         'task': _gctx.task,
         'task_index': str(_gctx.task_index),

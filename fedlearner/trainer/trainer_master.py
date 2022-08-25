@@ -575,6 +575,14 @@ class LeaderTrainerMaster(_TrainerMaster):
                 f'{name_prefix}.datablock_total', total_datablock)
             metric_collector.emit_store(
                 f'{name_prefix}.datablock_allocated', allocated_datablock)
+            metric_collector.emit_store(
+                f'{name_prefix}.local_datablock_total',
+                total_local_datablock
+            )
+            metric_collector.emit_store(
+                f'{name_prefix}.local_datablock_allocated',
+                allocated_local_datablock
+            )
             metric_collector.emit_store(f'{name_prefix}.speed', speed)
         self._last_trigger_time = now
         self._last_global_step = global_step
@@ -686,6 +694,8 @@ class FollowerTrainerMaster(_TrainerMaster):
                 f'{name_prefix}.global_step', global_step)
             metric_collector.emit_store(
                 f'{name_prefix}.datablock_total', total_datablock)
+            metric_collector.emit_store(
+                f'{name_prefix}.local_datablock_total', total_local_datablock)
             metric_collector.emit_store(f'{name_prefix}.speed', speed)
         self._last_trigger_time = now
         self._last_global_step = global_step

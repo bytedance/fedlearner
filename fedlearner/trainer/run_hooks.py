@@ -87,9 +87,6 @@ class GlobalStepMetricTensorHook(tf.train.SessionRunHook):
 
     def _stats_metric(self, global_step, results):
         with self._stats_client.pipeline() as pipe:
-            # TODO(lixiaoguang.01) old version, to be deleted
-            pipe.gauge("trainer.metric_global_step", global_step)
-            # new version
             name_prefix = 'model.train.nn_vertical'
             metric_collector.emit_store(
                 f'{name_prefix}.global_step', global_step)

@@ -397,11 +397,6 @@ class Bridge(object):
             duration = (time.time() - self._iter_started_at) * 1000
             self._current_iter_id = None
 
-        # TODO(lixiaoguang.01) old version, to be deleted
-        with _gctx.stats_client.pipeline() as pipe:
-            pipe.gauge("trainer.bridge.iterator_step", iter_id)
-            pipe.timing("trainer.bridge.iterator_timing", duration)
-        # new version
         name_prefix = 'model.grpc.bridge'
         metric_collector.emit_store(f'{name_prefix}.iterator_step', iter_id)
         metric_collector.emit_store(f'{name_prefix}.iterator_timing', duration)
@@ -485,12 +480,6 @@ class Bridge(object):
             data = self._received_data[iter_id][name]
 
         duration = time.time() - start_time
-        # TODO(lixiaoguang.01) old version, to be deleted
-        _gctx.stats_client.timing(
-            "trainer.bridge.receive_timing", duration * 1000,
-            {"bridge_receive_name": name}
-        )
-        # new version
         metric_collector.emit_store(f'model.grpc.bridge.receive_timing',
                                     duration * 1000,
                                     {'bridge_receive_name': name})
