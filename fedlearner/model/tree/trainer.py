@@ -260,7 +260,7 @@ def read_data(file_type, filename, require_example_ids, require_labels,
 def read_data_dir(file_ext: str, file_wildcard: str, file_type: str, path: str,
                   require_example_ids: bool, require_labels: bool,
                   ignore_fields: str, cat_fields: str, label_field: str,
-                  num_parallel: int):
+                  num_parallel: Optional[int]):
 
     if not tf.io.gfile.isdir(path):
         return read_data(
