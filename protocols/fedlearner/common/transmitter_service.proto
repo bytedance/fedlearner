@@ -1,0 +1,80 @@
+/* Copyright 2020 The FedLearner Authors. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+syntax = "proto3";
+import "google/protobuf/empty.proto";
+import "fedlearner/common/common.proto";
+
+package fedlearner.common;
+
+message FileInfo {
+  string file_path = 1;
+  int64 idx = 2;
+}
+
+message BatchInfo {
+  bool finished = 1;
+  int64 file_idx = 2;
+  int64 batch_idx = 4;
+}
+
+message AllocateTaskRequest {
+  int64 worker_id = 1;
+}
+
+message AllocateTaskResponse {
+  Status status = 1;
+  repeated FileInfo file_infos = 2;
+}
+
+message FinishFilesRequest {
+  repeated int64 file_indices = 1;
+}
+
+message FinishFilesResponse {
+  Status status = 1;
+  string err_msg = 2;
+}
+
+service TransmitterMasterService {
+  rpc AllocateTask(AllocateTaskRequest) returns (AllocateTaskResponse) {}
+  rpc FinishFiles(FinishFilesRequest) returns (FinishFilesResponse) {}
+}
+
+message SyncRequest {
+  int64 file_idx = 1;
+}
+
+message RecvFileFinishRequest {
+  int64 file_idx = 1;
+}
+
+message TransmitDataRequest {
+  BatchInfo batch_info = 1;
+  bytes payload = 2;
+}
+
+message TransmitDataResponse {
+  Status status = 1;
+  BatchInfo batch_info = 2;
+  bytes payload = 3;
+}
+
+service TransmitterWorkerService {
+  rpc RecvFileFinish(RecvFileFinishRequest) returns (Status) {}
+  rpc RecvTaskFinish(google.protobuf.Empty) returns (Status) {}
+  rpc TransmitData(stream TransmitDataRequest) returns (stream TransmitDataResponse) {}
+  rpc DataFinish(google.protobuf.Empty) returns (Status) {}
+}
