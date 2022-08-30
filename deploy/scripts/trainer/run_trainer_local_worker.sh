@@ -23,8 +23,6 @@ source /app/deploy/scripts/hdfs_common.sh || true
 source /app/deploy/scripts/pre_start_hook.sh || true
 source /app/deploy/scripts/env_to_args.sh
 
-PEER_ADDR=$SERVICE_ID
-
 if [[ -n "${CODE_KEY}" ]]; then
   pull_code ${CODE_KEY} $PWD
 else
@@ -37,7 +35,6 @@ mode=$(normalize_env_to_args "--mode" "$MODE")
 sparse_estimator=$(normalize_env_to_args "--sparse-estimator" "$SPARSE_ESTIMATOR")
 batch_size=$(normalize_env_to_args "--batch-size" "$BATCH_SIZE")
 learning_rate=$(normalize_env_to_args "--learning-rate" "$LEARNING_RATE")
-extra_params=$(normalize_env_to_args "--extra-params" "$EXTRA_PARAMS")
 
 if [ -n "$CLUSTER_SPEC" ]; then
   # get master address from clusteSpec["master"]
@@ -47,6 +44,11 @@ cluster_spec = json.loads('$CLUSTER_SPEC')['clusterSpec']
 if 'Master' in cluster_spec:
   print(cluster_spec['Master'][0].split(':')[0])
 "`
+  NUM_WORKER=`python -c """
+import json
+cluster_spec = json.loads('$CLUSTER_SPEC')['clusterSpec']
+print(len(cluster_spec.get('Worker', [])))
+"""`
 
   # rewrite tensorflow ClusterSpec for compatibility
   # master port 50051 is used for fedlearner master server, so rewrite to 50052
@@ -74,19 +76,15 @@ print(json.dumps({'clusterSpec': cluster_spec}))
 """`
 fi
 
-LISTEN_PORT=50051
-if [[ -n "${PORT0}" ]]; then
-  LISTEN_PORT=${PORT0}
-fi
-
 server_port=$(normalize_env_to_args "--server-port" "$PORT1")
 
+WORKER_RANK=`python -c "print($INDEX + $NUM_WORKER)"`
+
 python main.py --worker \
+    --local-worker \
     --application-id="$APPLICATION_ID" \
     --master-addr="$MASTER_HOST:50051" \
     --cluster-spec="$CLUSTER_SPEC" \
-    --local-addr="$POD_IP:${LISTEN_PORT}" \
-    --peer-addr="$PEER_ADDR" \
-    --worker-rank="$INDEX" \
+    --worker-rank="$WORKER_RANK" \
     $server_port $mode $batch_size \
     $sparse_estimator $learning_rate
