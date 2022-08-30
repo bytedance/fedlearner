@@ -556,17 +556,6 @@ class LeaderTrainerMaster(_TrainerMaster):
                             allocated_local_datablock, total_local_datablock,
                             len(self._running_workers),
                             len(self._completed_workers))
-            # TODO(lixiaoguang.01) old version, to be deleted
-            with _gctx.stats_client.pipeline() as pipe:
-                pipe.gauge("trainer.global_step", global_step)
-                pipe.gauge("trainer.datablock_total", total_datablock)
-                pipe.gauge("trainer.datablock_allocated", allocated_datablock)
-                pipe.gauge("trainer.local_datablock_total",
-                           total_local_datablock)
-                pipe.gauge("trainer.local_datablock_allocated",
-                           allocated_local_datablock)
-                pipe.gauge("trainer.speed", speed)
-            # new version
             name_prefix = f'model.{self._mode}.nn_vertical'
             metric_collector.emit_store(
                 f'{name_prefix}.global_step', global_step)
@@ -680,14 +669,6 @@ class FollowerTrainerMaster(_TrainerMaster):
                             total_local_datablock,
                             len(self._running_workers),
                             len(self._completed_workers))
-            # TODO(lixiaoguang.01) old version, to be deleted
-            with _gctx.stats_client.pipeline() as pipe:
-                pipe.gauge("trainer.global_step", global_step)
-                pipe.gauge("trainer.datablock_total", total_datablock)
-                pipe.gauge("trainer.local_datablock_total",
-                           total_local_datablock)
-                pipe.gauge("trainer.speed", speed)
-            # new version
             name_prefix = f'model.{self._mode}.nn_vertical'
             metric_collector.emit_store(
                 f'{name_prefix}.global_step', global_step)
