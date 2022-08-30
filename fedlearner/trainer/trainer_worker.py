@@ -20,14 +20,16 @@ import threading
 import tensorflow.compat.v1 as tf
 from fedlearner.common import fl_logging, stats
 from fedlearner.common.argparse_util import str_as_bool
-from fedlearner.trainer.bridge import Bridge
+from fedlearner.common import trainer_master_service_pb2 as tm_pb
+from fedlearner.trainer.bridge import Bridge, FakeBridge
 from fedlearner.trainer.estimator import FLEstimator
 from fedlearner.trainer.sparse_estimator import SparseFLEstimator
 from fedlearner.trainer.trainer_master_client \
     import LocalTrainerMasterClient, TrainerMasterClient
 from fedlearner.trainer.trainer_master \
     import LeaderTrainerMaster, FollowerTrainerMaster, ExportModelHook
-from fedlearner.trainer.data_visitor import DataPathVisitor, DataSourceVisitor
+from fedlearner.trainer.data_visitor import DataPathVisitor, \
+    DataSourceVisitor, ShuffleType
 from fedlearner.trainer.cluster_server import ClusterServer
 from fedlearner.trainer._global_context import global_context as _gctx
 from fedlearner.trainer.run_hooks import StepLossAucMetricsHook, StepMetricsHook #pylint: disable=unused-import
@@ -35,6 +37,7 @@ from fedlearner.trainer.run_hooks import StepLossAucMetricsHook, StepMetricsHook
 
 LEADER = "leader"
 FOLLOER = "follower"
+
 
 def create_argument_parser():
     parser = argparse.ArgumentParser(description='FedLearner Trainer.')
@@ -82,10 +85,17 @@ def create_argument_parser():
     parser.add_argument('--data-source',
                         type=str,
                         help='path to data source for training')
+    parser.add_argument('--local-data-source',
+                        type=str,
+                        help='path to local data source for training')
     parser.add_argument('--data-path',
                         type=str,
                         help='path to data block files for training.'
                              'Ignore if data-source is set')
+    parser.add_argument('--local-data-path',
+                        type=str,
+                        help='path to local data block files for training.'
+                             'Ignore if local-data-source is set')
     parser.add_argument('--data-path-wildcard',
                         type=str,
                         default='part-*',
@@ -97,6 +107,12 @@ def create_argument_parser():
     parser.add_argument('--end-date',
                         type=int,
                         help='training data end time')
+    parser.add_argument('--local-start-date',
+                        type=int,
+                        help='local training data start time')
+    parser.add_argument('--local-end-date',
+                        type=int,
+                        help='local training data end time')
     parser.add_argument('--epoch-num',
                         type=int,
                         default=1,
@@ -106,6 +122,9 @@ def create_argument_parser():
                         type=str_as_bool,
                         default=False, const=True, nargs='?',
                         help='shuffle the data block or not')
+    parser.add_argument('--shuffle-in-day',
+                        type=bool,
+                        help='shuffle the data block within a day or not')
     parser.add_argument('--export-path',
                         type=str,
                         help='Path to save exported models.')
@@ -209,30 +228,38 @@ def _run_master(role,
     master.run_forever(args.master_addr)
 
 def _run_worker(role, args, input_fn, model_fn):
-    if not args.local_addr:
-        raise ValueError("local-addr is required")
-    if not args.peer_addr:
-        raise ValueError("peer-addr is required")
     if not args.master_addr:
         raise ValueError("master-addr is required")
     mode = args.mode.lower()
+
+    worker_type = tm_pb.WorkerType.REMOTE_WORKER
+    if hasattr(args, "local_worker") and args.local_worker:
+        worker_type = tm_pb.WorkerType.LOCAL_WORKER
+        bridge = FakeBridge()
+    else:
+        if not args.local_addr:
+            raise ValueError("local-addr is required")
+        if not args.peer_addr:
+            raise ValueError("peer-addr is required")
+        bridge = Bridge(role,
+                        int(args.local_addr.split(':')[1]),
+                        args.peer_addr,
+                        args.application_id,
+                        args.worker_rank)
+
+    fl_logging.info("Start worker rank %d with type %s", args.worker_rank,
+                    worker_type)
 
     cluster_spec = _create_cluster_spec(args, require_ps=True)
     cluster_server = ClusterServer(cluster_spec,
                                    "worker",
                                    task_index=args.worker_rank,
                                    server_port=args.server_port)
-
     trainer_master = TrainerMasterClient(args.master_addr,
-                                         args.worker_rank)
+                                         args.worker_rank,
+                                         worker_type)
     if not trainer_master.worker_register(cluster_spec.as_cluster_def()):
         return
-
-    bridge = Bridge(role,
-                    int(args.local_addr.split(':')[1]),
-                    args.peer_addr,
-                    args.application_id,
-                    args.worker_rank)
 
     estimator_factory = SparseFLEstimator \
         if args.sparse_estimator else FLEstimator
@@ -257,10 +284,6 @@ def _run_local(role,
                model_fn,
                serving_input_receiver_fn,
                export_model_hook=None):
-    if not args.local_addr:
-        raise ValueError("local-addr is required")
-    if not args.peer_addr:
-        raise ValueError("peer-addr is required")
     mode = args.mode.lower()
 
     cluster_spec = _create_cluster_spec(args)
@@ -294,14 +317,22 @@ def _run_local(role,
     master_thread.start()
 
     # run worker
+    if hasattr(args, "local_worker") and args.local_worker:
+        bridge = FakeBridge()
+    else:
+        if not args.local_addr:
+            raise ValueError("local-addr is required")
+        if not args.peer_addr:
+            raise ValueError("peer-addr is required")
+        bridge = Bridge(role,
+                        int(args.local_addr.split(':')[1]),
+                        args.peer_addr,
+                        args.application_id,
+                        0)
+
     trainer_master = LocalTrainerMasterClient(local_master, 0)
     if not trainer_master.worker_register():
         return
-    bridge = Bridge(role,
-                    int(args.local_addr.split(':')[1]),
-                    args.peer_addr,
-                    args.application_id,
-                    0)
 
     estimator_factory = \
         SparseFLEstimator if args.sparse_estimator else FLEstimator
@@ -372,17 +403,31 @@ def _create_data_visitor(args):
     visitor = None
     start_date = int(args.start_date) if args.start_date else None
     end_date = int(args.end_date) if args.end_date else None
+    local_start_date = int(args.local_start_date) if args.local_start_date \
+        else None
+    local_end_date = int(args.local_end_date) if args.local_end_date \
+        else None
+
+    shuffle_type = None
+    if args.shuffle:
+        shuffle_type = ShuffleType.ALL
+    elif args.shuffle_in_day:
+        shuffle_type = ShuffleType.DAY
     if args.data_source:
         visitor = DataSourceVisitor(args.data_source,
                                     start_date=start_date,
                                     end_date=end_date,
+                                    local_data_source=args.local_data_source,
+                                    local_start_date=local_start_date,
+                                    local_end_date=local_end_date,
                                     epoch_num=args.epoch_num,
-                                    shuffle=args.shuffle)
+                                    shuffle_type=shuffle_type)
     elif args.data_path and args.data_path_wildcard:
         visitor = DataPathVisitor(args.data_path,
+                                  args.local_data_path,
                                   wildcard=args.data_path_wildcard,
                                   epoch_num=args.epoch_num,
-                                  shuffle=args.shuffle)
+                                  shuffle_type=shuffle_type)
     if not visitor:
         raise ValueError("cannot found any data to train, "
                          "please specify [--data-source] or "

@@ -29,6 +29,7 @@ from fedlearner.common import trainer_master_service_pb2 as tm_pb
 from fedlearner.common import trainer_master_service_pb2_grpc as tm_grpc
 from fedlearner.common import common_pb2 as common_pb
 from fedlearner.common.metric_collector import metric_collector
+from fedlearner.trainer.bridge import FakeBridge
 from fedlearner.trainer.estimator import FLEstimator
 from fedlearner.trainer.sparse_estimator import SparseFLEstimator
 from fedlearner.trainer.cluster_server import ClusterServer
@@ -145,22 +146,6 @@ class DataBlockCheckpointSaverListener(tf.train.CheckpointSaverListener):
             {self._ckpt: self._visitor.dump()}
         )
         #fl_logging.info("data checkpoint saved result: %s", res)
-
-
-class _FakeBridge():
-    def send_op(self, name, x):
-        def func(x):
-            raise RuntimeError("Unexcepted call send op")
-
-        out = tf.py_function(func=func, inp=[x], Tout=[], name='send_' + name)
-        return out
-    def receive_op(self, name, dtype):
-        def func():
-            raise RuntimeError("Unexcepted call receive op")
-
-        return tf.py_function(func=func, inp=[], Tout=[dtype])[0]
-    def register_data_block_handler(self, handler):
-        pass
 
 
 class _FakeTrainerMasterClient():
@@ -286,7 +271,7 @@ class _TrainerMaster(tm_grpc.TrainerMasterServiceServicer):
             if self._sparse_estimator else FLEstimator
         return estimator_factory(
             cluster_server=self._cluster_server,
-            bridge=_FakeBridge(),
+            bridge=FakeBridge(),
             trainer_master=_FakeTrainerMasterClient(),
             role=self._role,
             model_fn=self._model_fn)
@@ -545,21 +530,31 @@ class LeaderTrainerMaster(_TrainerMaster):
                          trigger_fn=self._trigger_fn)
             )
 
+        # worker type: data source type
+        self._worker_data_source_map = {
+            tm_pb.WorkerType.REMOTE_WORKER: tm_pb.DataSourceType.JOINED,
+            tm_pb.WorkerType.LOCAL_WORKER: tm_pb.DataSourceType.LOCAL
+        }
+
     def _trigger_fn(self, global_step):
         now = time.time()
         if self._last_global_step >= 0:
             speed = (global_step-self._last_global_step) \
                 / (now-self._last_trigger_time)
-            allocated_epoch, allocated_datablock = self._data_visitor.summary()
-            total_epoch, total_datablock = \
+            allocated_epoch, allocated_datablock, allocated_local_datablock \
+                = self._data_visitor.summary()
+            total_epoch, total_datablock, total_local_datablock = \
                 self._data_visitor.epoch_num, \
-                    self._data_visitor.datablock_size
+                    self._data_visitor.datablock_size, \
+                        self._data_visitor.local_datablock_size
             fl_logging.info("global_step: %d, speed: %0.2f step/sec, "
                             "epoch: %d/%d, datablock allocated: %d/%d, "
+                            "local datablock allocated: %d/%d, "
                             "worker: %d/%d(running/completed)",
                             global_step, speed,
                             allocated_epoch, total_epoch,
                             allocated_datablock, total_datablock,
+                            allocated_local_datablock, total_local_datablock,
                             len(self._running_workers),
                             len(self._completed_workers))
             # TODO(lixiaoguang.01) old version, to be deleted
@@ -567,6 +562,10 @@ class LeaderTrainerMaster(_TrainerMaster):
                 pipe.gauge("trainer.global_step", global_step)
                 pipe.gauge("trainer.datablock_total", total_datablock)
                 pipe.gauge("trainer.datablock_allocated", allocated_datablock)
+                pipe.gauge("trainer.local_datablock_total",
+                           total_local_datablock)
+                pipe.gauge("trainer.local_datablock_allocated",
+                           allocated_local_datablock)
                 pipe.gauge("trainer.speed", speed)
             # new version
             name_prefix = f'model.{self._mode}.nn_vertical'
@@ -582,11 +581,11 @@ class LeaderTrainerMaster(_TrainerMaster):
 
     def _request_data_block(self, request):
         try:
-            data_block = next(self._data_visitor)
+            data_block = self._data_visitor.next_with_type(
+                self._worker_data_source_map[request.worker_type])
         except StopIteration:
             data_block = None
 
-        response = tm_pb.DataBlockResponse()
         if data_block:
             fl_logging.info("allocated worker_%d with block: %s",
                             request.worker_rank,
@@ -664,17 +663,22 @@ class FollowerTrainerMaster(_TrainerMaster):
             speed = (global_step-self._last_global_step) \
                 / (now-self._last_trigger_time)
             total_datablock = self._data_visitor.datablock_size
+            total_local_datablock = self._data_visitor.local_datablock_size
             fl_logging.info("global_step: %d, speed: %0.2f step/sec, "
                             "datablock size: %d, "
+                            "local datablock size: %d, "
                             "worker: %d/%d(running/completed)",
                             global_step, speed,
                             total_datablock,
+                            total_local_datablock,
                             len(self._running_workers),
                             len(self._completed_workers))
             # TODO(lixiaoguang.01) old version, to be deleted
             with _gctx.stats_client.pipeline() as pipe:
                 pipe.gauge("trainer.global_step", global_step)
                 pipe.gauge("trainer.datablock_total", total_datablock)
+                pipe.gauge("trainer.local_datablock_total",
+                           total_local_datablock)
                 pipe.gauge("trainer.speed", speed)
             # new version
             name_prefix = f'model.{self._mode}.nn_vertical'

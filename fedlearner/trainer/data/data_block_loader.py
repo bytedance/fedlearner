@@ -66,7 +66,7 @@ class DataBlockLoader(object):
             block = self._block_queue.get()
         return block
 
-    def make_dataset(self):
+    def make_dataset(self, compression_type=None):
         def gen():
             while True:
                 block = self.get_next_block()
@@ -75,7 +75,8 @@ class DataBlockLoader(object):
                 yield block.data_path
 
         dataset = tf.data.Dataset.from_generator(gen, tf.string)
-        dataset = tf.data.TFRecordDataset(dataset)
+        dataset = tf.data.TFRecordDataset(dataset,
+                                          compression_type=compression_type)
         dataset = dataset.batch(self._batch_size, drop_remainder=True)
         dataset = dataset.prefetch(1)
         return dataset
