@@ -24,6 +24,7 @@ import collections
 import random
 import sys
 from datetime import timedelta, datetime
+from typing import Optional
 
 import tensorflow.compat.v1 as tf
 from fedlearner.common import fl_logging
@@ -112,7 +113,7 @@ class RawDataBlockDealer(object):
 
 class _DataVisitor(object):
     def __init__(self, datablocks, local_datablocks=None, epoch_num=1,
-                 shuffle_type=None):
+                 shuffle_type: Optional[ShuffleType] = None):
         self._datablocks = {
             tm_pb.JOINED: list(datablocks),
         }
