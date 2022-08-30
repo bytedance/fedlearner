@@ -266,7 +266,6 @@ class FLEstimator(object):
                     fl_logging.debug("after session run. time: %f sec",
                                      use_time)
             self._bridge.terminate()
-
             # Print result
             fl_logging.info('Metrics for evaluate: %s',
                 _dict_to_str(final_ops_hook.final_ops_values))

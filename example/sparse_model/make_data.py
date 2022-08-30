@@ -27,7 +27,7 @@ import tensorflow.compat.v1 as tf
 
 from tensorflow.core.example.example_pb2 import Example
 from tensorflow.core.example.feature_pb2 import Features, Feature, \
-                                                Int64List, BytesList
+                                                Int64List, BytesList, FloatList
 
 current_dir = os.path.dirname(__file__)
 shutil.rmtree(os.path.join(current_dir, 'data'), ignore_errors=True)
@@ -82,6 +82,9 @@ if __name__ == '__main__':
                 Feature(int64_list=Int64List(value=[random.randint(0, 1)]))
             features_l['fids'] = \
                 Feature(int64_list=Int64List(value=_fake_sample(LEADER_SLOTS)))
+            features_l['act1_f'] = \
+                Feature(float_list=FloatList(value=np.random.uniform(
+                    low=0., high=1., size=(64,))))
             fl.write(Example(features=Features(feature=features_l))
                 .SerializeToString())
 
