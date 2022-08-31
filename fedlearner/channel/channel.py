@@ -190,8 +190,7 @@ class Channel():
             identifier=self._identifier,
             retry_interval=self._retry_interval,
             wait_fn=self.wait_for_ready,
-            check_fn=self._channel_response_check_fn,
-            stats_client=stats_client)
+            check_fn=self._channel_response_check_fn)
         self._channel = grpc.intercept_channel(self._channel,
             self._channel_interceptor)
 
