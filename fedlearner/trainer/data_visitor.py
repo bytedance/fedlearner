@@ -354,7 +354,7 @@ class DataPathVisitor(_DataVisitor):
                                           None, None,
                                           tm_pb.JOINED)
                 datablocks.append(datablock)
-        datablocks.sort(key=lambda x: x.end_time)
+        datablocks.sort(key=lambda x: x.block_id)
 
         fl_logging.info("create DataVisitor by local_data_path: %s",
                         local_data_path)
@@ -371,7 +371,7 @@ class DataPathVisitor(_DataVisitor):
                                               None, None,
                                               tm_pb.LOCAL)
                     local_datablocks.append(datablock)
-        local_datablocks.sort(key=lambda x: x.end_time)
+        local_datablocks.sort(key=lambda x: x.block_id)
 
         super(DataPathVisitor, self).__init__(datablocks, local_datablocks,
                                               epoch_num, shuffle_type)
