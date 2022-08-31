@@ -20,7 +20,7 @@ import threading
 import time
 import grpc
 
-from fedlearner.common import fl_logging, stats
+from fedlearner.common import fl_logging
 from fedlearner.common.metric_collector import metric_collector
 from fedlearner.channel import channel_pb2
 
