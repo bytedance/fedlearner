@@ -349,10 +349,10 @@ class DataPathVisitor(_DataVisitor):
                     continue
                 subdirname = os.path.relpath(dirname, data_path)
                 block_id = os.path.join(subdirname, filename)
-                datablock = _RawDataBlock(block_id,
-                                          os.path.join(dirname, filename),
-                                          None, None,
-                                          tm_pb.JOINED)
+                datablock = _RawDataBlock(id=block_id,
+                                          data_path=os.path.join(dirname, filename),
+                                          start_time=None, end_time=None,
+                                          type=tm_pb.JOINED)
                 datablocks.append(datablock)
         datablocks.sort(key=lambda x: x.block_id)
 
@@ -366,12 +366,12 @@ class DataPathVisitor(_DataVisitor):
                         continue
                     subdirname = os.path.relpath(dirname, local_data_path)
                     block_id = os.path.join(subdirname, filename)
-                    datablock = _RawDataBlock(block_id,
-                                              os.path.join(dirname, filename),
-                                              None, None,
-                                              tm_pb.LOCAL)
+                    datablock = _RawDataBlock(id=block_id,
+                                              data_path=os.path.join(dirname, filename),
+                                              start_time=None, end_time=None,
+                                              type=tm_pb.LOCAL)
                     local_datablocks.append(datablock)
-        local_datablocks.sort(key=lambda x: x.block_id)
+        local_datablocks.sort(key=lambda x: x.id)
 
         super(DataPathVisitor, self).__init__(datablocks, local_datablocks,
                                               epoch_num, shuffle_type)
