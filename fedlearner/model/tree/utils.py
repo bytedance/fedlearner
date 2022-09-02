@@ -20,5 +20,5 @@ def filter_files(path: str, file_ext: Optional[str],
         if file_wildcard and not fnmatch(fpath, file_wildcard):
             continue
         files.append(fpath)
-    logging.info("filtered files num: ", len(files))
+    logging.info("filtered files num: %d", len(files))
     return files

@@ -1,4 +1,5 @@
 import tempfile
+import logging
 import unittest
 from pathlib import Path
 from fedlearner.model.tree.trainer import filter_files
@@ -30,4 +31,5 @@ class TestFilterFiles(unittest.TestCase):
 
 
 if __name__ == '__main__':
+    logging.basicConfig(level=logging.INFO)
     unittest.main()
