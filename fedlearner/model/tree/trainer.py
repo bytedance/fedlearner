@@ -197,7 +197,7 @@ def extract_field(field_names, field_name, required):
 
 def read_data(file_type, filename, require_example_ids, require_labels,
               ignore_fields, cat_fields, label_field):
-    logging.debug('Reading data file from %s', filename)
+    logging.info('Reading data file from %s', filename)
 
     if file_type == 'tfrecord':
         reader = tf.io.tf_record_iterator(filename)
