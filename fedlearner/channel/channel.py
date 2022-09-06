@@ -24,6 +24,7 @@ from concurrent import futures
 import grpc
 from fedlearner.common import fl_logging, stats
 from fedlearner.channel import channel_pb2, channel_pb2_grpc
+from fedlearner.common.metric_collector import metric_collector
 from fedlearner.proxy.channel import make_insecure_channel, ChannelType
 from fedlearner.channel.client_interceptor import ClientInterceptor
 from fedlearner.channel.server_interceptor import ServerInterceptor
@@ -189,8 +190,7 @@ class Channel():
             identifier=self._identifier,
             retry_interval=self._retry_interval,
             wait_fn=self.wait_for_ready,
-            check_fn=self._channel_response_check_fn,
-            stats_client=stats_client)
+            check_fn=self._channel_response_check_fn)
         self._channel = grpc.intercept_channel(self._channel,
             self._channel_interceptor)
 
@@ -404,13 +404,14 @@ class Channel():
                 token=self._token,
                 identifier=self._identifier,
                 peer_identifier=self._peer_identifier)
-            timer = self._stats_client.timer("channel.call_timing").start()
-            res = self._channel_call.Call(req,
-                                          timeout=self._heartbeat_interval,
-                                          wait_for_ready=True)
-            timer.stop()
+            with metric_collector.emit_timing(
+                'model.grpc.channel.call_timing'
+            ):
+                res = self._channel_call.Call(req,
+                                              timeout=self._heartbeat_interval,
+                                              wait_for_ready=True)
         except Exception as e:
-            self._stats_client.incr("channel.call_error")
+            metric_collector.emit_counter('model.grpc.channel.call_error', 1)
             if isinstance(e, grpc.RpcError):
                 fl_logging.warning("[Channel] grpc error, code: %s, "
                     "details: %s.(call type: %s)",
@@ -469,7 +470,8 @@ class Channel():
             saved_state = self._state
             wait_timeout = 10
 
-            self._stats_client.gauge("channel.status", self._state.value)
+            metric_collector.emit_store('model.grpc.channel.status',
+                                        self._state.value)
             if self._state in (Channel.State.DONE, Channel.State.ERROR):
                 break
 
