@@ -18,10 +18,11 @@ import json
 import threading
 
 import tensorflow.compat.v1 as tf
-from fedlearner.common import fl_logging, stats
+from fedlearner.common import fl_logging
 from fedlearner.common.argparse_util import str_as_bool
 from fedlearner.common import trainer_master_service_pb2 as tm_pb
 from fedlearner.trainer.bridge import Bridge, FakeBridge
+from fedlearner.common.metric_collector import metric_collector
 from fedlearner.trainer.estimator import FLEstimator
 from fedlearner.trainer.sparse_estimator import SparseFLEstimator
 from fedlearner.trainer.trainer_master_client \
@@ -470,8 +471,16 @@ def train(role,
     else:
         raise ValueError("duplication specify --master and --worker")
 
-    stats.enable_cpu_stats(_gctx.stats_client)
-    stats.enable_mem_stats(_gctx.stats_client)
+    global_tags = {
+        'task': _gctx.task,
+        'task_index': str(_gctx.task_index),
+        'role': role.lower(),
+        'node_name': os.environ.get('HOSTNAME', 'default_node_name'),
+        'pod_name': os.environ.get('POD_NAME', 'default_pod_name'),
+    }
+    metric_collector.add_global_tags(global_tags)
+    name_prefix = f'model.{mode}.nn_vertical'
+    metric_collector.emit_counter(f'{name_prefix}.start_count', 1)
 
     if _gctx.task == "local":
         _run_local(role, args, input_fn, model_fn,

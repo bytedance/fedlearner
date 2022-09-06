@@ -41,6 +41,10 @@ _logger = logging.getLogger(__name__)
 class AbstractCollector(ABC):
 
     @abstractmethod
+    def add_global_tags(self, global_tags: Dict[str, str]):
+        pass
+
+    @abstractmethod
     def emit_single_point(self,
                           name: str,
                           value: Union[int, float],
@@ -79,6 +83,9 @@ class StubCollector(AbstractCollector):
 
         def __exit__(self, *a):
             pass
+
+    def add_global_tags(self, global_tags: Dict[str, str]):
+        pass
 
     def emit_single_point(self,
                           name: str,
@@ -188,6 +195,11 @@ class MetricCollector(AbstractCollector):
         self._cache: \
             Dict[str, Union[UpDownCounter, MetricCollector.Callback]] = {}
 
+        self._global_tags = {}
+
+    def add_global_tags(self, global_tags: Dict[str, str]):
+        self._global_tags.update(global_tags)
+
     def emit_single_point(self,
                           name: str,
                           value: Union[int, float],
@@ -196,12 +208,13 @@ class MetricCollector(AbstractCollector):
         self._meter.create_observable_gauge(
             name=f'values.{name}', callback=cb
         )
-        cb.record(value=value, tags=tags)
+        cb.record(value=value, tags=self._get_merged_tags(tags))
 
     def emit_timing(self,
                     name: str,
                     tags: Dict[str, str] = None) -> Iterator[Span]:
-        return self._tracer.start_as_current_span(name=name, attributes=tags)
+        return self._tracer.start_as_current_span(
+            name=name, attributes=self._get_merged_tags(tags))
 
     def emit_counter(self,
                      name: str,
@@ -216,7 +229,7 @@ class MetricCollector(AbstractCollector):
                     )
                     self._cache[name] = counter
         assert isinstance(self._cache[name], UpDownCounter)
-        self._cache[name].add(value, attributes=tags)
+        self._cache[name].add(value, attributes=self._get_merged_tags(tags))
 
     def emit_store(self,
                    name: str,
@@ -232,7 +245,14 @@ class MetricCollector(AbstractCollector):
                     )
                     self._cache[name] = cb
         assert isinstance(self._cache[name], self.Callback)
-        self._cache[name].record(value=value, tags=tags)
+        self._cache[name].record(value=value,
+                                 tags=self._get_merged_tags(tags))
+
+    def _get_merged_tags(self, tags: Dict[str, str] = None):
+        merged = self._global_tags.copy()
+        if tags is not None:
+            merged.update(tags)
+        return merged
 
 
 enable = True
