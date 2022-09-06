@@ -20,7 +20,7 @@ import threading
 import time
 import grpc
 
-from fedlearner.common import fl_logging, stats
+from fedlearner.common import fl_logging
 from fedlearner.common.metric_collector import metric_collector
 from fedlearner.channel import channel_pb2
 
@@ -47,8 +47,7 @@ class ClientInterceptor(grpc.UnaryUnaryClientInterceptor,
                  identifier,
                  retry_interval,
                  wait_fn=None,
-                 check_fn=None,
-                 stats_client=None):
+                 check_fn=None):
         self._retry_interval = retry_interval
         self._identifer = identifier
         self._wait_fn = wait_fn
@@ -57,7 +56,6 @@ class ClientInterceptor(grpc.UnaryUnaryClientInterceptor,
         self._method_details = dict()
 
         self._fl_metadata = ("fl-channel-id", self._identifer)
-        self._stats_client = stats_client or stats.NoneClient()
 
     def _wait(self):
         if self._wait_fn:
@@ -103,8 +101,10 @@ class ClientInterceptor(grpc.UnaryUnaryClientInterceptor,
             self._wait()
             return continuation(client_call_details, request)
 
-        with self._stats_client.timer("channel.client.unary_unary_timing",
-            tags={"grpc_method": method_details.method}):
+        with metric_collector.emit_timing(
+            'model.grpc.interceptor.channel.client.unary_unary_timing',
+            tags={'grpc_method': method_details.method}
+        ):
             _call = _grpc_with_retry(call, self._retry_interval)
             return _UnaryOutcome(
                 method_details.response_deserializer, _call, self._check_fn)
@@ -125,10 +125,7 @@ class ClientInterceptor(grpc.UnaryUnaryClientInterceptor,
             self._wait()
             return continuation(client_call_details, request)
 
-        timer = self._stats_client.timer(
-                "channel.client.unary_stream_timing",
-                tags={"grpc_method": method_details.method}
-            ).start()
+        start = time.time()
 
         stream_response = _grpc_with_retry(call, self._retry_interval)
 
@@ -136,7 +133,12 @@ class ClientInterceptor(grpc.UnaryUnaryClientInterceptor,
             for response in stream_response:
                 self._check_fn(response)
                 yield method_details.response_deserializer(response.payload)
-            timer.stop()
+            value = (time.time() - start) * 1000
+            metric_collector.emit_store(
+                f'model.grpc.interceptor.channel.client.unary_stream_timing',
+                value,
+                tags={'grpc_method': method_details.method}
+            )
 
         return response_iterator()
 
@@ -157,8 +159,10 @@ class ClientInterceptor(grpc.UnaryUnaryClientInterceptor,
             consumer = srq.consumer()
             return continuation(client_call_details, iter(consumer))
 
-        with self._stats_client.timer("channel.client.stream_unary_timing",
-            tags={"grpc_method": method_details.method}):
+        with metric_collector.emit_timing(
+            'model.grpc.interceptor.channel.client.stream_unary_timing',
+            tags={'grpc_method': method_details.method}
+        ):
             _call = _grpc_with_retry(call, self._retry_interval)
             return _UnaryOutcome(method_details.response_deserializer,
                 _call, self._check_fn)
@@ -174,9 +178,7 @@ class ClientInterceptor(grpc.UnaryUnaryClientInterceptor,
 
         srq = _SingleConsumerSendRequestQueue(
             request_iterator, method_details.request_serializer,
-            stats_client=self._stats_client.with_tags(
-                tags={"grpc_method": method_details.method}
-            ),
+            stats_tags={'grpc_method': method_details.method},
             stats_prefix="channel.client.stream_stream")
         consumer = None
 
@@ -229,7 +231,7 @@ class _SingleConsumerSendRequestQueue():
         next = __next__
 
     def __init__(self, request_iterator, request_serializer,
-                 stats_client=None, stats_prefix=""):
+                 stats_tags=None, stats_prefix=""):
         self._lock = threading.Lock()
         self._seq = 0
         self._offset = 0
@@ -239,13 +241,16 @@ class _SingleConsumerSendRequestQueue():
         self._request_lock = threading.Lock()
         self._request_iterator = request_iterator
         self._request_serializer = request_serializer
-        self._stats_client = stats_client or stats.NoneClient()
+        self._stats_tags = stats_tags or {}
         self._stats_prefix = stats_prefix
 
     def _reset(self):
         if self._offset > 0:
-            self._stats_client.incr(
-                "%s_resend"%self._stats_prefix, self._offset)
+            metric_collector.emit_counter(
+                f'model.grpc.interceptor.{self._stats_prefix}_resend',
+                self._offset,
+                tags=self._stats_tags
+            )
         self._offset = 0
 
     def _empty(self):
@@ -285,18 +290,16 @@ class _SingleConsumerSendRequestQueue():
                 return False
             now = time.time()
             n = self._seq - ack
-            with self._stats_client.pipeline() as pipe:
-                while len(self._deque) >= n:
-                    req = self._deque.popleft()
-                    self._offset -= 1
-                    # TODO(lixiaoguang.01) old version, to be deleted
-                    pipe.timing("%s_timing"%self._stats_prefix,
-                        (now-req.ts)*1000)
-                    # new version
-                    name_prefix = f'model.grpc.interceptor'
-                    value = (now - req.ts) * 1000
-                    metric_collector.emit_store(
-                        f'{name_prefix}.{self._stats_prefix}_timing', value)
+            while len(self._deque) >= n:
+                req = self._deque.popleft()
+                self._offset -= 1
+                name_prefix = 'model.grpc.interceptor'
+                value = (now - req.ts) * 1000
+                metric_collector.emit_store(
+                    f'{name_prefix}.{self._stats_prefix}_timing',
+                    value,
+                    tags=self._stats_tags
+                )
             return True
 
     def next(self, consumer):
