@@ -24,7 +24,7 @@ pull_code() {
   elif [[ $1 == "file://"* ]]; then
       path=$1
       pure_path=${path#file://}
-      cp -r pure_path pulled_file
+      cp -r $pure_path pulled_file
   else
       cp -r $1 pulled_file
   fi
