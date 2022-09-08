@@ -21,6 +21,7 @@ def filter_files(path: str, file_ext: Optional[str],
                 continue
             files.append(fpath)
         depth += 1
+        # 正常情况只需要过滤path下的所有文件，追新场景下在path下会多一层batch，因此至多过滤两层
         if depth > 1:
             break
     logging.info("file wildcard is %s, file ext is %s, "
