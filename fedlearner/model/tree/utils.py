@@ -11,8 +11,6 @@ def filter_files(path: str, file_ext: Optional[str],
     files = []
     depth = 0
     for dirname, _, filenames in tf.io.gfile.walk(path):
-        if depth == 2:
-            break
         for filename in filenames:
             _, ext = os.path.splitext(filename)
             subdirname = os.path.join(path, os.path.relpath(dirname, path))
@@ -23,6 +21,8 @@ def filter_files(path: str, file_ext: Optional[str],
                 continue
             files.append(fpath)
         depth += 1
+        if depth > 1:
+            break
     logging.info("file wildcard is %s, file ext is %s, "
                  "filtered files num: %d", file_wildcard,
                  file_ext, len(files))
