@@ -21,7 +21,8 @@ def filter_files(path: str, file_ext: Optional[str],
                 continue
             files.append(fpath)
         depth += 1
-        # Not retrieving recursively since there might be some unrecognized files.
+        # Not retrieving recursively since there might be
+        # some unrecognized files.
         if depth > 1:
             break
     logging.info("file wildcard is %s, file ext is %s, "
