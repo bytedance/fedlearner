@@ -368,7 +368,7 @@ class _TrainerMaster(tm_grpc.TrainerMasterServiceServicer):
     def _export_model(self, estimator):
         if self._export_path:
             export_path = os.path.join(
-                self._export_path, str(self._worker0_terminated_at))
+                self._export_path, str(int(time.time())))
             with tf.Graph().as_default() as g, \
                 g.device(self._cluster_server.device_setter):
 
