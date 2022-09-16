@@ -278,6 +278,12 @@ class _TrainerMaster(tm_grpc.TrainerMasterServiceServicer):
     def _run(self):
         fl_logging.info("create estimator")
         estimator = self._create_estimator()
+        if self._should_export_model or \
+            (self._mode == 'train' and self._should_export_model is None):
+            fl_logging.info("start export_model")
+            self._export_model(estimator)
+            fl_logging.info("export_model done")
+
         fl_logging.info("start session_run")
         self._session_run(estimator)
         fl_logging.info("session_run done")
@@ -355,7 +361,6 @@ class _TrainerMaster(tm_grpc.TrainerMasterServiceServicer):
                         if self._status == tm_pb.MasterStatus.WORKER_COMPLETED:
                             break
                     time.sleep(0.2)
-
 
     def _export_model(self, estimator):
         if self._export_path:
