@@ -14,6 +14,7 @@
 
 # coding: utf-8
 
+import os
 import queue
 import tensorflow.compat.v1 as tf
 from fedlearner.common import fl_logging
@@ -72,7 +73,14 @@ class DataBlockLoader(object):
                 block = self.get_next_block()
                 if not block:
                     break
-                yield block.data_path
+                if block.data_path.startsWith("hdfs"):
+                    localPath = os.path.join("/tmp/", os.path.basename(block.data_path))
+                    fl_logging.info("copy '%s' to '%s'", block.data_path, localPath)
+                    tf.io.gfile.copy(block.data_path, localPath, True)
+                else:
+                    localPath = block.data_path
+                fl_logging.info("train with data block file '%s'", localPath)
+                yield localPath
 
         dataset = tf.data.Dataset.from_generator(gen, tf.string)
         dataset = tf.data.TFRecordDataset(dataset,
