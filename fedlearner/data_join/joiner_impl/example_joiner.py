@@ -179,6 +179,7 @@ class ExampleJoiner(object):
                     self._data_block_manager
                 )
         if self._data_block_builder:
+            logging.info("=== set data block builder, %s", self._follower_restart_index)
             self._data_block_builder.set_follower_restart_index(
                 self._follower_restart_index
             )
