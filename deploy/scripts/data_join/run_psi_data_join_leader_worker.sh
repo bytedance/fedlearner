@@ -32,7 +32,7 @@ if [ $INDEX -lt $((WORKER_REPLICAS / 2)) ]; then
 else
   HALF=$((WORKER_REPLICAS / 2))
   export INDEX=$((INDEX - HALF))
-  psi_preprocessor_cmd=/app/deploy/scripts/rsa_psi/run_psi_preprocessor.sh 
+  psi_preprocessor_cmd=/app/deploy/scripts/rsa_psi/run_psi_preprocessor.sh
   exec ${psi_preprocessor_cmd} &
   echo "launched psi preprocessor"
   export INDEX=$((INDEX + HALF))
@@ -44,4 +44,3 @@ else
 fi
 echo "waiting for finished"
 wait
-
