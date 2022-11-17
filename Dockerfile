@@ -8,6 +8,9 @@ RUN apt-get -y update \
     && apt-get -y install libgmp-dev \
     && apt-get -y install libmpfr-dev \
     && apt-get -y install libmpc-dev \
+    && apt-get -y install lsof \
+    && apt-get -y install inetutils-ping \
+    && apt-get -y install dnsutils \
     # For krb5-user installation
     && export DEBIAN_FRONTEND=noninteractive \ 
     && apt-get -y install krb5-user \
