@@ -174,13 +174,12 @@ def multi_epoch_run(is_full=False,
         thresholds_2 = list(np.linspace(0.2, 0.5, int(num_thresholds * 0.25)))
         thresholds_3 = list(np.linspace(0.5, 1.0, int(num_thresholds * 0.25)))
         thresholds_list = (thresholds_1 + thresholds_2 + thresholds_3)[::-1]
-        
-        def cal_auc_one_time(dataset, thresholds_list):
-            return dataset.report_final_ROC_AUC(
-                                    sampled_clients_ratio=clients_sampled_ratio,
-                                    thresholds=thresholds_list,
-                                    dp_noise_mechanism=dp_noise_mechanism,
-                                    dp_noise_eps=dp_noise_eps)
+        # def cal_auc_one_time(dataset, thresholds_list):
+        #     return dataset.report_final_ROC_AUC(
+        #                             sampled_clients_ratio=clients_sampled_ratio,
+        #                             thresholds=thresholds_list,
+        #                             dp_noise_mechanism=dp_noise_mechanism,
+        #                             dp_noise_eps=dp_noise_eps)
 
         auc_gt_tf = ground_truth_auc(tf.cast(labels, dtype=tf.float32),
                                     preds,
@@ -192,11 +191,20 @@ def multi_epoch_run(is_full=False,
         auc_gt_tf_list.append(auc_gt_tf)
         auc_gt_sl_list.append(auc_gt_sl)
 
-        auc_roc_list = list(
-                        map(lambda x:
-                            cal_auc_one_time(dataset, thresholds_list),
-                            range(repeat_times)))
-
+        # auc_roc_list = list(
+        #                 map(lambda x:
+        #                     cal_auc_one_time(dataset, thresholds_list),
+        #                     range(repeat_times)))
+        # auc_roc_list = list(
+        #                 map(lambda x:
+        #                     cal_auc_one_time(dataset, thresholds_list),
+        #                     range(repeat_times)))
+        auc_roc_list = [dataset.report_final_ROC_AUC(
+                                sampled_clients_ratio=clients_sampled_ratio,
+                                thresholds=thresholds_list,
+                                dp_noise_mechanism=dp_noise_mechanism,
+                                dp_noise_eps=dp_noise_eps) for _ in 
+                                                    range(repeat_times)] 
         print("epoch: {}, mean_auc_tf: {}, std_auc_tf: {}".format(
             epoch, np.mean(auc_gt_tf_list), np.std(auc_gt_tf_list)))
         print("epoch: {}, mean_auc_sk: {}, std_auc_sk: {}".format(
