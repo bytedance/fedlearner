@@ -72,14 +72,16 @@ class DataSample:
     def report_quadruple(self, threshold):
         # print("prediction score: {}, threshold: {}, label: {}".format(
         #                 self.prediction_score, threshold, self.report_label))
+        quadruple_res = (0.0, 0.0, 1.0, 0.0)
         if self.prediction_score >= threshold and self.report_label >= 0.99:
-            return (1.0, 0.0, 0.0, 0.0)  # TP, FP, TN, FN
+            quadruple_res = (1.0, 0.0, 0.0, 0.0)  # TP, FP, TN, FN
         elif self.prediction_score >= threshold and self.report_label <= 0.01:
-            return (0.0, 1.0, 0.0, 0.0)
+            quadruple_res = (0.0, 1.0, 0.0, 0.0)
         elif self.prediction_score < threshold and self.report_label >= 0.99:
-            return (0.0, 0.0, 0.0, 1.0)
-        # else:
-        return (0.0, 0.0, 1.0, 0.0)
+            quadruple_res = (0.0, 0.0, 0.0, 1.0)
+        else:
+            quadruple_res = (0.0, 0.0, 1.0, 0.0)
+        return quadruple_res
 
     def set_client_id(self, client_id):
         self.client_id = client_id
@@ -221,7 +223,7 @@ class DataSet:
     def cal_fpr_tpr(
             self,
             sampled_clients_ratio=1.0,
-            thresholds=[0.5],
+            thresholds=None,
             dp_noise_mechanism="None",
             dp_noise_eps=0.0):
         if run_parallel:
@@ -258,7 +260,7 @@ class DataSet:
     def cal_roc_auc(
             self,
             sampled_clients_ratio=1.0,
-            thresholds=[0.5],
+            thresholds=None,
             dp_noise_mechanism="None",
             dp_noise_eps=0.0):
         fprs, tprs = self.cal_fpr_tpr(
@@ -340,7 +342,7 @@ class DataSet:
             self,
             label_flipping_eps=10000.0,
             sampled_clients_ratio=1.0,
-            thresholds=[0.5]):
+            thresholds=None):
 
         label_flipping_prob = dp_flipping_rate(label_flipping_eps)
         self.flip_all_labels(label_flipping_prob)
@@ -382,7 +384,8 @@ class DataSet:
         return noisy_auc
 
 
-def ground_truth_auc(input_y, input_pred, method="sklearn", num_thresholds=1000):
+def ground_truth_auc(input_y, input_pred, method="sklearn", 
+                                                        num_thresholds=1000):
     y = np.array(input_y)
     pred = np.array(input_pred)
     if method == "sklearn":
@@ -401,8 +404,8 @@ if __name__ == "__main__":
                                                 (0.6, 1), (0.7, 1), (0.88, 0),
                     (0.12, 1), (0.98, 1), (0.98, 1), (0.998, 0), (0.765, 1),
                                                         (0.892, 0), (0.34, 1)]
-    pred = [x for (x, _) in data]
-    y = [y for (_, y) in data]
+    pred = [test_x for (x, _) in data]
+    y = [test_y for (_, y) in data]
     auc_sklearn = ground_truth_auc(y, pred, "sklearn", num_thresholds=1000)
     auc_tf = ground_truth_auc(y, pred, "tf", num_thresholds=1000)
     test_clients = []

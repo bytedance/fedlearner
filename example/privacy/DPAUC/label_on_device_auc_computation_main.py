@@ -1,11 +1,12 @@
 import datetime
-import pandas as pd
 import argparse
+import pandas as pd
+import pickle
 from pytz import timezone
 import tensorflow as tf
 import numpy as np
-from label_on_device_auc_computation_util import DataSet, DataSample, Client, ground_truth_auc
-import pickle
+from label_on_device_auc_computation_util import DataSet, DataSample, Client, \
+                                                            ground_truth_auc
 from resource_setup import setup_gpu
 
 # import multiprocessing as mp
@@ -43,13 +44,15 @@ parser.add_argument(
 parser.add_argument(
     '--clients_id_assigned_ranking_skewed',
     action='store_true',
-    help='if ture: clients_id_assigned_ranking_skewed, otherwise assign clients id uniformly')
+    help="if ture: clients_id_assigned_ranking_skewed," \
+                                        "otherwise assign clients id uniformly")
 
 parser.add_argument(
     "--dp_noise_epsilon",
     type=float,
     default=0.0,
-    help='dp noise epsilon for each value in the quadruple (i.e. TP). The total dp budget is: 4 * num_thresholds * dp_noise_epsilon')
+    help="dp noise epsilon for each value in the quadruple (i.e. TP). " \
+                "The total dp budget is: 4 * num_thresholds * dp_noise_epsilon")
 parser.add_argument(
     '--dp_noise_mechanism',
     type=str,
@@ -67,16 +70,16 @@ args = parser.parse_args()
 setup_gpu(gpu_option=args.gpu_option, device_number=args.device_number)
 
 
-num_thresholds = args.num_thresholds
-repeat_times = args.repeat_times
+# num_thresholds = args.num_thresholds
+# repeat_times = args.repeat_times
 clients_sampled_ratio = args.clients_sampled_ratio
 label_flipping_eps = args.dp_noise_epsilon
-number_clients = args.number_clients
+# number_clients = args.number_clients
 one_sample_per_device = args.one_sample_per_device
-clients_id_assigned_ranking_skewed = args.clients_id_assigned_ranking_skewed
-dp_noise_eps = args.dp_noise_epsilon
-dp_noise_mechanism = args.dp_noise_mechanism
-is_full = args.is_full_dataset
+# clients_id_assigned_ranking_skewed = args.clients_id_assigned_ranking_skewed
+# dp_noise_eps = args.dp_noise_epsilon
+# dp_noise_mechanism = args.dp_noise_mechanism
+# is_full = args.is_full_dataset
 
 
 def assign_client_id_uniformly(
@@ -245,7 +248,13 @@ def multi_epoch_run_paralle(is_full = False):
 '''
 
 
-def multi_epoch_run(is_full=False):
+def multi_epoch_run(is_full=False, number_clients = 10,
+                                     num_thresholds = 100,
+                                     repeat_times = 50,
+                    clients_id_assigned_ranking_skewed=False,
+                    dp_noise_eps = 1.0,
+                    dp_noise_mechanism="Laplace",
+                        ):
     label_pred_dict = load_dataset(is_full=is_full)
     t_s = datetime.datetime.now()
     print("start: {}".format(t_s))
@@ -340,7 +349,8 @@ def multi_epoch_run(is_full=False):
         auc_roc_list = list(
             map(lambda x: cal_auc_one_time(), range(repeat_times)))
 
-        # res = [cal_auc_one_time(label_flipping_eps=label_flipping_eps) for _ in range(repeat_times)]
+        # res = [cal_auc_one_time(label_flipping_eps=label_flipping_eps) 
+        #                                     for _ in range(repeat_times)]
         # for i in range(repeat_times):
         #     cal_auc_one_time(label_flipping_eps=label_flipping_eps)
         print("epoch: {}, mean_auc_tf: {}, std_auc_tf: {}".format(
@@ -365,13 +375,14 @@ def multi_epoch_run(is_full=False):
             "roc_auc_mean": roc_aucs_mean,
             "roc_auc_std": roc_aucs_std})
     file_name = str(stamp) + \
-        "_{}_eps_{}_numClients_{}_repeat_times_{}_numThresholds_{}_ClientsSampledRatio_{}".format(
-        str(dp_noise_mechanism),
-        str(dp_noise_eps),
-        str(number_clients),
-        str(repeat_times),
-        str(num_thresholds),
-        str(clients_sampled_ratio))
+        "_{}_eps_{}_numClients_{}_repeat_times_{}_" \
+                            "numThresholds_{}_ClientsSampledRatio_{}".format(
+                                        str(dp_noise_mechanism),
+                                        str(dp_noise_eps),
+                                        str(args.number_clients),
+                                        str(repeat_times),
+                                        str(num_thresholds),
+                                        str(clients_sampled_ratio))
     if clients_id_assigned_ranking_skewed:
         file_name += "_ClientsAssignedSkewed"
     else:
@@ -386,5 +397,12 @@ def multi_epoch_run(is_full=False):
 
 if __name__ == "__main__":
 
-    # multi_epoch_run_paralle(is_full=is_full)
-    multi_epoch_run(is_full=is_full)
+    # multi_epoch_run_paralle(is_full=args.is_full_dataset)
+    multi_epoch_run(is_full=args.is_full_dataset, 
+        number_clients=args.number_clients, 
+        num_thresholds=args.num_thresholds,
+        repeat_times=args.repeat_times,
+    clients_id_assigned_ranking_skewed=args.clients_id_assigned_ranking_skewed,
+    dp_noise_eps=args.dp_noise_epsilon,
+    dp_noise_mechanism=args.dp_noise_mechanism,
+    )

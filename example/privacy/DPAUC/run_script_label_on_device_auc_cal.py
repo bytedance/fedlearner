@@ -1,6 +1,6 @@
-import os
+# import os
 import subprocess
-import time
+# import time
 import datetime
 from pytz import timezone
 
@@ -49,10 +49,11 @@ for i, number_clients in enumerate(number_clients_list):
                     num_thresholds_opt)
                 if using_gpu:
                     idx = i * (len(dp_noise_eps_list) * \
-                               len(num_thresholds)) + j * len(num_thresholds) + k
+                            len(num_thresholds)) + j * len(num_thresholds) + k
                     args_list += gpu_opt + gpus[(gpu_start_idx + idx) % 8]
                 log_file_name = "outputs/stdout_logs/" + \
-                    str(stamp) + "_numberClients_" + number_clients + str(dp_noise_mechanism) + "_eps_" + noise_eps
+                    str(stamp) + "_numberClients_" + number_clients + \
+                    str(dp_noise_mechanism) + "_eps_" + noise_eps
                 log_file_name += "numThreshold_" + \
                     str(num_threshold) + "_repeatTimes_" + str(repeat_times)
                 if assign_client_id_ranking_skewed:
