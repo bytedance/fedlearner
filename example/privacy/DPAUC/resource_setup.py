@@ -4,7 +4,6 @@ import tensorflow as tf
 
 def setup_gpu(gpu_option, device_number=0):
     if gpu_option:
-        
         # """
         # Level | Level for Humans | Level Description
         # -------|------------------|------------------------------------
@@ -15,7 +14,7 @@ def setup_gpu(gpu_option, device_number=0):
         # """
 
         #remove tensorflow INFO messages
-        os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'  
+        os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
         gpus = tf.config.experimental.list_physical_devices('GPU')
         print("Num GPUs Available: ", len(gpus))
         if gpus:

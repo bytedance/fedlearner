@@ -1,11 +1,11 @@
 from itertools import chain
 import random
-import tensorflow as tf
 # import datetime
 from functools import reduce
 # from visualization_util import visualize_roc_auc
 # import multiprocessing as mp
 from multiprocessing.pool import ThreadPool as Pool
+import tensorflow as tf
 from sklearn import metrics
 import numpy as np
 
@@ -17,8 +17,8 @@ print(f"Using Number of CPU cores: {nprocs}")
 def dp_flipping_rate(eps):
     if eps >= 99.0 or eps <= 0:
         return 0.0
-    else:
-        return 1.0 / (1.0 + np.exp(eps))
+    # else:
+    return 1.0 / (1.0 + np.exp(eps))
 
 
 def convert_dp_sensitivity_to_std(
@@ -35,8 +35,8 @@ def convert_dp_sensitivity_to_std(
             return sensitivity * np.sqrt(np.log(1.25 / delta)) / epsilon
         elif epsilon >= 1.0 and epsilon < 100.0:
             return sensitivity / np.sqrt(2.0 * epsilon)
-        else:
-            return 0.0
+        # else:
+        return 0.0
     if mechanism.endswith("Laplace"):
         # Laplace
         # print("epsilon: {}".format(epsilon))
@@ -78,8 +78,8 @@ class DataSample:
             return (0.0, 1.0, 0.0, 0.0)
         elif self.prediction_score < threshold and self.report_label >= 0.99:
             return (0.0, 0.0, 0.0, 1.0)
-        else:
-            return (0.0, 0.0, 1.0, 0.0)
+        # else:
+        return (0.0, 0.0, 1.0, 0.0)
 
     def set_client_id(self, client_id):
         self.client_id = client_id
@@ -140,8 +140,8 @@ class Client:
             pool.join()
             # print("results: {}".format(result))
             return reduce(lambda x, y: x + y, result)
-        else:
-            return reduce(lambda x,
+        # else:
+        return reduce(lambda x,
                           y: x + y,
                           map(lambda x: np.array(x.report_quadruple(threshold)),
                               self.data_samples))
@@ -186,14 +186,14 @@ class DataSet:
         def report_aggregated_quadruples_per_client(
                 a_client, threshold, dp_noise_mechanism, dp_noise_eps):
             return a_client.report_aggregated_quadruples(
-                threshold, dp_noise_mechanism=dp_noise_mechanism, 
+                threshold, dp_noise_mechanism=dp_noise_mechanism,
                                         dp_noise_eps=dp_noise_eps)
 
         if run_parallel:
             pool = Pool(processes=nprocs)
             result = pool.starmap(
                 report_aggregated_quadruples_per_client, [
-                    (a_client, threshold, dp_noise_mechanism, dp_noise_eps) 
+                    (a_client, threshold, dp_noise_mechanism, dp_noise_eps)
                                             for a_client in sampled_clients])
             pool.close()
             pool.join()
@@ -281,14 +281,14 @@ class DataSet:
     def aggregate_noisy_number_of_positives(self):
         # based on randomized responses
         self.total_noisy_number_of_positives = sum(
-            [client.report_noisy_number_of_positives() 
+            [client.report_noisy_number_of_positives()
                                                     for client in self.clients])
         return self.total_noisy_number_of_positives
 
     def aggregate_noisy_number_of_negatives(self):
         # based on randomized responses
         self.total_noisy_number_of_negatives = sum(
-            [client.report_noisy_number_of_negatives() 
+            [client.report_noisy_number_of_negatives()
                                                     for client in self.clients])
         return self.total_noisy_number_of_negatives
 
@@ -312,7 +312,7 @@ class DataSet:
             [client.true_number_of_negatives for client in self.clients])
          # pi
         base_rate = true_total_number_of_positives * 1.0 / \
-            (true_total_number_of_positives + true_total_number_of_negatives) 
+            (true_total_number_of_positives + true_total_number_of_negatives)
         print("true base_rate: {}".format(base_rate))
 
         estimated_total_number_of_positives = (
@@ -323,14 +323,14 @@ class DataSet:
         estimated_total_number_of_negatives = true_total_number_of_positives + \
             true_total_number_of_negatives - estimated_total_number_of_positives
         base_rate = estimated_total_number_of_positives * 1.0 / \
-                                        (estimated_total_number_of_negatives + 
+                                        (estimated_total_number_of_negatives +
                                             estimated_total_number_of_positives)
         print("base_rate_corr: {}".format(base_rate))
         alpha = (1.0 - base_rate) * n2p_q / (base_rate * \
                  (1.0 - p2n_p) + (1.0 - base_rate) * n2p_q)
         beta = base_rate * p2n_p / \
             (base_rate * p2n_p + (1.0 - base_rate) * (1.0 - n2p_q))
-        # print("base_rate: {}, alpha: {}, beta: {}".format(base_rate, 
+        # print("base_rate: {}, alpha: {}, beta: {}".format(base_rate,
         #                                                     alpha, beta))
         auc_real = (auc_corrupted - (alpha + beta) / 2.0) / \
             (1.0 - alpha - beta)
@@ -397,31 +397,31 @@ def ground_truth_auc(y, pred, method="sklearn", num_thresholds=1000):
 
 if __name__ == "__main__":
 
-    data = [(0.8, 0), (0.1, 0), (0.2, 0), (0.4, 0), (0.5, 0), 
+    data = [(0.8, 0), (0.1, 0), (0.2, 0), (0.4, 0), (0.5, 0),
                                                 (0.6, 1), (0.7, 1), (0.88, 0),
-                        (0.12, 1), (0.98, 1), (0.98, 1), (0.998, 0), (0.765, 1), 
+                    (0.12, 1), (0.98, 1), (0.98, 1), (0.998, 0), (0.765, 1),
                                                         (0.892, 0), (0.34, 1)]
     pred = [x for (x, _) in data]
     y = [y for (_, y) in data]
     auc_sklearn = ground_truth_auc(y, pred, "sklearn", num_thresholds=1000)
     auc_tf = ground_truth_auc(y, pred, "tf", num_thresholds=1000)
-    clients = []
-    threshold = 1.0
+    test_clients = []
+    test_threshold = 1.0
     for i, d in enumerate(data):
         data_sample = DataSample(d[0], d[1])
         # data_sample_2 = DataSample(0.21, 1.0)
         # data_sample_3 = DataSample(0.21, 0.0)
         client = Client(i, [data_sample])
-        print(client.aggregate_quadruples(threshold))
-        clients.append(client)
-    dataset = DataSet(clients)
-    for sample in dataset.all_data_samples:
+        print(client.aggregate_quadruples(test_threshold))
+        test_clients.append(client)
+    dataset = DataSet(test_clients)
+    for test_sample in dataset.all_data_samples:
         print(
             "client:{}, score: {}, report label: {}, ranking: {}".format(
-                sample.client_id,
-                sample.prediction_score,
-                sample.report_label,
-                sample.report_quadruple(threshold)))
+                test_sample.client_id,
+                test_sample.prediction_score,
+                test_sample.report_label,
+                test_sample.report_quadruple(test_threshold)))
     thresholds = list(np.linspace(0.0, 1.0, num=100))[::-1]
 
     dataset.cal_roc_auc(sampled_clients_ratio=1.0, thresholds=thresholds)
