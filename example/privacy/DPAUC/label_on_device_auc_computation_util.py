@@ -22,38 +22,28 @@ def dp_flipping_rate(eps):
 
 
 def convert_dp_sensitivity_to_std(
-        sensitivity,
-        epsilon,
-        delta,
-        mechanism="Gaussian"):
-    # for global: sensitivity = self.aggregate_number_of_samples()-1.0
+                            sensitivity,
+                            epsilon,
+                            delta,
+                            mechanism="Laplace"):
+    noise_std = 0.0
     if epsilon <= 0.0 or epsilon >= 101.0:
-        return 0.0
-    if mechanism.endswith("Gaussian"):
-        # (epsilon, delta) in (0, 1)
-        if epsilon < 1.0 and epsilon > 0.0:
-            return sensitivity * np.sqrt(np.log(1.25 / delta)) / epsilon
-        elif epsilon >= 1.0 and epsilon < 100.0:
-            return sensitivity / np.sqrt(2.0 * epsilon)
-        # else:
-        return 0.0
+        noise_std = 0.0
     if mechanism.endswith("Laplace"):
         # Laplace
         # print("epsilon: {}".format(epsilon))
-        return sensitivity / epsilon
-    return 0.0
+        noise_std = sensitivity / epsilon
+    return noise_std
 
 
 def generate_noisy_value_w_dp(
         sensititvity=1.0,
         noise_eps=0.0,
-        noisy_mechanism="Gaussian"):
+        noisy_mechanism="Laplace"):
     noise_std = convert_dp_sensitivity_to_std(
         sensititvity, noise_eps, delta=0.0, mechanism=noisy_mechanism)
     if noise_std > 0.0:
-        if noisy_mechanism.endswith("Gaussian"):
-            noise = np.random.normal(0, noise_std)
-        elif noisy_mechanism.endswith("Laplace"):
+        if noisy_mechanism.endswith("Laplace"):
             noise = np.random.laplace(0, noise_std)
         else:
             noise = 0.0
@@ -404,10 +394,12 @@ if __name__ == "__main__":
                                                 (0.6, 1), (0.7, 1), (0.88, 0),
                     (0.12, 1), (0.98, 1), (0.98, 1), (0.998, 0), (0.765, 1),
                                                         (0.892, 0), (0.34, 1)]
-    pred = [test_x for (x, _) in data]
-    y = [test_y for (_, y) in data]
-    auc_sklearn = ground_truth_auc(y, pred, "sklearn", num_thresholds=1000)
-    auc_tf = ground_truth_auc(y, pred, "tf", num_thresholds=1000)
+    test_pred_list = [test_x for (test_x, _) in data]
+    test_y_list = [test_y for (_, test_y) in data]
+    auc_sklearn = ground_truth_auc(test_y_list, test_pred_list, 
+                                    "sklearn", num_thresholds=1000)
+    auc_tf = ground_truth_auc(test_y_list, test_pred_list, "tf",
+                                         num_thresholds=1000)
     test_clients = []
     test_threshold = 1.0
     for i, d in enumerate(data):

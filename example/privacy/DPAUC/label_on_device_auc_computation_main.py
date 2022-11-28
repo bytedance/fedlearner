@@ -1,7 +1,7 @@
 import datetime
 import argparse
-import pandas as pd
 import pickle
+import pandas as pd
 from pytz import timezone
 import tensorflow as tf
 import numpy as np
@@ -75,7 +75,7 @@ setup_gpu(gpu_option=args.gpu_option, device_number=args.device_number)
 clients_sampled_ratio = args.clients_sampled_ratio
 label_flipping_eps = args.dp_noise_epsilon
 # number_clients = args.number_clients
-one_sample_per_device = args.one_sample_per_device
+# one_sample_per_device = args.one_sample_per_device
 # clients_id_assigned_ranking_skewed = args.clients_id_assigned_ranking_skewed
 # dp_noise_eps = args.dp_noise_epsilon
 # dp_noise_mechanism = args.dp_noise_mechanism
@@ -254,6 +254,7 @@ def multi_epoch_run(is_full=False, number_clients = 10,
                     clients_id_assigned_ranking_skewed=False,
                     dp_noise_eps = 1.0,
                     dp_noise_mechanism="Laplace",
+                    one_sample_per_device=False,
                         ):
     label_pred_dict = load_dataset(is_full=is_full)
     t_s = datetime.datetime.now()
@@ -349,7 +350,7 @@ def multi_epoch_run(is_full=False, number_clients = 10,
         auc_roc_list = list(
             map(lambda x: cal_auc_one_time(), range(repeat_times)))
 
-        # res = [cal_auc_one_time(label_flipping_eps=label_flipping_eps) 
+        # res = [cal_auc_one_time(label_flipping_eps=label_flipping_eps)
         #                                     for _ in range(repeat_times)]
         # for i in range(repeat_times):
         #     cal_auc_one_time(label_flipping_eps=label_flipping_eps)
@@ -398,11 +399,13 @@ def multi_epoch_run(is_full=False, number_clients = 10,
 if __name__ == "__main__":
 
     # multi_epoch_run_paralle(is_full=args.is_full_dataset)
-    multi_epoch_run(is_full=args.is_full_dataset, 
-        number_clients=args.number_clients, 
-        num_thresholds=args.num_thresholds,
-        repeat_times=args.repeat_times,
-    clients_id_assigned_ranking_skewed=args.clients_id_assigned_ranking_skewed,
-    dp_noise_eps=args.dp_noise_epsilon,
-    dp_noise_mechanism=args.dp_noise_mechanism,
-    )
+    multi_epoch_run(is_full=args.is_full_dataset,
+                    number_clients=args.number_clients,
+                    num_thresholds=args.num_thresholds,
+                    repeat_times=args.repeat_times,
+                    clients_id_assigned_ranking_skewed=
+                    args.clients_id_assigned_ranking_skewed,
+                    dp_noise_eps=args.dp_noise_epsilon,
+                    dp_noise_mechanism=args.dp_noise_mechanism,
+                    one_sample_per_device=args.one_sample_per_device,
+                    )
