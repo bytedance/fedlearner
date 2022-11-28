@@ -28,8 +28,8 @@ dp_noise_mechanisms = ["Laplace"] # "Laplace", "RR", "None" (no protection)
 dp_noise_eps_list = ["0.1"]
 assign_client_id_ranking_skewed = True
 # a larger repeat_times can give a better estimation of mean and std of AUC
-repeat_times = 5 
-# a larger num_thresholds can give a better estimation of AUC. 
+repeat_times = 5
+# a larger num_thresholds can give a better estimation of AUC.
 # We use 100 in our experiments
 num_thresholds = [10]
 

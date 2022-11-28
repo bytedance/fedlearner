@@ -5,10 +5,10 @@ DPAUC has been accepted to The Thirty-Seventh AAAI Conference on Artificial Inte
 
 ### Requirements
 
-* Python 3.x
-* Numpy 
-* Tensorflow 2.x
-* Scikitlearn 
+* Python 3.x (i.e. 3.7.5)
+* Numpy (i.e. 1.21.6)
+* Tensorflow 2.x (i.e. 2.9.1)
+* Scikitlearn (1.0.2)
 
 ### Dataset 
 
@@ -39,7 +39,7 @@ num_thresholds = [100]
 * num_thresholds: thresholds for calculating TP and FP
 * repeat_times: repeat times for each setting, so that we can calculate corresponding mean and variance
 
-Suppose, we would like to use Laplace mechanism with 1000 clients and total epsilon=1.0 (num_thresholds * 4 * dp_noise_eps) in the IID setting, our configurations will be like:
+Suppose, we would like to use Laplace mechanism with 1000 clients and total epsilon=4.0 (num_thresholds * 4 * dp_noise_eps) in the IID setting, our configurations will be like:
 
 ```
 number_clients_list = ["1000"]
@@ -74,6 +74,8 @@ repeat_times = 50
 num_thresholds = [100]
 ```
 
+### Distribution of Thresholds
+
 In our experiments, we divide the threshols in file `label_on_device_auc_computation_main.py` as:
 
 ```
@@ -83,7 +85,8 @@ thresholds_3 = list(np.linspace(0.5, 1.0, int(num_thresholds * 0.25)))
 thresholds_list = (thresholds_1 + thresholds_2 + thresholds_3)[::-1]
 ```
 
-You can also divide the thresholds uniformly as you need:
+You can split the thresholds based on the distribution of your own prediction scores. 
+For example, You can divide the thresholds uniformly as you need:
 
 ```
 thresholds_list = list(np.linspace(0.0, 1.0, int(num_thresholds)))[::-1]
