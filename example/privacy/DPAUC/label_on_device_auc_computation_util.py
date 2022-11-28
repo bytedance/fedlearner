@@ -382,9 +382,9 @@ class DataSet:
         return noisy_auc
 
 
-def ground_truth_auc(y, pred, method="sklearn", num_thresholds=1000):
-    y = np.array(y)
-    pred = np.array(pred)
+def ground_truth_auc(input_y, input_pred, method="sklearn", num_thresholds=1000):
+    y = np.array(input_y)
+    pred = np.array(input_pred)
     if method == "sklearn":
         fpr, tpr, thresholds = metrics.roc_curve(y, pred, pos_label=1)
         res = metrics.auc(fpr, tpr)
@@ -422,8 +422,8 @@ if __name__ == "__main__":
                 test_sample.prediction_score,
                 test_sample.report_label,
                 test_sample.report_quadruple(test_threshold)))
-    thresholds = list(np.linspace(0.0, 1.0, num=100))[::-1]
+    test_thresholds = list(np.linspace(0.0, 1.0, num=100))[::-1]
 
-    dataset.cal_roc_auc(sampled_clients_ratio=1.0, thresholds=thresholds)
+    dataset.cal_roc_auc(sampled_clients_ratio=1.0, thresholds=test_thresholds)
     print("ground truth: auc_sklearn: {}, auc_tf: {}".format(
                                                         auc_sklearn, auc_tf))

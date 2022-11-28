@@ -1,16 +1,16 @@
-from label_on_device_auc_computation_util import DataSet, DataSample, Client, ground_truth_auc
-import tensorflow as tf
-import pickle
-import numpy as np
 import datetime
 import pandas as pd
 import argparse
 from pytz import timezone
+import tensorflow as tf
+import numpy as np
+from label_on_device_auc_computation_util import DataSet, DataSample, Client, ground_truth_auc
+import pickle
 from resource_setup import setup_gpu
 
-import multiprocessing as mp
-from multiprocessing.pool import ThreadPool as Pool
-from multiprocessing import current_process
+# import multiprocessing as mp
+# from multiprocessing.pool import ThreadPool as Pool
+# from multiprocessing import current_process
 
 nprocs = 16
 print(f"Number of CPU cores: {nprocs}")
@@ -19,7 +19,6 @@ west_tz = timezone('US/Pacific')
 stamp = datetime.datetime.now(tz=west_tz).strftime("%Y%m%d_%H_%M_%S")
 
 parser = argparse.ArgumentParser()
-# parser.add_argument("--labeldp_eps", type=float, default=0.0, help='label dp eps')
 parser.add_argument('--number_clients', type=int, default=10 * 100)
 
 parser.add_argument(
@@ -87,8 +86,8 @@ def assign_client_id_uniformly(
         one_sample_per_device=False):
     if one_sample_per_device or number_clients >= max_client_id:
         return sample_id
-    else:
-        return np.random.randint(0, high=number_clients)
+    # else:
+    return np.random.randint(0, high=number_clients)
 
 
 def assign_client_id_ranking_skewed(
