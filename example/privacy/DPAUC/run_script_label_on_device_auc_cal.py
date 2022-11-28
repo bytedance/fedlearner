@@ -22,10 +22,10 @@ for gpu_id in range(8):
 
 
 number_clients_list = ["10"]
-dp_noise_mechanisms = ["RR"] # "Laplace", "RR", "None" (no protection)
+dp_noise_mechanisms = ["Laplace"] # "Laplace", "RR", "None" (no protection)
 # total epsilon = dp_noise_eps * num_thresholds * 4 for Laplace;
 # For RR, it's the dp budget as it is.
-dp_noise_eps_list = ["1.0"]
+dp_noise_eps_list = ["0.1"]
 assign_client_id_ranking_skewed = False
 repeat_times = 5
 num_thresholds = [10]

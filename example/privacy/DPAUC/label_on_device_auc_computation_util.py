@@ -329,10 +329,10 @@ class DataSet:
         return auc_real
 
     def cal_ROC_AUC_rr(
-            self,
-            label_flipping_eps=10000.0,
-            sampled_clients_ratio=1.0,
-            thresholds=None):
+                    self,
+                    label_flipping_eps=10000.0,
+                    sampled_clients_ratio=1.0,
+                    thresholds=None):
 
         label_flipping_prob = dp_flipping_rate(label_flipping_eps)
         self.flip_all_labels(label_flipping_prob)
