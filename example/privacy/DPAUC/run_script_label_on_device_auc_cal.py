@@ -28,7 +28,7 @@ dp_noise_mechanisms = ["Laplace"] # "Laplace", "RR", "None" (no protection)
 dp_noise_eps_list = ["0.1"]
 assign_client_id_ranking_skewed = False
 repeat_times = 5
-num_thresholds = [10]
+num_thresholds = [20]
 
 for i, number_clients in enumerate(number_clients_list):
     for j, noise_eps in enumerate(dp_noise_eps_list):

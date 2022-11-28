@@ -175,8 +175,7 @@ def multi_epoch_run(is_full=False,
         thresholds_3 = list(np.linspace(0.5, 1.0, int(num_thresholds * 0.25)))
         thresholds_list = (thresholds_1 + thresholds_2 + thresholds_3)[::-1]
         
-
-        def cal_auc_one_time():
+        def cal_auc_one_time(dataset, thresholds_list):
             return dataset.report_final_ROC_AUC(
                                     sampled_clients_ratio=clients_sampled_ratio,
                                     thresholds=thresholds_list,
@@ -194,7 +193,9 @@ def multi_epoch_run(is_full=False,
         auc_gt_sl_list.append(auc_gt_sl)
 
         auc_roc_list = list(
-                        map(lambda x: cal_auc_one_time(), range(repeat_times)))
+                        map(lambda x:
+                            cal_auc_one_time(dataset, thresholds_list),
+                            range(repeat_times)))
 
         print("epoch: {}, mean_auc_tf: {}, std_auc_tf: {}".format(
             epoch, np.mean(auc_gt_tf_list), np.std(auc_gt_tf_list)))
