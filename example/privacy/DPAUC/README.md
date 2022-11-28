@@ -1,7 +1,6 @@
 ## ReadMe
 
-DPAUC has been accepted to The Thirty-Seventh AAAI Conference on Artificial Intelligence, Safe and Robust AI Track, AAAI 2023. The paper can be viewed: https://arxiv.org/abs/2208.12294.
-If you have any questions and comments, feel free to reach: jiankai.sun@bytedance.com.
+DPAUC has been accepted to The Thirty-Seventh AAAI Conference on Artificial Intelligence, Safe and Robust AI Track, AAAI 2023. The paper can be viewed at: https://arxiv.org/abs/2208.12294. If you have any questions and comments, feel free to reach: jiankai.sun@bytedance.com.
 
 
 ### Requirements
@@ -74,6 +73,22 @@ assign_client_id_ranking_skewed = True
 repeat_times = 50
 num_thresholds = [100]
 ```
+
+In our experiments, we divide the threshols in file `label_on_device_auc_computation_main.py` as:
+
+```
+thresholds_1 = list(np.linspace(0.0, 0.2, int(num_thresholds * 0.5)))
+thresholds_2 = list(np.linspace(0.2, 0.5, int(num_thresholds * 0.25)))
+thresholds_3 = list(np.linspace(0.5, 1.0, int(num_thresholds * 0.25)))
+thresholds_list = (thresholds_1 + thresholds_2 + thresholds_3)[::-1]
+```
+
+You can also divide the thresholds uniformly as you need:
+
+```
+thresholds_list = list(np.linspace(0.0, 1.0, int(num_thresholds)))[::-1]
+```
+
 
 ### Figures and logs
 

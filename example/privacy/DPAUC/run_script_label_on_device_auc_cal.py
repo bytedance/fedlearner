@@ -25,10 +25,13 @@ number_clients_list = ["10"]
 dp_noise_mechanisms = ["Laplace"] # "Laplace", "RR", "None" (no protection)
 # total epsilon = dp_noise_eps * num_thresholds * 4 for Laplace;
 # For RR, it's the dp budget as it is.
-dp_noise_eps_list = ["0.01"]
+dp_noise_eps_list = ["0.1"]
 assign_client_id_ranking_skewed = True
-repeat_times = 5
-num_thresholds = [20]
+# a larger repeat_times can give a better estimation of mean and std of AUC
+repeat_times = 5 
+# a larger num_thresholds can give a better estimation of AUC. 
+# We use 100 in our experiments
+num_thresholds = [10]
 
 for i, number_clients in enumerate(number_clients_list):
     for j, noise_eps in enumerate(dp_noise_eps_list):
