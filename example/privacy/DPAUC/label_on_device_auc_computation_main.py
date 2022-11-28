@@ -99,7 +99,7 @@ def load_dataset(is_full=False):
             open("./data/test_0.1_label_pred.pkl", "rb"))
     return label_pred_dict
 
-def multi_epoch_run(is_full=False, 
+def multi_epoch_run(is_full=False,
                     number_clients=10,
                     num_thresholds=100,
                     repeat_times=50,
@@ -173,17 +173,17 @@ def multi_epoch_run(is_full=False,
         thresholds_1 = list(np.linspace(0.0, 0.2, int(num_thresholds * 0.5)))
         thresholds_2 = list(np.linspace(0.2, 0.5, int(num_thresholds * 0.25)))
         thresholds_3 = list(np.linspace(0.5, 1.0, int(num_thresholds * 0.25)))
-        thresholds = (thresholds_1 + thresholds_2 + thresholds_3)[::-1]
-        # print("thresholds: {}".format(thresholds))
+        thresholds_list = (thresholds_1 + thresholds_2 + thresholds_3)[::-1]
+        
 
         def cal_auc_one_time():
             return dataset.report_final_ROC_AUC(
                                     sampled_clients_ratio=clients_sampled_ratio,
-                                    thresholds=thresholds,
+                                    thresholds=thresholds_list,
                                     dp_noise_mechanism=dp_noise_mechanism,
                                     dp_noise_eps=dp_noise_eps)
 
-        auc_gt_tf = ground_truth_auc(tf.cast(labels,dtype=tf.float32),
+        auc_gt_tf = ground_truth_auc(tf.cast(labels, dtype=tf.float32),
                                     preds,
                                     method="tf",
                                     num_thresholds=200)

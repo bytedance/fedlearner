@@ -363,7 +363,6 @@ class DataSet:
                 label_flipping_eps=dp_noise_eps,
                 sampled_clients_ratio=sampled_clients_ratio,
                 thresholds=thresholds)
-        
         noisy_auc = self.cal_roc_auc(
             sampled_clients_ratio=sampled_clients_ratio,
             thresholds=thresholds,
