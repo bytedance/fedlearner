@@ -355,7 +355,7 @@ class DataSet:
     def report_final_ROC_AUC(
             self,
             sampled_clients_ratio=1.0,
-            thresholds=[0.5],
+            thresholds=None,
             dp_noise_mechanism="RR",
             dp_noise_eps=10000.0):
         if dp_noise_mechanism in ["RR", "rr"]:
@@ -363,7 +363,7 @@ class DataSet:
                 label_flipping_eps=dp_noise_eps,
                 sampled_clients_ratio=sampled_clients_ratio,
                 thresholds=thresholds)
-        # else
+        
         noisy_auc = self.cal_roc_auc(
             sampled_clients_ratio=sampled_clients_ratio,
             thresholds=thresholds,
@@ -374,7 +374,7 @@ class DataSet:
         return noisy_auc
 
 
-def ground_truth_auc(input_y, input_pred, method="sklearn", 
+def ground_truth_auc(input_y, input_pred, method="sklearn",
                                                         num_thresholds=1000):
     y = np.array(input_y)
     pred = np.array(input_pred)
@@ -396,7 +396,7 @@ if __name__ == "__main__":
                                                         (0.892, 0), (0.34, 1)]
     test_pred_list = [test_x for (test_x, _) in data]
     test_y_list = [test_y for (_, test_y) in data]
-    auc_sklearn = ground_truth_auc(test_y_list, test_pred_list, 
+    auc_sklearn = ground_truth_auc(test_y_list, test_pred_list,
                                     "sklearn", num_thresholds=1000)
     auc_tf = ground_truth_auc(test_y_list, test_pred_list, "tf",
                                          num_thresholds=1000)
