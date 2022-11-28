@@ -1,5 +1,4 @@
 from itertools import chain
-import numpy as np
 from sklearn import metrics
 import tensorflow as tf
 # import datetime
@@ -8,7 +7,7 @@ import random
 # from visualization_util import visualize_roc_auc
 # import multiprocessing as mp
 from multiprocessing.pool import ThreadPool as Pool
-
+import numpy as np
 run_parallel = False
 nprocs = 8
 print(f"Using Number of CPU cores: {nprocs}")
@@ -70,7 +69,8 @@ class DataSample:
         self.report_label = self.true_label
 
     def report_quadruple(self, threshold):
-        # print("prediction score: {}, threshold: {}, label: {}".format(self.prediction_score, threshold, self.report_label))
+        # print("prediction score: {}, threshold: {}, label: {}".format(
+        #                 self.prediction_score, threshold, self.report_label))
         if self.prediction_score >= threshold and self.report_label >= 0.99:
             return (1.0, 0.0, 0.0, 0.0)  # TP, FP, TN, FN
         elif self.prediction_score >= threshold and self.report_label <= 0.01:
@@ -179,18 +179,21 @@ class DataSet:
         # print(type(self.clients))
         sampled_clients = random.sample(self.clients, int(
             self.number_of_clients * sampled_clients_ratio))
-        # print("sampled_clients: {}, corresponding length: {}".format(sampled_clients, len(sampled_clients)))
+        # print("sampled_clients: {}, corresponding length: {}".format(
+        #                               sampled_clients, len(sampled_clients)))
 
         def report_aggregated_quadruples_per_client(
                 a_client, threshold, dp_noise_mechanism, dp_noise_eps):
             return a_client.report_aggregated_quadruples(
-                threshold, dp_noise_mechanism=dp_noise_mechanism, dp_noise_eps=dp_noise_eps)
+                threshold, dp_noise_mechanism=dp_noise_mechanism, 
+                                        dp_noise_eps=dp_noise_eps)
 
         if run_parallel:
             pool = Pool(processes=nprocs)
             result = pool.starmap(
                 report_aggregated_quadruples_per_client, [
-                    (a_client, threshold, dp_noise_mechanism, dp_noise_eps) for a_client in sampled_clients])
+                    (a_client, threshold, dp_noise_mechanism, dp_noise_eps) 
+                                            for a_client in sampled_clients])
             pool.close()
             pool.join()
             res = reduce(lambda x, y: x + y, result)
@@ -198,10 +201,11 @@ class DataSet:
             res = reduce(lambda x,
                          y: x + y,
                          map(lambda x: x.report_aggregated_quadruples(threshold,
-                                                                      dp_noise_mechanism=dp_noise_mechanism,
-                                                                      dp_noise_eps=dp_noise_eps),
+                                        dp_noise_mechanism=dp_noise_mechanism,
+                                                    dp_noise_eps=dp_noise_eps),
                              sampled_clients))
-        # print("aggregated quadruples once: {}, sampled_ratio: {}, threshold: {}".format(res, sampled_clients_ratio, threshold))
+        # print("aggregated quadruples once: {}, sampled_ratio: {}, threshold: {}".format(
+        #                                 res, sampled_clients_ratio, threshold))
         res = [v * 1.0 for v in list(res)]
         tp, fp, tn, fn = max(
             res[0], 0), max(
@@ -245,7 +249,10 @@ class DataSet:
         tprs = [r[1] for r in res]
         # print("fprs: {}".format(fprs))
         # print("tprs: {}".format(tprs))
-        # visualize_roc_auc(fprs, tprs, "sampled_clients_ratio_" + str(sampled_clients_ratio) + "_numThresholds_" + str(len(thresholds)) + "_" + str(dp_noise_mechanism) + "_eps_" + str(dp_noise_eps))
+        # visualize_roc_auc(fprs, tprs, "sampled_clients_ratio_" + str(
+        #                 sampled_clients_ratio) + "_numThresholds_" +
+        #                 str(len(thresholds)) + "_" + str(dp_noise_mechanism)+
+        #                   "_eps_" + str(dp_noise_eps))
         return (fprs, tprs)
 
     def cal_roc_auc(
@@ -274,13 +281,15 @@ class DataSet:
     def aggregate_noisy_number_of_positives(self):
         # based on randomized responses
         self.total_noisy_number_of_positives = sum(
-            [client.report_noisy_number_of_positives() for client in self.clients])
+            [client.report_noisy_number_of_positives() 
+                                                    for client in self.clients])
         return self.total_noisy_number_of_positives
 
     def aggregate_noisy_number_of_negatives(self):
         # based on randomized responses
         self.total_noisy_number_of_negatives = sum(
-            [client.report_noisy_number_of_negatives() for client in self.clients])
+            [client.report_noisy_number_of_negatives() 
+                                                    for client in self.clients])
         return self.total_noisy_number_of_negatives
 
     def aggregate_true_number_of_positives(self):
@@ -301,8 +310,9 @@ class DataSet:
             [client.true_number_of_positives for client in self.clients])
         true_total_number_of_negatives = sum(
             [client.true_number_of_negatives for client in self.clients])
+         # pi
         base_rate = true_total_number_of_positives * 1.0 / \
-            (true_total_number_of_positives + true_total_number_of_negatives)  # pi
+            (true_total_number_of_positives + true_total_number_of_negatives) 
         print("true base_rate: {}".format(base_rate))
         estimated_total_number_of_positives = ((self.total_noisy_number_of_positives * (
             1.0 - n2p_q) - self.total_noisy_number_of_negatives * n2p_q) / (1.0 - p2n_p - n2p_q))
@@ -315,7 +325,8 @@ class DataSet:
                  (1.0 - p2n_p) + (1.0 - base_rate) * n2p_q)
         beta = base_rate * p2n_p / \
             (base_rate * p2n_p + (1.0 - base_rate) * (1.0 - n2p_q))
-        # print("base_rate: {}, alpha: {}, beta: {}".format(base_rate, alpha, beta))
+        # print("base_rate: {}, alpha: {}, beta: {}".format(base_rate, 
+        #                                                     alpha, beta))
         auc_real = (auc_corrupted - (alpha + beta) / 2.0) / \
             (1.0 - alpha - beta)
         return auc_real
@@ -350,20 +361,20 @@ class DataSet:
             thresholds=[0.5],
             dp_noise_mechanism="RR",
             dp_noise_eps=10000.0):
-        if dp_noise_mechanism == "RR" or dp_noise_mechanism == "rr":
+        if dp_noise_mechanism in ["RR", "rr"]:
             return self.cal_ROC_AUC_rr(
                 label_flipping_eps=dp_noise_eps,
                 sampled_clients_ratio=sampled_clients_ratio,
                 thresholds=thresholds)
-        else:
-            noisy_auc = self.cal_roc_auc(
-                sampled_clients_ratio=sampled_clients_ratio,
-                thresholds=thresholds,
-                dp_noise_mechanism=dp_noise_mechanism,
-                dp_noise_eps=dp_noise_eps)
-            print("noisy_auc:{} with: {} and eps: {}".format(
-                noisy_auc, dp_noise_mechanism, dp_noise_eps))
-            return noisy_auc
+        # else
+        noisy_auc = self.cal_roc_auc(
+            sampled_clients_ratio=sampled_clients_ratio,
+            thresholds=thresholds,
+            dp_noise_mechanism=dp_noise_mechanism,
+            dp_noise_eps=dp_noise_eps)
+        print("noisy_auc:{} with: {} and eps: {}".format(
+            noisy_auc, dp_noise_mechanism, dp_noise_eps))
+        return noisy_auc
 
 
 def ground_truth_auc(y, pred, method="sklearn", num_thresholds=1000):

@@ -1,8 +1,7 @@
 import tensorflow as tf
-
+import os
 
 def setup_gpu(gpu_option, device_number=0):
-    import os
     if gpu_option:
         """
         Level | Level for Humans | Level Description
@@ -12,7 +11,8 @@ def setup_gpu(gpu_option, device_number=0):
         2     | WARNING          | Filter out INFO & WARNING messages
         3     | ERROR            | Filter out all messages
         """
-        os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'  # remove tensorflow INFO messages
+        # remove tensorflow INFO messages
+        os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'  
         gpus = tf.config.experimental.list_physical_devices('GPU')
         print("Num GPUs Available: ", len(gpus))
         if gpus:
@@ -27,7 +27,6 @@ def setup_gpu(gpu_option, device_number=0):
                 # Visible devices must be set at program startup
                 print(e)
     else:
-        import os
         print('Using CPU')
         os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
         tf.config.experimental.set_visible_devices([], 'GPU')

@@ -22,9 +22,9 @@ for gpu_id in range(8):
 
 
 number_clients_list = ["10"]
-dp_noise_mechanisms = ["RR"]
-# total epsilon = dp_noise_eps * num_thresholds * 4 for Laplace; For RR,
-# it's the dp budget as it is.
+dp_noise_mechanisms = ["Laplace"] # "Laplace", "RR", "None" (no protection)
+# total epsilon = dp_noise_eps * num_thresholds * 4 for Laplace;
+# For RR, it's the dp budget as it is.
 dp_noise_eps_list = ["0.01"]
 assign_client_id_ranking_skewed = False
 repeat_times = 5
@@ -51,7 +51,7 @@ for i, number_clients in enumerate(number_clients_list):
                     idx = i * (len(dp_noise_eps_list) * \
                                len(num_thresholds)) + j * len(num_thresholds) + k
                     args_list += gpu_opt + gpus[(gpu_start_idx + idx) % 8]
-                log_file_name = "logs/stdout_logs/" + \
+                log_file_name = "outputs/stdout_logs/" + \
                     str(stamp) + "_numberClients_" + number_clients + str(dp_noise_mechanism) + "_eps_" + noise_eps
                 log_file_name += "numThreshold_" + \
                     str(num_threshold) + "_repeatTimes_" + str(repeat_times)

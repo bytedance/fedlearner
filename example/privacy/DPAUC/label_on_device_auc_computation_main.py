@@ -379,9 +379,9 @@ def multi_epoch_run(is_full=False):
     else:
         file_name += "_ClientsAssignedUniformly"
     if is_full:
-        file_name = "logs/test_set/" + file_name + ".csv"
+        file_name = "outputs/test_set/" + file_name + ".csv"
     else:
-        file_name = "logs/sample_0.1_of_test/" + file_name + ".csv"
+        file_name = "outputs/sample_0.1_of_test/" + file_name + ".csv"
 
     df.to_csv(file_name, index=False)
 
