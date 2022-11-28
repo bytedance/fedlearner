@@ -324,9 +324,7 @@ def multi_epoch_run(is_full=False):
                 thresholds=thresholds,
                 dp_noise_mechanism=dp_noise_mechanism,
                 dp_noise_eps=dp_noise_eps)
-            # auc_roc = dataset.cal_ROC_AUC_rr(label_flipping_eps=label_flipping_eps, sampled_clients_ratio=clients_sampled_ratio, thresholds=thresholds)
             return auc_roc
-            # auc_roc_list.append(auc_roc)
 
         auc_gt_tf = ground_truth_auc(
             tf.cast(
@@ -367,7 +365,8 @@ def multi_epoch_run(is_full=False):
             "auc_gt_sl": aucs_gt_sl,
             "roc_auc_mean": roc_aucs_mean,
             "roc_auc_std": roc_aucs_std})
-    file_name = str(stamp) + "_{}_eps_{}_numClients_{}_repeat_times_{}_numThresholds_{}_ClientsSampledRatio_{}".format(
+    file_name = str(stamp) + \
+        "_{}_eps_{}_numClients_{}_repeat_times_{}_numThresholds_{}_ClientsSampledRatio_{}".format(
         str(dp_noise_mechanism),
         str(dp_noise_eps),
         str(number_clients),

@@ -1,13 +1,14 @@
 from itertools import chain
-from sklearn import metrics
+import random
 import tensorflow as tf
 # import datetime
 from functools import reduce
-import random
 # from visualization_util import visualize_roc_auc
 # import multiprocessing as mp
 from multiprocessing.pool import ThreadPool as Pool
+from sklearn import metrics
 import numpy as np
+
 run_parallel = False
 nprocs = 8
 print(f"Using Number of CPU cores: {nprocs}")
@@ -154,7 +155,7 @@ class Client:
         # print("vanilla_res_quadruples: {}".format(vanilla_res))
         noise = np.array([generate_noisy_value_w_dp(sensititvity=1.0,
                                                     noise_eps=dp_noise_eps,
-                                                    noisy_mechanism=dp_noise_mechanism) for _ in range(4)])
+                        noisy_mechanism=dp_noise_mechanism) for _ in range(4)])
         # noise = np.array((0.0, 0.0, 0.0, 0.0))
         # print("vanilla_res: {}, noise: {}".format(vanilla_res, noise))
         return vanilla_res + noise
@@ -204,8 +205,7 @@ class DataSet:
                                         dp_noise_mechanism=dp_noise_mechanism,
                                                     dp_noise_eps=dp_noise_eps),
                              sampled_clients))
-        # print("aggregated quadruples once: {}, sampled_ratio: {}, threshold: {}".format(
-        #                                 res, sampled_clients_ratio, threshold))
+
         res = [v * 1.0 for v in list(res)]
         tp, fp, tn, fn = max(
             res[0], 0), max(
@@ -314,12 +314,17 @@ class DataSet:
         base_rate = true_total_number_of_positives * 1.0 / \
             (true_total_number_of_positives + true_total_number_of_negatives) 
         print("true base_rate: {}".format(base_rate))
-        estimated_total_number_of_positives = ((self.total_noisy_number_of_positives * (
-            1.0 - n2p_q) - self.total_noisy_number_of_negatives * n2p_q) / (1.0 - p2n_p - n2p_q))
+
+        estimated_total_number_of_positives = (
+            (self.total_noisy_number_of_positives * (1.0 - n2p_q) -
+           self.total_noisy_number_of_negatives * n2p_q) / (1.0 - p2n_p - n2p_q)
+            )
+
         estimated_total_number_of_negatives = true_total_number_of_positives + \
             true_total_number_of_negatives - estimated_total_number_of_positives
         base_rate = estimated_total_number_of_positives * 1.0 / \
-            (estimated_total_number_of_negatives + estimated_total_number_of_positives)
+                                        (estimated_total_number_of_negatives + 
+                                            estimated_total_number_of_positives)
         print("base_rate_corr: {}".format(base_rate))
         alpha = (1.0 - base_rate) * n2p_q / (base_rate * \
                  (1.0 - p2n_p) + (1.0 - base_rate) * n2p_q)
@@ -390,58 +395,12 @@ def ground_truth_auc(y, pred, method="sklearn", num_thresholds=1000):
     return res
 
 
-# def expected_std_auc_1(n, p, c, epsilon, delta):
-#     if epsilon > 0:
-#         return (n + p - 1.0) * np.sqrt(2 * np.log(1.25 / delta)) / \
-#             epsilon / (p * n / np.sqrt(c))
-#     else:
-#         return -1.0
-
-
-# def expected_std_auc_2(n, p, c, epsilon, delta):
-#     if epsilon > 0:
-#         return (n + p - 1.0) / np.sqrt(2 * epsilon) / (p * n / np.sqrt(c))
-#     else:
-#         return -1.0
-
-
-# def expected_std_auc_3(n, p, c, epsilon, delta=0.0):
-#     if epsilon > 0:
-
-#         return (n + p - 1.0) * np.sqrt(2) / epsilon / (p * n / np.sqrt(c))
-#     else:
-#         return -1.0
-
-
-# def expected_std_auc_rr(n, p, c, epsilon):
-#     prob = dp_flipping_rate(epsilon)
-#     return np.sqrt(prob * (1.0 - prob) * c * (c + 1.0)
-#                    * (2 * c + 1.0) / 6.0) / (p * n)
-
-
-# def expected_auc_std(n, p, c, epsilon=-1, delta=0, mechanism="GlobalGaussian"):
-#     if mechanism == "GlobalGaussian":
-#         if epsilon < 1.0 and epsilon > 0.0:
-#             return expected_std_auc_1(n, p, c, epsilon, delta)
-#         elif epsilon >= 1.0:
-#             return expected_std_auc_2(n, p, c, epsilon, delta)
-#         else:
-#             return 0.0
-#     elif mechanism == "GlobalLaplace":
-#         if epsilon <= 0.0 and epsilon >= 100.0:
-#             return 0.0
-#         else:
-#             return expected_std_auc_3(n, p, c, epsilon, delta)
-#     elif mechanism == "labeldp":
-#         return expected_std_auc_rr(n, p, n + p, epsilon)
-#     else:
-#         return 0.0
-
-
 if __name__ == "__main__":
 
-    data = [(0.8, 0), (0.1, 0), (0.2, 0), (0.4, 0), (0.5, 0), (0.6, 1), (0.7, 1), (0.88, 0),
-            (0.12, 1), (0.98, 1), (0.98, 1), (0.998, 0), (0.765, 1), (0.892, 0), (0.34, 1)]
+    data = [(0.8, 0), (0.1, 0), (0.2, 0), (0.4, 0), (0.5, 0), 
+                                                (0.6, 1), (0.7, 1), (0.88, 0),
+                        (0.12, 1), (0.98, 1), (0.98, 1), (0.998, 0), (0.765, 1), 
+                                                        (0.892, 0), (0.34, 1)]
     pred = [x for (x, _) in data]
     y = [y for (_, y) in data]
     auc_sklearn = ground_truth_auc(y, pred, "sklearn", num_thresholds=1000)
@@ -466,4 +425,5 @@ if __name__ == "__main__":
     thresholds = list(np.linspace(0.0, 1.0, num=100))[::-1]
 
     dataset.cal_roc_auc(sampled_clients_ratio=1.0, thresholds=thresholds)
-    print("ground truth: auc_sklearn: {}, auc_tf: {}".format(auc_sklearn, auc_tf))
+    print("ground truth: auc_sklearn: {}, auc_tf: {}".format(
+                                                        auc_sklearn, auc_tf))
