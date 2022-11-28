@@ -78,4 +78,4 @@ num_thresholds = [100]
 ### Figures and logs
 
 * You can check the Roc-AUC curve in the folder of `figures/roc_auc`. 
-* You can check the logs of our previous results in the folder of `output`.
+* You can check the logs of our previous results in the folder of `outputs`.
