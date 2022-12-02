@@ -1,0 +1,321 @@
+Using Number of CPU cores: 8
+Number of CPU cores: 16
+Using CPU
+using GPUs:
+[]
+start: 2022-06-18 11:18:47.147378
+# clients: 10, # total samples: 458407
+# positives: 117317.0, # negatives: 341090.0
+final auc: 0.7488250374670529
+noisy_auc:0.7488250374670529 with: Laplace and eps: 0.01
+final auc: 0.7502219467851072
+noisy_auc:0.7502219467851072 with: Laplace and eps: 0.01
+final auc: 0.7488410689120066
+noisy_auc:0.7488410689120066 with: Laplace and eps: 0.01
+final auc: 0.7489208108873913
+noisy_auc:0.7489208108873913 with: Laplace and eps: 0.01
+final auc: 0.748956372977754
+noisy_auc:0.748956372977754 with: Laplace and eps: 0.01
+final auc: 0.7494119878104477
+noisy_auc:0.7494119878104477 with: Laplace and eps: 0.01
+final auc: 0.7493970651364147
+noisy_auc:0.7493970651364147 with: Laplace and eps: 0.01
+final auc: 0.749128955276035
+noisy_auc:0.749128955276035 with: Laplace and eps: 0.01
+final auc: 0.7493114678377759
+noisy_auc:0.7493114678377759 with: Laplace and eps: 0.01
+final auc: 0.7492107877604629
+noisy_auc:0.7492107877604629 with: Laplace and eps: 0.01
+final auc: 0.7492784263801566
+noisy_auc:0.7492784263801566 with: Laplace and eps: 0.01
+final auc: 0.7491122473913971
+noisy_auc:0.7491122473913971 with: Laplace and eps: 0.01
+final auc: 0.7494356055962191
+noisy_auc:0.7494356055962191 with: Laplace and eps: 0.01
+final auc: 0.7494272220826306
+noisy_auc:0.7494272220826306 with: Laplace and eps: 0.01
+final auc: 0.7492971040974568
+noisy_auc:0.7492971040974568 with: Laplace and eps: 0.01
+final auc: 0.7498727873953278
+noisy_auc:0.7498727873953278 with: Laplace and eps: 0.01
+final auc: 0.7492072865243075
+noisy_auc:0.7492072865243075 with: Laplace and eps: 0.01
+final auc: 0.7489674619137872
+noisy_auc:0.7489674619137872 with: Laplace and eps: 0.01
+final auc: 0.7496173458384752
+noisy_auc:0.7496173458384752 with: Laplace and eps: 0.01
+final auc: 0.7491628412587081
+noisy_auc:0.7491628412587081 with: Laplace and eps: 0.01
+final auc: 0.7496690529486398
+noisy_auc:0.7496690529486398 with: Laplace and eps: 0.01
+final auc: 0.7494965636575862
+noisy_auc:0.7494965636575862 with: Laplace and eps: 0.01
+final auc: 0.749279880868932
+noisy_auc:0.749279880868932 with: Laplace and eps: 0.01
+final auc: 0.749293598108095
+noisy_auc:0.749293598108095 with: Laplace and eps: 0.01
+final auc: 0.7491988012938443
+noisy_auc:0.7491988012938443 with: Laplace and eps: 0.01
+final auc: 0.7494055887863627
+noisy_auc:0.7494055887863627 with: Laplace and eps: 0.01
+final auc: 0.7491359300119357
+noisy_auc:0.7491359300119357 with: Laplace and eps: 0.01
+final auc: 0.7493207215986529
+noisy_auc:0.7493207215986529 with: Laplace and eps: 0.01
+final auc: 0.7493491836136557
+noisy_auc:0.7493491836136557 with: Laplace and eps: 0.01
+final auc: 0.7491881844711242
+noisy_auc:0.7491881844711242 with: Laplace and eps: 0.01
+final auc: 0.7489872536940896
+noisy_auc:0.7489872536940896 with: Laplace and eps: 0.01
+final auc: 0.749459268359604
+noisy_auc:0.749459268359604 with: Laplace and eps: 0.01
+final auc: 0.7488182719950883
+noisy_auc:0.7488182719950883 with: Laplace and eps: 0.01
+final auc: 0.7487076721043626
+noisy_auc:0.7487076721043626 with: Laplace and eps: 0.01
+final auc: 0.7494497083949766
+noisy_auc:0.7494497083949766 with: Laplace and eps: 0.01
+final auc: 0.7497912624154682
+noisy_auc:0.7497912624154682 with: Laplace and eps: 0.01
+final auc: 0.7490976489094965
+noisy_auc:0.7490976489094965 with: Laplace and eps: 0.01
+final auc: 0.7493819107701785
+noisy_auc:0.7493819107701785 with: Laplace and eps: 0.01
+final auc: 0.7497006704601459
+noisy_auc:0.7497006704601459 with: Laplace and eps: 0.01
+final auc: 0.7493804333288488
+noisy_auc:0.7493804333288488 with: Laplace and eps: 0.01
+final auc: 0.7489871959233011
+noisy_auc:0.7489871959233011 with: Laplace and eps: 0.01
+final auc: 0.7491446228066097
+noisy_auc:0.7491446228066097 with: Laplace and eps: 0.01
+final auc: 0.7492515064266863
+noisy_auc:0.7492515064266863 with: Laplace and eps: 0.01
+final auc: 0.7492590779363184
+noisy_auc:0.7492590779363184 with: Laplace and eps: 0.01
+final auc: 0.7489318070067923
+noisy_auc:0.7489318070067923 with: Laplace and eps: 0.01
+final auc: 0.7496160671777965
+noisy_auc:0.7496160671777965 with: Laplace and eps: 0.01
+final auc: 0.7500386152980668
+noisy_auc:0.7500386152980668 with: Laplace and eps: 0.01
+final auc: 0.7486893210224004
+noisy_auc:0.7486893210224004 with: Laplace and eps: 0.01
+final auc: 0.7494270824288611
+noisy_auc:0.7494270824288611 with: Laplace and eps: 0.01
+final auc: 0.7496929212886515
+noisy_auc:0.7496929212886515 with: Laplace and eps: 0.01
+epoch: 0, mean_auc_tf: 0.7493574619293213, std_auc_tf: 0.0
+epoch: 0, mean_auc_sk: 0.7493831215889618, std_auc_sk: 0.0
+epoch 0 ends at: 2022-06-18 13:52:37.367050 , uses: 2:33:50.219672
+# clients: 10, # total samples: 458407
+# positives: 117317.0, # negatives: 341090.0
+final auc: 0.7662039298453882
+noisy_auc:0.7662039298453882 with: Laplace and eps: 0.01
+final auc: 0.7666899170969498
+noisy_auc:0.7666899170969498 with: Laplace and eps: 0.01
+final auc: 0.7665692876400958
+noisy_auc:0.7665692876400958 with: Laplace and eps: 0.01
+final auc: 0.7661157515302428
+noisy_auc:0.7661157515302428 with: Laplace and eps: 0.01
+final auc: 0.7663205846352331
+noisy_auc:0.7663205846352331 with: Laplace and eps: 0.01
+final auc: 0.7666869563046302
+noisy_auc:0.7666869563046302 with: Laplace and eps: 0.01
+final auc: 0.7661248185839444
+noisy_auc:0.7661248185839444 with: Laplace and eps: 0.01
+final auc: 0.7663454828124682
+noisy_auc:0.7663454828124682 with: Laplace and eps: 0.01
+final auc: 0.7665210660189135
+noisy_auc:0.7665210660189135 with: Laplace and eps: 0.01
+final auc: 0.7660841810734469
+noisy_auc:0.7660841810734469 with: Laplace and eps: 0.01
+final auc: 0.7662014607293546
+noisy_auc:0.7662014607293546 with: Laplace and eps: 0.01
+final auc: 0.7662672945691369
+noisy_auc:0.7662672945691369 with: Laplace and eps: 0.01
+final auc: 0.7664708495937074
+noisy_auc:0.7664708495937074 with: Laplace and eps: 0.01
+final auc: 0.7662677572105063
+noisy_auc:0.7662677572105063 with: Laplace and eps: 0.01
+final auc: 0.7660154651476083
+noisy_auc:0.7660154651476083 with: Laplace and eps: 0.01
+final auc: 0.7663987569311792
+noisy_auc:0.7663987569311792 with: Laplace and eps: 0.01
+final auc: 0.7659995375082249
+noisy_auc:0.7659995375082249 with: Laplace and eps: 0.01
+final auc: 0.766025362906486
+noisy_auc:0.766025362906486 with: Laplace and eps: 0.01
+final auc: 0.7667177445713504
+noisy_auc:0.7667177445713504 with: Laplace and eps: 0.01
+final auc: 0.7659735753717524
+noisy_auc:0.7659735753717524 with: Laplace and eps: 0.01
+final auc: 0.7663827158843304
+noisy_auc:0.7663827158843304 with: Laplace and eps: 0.01
+final auc: 0.7662949101485044
+noisy_auc:0.7662949101485044 with: Laplace and eps: 0.01
+final auc: 0.7665407708187606
+noisy_auc:0.7665407708187606 with: Laplace and eps: 0.01
+final auc: 0.7664426079563611
+noisy_auc:0.7664426079563611 with: Laplace and eps: 0.01
+final auc: 0.7666285600080045
+noisy_auc:0.7666285600080045 with: Laplace and eps: 0.01
+final auc: 0.7659897850339241
+noisy_auc:0.7659897850339241 with: Laplace and eps: 0.01
+final auc: 0.7668007431306458
+noisy_auc:0.7668007431306458 with: Laplace and eps: 0.01
+final auc: 0.7659430607339553
+noisy_auc:0.7659430607339553 with: Laplace and eps: 0.01
+final auc: 0.7662728986484411
+noisy_auc:0.7662728986484411 with: Laplace and eps: 0.01
+final auc: 0.766085185591933
+noisy_auc:0.766085185591933 with: Laplace and eps: 0.01
+final auc: 0.7661504429016797
+noisy_auc:0.7661504429016797 with: Laplace and eps: 0.01
+final auc: 0.7662986052149794
+noisy_auc:0.7662986052149794 with: Laplace and eps: 0.01
+final auc: 0.7664457288542385
+noisy_auc:0.7664457288542385 with: Laplace and eps: 0.01
+final auc: 0.7661645700913319
+noisy_auc:0.7661645700913319 with: Laplace and eps: 0.01
+final auc: 0.7660841299311499
+noisy_auc:0.7660841299311499 with: Laplace and eps: 0.01
+final auc: 0.7659772942703038
+noisy_auc:0.7659772942703038 with: Laplace and eps: 0.01
+final auc: 0.7659095047126011
+noisy_auc:0.7659095047126011 with: Laplace and eps: 0.01
+final auc: 0.7662791986130266
+noisy_auc:0.7662791986130266 with: Laplace and eps: 0.01
+final auc: 0.7673349889969214
+noisy_auc:0.7673349889969214 with: Laplace and eps: 0.01
+final auc: 0.7660064673644714
+noisy_auc:0.7660064673644714 with: Laplace and eps: 0.01
+final auc: 0.7664089975568119
+noisy_auc:0.7664089975568119 with: Laplace and eps: 0.01
+final auc: 0.7666950114570004
+noisy_auc:0.7666950114570004 with: Laplace and eps: 0.01
+final auc: 0.7666353217750863
+noisy_auc:0.7666353217750863 with: Laplace and eps: 0.01
+final auc: 0.7662368641214038
+noisy_auc:0.7662368641214038 with: Laplace and eps: 0.01
+final auc: 0.7660806292395819
+noisy_auc:0.7660806292395819 with: Laplace and eps: 0.01
+final auc: 0.7665292603081044
+noisy_auc:0.7665292603081044 with: Laplace and eps: 0.01
+final auc: 0.7664649129237611
+noisy_auc:0.7664649129237611 with: Laplace and eps: 0.01
+final auc: 0.7663599663444698
+noisy_auc:0.7663599663444698 with: Laplace and eps: 0.01
+final auc: 0.7662221942278654
+noisy_auc:0.7662221942278654 with: Laplace and eps: 0.01
+final auc: 0.7662392426882516
+noisy_auc:0.7662392426882516 with: Laplace and eps: 0.01
+epoch: 1, mean_auc_tf: 0.7664340734481812, std_auc_tf: 0.0
+epoch: 1, mean_auc_sk: 0.7664771312694274, std_auc_sk: 0.0
+epoch 1 ends at: 2022-06-18 16:35:35.771079 , uses: 5:16:48.623701
+# clients: 10, # total samples: 458407
+# positives: 117317.0, # negatives: 341090.0
+final auc: 0.7699718411926599
+noisy_auc:0.7699718411926599 with: Laplace and eps: 0.01
+final auc: 0.7700080213660244
+noisy_auc:0.7700080213660244 with: Laplace and eps: 0.01
+final auc: 0.7699808596287668
+noisy_auc:0.7699808596287668 with: Laplace and eps: 0.01
+final auc: 0.7703736514145826
+noisy_auc:0.7703736514145826 with: Laplace and eps: 0.01
+final auc: 0.7702295990983239
+noisy_auc:0.7702295990983239 with: Laplace and eps: 0.01
+final auc: 0.7695434110413402
+noisy_auc:0.7695434110413402 with: Laplace and eps: 0.01
+final auc: 0.7698199951422158
+noisy_auc:0.7698199951422158 with: Laplace and eps: 0.01
+final auc: 0.7700100346655665
+noisy_auc:0.7700100346655665 with: Laplace and eps: 0.01
+final auc: 0.7706149122917427
+noisy_auc:0.7706149122917427 with: Laplace and eps: 0.01
+final auc: 0.7700937227513116
+noisy_auc:0.7700937227513116 with: Laplace and eps: 0.01
+final auc: 0.7702356287550656
+noisy_auc:0.7702356287550656 with: Laplace and eps: 0.01
+final auc: 0.7703738740450812
+noisy_auc:0.7703738740450812 with: Laplace and eps: 0.01
+final auc: 0.7701564667766074
+noisy_auc:0.7701564667766074 with: Laplace and eps: 0.01
+final auc: 0.7697694900202097
+noisy_auc:0.7697694900202097 with: Laplace and eps: 0.01
+final auc: 0.770035992714935
+noisy_auc:0.770035992714935 with: Laplace and eps: 0.01
+final auc: 0.7700232196252055
+noisy_auc:0.7700232196252055 with: Laplace and eps: 0.01
+final auc: 0.7702816968985667
+noisy_auc:0.7702816968985667 with: Laplace and eps: 0.01
+final auc: 0.7702942381997573
+noisy_auc:0.7702942381997573 with: Laplace and eps: 0.01
+final auc: 0.7703540708139518
+noisy_auc:0.7703540708139518 with: Laplace and eps: 0.01
+final auc: 0.7700119422737461
+noisy_auc:0.7700119422737461 with: Laplace and eps: 0.01
+final auc: 0.7701857996830053
+noisy_auc:0.7701857996830053 with: Laplace and eps: 0.01
+final auc: 0.769968590372738
+noisy_auc:0.769968590372738 with: Laplace and eps: 0.01
+final auc: 0.7700095245424582
+noisy_auc:0.7700095245424582 with: Laplace and eps: 0.01
+final auc: 0.7697519300300983
+noisy_auc:0.7697519300300983 with: Laplace and eps: 0.01
+final auc: 0.7694607788081294
+noisy_auc:0.7694607788081294 with: Laplace and eps: 0.01
+final auc: 0.769570215458099
+noisy_auc:0.769570215458099 with: Laplace and eps: 0.01
+final auc: 0.7699350066464379
+noisy_auc:0.7699350066464379 with: Laplace and eps: 0.01
+final auc: 0.7704228009130649
+noisy_auc:0.7704228009130649 with: Laplace and eps: 0.01
+final auc: 0.7705134871645474
+noisy_auc:0.7705134871645474 with: Laplace and eps: 0.01
+final auc: 0.7696343808942051
+noisy_auc:0.7696343808942051 with: Laplace and eps: 0.01
+final auc: 0.7703027254475067
+noisy_auc:0.7703027254475067 with: Laplace and eps: 0.01
+final auc: 0.7703735222340704
+noisy_auc:0.7703735222340704 with: Laplace and eps: 0.01
+final auc: 0.7704807334315622
+noisy_auc:0.7704807334315622 with: Laplace and eps: 0.01
+final auc: 0.7697538822570712
+noisy_auc:0.7697538822570712 with: Laplace and eps: 0.01
+final auc: 0.7697458794033792
+noisy_auc:0.7697458794033792 with: Laplace and eps: 0.01
+final auc: 0.769899153914587
+noisy_auc:0.769899153914587 with: Laplace and eps: 0.01
+final auc: 0.7698377461780697
+noisy_auc:0.7698377461780697 with: Laplace and eps: 0.01
+final auc: 0.7698639437604842
+noisy_auc:0.7698639437604842 with: Laplace and eps: 0.01
+final auc: 0.7700691738238934
+noisy_auc:0.7700691738238934 with: Laplace and eps: 0.01
+final auc: 0.7705473977139904
+noisy_auc:0.7705473977139904 with: Laplace and eps: 0.01
+final auc: 0.7698521431697828
+noisy_auc:0.7698521431697828 with: Laplace and eps: 0.01
+final auc: 0.7701876452262587
+noisy_auc:0.7701876452262587 with: Laplace and eps: 0.01
+final auc: 0.7700464768387991
+noisy_auc:0.7700464768387991 with: Laplace and eps: 0.01
+final auc: 0.7701474810144457
+noisy_auc:0.7701474810144457 with: Laplace and eps: 0.01
+final auc: 0.7697026830950326
+noisy_auc:0.7697026830950326 with: Laplace and eps: 0.01
+final auc: 0.7695679438956461
+noisy_auc:0.7695679438956461 with: Laplace and eps: 0.01
+final auc: 0.7701811669934557
+noisy_auc:0.7701811669934557 with: Laplace and eps: 0.01
+final auc: 0.7695998244212701
+noisy_auc:0.7695998244212701 with: Laplace and eps: 0.01
+final auc: 0.7696588691449473
+noisy_auc:0.7696588691449473 with: Laplace and eps: 0.01
+final auc: 0.7698592123292658
+noisy_auc:0.7698592123292658 with: Laplace and eps: 0.01
+epoch: 2, mean_auc_tf: 0.7701895236968994, std_auc_tf: 0.0
+epoch: 2, mean_auc_sk: 0.7702185466609048, std_auc_sk: 0.0
+epoch 2 ends at: 2022-06-18 19:22:47.519934 , uses: 8:04:00.372556
