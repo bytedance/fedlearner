@@ -12,9 +12,9 @@ clnt = etcd3.client(host=host, port=port,
     grpc_options=options)
 for (data, key) in clnt.get_prefix('/', sort_order='ascend'):
     if not isinstance(key.key, str):
-        key = key.key.decoder()
+        key = key.key.decode()
     if not isinstance(data, str):
-        data = data.decoder()
+        data = data.decode()
     MySQL_client.set_data(key, data)
 
 

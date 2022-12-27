@@ -19,6 +19,7 @@ import os
 from fedlearner.common.etcd_client import EtcdClient
 from fedlearner.common.dfs_client import DFSClient
 from fedlearner.common.mysql_client import MySQLClient
+from fedlearner.common.bytedmysql_client import BytedMySQLClient
 from fedlearner.common.leveldb import LevelDB
 
 
@@ -50,11 +51,13 @@ class DBClient(object):
         else:
             database, addr, username, password, base_dir = \
                 get_kvstore_config(kvstore_type)
-            self._client = EtcdClient(database, addr, base_dir,
-                                      use_mock_etcd)
-            if username is not None and not use_mock_etcd:
-                self._client = MySQLClient(database, addr, username,
-                                           password, base_dir)
+            self._client = BytedMySQLClient(database, addr, username,
+                                            password, base_dir)
+            # self._client = EtcdClient(database, addr, base_dir,
+            #                           use_mock_etcd)
+            # if username is not None and not use_mock_etcd:
+            #     self._client = MySQLClient(database, addr, username,
+            #                                password, base_dir)
 
     def __getattr__(self, attr):
         return getattr(self._client, attr)
