@@ -1,4 +1,4 @@
-setuptools==41.0.0
+setuptools==65.5.1
 tensorflow==1.15.2
 cityhash
 pylint==2.4.4
