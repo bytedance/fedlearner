@@ -318,7 +318,7 @@ class _TrainerMaster(tm_grpc.TrainerMasterServiceServicer):
                 and (self._save_checkpoint_secs \
                     or self._save_checkpoint_steps):
                 hooks.append(
-                    _CheckpointSaverHook(
+                    tf.train.CheckpointSaverHook(
                         checkpoint_dir=self._checkpoint_path,
                         save_secs=self._save_checkpoint_secs,
                         save_steps=self._save_checkpoint_steps,
