@@ -279,14 +279,14 @@ class _TrainerMaster(tm_grpc.TrainerMasterServiceServicer):
         fl_logging.info("create estimator")
         estimator = self._create_estimator()
         fl_logging.info("warm up session_run")
-        self._session_run(estimator)
+        self._session_run(estimator, True)
         if self._should_export_model or \
             (self._mode == 'train' and self._should_export_model is None):
             fl_logging.info("start export_model")
             self._export_model(estimator)
             fl_logging.info("export_model done")
         fl_logging.info("start session_run")
-        self._session_run(estimator, True)
+        self._session_run(estimator)
         fl_logging.info("session_run done")
         if self._should_export_model or \
             (self._mode == 'train' and self._should_export_model is None):
@@ -296,7 +296,7 @@ class _TrainerMaster(tm_grpc.TrainerMasterServiceServicer):
         self._transfer_status(tm_pb.MasterStatus.WORKER_COMPLETED,
                               tm_pb.MasterStatus.COMPLETED)
 
-    def _session_run(self, estimator, forever=False):
+    def _session_run(self, estimator, is_warm_up=False):
         mode_key = tf.estimator.ModeKeys.TRAIN if self._mode == "train" \
                        else tf.estimator.ModeKeys.EVAL
         with tf.Graph().as_default() as g, \
@@ -350,20 +350,21 @@ class _TrainerMaster(tm_grpc.TrainerMasterServiceServicer):
             with tf.train.MonitoredSession(
                 session_creator=session_creator,
                 hooks=hooks) as sess:
-
-                with self._lock:
-                    # ready, set status to running
-                    self._transfer_status(tm_pb.MasterStatus.INITIALING,
-                                          tm_pb.MasterStatus.RUNNING)
-
-                while True:
+                if is_warm_up:
                     sess.run(noop)
-                    if not forever:
-                        break
+                else:
                     with self._lock:
-                        if self._status == tm_pb.MasterStatus.WORKER_COMPLETED:
-                            break
-                    time.sleep(0.2)
+                        # ready, set status to running
+                        self._transfer_status(tm_pb.MasterStatus.INITIALING,
+                                              tm_pb.MasterStatus.RUNNING)
+
+                    while True:
+                        sess.run(noop)
+                        with self._lock:
+                            if self._status == \
+                                tm_pb.MasterStatus.WORKER_COMPLETED:
+                                break
+                        time.sleep(0.2)
 
     def _export_model(self, estimator):
         if self._export_path:
