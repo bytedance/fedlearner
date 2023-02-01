@@ -1,0 +1,128 @@
+load("@rules_python//python:defs.bzl", "py_library")
+
+package(default_visibility = ["//web_console_v2/api:console_api_package"])
+
+py_library(
+    name = "k8s_utils_lib",
+    srcs = ["k8s_utils.py"],
+    imports = ["../.."],
+    deps = [
+        "//web_console_v2/api:envs_lib",
+        "//web_console_v2/api/fedlearner_webconsole:db_lib",
+        "//web_console_v2/api/fedlearner_webconsole:exceptions_lib",
+        "//web_console_v2/api/fedlearner_webconsole/k8s:k8s_client_lib",
+        "//web_console_v2/api/fedlearner_webconsole/setting:service_lib",
+        "//web_console_v2/api/fedlearner_webconsole/utils:domain_name_lib",
+    ],
+)
+
+py_test(
+    name = "k8s_utils_lib_test",
+    srcs = [
+        "k8s_utils_test.py",
+    ],
+    imports = ["../.."],
+    main = "k8s_utils_test.py",
+    deps = [
+        ":k8s_utils_lib",
+        "//web_console_v2/api/testing:helpers_lib",
+        "//web_console_v2/api/testing:no_web_server_test_case_lib",
+    ],
+)
+
+py_library(
+    name = "models_lib",
+    srcs = ["models.py"],
+    imports = ["../.."],
+    deps = [
+        "//web_console_v2/api/fedlearner_webconsole:db_lib",
+        "//web_console_v2/api/fedlearner_webconsole/utils:domain_name_lib",
+        "//web_console_v2/api/fedlearner_webconsole/utils:pp_datetime_lib",
+        "//web_console_v2/api/protocols/fedlearner_webconsole/proto:py_proto",
+        "@common_sqlalchemy//:pkg",
+    ],
+)
+
+py_test(
+    name = "models_lib_test",
+    srcs = [
+        "models_test.py",
+    ],
+    imports = ["../.."],
+    main = "models_test.py",
+    deps = [
+        ":models_lib",
+        "//web_console_v2/api/fedlearner_webconsole/utils/base_model:base_model_lib",
+        "//web_console_v2/api/protocols/fedlearner_webconsole/proto:py_proto",
+        "//web_console_v2/api/testing:no_web_server_test_case_lib",
+    ],
+)
+
+py_library(
+    name = "services_lib",
+    srcs = ["services.py"],
+    imports = ["../.."],
+    deps = [
+        ":models_lib",
+        "//web_console_v2/api/fedlearner_webconsole:db_lib",
+        "//web_console_v2/api/fedlearner_webconsole/auth:models_lib",
+        "//web_console_v2/api/fedlearner_webconsole/utils:domain_name_lib",
+    ],
+)
+
+py_test(
+    name = "services_lib_test",
+    srcs = [
+        "services_test.py",
+    ],
+    imports = ["../.."],
+    main = "services_test.py",
+    deps = [
+        ":models_lib",
+        ":services_lib",
+        "//web_console_v2/api/fedlearner_webconsole/project:models_lib",
+        "//web_console_v2/api/fedlearner_webconsole/utils:pp_time_lib",
+        "//web_console_v2/api/testing:no_web_server_test_case_lib",
+    ],
+)
+
+py_library(
+    name = "apis_lib",
+    srcs = ["apis.py"],
+    imports = ["../.."],
+    deps = [
+        ":k8s_utils_lib",
+        ":models_lib",
+        ":services_lib",
+        "//web_console_v2/api/fedlearner_webconsole:db_lib",
+        "//web_console_v2/api/fedlearner_webconsole:exceptions_lib",
+        "//web_console_v2/api/fedlearner_webconsole/audit:decorators_lib",
+        "//web_console_v2/api/fedlearner_webconsole/auth:third_party_sso_lib",
+        "//web_console_v2/api/fedlearner_webconsole/rpc:client_lib",
+        "//web_console_v2/api/fedlearner_webconsole/rpc/v2:system_service_client_lib",
+        "//web_console_v2/api/fedlearner_webconsole/setting:service_lib",
+        "//web_console_v2/api/fedlearner_webconsole/utils:flask_utils_lib",
+        "//web_console_v2/api/fedlearner_webconsole/utils/decorators:decorators_lib",
+        "//web_console_v2/api/protocols/fedlearner_webconsole/proto:py_proto",
+        "@com_google_protobuf//:protobuf_python",
+        "@common_flask_restful//:pkg",
+        "@common_webargs//:pkg",
+    ],
+)
+
+py_test(
+    name = "apis_lib_test",
+    size = "medium",
+    srcs = [
+        "apis_test.py",
+    ],
+    imports = ["../.."],
+    main = "apis_test.py",
+    deps = [
+        ":apis_lib",
+        ":models_lib",
+        "//web_console_v2/api/fedlearner_webconsole:db_lib",
+        "//web_console_v2/api/fedlearner_webconsole/utils:pp_time_lib",
+        "//web_console_v2/api/testing:common_lib",
+    ],
+)

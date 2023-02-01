@@ -1,0 +1,49 @@
+package(default_visibility = ["//visibility:public"])
+
+py_library(
+    name = "metrics_lib",
+    srcs = [
+        "metrics.py",
+    ],
+    imports = [".."],
+    deps = [
+        "@common_opentelemetry_exporter_otlp//:pkg",
+        "@common_opentelemetry_sdk//:pkg",
+    ],
+)
+
+py_test(
+    name = "metrics_lib_test",
+    size = "small",
+    srcs = [
+        "metrics_test.py",
+    ],
+    imports = [".."],
+    main = "metrics_test.py",
+    deps = [
+        ":metrics_lib",
+    ],
+)
+
+py_library(
+    name = "sdk",
+    srcs = [
+        "sdk.py",
+    ],
+    imports = [
+        "..",
+    ],
+    deps = [
+        "//web_console_v2/api/fedlearner_webconsole/dataset:models_lib",
+        "//web_console_v2/api/fedlearner_webconsole/mmgr:models_lib",
+        "@common_requests//:pkg",
+    ],
+)
+
+py_library(
+    name = "logging_config",
+    srcs = [
+        "logging_config.py",
+    ],
+    imports = [".."],
+)

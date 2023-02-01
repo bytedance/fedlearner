@@ -1,0 +1,84 @@
+/* Copyright 2023 The FedLearner Authors. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+syntax = "proto3";
+
+package fedlearner_webconsole.proto.rpc.v2;
+
+import "google/protobuf/empty.proto";
+import "fedlearner_webconsole/proto/algorithm.proto";
+import "fedlearner_webconsole/proto/filtering.proto";
+import "fedlearner_webconsole/proto/dataset.proto";
+
+message ListAlgorithmProjectsRequest {
+    FilterExpression filter_exp = 1;
+}
+
+message ListAlgorithmProjectsResponse {
+    repeated AlgorithmProjectPb algorithm_projects = 1;
+}
+
+message ListAlgorithmsRequest {
+    string algorithm_project_uuid = 1;
+}
+
+message ListAlgorithmsResponse {
+    repeated AlgorithmPb algorithms = 1;
+}
+
+message GetAlgorithmProjectRequest {
+    string algorithm_project_uuid = 1;
+}
+
+message GetAlgorithmRequest {
+    string algorithm_uuid = 1;
+}
+
+message GetAlgorithmFilesRequest {
+    string algorithm_uuid = 1;
+}
+
+message GetAlgorithmFilesResponse {
+    string hash = 1;
+    bytes chunk = 2;
+}
+
+message InformDatasetRequest {
+    string uuid = 1;
+    // ref: AuthStatus
+    string auth_status = 2;
+}
+
+message ListDatasetsRequest {
+    string uuid = 1;
+    string kind = 2;
+    // ref: ResourceState
+    string state = 3;
+    TimeRange time_range = 4;
+}
+
+message ListDatasetsResponse {
+    repeated ParticipantDatasetRef participant_datasets = 1;
+}
+
+service ResourceService {
+    rpc ListAlgorithmProjects(ListAlgorithmProjectsRequest) returns (ListAlgorithmProjectsResponse) {}
+    rpc ListAlgorithms(ListAlgorithmsRequest) returns (ListAlgorithmsResponse) {}
+    rpc GetAlgorithmProject(GetAlgorithmProjectRequest) returns (AlgorithmProjectPb) {}
+    rpc GetAlgorithm(GetAlgorithmRequest) returns (AlgorithmPb) {}
+    rpc GetAlgorithmFiles(GetAlgorithmFilesRequest) returns (stream GetAlgorithmFilesResponse) {}
+    rpc InformDataset(InformDatasetRequest) returns (google.protobuf.Empty) {}
+    rpc ListDatasets(ListDatasetsRequest) returns (ListDatasetsResponse) {}
+}

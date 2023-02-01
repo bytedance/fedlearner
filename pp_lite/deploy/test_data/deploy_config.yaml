@@ -1,0 +1,4 @@
+pure_domain_name: some_company
+image_uri: artifact.bytedance.com/fedlearner/pp_lite:2.3.25.4
+include_image: false
+auto_cert_api_key: some_key

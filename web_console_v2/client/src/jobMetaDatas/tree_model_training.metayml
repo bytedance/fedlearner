@@ -1,0 +1,209 @@
+{
+  "apiVersion": "fedlearner.k8s.io/v1alpha1",
+  "kind": "FLApp",
+  "metadata": {
+      "name": self.name,
+      "namespace": system.variables.namespace,
+      "annotations":{
+          "queue": "fedlearner",
+          "schedulerName": "batch"
+      },
+    "labels": ${Slot_labels}
+  },
+  "spec": {
+      "role": ${Slot_role},
+      "cleanPodPolicy": "All",
+      "peerSpecs": {
+          "Leader" if ${Slot_role}=="Follower" else "Follower": {
+              "peerURL": "fedlearner-stack-ingress-nginx-controller.default.svc:80",
+              "authority": project.participants[0].egress_host,
+              "extraHeaders": {
+                  "x-host": "fedlearner-operator." + project.participants[0].egress_domain
+              }
+          }
+      },
+      "flReplicaSpecs": {
+          "Worker": {
+              "template": {
+                  "spec": {
+                      "restartPolicy": "Never",
+                      "containers": [
+                          {
+                              "env": system.basic_envs_list + [
+                                  {
+                                      "name": "STORAGE_ROOT_PATH",
+                                      "value": ${Slot_storage_root_path}
+                                  },
+                                  {
+                                      "name": "ROLE",
+                                      "value": ${Slot_role}.lower()
+                                  },
+                                  {
+                                      "name": "APPLICATION_ID",
+                                      "value": self.name
+                                  },
+                                  {
+                                      "name": "OUTPUT_BASE_DIR",
+                                      "value": ${Slot_storage_root_path} + "/job_output/" + self.name
+                                  },
+                                  {
+                                      "name": "EGRESS_URL",
+                                      "value": "fedlearner-stack-ingress-nginx-controller.default.svc:80"
+                                  },
+                                  {
+                                      "name": "EGRESS_HOST",
+                                      "value": project.participants[0].egress_host
+                                  },
+                                  {
+                                      "name": "EGRESS_DOMAIN",
+                                      "value": project.participants[0].egress_domain
+                                  },
+                                  {
+                                      "name": "MODE",
+                                      "value": ${Slot_mode}
+                                  },
+                                  {
+                                      "name": "LOSS_TYPE",
+                                      "value": ${Slot_loss_type}
+                                  },
+                                  {
+                                      "name": "DATA_SOURCE",
+                                      "value": ${Slot_data_source}
+                                  },
+                                  {
+                                      "name": "DATA_PATH",
+                                      "value": ${Slot_data_path}
+                                  },
+                                  {
+                                      "name": "VALIDATION_DATA_PATH",
+                                      "value": ${Slot_validation_data_path}
+                                  },
+                                  {
+                                      "name": "NO_DATA",
+                                      "value": str(${Slot_no_data})
+                                  },
+                                  {
+                                      "name": "FILE_EXT",
+                                      "value": ${Slot_file_ext}
+                                  },
+                                  {
+                                      "name": "FILE_TYPE",
+                                      "value": ${Slot_file_type}
+                                  },
+                                  {
+                                      "name": "LOAD_MODEL_PATH",
+                                      "value": ${Slot_load_model_path}
+                                  },
+                                  {
+                                      "name": "LOAD_MODEL_NAME",
+                                      "value": ${Slot_load_model_name}
+                                  },
+                                  {
+                                      "name": "VERBOSITY",
+                                      "value": str(${Slot_verbosity})
+                                  },
+                                  {
+                                      "name": "LEARNING_RATE",
+                                      "value": str(${Slot_learning_rate})
+                                  },
+                                  {
+                                      "name": "MAX_ITERS",
+                                      "value": str(${Slot_max_iters})
+                                  },
+                                  {
+                                      "name": "MAX_DEPTH",
+                                      "value": str(${Slot_max_depth})
+                                  },
+                                  {
+                                      "name": "MAX_BINS",
+                                      "value": str(${Slot_max_bins})
+                                  },
+                                  {
+                                      "name": "L2_REGULARIZATION",
+                                      "value": str(${Slot_l2_regularization})
+                                  },
+                                  {
+                                      "name": "NUM_PARALLEL",
+                                      "value": str(${Slot_num_parallel})
+                                  },
+                                  {
+                                      "name": "VERIFY_EXAMPLE_IDS",
+                                      "value": str(${Slot_verify_example_ids})
+                                  },
+                                  {
+                                      "name": "IGNORE_FIELDS",
+                                      "value": ${Slot_ignore_fields}
+                                  },
+                                  {
+                                      "name": "CAT_FIELDS",
+                                      "value": ${Slot_cat_fields}
+                                  },
+                                  {
+                                      "name": "LABEL_FIELD",
+                                      "value": ${Slot_label_field}
+                                  },
+                                  {
+                                      "name": "SEND_SCORES_TO_FOLLOWER",
+                                      "value": str(${Slot_send_scores_to_follower})
+                                  },
+                                  {
+                                      "name": "SEND_METRICS_TO_FOLLOWER",
+                                      "value": str(${Slot_send_metrics_to_follower})
+                                  },
+                                  {
+                                      "name": "ENABLE_PACKING",
+                                      "value": str(${Slot_enable_packing})
+                                  },
+                                  {
+                                      "name": "ES_BATCH_SIZE",
+                                      "value": str(${Slot_es_batch_size})
+                                  }
+                              ] + ${Slot_worker_envs},
+                              "imagePullPolicy": "IfNotPresent",
+                              "name": "tensorflow",
+                              "volumeMounts": ${Slot_volume_mounts},
+                              "image": system.variables.image_repo + "/fedlearner:" + ${Slot_image_version},
+                              "ports": [
+                                  {
+                                      "containerPort": 50051,
+                                      "name": "flapp-port",
+                                      "protocol": "TCP"
+                                  },
+                                  {
+                                      "containerPort": 50052,
+                                      "name": "tf-port",
+                                      "protocol": "TCP"
+                                  }
+                              ],
+                              "command": [
+                                  "/app/deploy/scripts/wait4pair_wrapper.sh"
+                              ],
+                              "args": [
+                                  "/app/deploy/scripts/trainer/run_tree_worker.sh"
+                              ],
+                              "resources": {
+                                  "limits": {
+                                      "cpu": ${Slot_worker_cpu},
+                                      "memory": ${Slot_worker_mem}
+                                  },
+                                  "requests": {
+                                      "cpu": ${Slot_worker_cpu},
+                                      "memory": ${Slot_worker_mem}
+                                  }
+                              }
+                          }
+                      ],
+                      "imagePullSecrets": [
+                          {
+                            "name": "regcred"
+                          }
+                      ],
+                      "volumes": ${Slot_volumes}
+                  }
+              },
+              "pair": True,
+              "replicas": 1
+          }
+      }
+  }
+}

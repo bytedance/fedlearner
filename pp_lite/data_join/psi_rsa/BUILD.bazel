@@ -1,0 +1,35 @@
+load("@rules_python//python:defs.bzl", "py_binary", "py_library")
+
+py_library(
+    name = "psi_rsa",
+    srcs = [
+        "psi_client.py",
+        "psi_server.py",
+    ],
+    visibility = ["//pp_lite:pp_lite_package"],
+    deps = [
+        "//pp_lite/data_join:envs",
+        "//pp_lite/data_join/psi_rsa/client",
+        "//pp_lite/data_join/psi_rsa/server",
+        "//pp_lite/data_join/utils",
+        "//pp_lite/rpc",
+        "//pp_lite/utils",
+        "//py_libs:metrics_lib",
+    ],
+)
+
+py_binary(
+    name = "server_bin",
+    srcs = ["psi_server.py"],
+    main = "psi_server.py",
+    visibility = ["//pp_lite:pp_lite_package"],
+    deps = [":psi_rsa"],
+)
+
+py_binary(
+    name = "client_bin",
+    srcs = ["psi_client.py"],
+    main = "psi_client.py",
+    visibility = ["//pp_lite:pp_lite_package"],
+    deps = [":psi_rsa"],
+)

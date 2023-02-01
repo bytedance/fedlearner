@@ -1,0 +1,610 @@
+load("@rules_python//python:defs.bzl", "py_library")
+
+package(default_visibility = [
+    "//web_console_v2/api:console_api_package",
+])
+
+py_library(
+    name = "app_version_lib",
+    srcs = ["app_version.py"],
+    imports = ["../.."],
+    deps = ["//web_console_v2/api/protocols/fedlearner_webconsole/proto:py_proto"],
+)
+
+py_test(
+    name = "app_version_test",
+    srcs = ["app_version_test.py"],
+    imports = ["../.."],
+    main = "app_version_test.py",
+    deps = [
+        ":app_version_lib",
+        "//web_console_v2/api/protocols/fedlearner_webconsole/proto:py_proto",
+    ],
+)
+
+py_library(
+    name = "pp_base64_lib",
+    srcs = ["pp_base64.py"],
+    imports = ["../.."],
+)
+
+py_test(
+    name = "pp_base64_test",
+    srcs = ["pp_base64_test.py"],
+    imports = ["../.."],
+    main = "pp_base64_test.py",
+    deps = [
+        ":pp_base64_lib",
+    ],
+)
+
+py_library(
+    name = "const_lib",
+    srcs = ["const.py"],
+    imports = ["../.."],
+)
+
+py_library(
+    name = "pp_datetime_lib",
+    srcs = ["pp_datetime.py"],
+    imports = ["../.."],
+    deps = ["@common_python_dateutil//:pkg"],
+)
+
+py_test(
+    name = "pp_datetime_test",
+    srcs = ["pp_datetime_test.py"],
+    imports = ["../.."],
+    main = "pp_datetime_test.py",
+    deps = [
+        ":pp_datetime_lib",
+    ],
+)
+
+py_library(
+    name = "domain_name_lib",
+    srcs = ["domain_name.py"],
+    imports = ["../.."],
+)
+
+py_test(
+    name = "domain_name_test",
+    srcs = ["domain_name_test.py"],
+    imports = ["../.."],
+    main = "domain_name_test.py",
+    deps = [
+        ":domain_name_lib",
+    ],
+)
+
+py_library(
+    name = "es_lib",
+    srcs = [
+        "es.py",
+        "es_misc.py",
+    ],
+    imports = ["../.."],
+    deps = [
+        "//web_console_v2/api:envs_lib",
+        "@common_elasticsearch//:pkg",
+    ],
+)
+
+py_library(
+    name = "file_lib",
+    srcs = [
+        "file_manager.py",
+        "file_operator.py",
+        "file_tree.py",
+        "stream_tars.py",
+        "stream_untars.py",
+    ],
+    imports = ["../.."],
+    deps = [
+        "//web_console_v2/api:envs_lib",
+        "//web_console_v2/api/protocols/fedlearner_webconsole/proto:py_proto",
+        "@common_fsspec//:pkg",
+        # this is needed when using fsspec hdfs feature.
+        "@common_pyarrow//:pkg",  # keep
+        "@common_tensorflow//:pkg",
+    ],
+)
+
+py_test(
+    name = "file_lib_test",
+    size = "small",
+    srcs = ["file_manager_test.py"],
+    imports = ["../.."],
+    main = "file_manager_test.py",
+    deps = [
+        ":file_lib",
+        "//web_console_v2/api/testing:common_lib",
+        "//web_console_v2/api/testing:fake_lib",
+        "@common_tensorflow//:pkg",
+    ],
+)
+
+py_test(
+    name = "file_operator_test",
+    size = "small",
+    srcs = ["file_operator_test.py"],
+    data = [
+        "//web_console_v2/api/testing/test_data",
+        "//web_console_v2/api/testing/test_data/algorithm",
+    ],
+    imports = ["../.."],
+    main = "file_operator_test.py",
+    deps = [
+        ":file_lib",
+        "//web_console_v2/api:envs_lib",
+    ],
+)
+
+py_test(
+    name = "file_tree_test",
+    size = "small",
+    srcs = ["file_tree_test.py"],
+    imports = ["../.."],
+    main = "file_tree_test.py",
+    deps = [
+        ":file_lib",
+        "//web_console_v2/api/testing:common_lib",
+        "//web_console_v2/api/testing:fake_lib",
+        "@common_tensorflow//:pkg",
+    ],
+)
+
+py_test(
+    name = "tars_test",
+    srcs = ["tars_test.py"],
+    imports = ["../.."],
+    main = "tars_test.py",
+    deps = [
+        ":file_lib",
+    ],
+)
+
+py_library(
+    name = "filtering_lib",
+    srcs = ["filtering.py"],
+    imports = ["../.."],
+    deps = [
+        "//web_console_v2/api/fedlearner_webconsole:db_lib",
+        "//web_console_v2/api/protocols/fedlearner_webconsole/proto:py_proto",
+        "@common_pyparsing//:pkg",
+        "@common_sqlalchemy//:pkg",
+    ],
+)
+
+py_test(
+    name = "filtering_test",
+    size = "small",
+    srcs = ["filtering_test.py"],
+    imports = ["../.."],
+    main = "filtering_test.py",
+    deps = [
+        ":filtering_lib",
+        "//web_console_v2/api/testing:no_web_server_test_case_lib",
+    ],
+)
+
+py_library(
+    name = "flask_utils_lib",
+    srcs = ["flask_utils.py"],
+    imports = ["../.."],
+    deps = [
+        ":filtering_lib",
+        ":proto_lib",
+        "//web_console_v2/api/fedlearner_webconsole/auth:models_lib",
+        "//web_console_v2/api/protocols/fedlearner_webconsole/proto:py_proto",
+        "@com_google_protobuf//:protobuf_python",
+        "@common_flask//:pkg",
+        "@common_marshmallow//:pkg",
+        "@common_webargs//:pkg",
+    ],
+)
+
+py_test(
+    name = "flask_utils_test",
+    size = "medium",
+    srcs = ["flask_utils_test.py"],
+    data = [
+        "//web_console_v2/api/testing/test_data",
+    ],
+    imports = ["../.."],
+    main = "flask_utils_test.py",
+    deps = [
+        ":flask_utils_lib",
+        "//web_console_v2/api/fedlearner_webconsole/auth:models_lib",
+        "//web_console_v2/api/fedlearner_webconsole/utils/decorators:decorators_lib",
+        "//web_console_v2/api/protocols/fedlearner_webconsole/proto:py_proto",
+        "//web_console_v2/api/protocols/fedlearner_webconsole/proto/testing:py_proto",
+        "//web_console_v2/api/testing:common_lib",
+    ],
+)
+
+py_library(
+    name = "hooks_lib",
+    srcs = ["hooks.py"],
+    imports = ["../.."],
+    deps = [
+        ":metrics_lib",
+        "//web_console_v2/api:envs_lib",
+        "//web_console_v2/api/fedlearner_webconsole:db_lib",
+        "//web_console_v2/api/fedlearner_webconsole/middleware:api_latency_lib",
+        "//web_console_v2/api/fedlearner_webconsole/middleware:middlewares_lib",
+        "//web_console_v2/api/fedlearner_webconsole/middleware:request_id_lib",
+    ],
+)
+
+py_test(
+    name = "hooks_test",
+    srcs = ["hooks_test.py"],
+    data = [
+        "//web_console_v2/api/testing/test_data",
+    ],
+    imports = ["../.."],
+    main = "hooks_test.py",
+    deps = [
+        ":hooks_lib",
+    ],
+)
+
+py_library(
+    name = "images_lib",
+    srcs = ["images.py"],
+    imports = ["../.."],
+    deps = ["//web_console_v2/api/fedlearner_webconsole/setting:service_lib"],
+)
+
+py_test(
+    name = "images_test",
+    srcs = ["images_test.py"],
+    imports = ["../.."],
+    main = "images_test.py",
+    deps = [
+        ":images_lib",
+    ],
+)
+
+py_library(
+    name = "job_metrics_lib",
+    srcs = ["job_metrics.py"],
+    imports = ["../.."],
+    deps = [
+        ":file_lib",
+        "//web_console_v2/api/fedlearner_webconsole/job:models_lib",
+        "//web_console_v2/api/protocols/fedlearner_webconsole/proto:py_proto",
+        "@com_google_protobuf//:protobuf_python",
+        "@common_tensorflow//:pkg",
+    ],
+)
+
+py_library(
+    name = "kibana_lib",
+    srcs = ["kibana.py"],
+    imports = ["../.."],
+    deps = [
+        "//web_console_v2/api:envs_lib",
+        "//web_console_v2/api/fedlearner_webconsole:exceptions_lib",
+        "//web_console_v2/api/fedlearner_webconsole/job:models_lib",
+        "@common_prison//:pkg",
+        "@common_pytz//:pkg",
+        "@common_requests//:pkg",
+    ],
+)
+
+py_test(
+    name = "kibana_test",
+    srcs = ["kibana_test.py"],
+    imports = ["../.."],
+    main = "kibana_test.py",
+    deps = [
+        ":kibana_lib",
+        "//web_console_v2/api/fedlearner_webconsole:exceptions_lib",
+    ],
+)
+
+py_library(
+    name = "metrics_lib",
+    srcs = ["metrics.py"],
+    imports = ["../.."],
+    deps = [
+        "//web_console_v2/api:envs_lib",
+        "@common_opentelemetry_exporter_otlp//:pkg",
+        "@common_opentelemetry_sdk//:pkg",
+    ],
+)
+
+py_test(
+    name = "metrics_test",
+    size = "small",
+    srcs = ["metrics_test.py"],
+    imports = ["../.."],
+    main = "metrics_test.py",
+    deps = [
+        ":metrics_lib",
+        "//web_console_v2/api/fedlearner_webconsole/workflow:models_lib",
+        "//web_console_v2/api/testing:no_web_server_test_case_lib",
+    ],
+)
+
+py_library(
+    name = "mixins_lib",
+    srcs = ["mixins.py"],
+    imports = ["../.."],
+    deps = [
+        ":pp_datetime_lib",
+        "@com_google_protobuf//:protobuf_python",
+        "@common_sqlalchemy//:pkg",
+    ],
+)
+
+py_test(
+    name = "mixins_test",
+    srcs = ["mixins_test.py"],
+    imports = ["../.."],
+    main = "mixins_test.py",
+    deps = [
+        ":mixins_lib",
+        "//web_console_v2/api/fedlearner_webconsole:db_lib",
+        "//web_console_v2/api/protocols/fedlearner_webconsole/proto:py_proto",
+        "@common_sqlalchemy//:pkg",
+    ],
+)
+
+py_library(
+    name = "paginate_lib",
+    srcs = ["paginate.py"],
+    imports = ["../.."],
+    deps = ["@common_sqlalchemy//:pkg"],
+)
+
+py_test(
+    name = "paginate_lib_test",
+    size = "small",
+    srcs = ["paginate_test.py"],
+    imports = ["../.."],
+    main = "paginate_test.py",
+    deps = [
+        ":paginate_lib",
+        "//web_console_v2/api/fedlearner_webconsole/workflow:models_lib",
+        "//web_console_v2/api/testing:no_web_server_test_case_lib",
+    ],
+)
+
+py_library(
+    name = "pp_flatten_dict_lib",
+    srcs = ["pp_flatten_dict.py"],
+    imports = ["../.."],
+    deps = [
+        "@common_flatten_dict//:pkg",
+        "@common_six//:pkg",
+    ],
+)
+
+py_test(
+    name = "pp_flatten_dict_test",
+    srcs = ["pp_flatten_dict_test.py"],
+    imports = ["../.."],
+    main = "pp_flatten_dict_test.py",
+    deps = [
+        ":pp_flatten_dict_lib",
+    ],
+)
+
+py_library(
+    name = "pp_yaml_lib",
+    srcs = ["pp_yaml.py"],
+    imports = ["../.."],
+    deps = [
+        ":const_lib",
+        ":pp_flatten_dict_lib",
+        ":system_envs_lib",
+        "//web_console_v2/api/fedlearner_webconsole/setting:service_lib",
+        "@common_simpleeval//:pkg",
+    ],
+)
+
+py_test(
+    name = "pp_yaml_test",
+    srcs = ["pp_yaml_test.py"],
+    imports = ["../.."],
+    main = "pp_yaml_test.py",
+    deps = [
+        ":pp_yaml_lib",
+    ],
+)
+
+py_library(
+    name = "proto_lib",
+    srcs = ["proto.py"],
+    imports = ["../.."],
+    deps = [
+        "//web_console_v2/api/protocols/fedlearner_webconsole/proto:py_proto",
+        "@com_google_protobuf//:protobuf_python",
+    ],
+)
+
+py_test(
+    name = "proto_test",
+    srcs = ["proto_test.py"],
+    imports = ["../.."],
+    main = "proto_test.py",
+    deps = [
+        ":proto_lib",
+        "//web_console_v2/api/protocols/fedlearner_webconsole/proto/testing:py_proto",
+        "@com_google_protobuf//:protobuf_python",
+    ],
+)
+
+py_library(
+    name = "resource_name_lib",
+    srcs = ["resource_name.py"],
+    imports = ["../.."],
+)
+
+py_test(
+    name = "resource_name_test",
+    srcs = ["resource_name_test.py"],
+    imports = ["../.."],
+    main = "resource_name_test.py",
+    deps = [
+        ":resource_name_lib",
+        "//web_console_v2/api/protocols/fedlearner_webconsole/proto/testing:py_proto",
+        "@com_google_protobuf//:protobuf_python",
+    ],
+)
+
+py_library(
+    name = "schema_lib",
+    srcs = ["schema.py"],
+    imports = ["../.."],
+    deps = ["//web_console_v2/api/fedlearner_webconsole:exceptions_lib"],
+)
+
+py_test(
+    name = "schema_test",
+    srcs = ["schema_test.py"],
+    imports = ["../.."],
+    main = "schema_test.py",
+    deps = [
+        ":schema_lib",
+    ],
+)
+
+py_library(
+    name = "sorting_lib",
+    srcs = ["sorting.py"],
+    imports = ["../.."],
+    deps = [
+        "//web_console_v2/api/fedlearner_webconsole:db_lib",
+        "@common_sqlalchemy//:pkg",
+    ],
+)
+
+py_test(
+    name = "sorting_test",
+    srcs = ["sorting_test.py"],
+    imports = ["../.."],
+    main = "sorting_test.py",
+    deps = [
+        ":sorting_lib",
+        "//web_console_v2/api/testing:no_web_server_test_case_lib",
+    ],
+)
+
+py_library(
+    name = "swagger_lib",
+    srcs = ["swagger.py"],
+    imports = ["../.."],
+)
+
+py_test(
+    name = "swagger_test",
+    srcs = ["swagger_test.py"],
+    imports = ["../.."],
+    main = "swagger_test.py",
+    deps = [
+        ":swagger_lib",
+    ],
+)
+
+py_library(
+    name = "system_envs_lib",
+    srcs = ["system_envs.py"],
+    imports = ["../.."],
+    deps = ["//web_console_v2/api:envs_lib"],
+)
+
+py_test(
+    name = "system_envs_test",
+    srcs = ["system_envs_test.py"],
+    imports = ["../.."],
+    main = "system_envs_test.py",
+    deps = [
+        ":system_envs_lib",
+    ],
+)
+
+py_library(
+    name = "tfrecords_reader_lib",
+    srcs = ["tfrecords_reader.py"],
+    imports = ["../.."],
+    deps = ["@common_tensorflow//:pkg"],
+)
+
+py_test(
+    name = "tfrecord_test",
+    srcs = ["tfrecord_test.py"],
+    data = [
+        "//web_console_v2/api/testing/test_data",
+    ],
+    imports = ["../.."],
+    main = "tfrecord_test.py",
+    deps = [
+        ":tfrecords_reader_lib",
+        "//web_console_v2/api:envs_lib",
+        "//web_console_v2/api/testing:common_lib",
+    ],
+)
+
+py_library(
+    name = "pp_time_lib",
+    srcs = ["pp_time.py"],
+    imports = ["../.."],
+)
+
+py_library(
+    name = "validator_lib",
+    srcs = ["validator.py"],
+    imports = ["../.."],
+)
+
+py_test(
+    name = "validator_test",
+    srcs = ["validator_test.py"],
+    imports = ["../.."],
+    main = "validator_test.py",
+    deps = [
+        ":validator_lib",
+    ],
+)
+
+py_library(
+    name = "workflow_lib",
+    srcs = ["workflow.py"],
+    imports = ["../.."],
+    deps = ["//web_console_v2/api/protocols/fedlearner_webconsole/proto:py_proto"],
+)
+
+py_test(
+    name = "workflow_test",
+    srcs = ["workflow_test.py"],
+    imports = ["../.."],
+    main = "workflow_test.py",
+    deps = [
+        ":workflow_lib",
+        "//web_console_v2/api/protocols/fedlearner_webconsole/proto:py_proto",
+        "@com_google_protobuf//:protobuf_python",
+    ],
+)
+
+py_library(
+    name = "process_utils_lib",
+    srcs = ["process_utils.py"],
+    imports = ["../.."],
+    deps = [
+        ":hooks_lib",
+    ],
+)
+
+py_test(
+    name = "process_utils_test",
+    srcs = ["process_utils_test.py"],
+    imports = ["../.."],
+    main = "process_utils_test.py",
+    deps = [
+        ":process_utils_lib",
+    ],
+)

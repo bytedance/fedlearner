@@ -1,0 +1,66 @@
+load("@rules_python//python:defs.bzl", "py_test")
+
+py_test(
+    name = "psi_ot_test",
+    size = "medium",
+    srcs = ["psi_ot_test.py"],
+    tags = ["exclusive"],
+    visibility = ["//pp_lite:pp_lite_package"],
+    deps = [
+        "//pp_lite/data_join/psi_ot",
+        "//pp_lite/data_join/psi_ot/joiner",
+        "//pp_lite/proto:py_proto",
+        "//pp_lite/testing",
+    ],
+)
+
+py_test(
+    name = "psi_rsa_test",
+    size = "small",
+    srcs = ["psi_rsa_test.py"],
+    tags = ["exclusive"],
+    visibility = ["//pp_lite:pp_lite_package"],
+    deps = [
+        "//pp_lite/data_join/psi_rsa",
+        "//pp_lite/testing",
+    ],
+)
+
+py_test(
+    name = "psi_rsa_partition_test",
+    size = "small",
+    srcs = ["psi_rsa_partition_test.py"],
+    tags = ["exclusive"],
+    visibility = ["//pp_lite:pp_lite_package"],
+    deps = [
+        "//pp_lite/data_join/psi_rsa",
+        "//pp_lite/testing",
+    ],
+)
+
+py_test(
+    name = "trainer_test",
+    size = "medium",
+    srcs = ["trainer_test.py"],
+    visibility = ["//pp_lite:pp_lite_package"],
+    deps = [
+        "//pp_lite/proto:py_proto",
+        "//pp_lite/testing",
+        "//pp_lite/trainer",
+    ],
+)
+
+py_test(
+    name = "cli_test",
+    size = "small",
+    srcs = ["cli_test.py"],
+    visibility = ["//pp_lite:pp_lite_package"],
+    deps = [
+        "//pp_lite",
+        "//pp_lite/data_join/psi_ot",
+        "//pp_lite/data_join/psi_ot/joiner",
+        "//pp_lite/data_join/psi_rsa",
+        "//pp_lite/testing",
+        "@common_click//:pkg",
+    ],
+)

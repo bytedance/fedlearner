@@ -1,0 +1,41 @@
+@body-background: #eff2f7;
+@btn-default-color: rgb(var(--gray-8));
+@btn-default-bg: rgb(var(--gray-2));
+@btn-default-border: rgb(var(--gray-2));
+@btn-height-lg: 36px;
+@btn-padding-horizontal-lg: 20px;
+@menu-item-active-bg: rgb(var(--gray-2));
+@menu-item-active-border-width: 0;
+@select-background: var(--componentBackgroundColorGray);
+@select-border-color: transparent;
+@input-placeholder-color: rgb(var(--gray-7));
+@picker-bg: var(--componentBackgroundColorGray);
+@picker-border-color: transparent;
+@keyframes spinWith50Translate {
+  100% {
+    transform: translate(-50%, -50%) rotate(360deg);
+  }
+}
+
+.anticon {
+  > svg {
+    width: 1em;
+    fill: currentColor;
+  }
+}
+
+.arco-spin {
+  display: block;
+}
+
+.arco-btn {
+  border: none;
+
+  > .anticon {
+    // Remove sturt
+    display: inline-flex;
+    justify-content: center;
+    height: 1em;
+    vertical-align: middle;
+  }
+}

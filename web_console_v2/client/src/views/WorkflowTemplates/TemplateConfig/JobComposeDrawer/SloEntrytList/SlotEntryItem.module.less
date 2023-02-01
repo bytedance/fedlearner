@@ -1,0 +1,14 @@
+.second_label {
+  color: var(--textColorSecondary);
+  font-weight: normal;
+  font-size: 12px;
+}
+
+.open_indicator {
+  transition: 0.4s var(--commonTiming);
+}
+&[data-open='true'] {
+  .open_indicator {
+    transform: rotate(180deg);
+  }
+}

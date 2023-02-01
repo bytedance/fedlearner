@@ -1,0 +1,153 @@
+load("@rules_python//python:defs.bzl", "py_library")
+
+package(default_visibility = ["//web_console_v2/api:console_api_package"])
+
+py_library(
+    name = "permission_lib",
+    srcs = ["permission.py"],
+    imports = ["../.."],
+    deps = [
+        ":resource_lib",
+        "//web_console_v2/api/fedlearner_webconsole/auth:models_lib",
+    ],
+)
+
+py_test(
+    name = "permission_test",
+    size = "small",
+    srcs = [
+        "permission_test.py",
+    ],
+    imports = ["../.."],
+    deps = [
+        ":permission_lib",
+        ":resource_lib",
+    ],
+)
+
+py_library(
+    name = "resource_lib",
+    srcs = ["resource.py"],
+    imports = ["../.."],
+)
+
+py_test(
+    name = "resource_test",
+    size = "small",
+    srcs = [
+        "resource_test.py",
+    ],
+    imports = ["../.."],
+    deps = [
+        ":resource_lib",
+    ],
+)
+
+py_library(
+    name = "checker_lib",
+    srcs = [
+        "checker.py",
+    ],
+    imports = ["../.."],
+    deps = [
+        ":permission_lib",
+        "//web_console_v2/api:envs_lib",
+    ],
+)
+
+py_library(
+    name = "client_lib",
+    srcs = [
+        "client.py",
+    ],
+    imports = ["../.."],
+    deps = [
+        ":checker_lib",
+        ":permission_lib",
+        ":resource_lib",
+        "//web_console_v2/api/fedlearner_webconsole/auth:models_lib",
+        "//web_console_v2/api/fedlearner_webconsole/project:models_lib",
+        "//web_console_v2/api/fedlearner_webconsole/workflow:models_lib",
+    ],
+)
+
+py_test(
+    name = "client_test",
+    size = "small",
+    srcs = [
+        "client_test.py",
+    ],
+    imports = ["../.."],
+    deps = [
+        ":client_lib",
+        ":permission_lib",
+        "//web_console_v2/api/fedlearner_webconsole/auth:models_lib",
+        "//web_console_v2/api/fedlearner_webconsole/participant:models_lib",
+        "//web_console_v2/api/fedlearner_webconsole/project:models_lib",
+        "//web_console_v2/api/fedlearner_webconsole/workflow:models_lib",
+        "//web_console_v2/api/fedlearner_webconsole/workflow_template:models_lib",
+    ],
+)
+
+py_library(
+    name = "iam_required_lib",
+    srcs = [
+        "iam_required.py",
+    ],
+    imports = ["../.."],
+    deps = [
+        ":client_lib",
+        ":permission_lib",
+        "//web_console_v2/api/fedlearner_webconsole:exceptions_lib",
+        "//web_console_v2/api/fedlearner_webconsole/utils:const_lib",
+        "//web_console_v2/api/fedlearner_webconsole/utils:flask_utils_lib",
+        "@common_flask//:pkg",
+    ],
+)
+
+py_test(
+    name = "iam_required_integration_test",
+    size = "medium",
+    srcs = [
+        "iam_required_integration_test.py",
+    ],
+    imports = ["../.."],
+    deps = [
+        "//web_console_v2/api/fedlearner_webconsole:db_lib",
+        "//web_console_v2/api/fedlearner_webconsole/auth:models_lib",
+        "//web_console_v2/api/fedlearner_webconsole/utils:pp_base64_lib",
+        "//web_console_v2/api/fedlearner_webconsole/workflow:models_lib",
+        "//web_console_v2/api/protocols/fedlearner_webconsole/proto:py_proto",
+        "//web_console_v2/api/testing:common_lib",
+    ],
+)
+
+py_library(
+    name = "apis_lib",
+    srcs = [
+        "apis.py",
+    ],
+    imports = ["../.."],
+    deps = [
+        ":client_lib",
+        "//web_console_v2/api/fedlearner_webconsole/auth:third_party_sso_lib",
+        "//web_console_v2/api/fedlearner_webconsole/utils:flask_utils_lib",
+        "//web_console_v2/api/fedlearner_webconsole/utils/decorators:decorators_lib",
+        "@common_flask_restful//:pkg",
+        "@common_marshmallow//:pkg",
+    ],
+)
+
+py_test(
+    name = "apis_test",
+    size = "small",
+    srcs = [
+        "apis_test.py",
+    ],
+    imports = ["../.."],
+    deps = [
+        ":permission_lib",
+        "//web_console_v2/api/fedlearner_webconsole/auth:models_lib",
+        "//web_console_v2/api/testing:common_lib",
+    ],
+)

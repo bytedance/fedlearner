@@ -1,0 +1,188 @@
+
+{
+  "Slot_image": {
+    "reference": "",
+    "value_type": "STRING",
+    "default_value": "",
+    "help": "镜像地址,建议不填写,默认会使用system.variables.image_repo + '/pp_data_inspection:' + system.version",
+    "reference_type": "DEFAULT",
+    "label": "镜像"
+  },
+  "Slot_labels": {
+    "reference": "system.variables.labels",
+    "value_type": "OBJECT",
+    "default_value": {},
+    "help": "建议不修改，格式： {}",
+    "reference_type": "SYSTEM",
+    "label": "额外元信息"
+  },
+  "Slot_spark_main_file": {
+    "reference": "",
+    "value_type": "STRING",
+    "default_value": "/opt/spark/work-dir/analyzer_v2.py",
+    "help": "spark入口脚本",
+    "reference_type": "DEFAULT",
+    "label": "入口脚本文件"
+  },
+  "Slot_storage_root_path": {
+    "reference": "project.variables.storage_root_path",
+    "value_type": "STRING",
+    "default_value": "/data",
+    "help": "联邦学习中任务存储根目录",
+    "reference_type": "PROJECT",
+    "label": "存储根目录"
+  },
+  "Slot_input_job_name": {
+    "reference": "",
+    "value_type": "STRING",
+    "default_value": "",
+    "help": "必须修改，求交任务名或数据集名称",
+    "reference_type": "WORKFLOW",
+    "label": "数据集名"
+  },
+  "Slot_inner_folder_name": {
+    "reference": "",
+    "value_type": "STRING",
+    "default_value": "dataset",
+    "help": "为了兼容老的路径的临时Slot，['dataset', 'datasource']",
+    "reference_type": "DEFAULT",
+    "label": "中间文件夹名"
+  },
+  "Slot_wildcard": {
+    "reference": "",
+    "value_type": "STRING",
+    "default_value": "batch/**/*.data",
+    "help": "文件通配符",
+    "reference_type": "DEFAULT",
+    "label": "文件通配符"
+  },
+  "Slot_drvier_envs":{
+    "reference": "",
+    "value_type": "LIST",
+    "default_value": [],
+    "help": "driver环境变量",
+    "reference_type": "DEFAULT",
+    "label": "driver环境变量"
+},
+  "Slot_executor_envs":{
+  "reference": "",
+  "value_type": "LIST",
+  "default_value": [],
+  "help": "executor环境变量",
+  "reference_type": "DEFAULT",
+  "label": "executor环境变量"
+},
+  "Slot_driver_cores": {
+    "reference": "",
+    "value_type": "INT",
+    "default_value": 1,
+    "help": "driver核心数",
+    "reference_type": "DEFAULT",
+    "label": "driver核心数"
+  },
+  "Slot_driver_core_limit": {
+    "reference": "",
+    "value_type": "STRING",
+    "default_value": "1200m",
+    "help": "driver核心数限制",
+    "reference_type": "DEFAULT",
+    "label": "driver核心数限制"
+  },
+  "Slot_driver_memory": {
+    "reference": "",
+    "value_type": "STRING",
+    "default_value": "4g",
+    "help": "driver内存",
+    "reference_type": "DEFAULT",
+    "label": "driver内存"
+  },
+  "Slot_executor_cores": {
+    "reference": "",
+    "value_type": "INT",
+    "default_value": 2,
+    "help": "executor核心数",
+    "reference_type": "DEFAULT",
+    "label": "executor核心数"
+  },
+  "Slot_executor_instances": {
+    "reference": "",
+    "value_type": "INT",
+    "default_value": 2,
+    "help": "executor实例数",
+    "reference_type": "DEFAULT",
+    "label": "executor实例数"
+  },
+  "Slot_executor_memory": {
+    "reference": "",
+    "value_type": "STRING",
+    "default_value": "4g",
+    "help": "executor内存",
+    "reference_type": "DEFAULT",
+    "label": "executor内存"
+  },
+  "Slot_initial_executors":{
+    "reference": "",
+    "value_type": "INT",
+    "default_value": 2,
+    "help": "初始化executor数量",
+    "reference_type": "DEFAULT",
+    "label": "初始化executor数量"
+},
+  "Slot_max_executors":{
+    "reference": "",
+    "value_type": "INT",
+    "default_value": 64,
+    "help": "初始化executor数量",
+    "reference_type": "DEFAULT",
+    "label": "最大executor数量"
+  },
+  "Slot_min_executors":{
+    "reference": "",
+    "value_type": "INT",
+    "default_value": 2,
+    "help": "初始化executor数量",
+    "reference_type": "DEFAULT",
+    "label": "最小executor数量"
+  },
+
+  "Slot_volumes": {
+    "reference": "system.variables.volumes_list",
+    "value_type": "LIST",
+    "default_value": [{"persistentVolumeClaim": {"claimName": "pvc-fedlearner-default"},"name": "data"}],
+    "help": "建议不修改，数组类型，和volume_mounts一一对应",
+    "reference_type": "SYSTEM",
+    "label": "为Pod提供的卷"
+  },
+  "Slot_volume_mounts": {
+    "reference": "system.variables.volume_mounts_list",
+    "value_type": "LIST",
+    "default_value": [{"mountPath": "/data","name": "data"}],
+    "help": "建议不修改，容器中卷挂载的位置，数组类型",
+    "reference_type": "SYSTEM",
+    "label": "卷挂载位置"
+  },
+  "Slot_buckets_num": {
+    "reference": "",
+    "value_type": "INT",
+    "default_value": 10,
+    "help": "用于数据探查时统计直方图的分通数",
+    "reference_type": "WORKFLOW",
+    "label": "直方图分桶数"
+  },
+  "Slot_thumbnail_path": {
+    "reference": "",
+    "value_type": "STRING",
+    "default_value": "",
+    "help": "用于存放预览图像的位置",
+    "reference_type": "WORKFLOW",
+    "label": "预览图像位置"
+  },
+  "Slot_dataset_path": {
+    "reference": "",
+    "value_type": "STRING",
+    "default_value": "",
+    "help": "用于数据集存储的路径",
+    "reference_type": "WORKFLOW",
+    "label": "数据集存储路径"
+  }
+}

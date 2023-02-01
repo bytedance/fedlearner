@@ -1,0 +1,56 @@
+.container {
+  top: 0;
+  :global(.arco-drawer-content) {
+    padding-top: 0;
+    padding-bottom: 200px;
+  }
+}
+
+.drawer_header {
+  position: sticky;
+  z-index: 2;
+  top: 0;
+  margin: 0 -16px 0;
+  padding: 20px 16px 20px 24px;
+  background-color: white;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.12);
+}
+
+.cover_header_shadow_if_not_sticky {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  top: 50px;
+  margin: 0 -16px 0;
+  height: 12px;
+  background-color: #fff;
+}
+
+.drawer_title {
+  position: relative;
+  margin-bottom: 0;
+  margin-right: 10px;
+}
+
+.id_text {
+  margin-left: 10px;
+  color: var(--textColorSecondary);
+}
+
+.tab_panel {
+  display: none;
+  margin-top: 16px;
+
+  &[data-visible='true'] {
+    display: block;
+  }
+}
+
+.code_editor_container {
+  height: 550px;
+}
+
+.check_text {
+  cursor: pointer;
+  color: var(--primaryColor);
+}

@@ -1,0 +1,16 @@
+load("@rules_python//python:defs.bzl", "py_library")
+
+package(default_visibility = ["//web_console_v2/api:console_api_package"])
+
+py_library(
+    name = "workflow_template",
+    testonly = True,
+    srcs = [
+        "test_template_left.py",
+    ],
+    imports = ["../.."],
+    deps = [
+        "//web_console_v2/api/fedlearner_webconsole/workflow_template:service_lib",
+        "//web_console_v2/api/protocols/fedlearner_webconsole/proto:py_proto",
+    ],
+)

@@ -1,0 +1,58 @@
+load("@rules_python//python:defs.bzl", "py_library")
+
+package(default_visibility = ["//web_console_v2/api:console_api_package"])
+
+py_library(
+    name = "notification_lib",
+    srcs = [
+        "email.py",
+        "sender.py",
+        "template.py",
+    ],
+    imports = ["../.."],
+    visibility = [
+        "//visibility:public",
+    ],
+    deps = [
+        "//web_console_v2/api/protocols/fedlearner_webconsole/proto:py_proto",
+    ],
+)
+
+py_test(
+    name = "email_test",
+    srcs = [
+        "email_test.py",
+    ],
+    imports = ["../.."],
+    main = "email_test.py",
+    deps = [
+        ":notification_lib",
+        "//web_console_v2/api/protocols/fedlearner_webconsole/proto:py_proto",
+    ],
+)
+
+py_test(
+    name = "sender_test",
+    srcs = [
+        "sender_test.py",
+    ],
+    imports = ["../.."],
+    main = "sender_test.py",
+    deps = [
+        ":notification_lib",
+        "//web_console_v2/api/protocols/fedlearner_webconsole/proto:py_proto",
+    ],
+)
+
+py_test(
+    name = "template_test",
+    srcs = [
+        "template_test.py",
+    ],
+    imports = ["../.."],
+    main = "template_test.py",
+    deps = [
+        ":notification_lib",
+        "//web_console_v2/api/protocols/fedlearner_webconsole/proto:py_proto",
+    ],
+)

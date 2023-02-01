@@ -1,0 +1,40 @@
+{
+    "images": [
+        {
+            "name": "000000018425.jpg",
+            "file_name": "000000018425.jpg",
+            "width": 640,
+            "height": 480,
+            "file_size": 209720,
+            "created_at": "2021-08-30T16:52:15.501516",
+            "annotation": {
+                "caption": "Two giraffe grazing on tree leaves under a hazy sky.",
+                "label": "B"
+            }
+        },
+        {
+            "name": "000000005756.jpg",
+            "file_name": "000000005756.jpg",
+            "width": 640,
+            "height": 361,
+            "file_size": 215758,
+            "created_at": "2021-08-30T16:52:15.501516",
+            "annotation": {
+                "caption": "A group of people holding umbrellas looking at graffiti.",
+                "label": "A"
+            }
+        },
+        {
+            "name": "000000008181.jpg",
+            "file_name": "000000008181.jpg",
+            "width": 640,
+            "height": 480,
+            "file_size": 214617,
+            "created_at": "2021-08-30T16:52:15.501516",
+            "annotation": {
+                "caption": "A motorcycle is parked on a gravel lot",
+                "label": "C"
+            }
+        }
+    ]
+}

@@ -1,0 +1,17 @@
+.no_available {
+  padding-left: 5px;
+  font-size: 13px;
+  line-height: 32px;
+  white-space: nowrap;
+  color: var(--textColorSecondary);
+}
+
+.option_label {
+  &:empty {
+    color: var(--textColorSecondary);
+    &::before {
+      content: attr(data-empty-text);
+      font-weight: normal;
+    }
+  }
+}

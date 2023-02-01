@@ -1,0 +1,465 @@
+{
+    "dtypes": [
+        {
+            "key": "file_name",
+            "value": "string"
+        },
+        {
+            "key": "width",
+            "value": "int"
+        },
+        {
+            "key": "height",
+            "value": "int"
+        },
+        {
+            "key": "nChannels",
+            "value": "int"
+        },
+        {
+            "key": "mode",
+            "value": "int"
+        },
+        {
+            "key": "name",
+            "value": "string"
+        },
+        {
+            "key": "created_at",
+            "value": "string"
+        },
+        {
+            "key": "caption",
+            "value": "string"
+        },
+        {
+            "key": "label",
+            "value": "string"
+        }
+    ],
+    "label_count": [
+        {
+            "label": "B",
+            "count": 19
+        },
+        {
+            "label": "D",
+            "count": 11
+        },
+        {
+            "label": "C",
+            "count": 10
+        },
+        {
+            "label": "A",
+            "count": 10
+        }
+    ],
+    "count": 50,
+    "sample": [
+        [
+            "000000050576.jpg",
+            640,
+            480,
+            3,
+            16,
+            "000000050576.jpg",
+            "2021-08-30T16:52:15.501516",
+            "A tow truck loading a bank security truck by a building.",
+            "B"
+        ],
+        [
+            "000000240137.jpg",
+            480,
+            640,
+            3,
+            16,
+            "000000240137.jpg",
+            "2021-08-30T16:52:15.501516",
+            "A dog leaping in the air to grab a frisbee from its owner on a snowy day.",
+            "B"
+        ],
+        [
+            "000000457131.jpg",
+            640,
+            467,
+            3,
+            16,
+            "000000457131.jpg",
+            "2021-08-30T16:52:15.501516",
+            "a craft is flying behind a tree line",
+            "C"
+        ],
+        [
+            "000000181047.jpg",
+            640,
+            478,
+            3,
+            16,
+            "000000181047.jpg",
+            "2021-08-30T16:52:15.501516",
+            "A meal with bread and dipping sauce is on a table.",
+            "B"
+        ],
+        [
+            "000000206504.jpg",
+            640,
+            418,
+            3,
+            16,
+            "000000206504.jpg",
+            "2021-08-30T16:52:15.501516",
+            "An aircraft is parked in a plane hanger.",
+            "C"
+        ],
+        [
+            "000000517851.jpg",
+            425,
+            640,
+            3,
+            16,
+            "000000517851.jpg",
+            "2021-08-30T16:52:15.501516",
+            "A large bear sitting on a tree stump.",
+            "A"
+        ],
+        [
+            "000000137150.jpg",
+            640,
+            426,
+            3,
+            16,
+            "000000137150.jpg",
+            "2021-08-30T16:52:15.501516",
+            "A woman carries a basket of bananas on her head while some men stand around.",
+            "A"
+        ],
+        [
+            "000000451824.jpg",
+            640,
+            640,
+            3,
+            16,
+            "000000451824.jpg",
+            "2021-08-30T16:52:15.501516",
+            "a queen size bed in a small room with a slanted ceiling and a wooden desk",
+            "C"
+        ],
+        [
+            "000000068023.jpg",
+            640,
+            427,
+            3,
+            16,
+            "000000068023.jpg",
+            "2021-08-30T16:52:15.501516",
+            "A zebra walks through green and brown grass.",
+            "B"
+        ],
+        [
+            "000000249815.jpg",
+            640,
+            480,
+            3,
+            16,
+            "000000249815.jpg",
+            "2021-08-30T16:52:15.501516",
+            "A street full of bike racks filled with bicycles.",
+            "A"
+        ],
+        [
+            "000000229893.jpg",
+            640,
+            480,
+            3,
+            16,
+            "000000229893.jpg",
+            "2021-08-30T16:52:15.501516",
+            "Children near a train on a train track.",
+            "D"
+        ],
+        [
+            "000000005756.jpg",
+            640,
+            361,
+            3,
+            16,
+            "000000005756.jpg",
+            "2021-08-30T16:52:15.501516",
+            "A group of people holding umbrellas looking at graffiti.",
+            "A"
+        ],
+        [
+            "000000008181.jpg",
+            640,
+            480,
+            3,
+            16,
+            "000000008181.jpg",
+            "2021-08-30T16:52:15.501516",
+            "A motorcycle is parked on a gravel lot",
+            "C"
+        ],
+        [
+            "000000018425.jpg",
+            640,
+            480,
+            3,
+            16,
+            "000000018425.jpg",
+            "2021-08-30T16:52:15.501516",
+            "Two giraffe grazing on tree leaves under a hazy sky.",
+            "B"
+        ],
+        [
+            "000000421116.jpg",
+            427,
+            640,
+            3,
+            16,
+            "000000421116.jpg",
+            "2021-08-30T16:52:15.501516",
+            "a couple of motorcycles parked next to each other on the side of a street.",
+            "B"
+        ],
+        [
+            "000000398781.jpg",
+            640,
+            331,
+            3,
+            16,
+            "000000398781.jpg",
+            "2021-08-30T16:52:15.501516",
+            "A man in a wetsuit is on the beach with a surfboard.",
+            "B"
+        ],
+        [
+            "000000511307.jpg",
+            495,
+            640,
+            3,
+            16,
+            "000000511307.jpg",
+            "2021-08-30T16:52:15.501516",
+            "A dog snuggled under covers in a bed.",
+            "D"
+        ],
+        [
+            "000000410836.jpg",
+            640,
+            428,
+            3,
+            16,
+            "000000410836.jpg",
+            "2021-08-30T16:52:15.501516",
+            "A tablet by a monitor, keyboard and laptop on a desk.",
+            "D"
+        ],
+        [
+            "000000457337.jpg",
+            640,
+            480,
+            3,
+            16,
+            "000000457337.jpg",
+            "2021-08-30T16:52:15.501516",
+            "A white and gray cat is stretching on a picnic table. ",
+            "D"
+        ],
+        [
+            "000000383379.jpg",
+            640,
+            425,
+            3,
+            16,
+            "000000383379.jpg",
+            "2021-08-30T16:52:15.501516",
+            "A classic train sits motionless on train tracks. ",
+            "D"
+        ]
+    ],
+    "features": {
+        "file_name": {
+            "count": "50",
+            "mean": null,
+            "stddev": null,
+            "min": "000000005756.jpg",
+            "max": "000000562222.jpg",
+            "missing_count": "0"
+        },
+        "width": {
+            "count": "50",
+            "mean": "585.82",
+            "stddev": "90.52560580367552",
+            "min": "333",
+            "max": "640",
+            "missing_count": "0"
+        },
+        "height": {
+            "count": "50",
+            "mean": "473.58",
+            "stddev": "98.5165665132064",
+            "min": "320",
+            "max": "640",
+            "missing_count": "0"
+        },
+        "nChannels": {
+            "count": "50",
+            "mean": "3.0",
+            "stddev": "0.0",
+            "min": "3",
+            "max": "3",
+            "missing_count": "0"
+        },
+        "mode": {
+            "count": "50",
+            "mean": "16.0",
+            "stddev": "0.0",
+            "min": "16",
+            "max": "16",
+            "missing_count": "0"
+        },
+        "name": {
+            "count": "50",
+            "mean": null,
+            "stddev": null,
+            "min": "000000005756.jpg",
+            "max": "000000562222.jpg",
+            "missing_count": "0"
+        },
+        "created_at": {
+            "count": "50",
+            "mean": null,
+            "stddev": null,
+            "min": "2021-08-30T16:52:15.501516",
+            "max": "2021-08-30T16:52:15.501516",
+            "missing_count": "0"
+        },
+        "caption": {
+            "count": "50",
+            "mean": null,
+            "stddev": null,
+            "min": "A baby laying on its belly in front of a laptop.",
+            "max": "young girl laying in bed next to a brown teddy bear.",
+            "missing_count": "0"
+        },
+        "label": {
+            "count": "50",
+            "mean": null,
+            "stddev": null,
+            "min": "A",
+            "max": "D",
+            "missing_count": "0"
+        }
+    },
+    "hist": {
+        "width": {
+            "x": [
+                333.0,
+                363.7,
+                394.4,
+                425.1,
+                455.8,
+                486.5,
+                517.2,
+                547.9,
+                578.6,
+                609.3,
+                640.0
+            ],
+            "y": [
+                1,
+                1,
+                1,
+                4,
+                3,
+                4,
+                0,
+                0,
+                0,
+                36
+            ]
+        },
+        "height": {
+            "x": [
+                320.0,
+                352.0,
+                384.0,
+                416.0,
+                448.0,
+                480.0,
+                512.0,
+                544.0,
+                576.0,
+                608.0,
+                640.0
+            ],
+            "y": [
+                4,
+                4,
+                2,
+                16,
+                2,
+                11,
+                0,
+                0,
+                0,
+                11
+            ]
+        },
+        "nChannels": {
+            "x": [
+                3.0,
+                3.0,
+                3.0,
+                3.0,
+                3.0,
+                3.0,
+                3.0,
+                3.0,
+                3.0,
+                3.0,
+                3.0
+            ],
+            "y": [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                50
+            ]
+        },
+        "mode": {
+            "x": [
+                16.0,
+                16.0,
+                16.0,
+                16.0,
+                16.0,
+                16.0,
+                16.0,
+                16.0,
+                16.0,
+                16.0,
+                16.0
+            ],
+            "y": [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                50
+            ]
+        }
+    }
+}

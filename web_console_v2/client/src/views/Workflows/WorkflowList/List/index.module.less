@@ -1,0 +1,25 @@
+.workflow_ist_form_item {
+  margin-bottom: 0 !important;
+}
+
+.workflow_list_container {
+  display: flex;
+  flex: 1;
+  width: 100%;
+  .col_name_link {
+    display: block;
+    font-size: 12px;
+
+    &[data-invalid='true'] {
+      color: var(--textColorDisabled);
+
+      &:hover {
+        color: var(--primaryColor);
+      }
+    }
+  }
+  .col_uuid {
+    display: block;
+    color: var(--textColorSecondary);
+  }
+}

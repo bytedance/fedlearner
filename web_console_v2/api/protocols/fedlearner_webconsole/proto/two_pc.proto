@@ -1,0 +1,132 @@
+/* Copyright 2023 The FedLearner Authors. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+syntax = "proto3";
+
+import "fedlearner_webconsole/proto/tee.proto";
+import "fedlearner_webconsole/proto/mmgr.proto";
+
+package fedlearner_webconsole.proto;
+
+enum TwoPcType {
+  CREATE_MODEL_JOB = 0;
+  CONTROL_WORKFLOW_STATE = 1;
+  CREATE_MODEL_JOB_GROUP = 2;
+  LAUNCH_DATASET_JOB = 3;
+  LAUNCH_MODEL_JOB = 4;
+  STOP_DATASET_JOB = 5;
+  CREATE_TRUSTED_JOB_GROUP = 6;
+  LAUNCH_TRUSTED_JOB = 7;
+  STOP_TRUSTED_JOB = 8;
+  LAUNCH_DATASET_JOB_STAGE = 9;
+  STOP_DATASET_JOB_STAGE = 10;
+  LAUNCH_TRUSTED_EXPORT_JOB = 11;
+}
+
+enum TwoPcAction {
+  PREPARE = 0;
+  COMMIT = 1;
+  ABORT = 2;
+}
+
+message CreateModelJobGroupData {
+  string model_job_group_name = 1;
+  string model_job_group_uuid = 2;
+  string project_name = 3;
+  string algorithm_type = 4;
+  string coordinator_pure_domain_name = 5;
+  string dataset_uuid = 6;
+}
+
+message CreateModelJobData {
+  string model_job_name = 1;
+  string model_job_type = 2;
+  string model_job_uuid = 3;
+  string group_name = 4[deprecated=true];
+  string workflow_uuid = 5;
+  string algorithm_type = 6;
+  string model_uuid = 7;
+  string project_name = 8;
+  string group_uuid = 9;
+  int64 version = 10;
+  string coordinator_pure_domain_name = 11;
+  string dataset_uuid = 12;
+  ModelJobGlobalConfig global_config = 13;
+}
+
+message TransitWorkflowStateData {
+  string target_state = 1;
+  string workflow_uuid = 2;
+}
+
+message LaunchDatasetJobData {
+  string dataset_job_uuid = 1;
+}
+
+message StopDatasetJobData {
+  string dataset_job_uuid = 1;
+}
+
+message CreateTrustedJobGroupData {
+    string name = 1;
+    string project_name = 2;
+    string algorithm_project_uuid = 3;
+    string algorithm_uuid = 4;
+    repeated DomainNameDataset domain_name_datasets = 5;
+    string coordinator_pure_domain_name = 6;
+    string uuid = 7;
+    string ticket_uuid = 8;
+    string analyzer_pure_domain_name = 9;
+    string creator_username = 10;
+}
+
+message LaunchTrustedJobData {
+    string uuid = 2;
+    int64 version = 3;
+    string group_uuid = 4;
+    string initiator_pure_domain_name = 5;
+}
+
+message StopTrustedJobData {
+    string uuid = 1;
+}
+
+message LaunchTrustedExportJobData {
+  string uuid = 1;
+}
+
+message LaunchDatasetJobStageData {
+  string dataset_job_stage_uuid = 1;
+}
+
+message StopDatasetJobStageData {
+  string dataset_job_stage_uuid = 1;
+}
+
+message TransactionData {
+  oneof data {
+    CreateModelJobData create_model_job_data = 1;
+    TransitWorkflowStateData transit_workflow_state_data = 2;
+    CreateModelJobGroupData create_model_job_group_data = 3;
+    LaunchDatasetJobData launch_dataset_job_data = 4;
+    StopDatasetJobData stop_dataset_job_data = 5;
+    CreateTrustedJobGroupData create_trusted_job_group_data = 6;
+    LaunchTrustedJobData launch_trusted_job_data = 7;
+    StopTrustedJobData stop_trusted_job_data = 8;
+    LaunchDatasetJobStageData launch_dataset_job_stage_data = 9;
+    StopDatasetJobStageData stop_dataset_job_stage_data = 10;
+    LaunchTrustedExportJobData launch_trusted_export_job_data = 11;
+  }
+}

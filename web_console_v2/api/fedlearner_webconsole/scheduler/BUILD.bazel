@@ -1,0 +1,59 @@
+package(default_visibility = ["//web_console_v2/api:console_api_package"])
+
+py_library(
+    name = "scheduler_lib",
+    srcs = [
+        "scheduler.py",
+        "transaction.py",
+    ],
+    imports = ["../.."],
+    deps = [
+        "//web_console_v2/api:envs_lib",
+        "//web_console_v2/api/fedlearner_webconsole:db_lib",
+        "//web_console_v2/api/fedlearner_webconsole/participant:services_lib",
+        "//web_console_v2/api/fedlearner_webconsole/rpc:client_lib",
+        "//web_console_v2/api/fedlearner_webconsole/workflow:models_lib",
+        "//web_console_v2/api/fedlearner_webconsole/workflow:resource_manager_lib",
+        "//web_console_v2/api/fedlearner_webconsole/workflow:workflow_controller_lib",
+        "//web_console_v2/api/protocols/fedlearner_webconsole/proto:py_proto",
+    ],
+)
+
+py_test(
+    name = "scheduler_lib_test",
+    size = "medium",
+    srcs = [
+        "scheduler_test.py",
+    ],
+    flaky = True,
+    imports = ["../.."],
+    main = "scheduler_test.py",
+    deps = [
+        ":scheduler_lib",
+        "//web_console_v2/api/fedlearner_webconsole/rpc:server_lib",
+        "//web_console_v2/api/testing:common_lib",
+    ],
+)
+
+py_test(
+    name = "workflow_commit_lib_test",
+    size = "small",
+    srcs = [
+        "workflow_commit_test.py",
+    ],
+    imports = ["../.."],
+    main = "workflow_commit_test.py",
+    deps = [
+        ":scheduler_lib",
+        "//web_console_v2/api/fedlearner_webconsole:db_lib",
+        "//web_console_v2/api/fedlearner_webconsole/job:models_lib",
+        "//web_console_v2/api/fedlearner_webconsole/job:yaml_formatter_lib",
+        "//web_console_v2/api/fedlearner_webconsole/participant:models_lib",
+        "//web_console_v2/api/fedlearner_webconsole/project:models_lib",
+        "//web_console_v2/api/fedlearner_webconsole/workflow:models_lib",
+        "//web_console_v2/api/fedlearner_webconsole/workflow:service_lib",
+        "//web_console_v2/api/protocols/fedlearner_webconsole/proto:py_proto",
+        "//web_console_v2/api/testing:common_lib",
+        "//web_console_v2/api/testing/workflow_template",
+    ],
+)

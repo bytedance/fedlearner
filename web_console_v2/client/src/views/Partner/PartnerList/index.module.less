@@ -1,0 +1,26 @@
+@import '~styles/mixins.less';
+.avatar_container{
+  .MixinSquare(44px);
+  background-color: #5360d8;
+  color: white;
+  border-radius: 4px;
+  font-size: 18px;
+  text-align: center;
+
+  &::before {
+    content: attr(data-name);
+    line-height: 44px;
+    font-weight: bold;
+  }
+}
+
+.user_message{
+  padding-bottom: 20px;
+}
+.tag_container{
+ background-color: '#F6F7FB';
+  border: 0;
+  color:  '#1A2233';
+  border-radius: 40px;
+  padding: 0px 8px;
+}

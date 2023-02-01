@@ -1,0 +1,126 @@
+load("@rules_python//python:defs.bzl", "py_library")
+
+package(default_visibility = ["//web_console_v2/api:console_api_package"])
+
+py_library(
+    name = "event_listener_lib",
+    srcs = ["event_listener.py"],
+    imports = ["../.."],
+    deps = [":k8s_cache_lib"],
+)
+
+py_library(
+    name = "fake_k8s_client_lib",
+    srcs = ["fake_k8s_client.py"],
+    imports = ["../.."],
+    deps = [
+        "//web_console_v2/api/testing:helpers_lib",
+        "@common_kubernetes//:pkg",
+    ],
+)
+
+py_library(
+    name = "k8s_cache_lib",
+    srcs = ["k8s_cache.py"],
+    imports = ["../.."],
+    deps = [":models_lib"],
+)
+
+py_test(
+    name = "k8s_cache_lib_test",
+    size = "small",
+    srcs = [
+        "k8s_cache_test.py",
+    ],
+    imports = ["../.."],
+    main = "k8s_cache_test.py",
+    deps = [
+        ":k8s_cache_lib",
+    ],
+)
+
+py_library(
+    name = "k8s_client_lib",
+    srcs = ["k8s_client.py"],
+    imports = ["../.."],
+    deps = [
+        ":fake_k8s_client_lib",
+        "//web_console_v2/api:envs_lib",
+        "//web_console_v2/api/fedlearner_webconsole:exceptions_lib",
+        "//web_console_v2/api/fedlearner_webconsole/utils:es_lib",
+        "//web_console_v2/api/fedlearner_webconsole/utils:hooks_lib",
+        "//web_console_v2/api/fedlearner_webconsole/utils/decorators:decorators_lib",
+        "@common_kubernetes//:pkg",
+    ],
+)
+
+py_test(
+    name = "k8s_client_lib_test",
+    size = "small",
+    srcs = [
+        "k8s_client_test.py",
+    ],
+    imports = ["../.."],
+    main = "k8s_client_test.py",
+    deps = [
+        ":k8s_client_lib",
+    ],
+)
+
+py_library(
+    name = "k8s_watcher_lib",
+    srcs = ["k8s_watcher.py"],
+    imports = ["../.."],
+    deps = [
+        ":k8s_cache_lib",
+        ":k8s_client_lib",
+        ":models_lib",
+        "//web_console_v2/api:envs_lib",
+        "//web_console_v2/api/fedlearner_webconsole/job:event_listener_lib",
+        "//web_console_v2/api/fedlearner_webconsole/mmgr:event_listener_lib",
+        "//web_console_v2/api/fedlearner_webconsole/utils:metrics_lib",
+        "@common_kubernetes//:pkg",
+    ],
+)
+
+py_test(
+    name = "k8s_watcher_lib_test",
+    size = "medium",
+    srcs = [
+        "k8s_watcher_test.py",
+    ],
+    imports = ["../.."],
+    main = "k8s_watcher_test.py",
+    deps = [
+        ":k8s_watcher_lib",
+        "//web_console_v2/api/fedlearner_webconsole/k8s:k8s_cache_lib",
+    ],
+)
+
+py_library(
+    name = "models_lib",
+    srcs = ["models.py"],
+    imports = ["../.."],
+    deps = [
+        "//web_console_v2/api/fedlearner_webconsole/utils:pp_datetime_lib",
+        "//web_console_v2/api/protocols/fedlearner_webconsole/proto:py_proto",
+        "@com_google_protobuf//:protobuf_python",
+        "@common_kubernetes//:pkg",
+    ],
+)
+
+py_test(
+    name = "models_lib_test",
+    size = "small",
+    srcs = [
+        "models_test.py",
+    ],
+    imports = ["../.."],
+    main = "models_test.py",
+    deps = [
+        ":models_lib",
+        "//web_console_v2/api/fedlearner_webconsole:db_lib",
+        "//web_console_v2/api/fedlearner_webconsole/utils:pp_datetime_lib",
+        "//web_console_v2/api/protocols/fedlearner_webconsole/proto:py_proto",
+    ],
+)

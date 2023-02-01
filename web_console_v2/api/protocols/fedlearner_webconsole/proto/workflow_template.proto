@@ -1,0 +1,91 @@
+/* Copyright 2023 The FedLearner Authors. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+syntax = "proto3";
+
+import "fedlearner_webconsole/proto/workflow_definition.proto";
+
+package fedlearner_webconsole.proto;
+
+// Lite version of workflow template.
+message WorkflowTemplateRef {
+  reserved 5;
+  int64 id = 1;
+  string name = 2;
+  string comment = 3;
+  string group_alias = 4;
+  int32 kind = 6;
+  string coordinator_pure_domain_name = 7;
+}
+
+message WorkflowTemplateRevisionRef {
+  int64 id = 1;
+  int32 revision_index = 2;
+  string comment = 3;
+  int64 template_id = 4;
+  int64 created_at = 5;
+}
+
+message WorkflowTemplateRevisionPb {
+  int64 id = 1;
+  int32 revision_index = 2;
+  string comment = 3;
+  int64 template_id = 4;
+  int64 created_at = 5;
+  WorkflowDefinition config = 6;
+  WorkflowTemplateEditorInfo editor_info = 7;
+  bool is_local = 8;
+  string name = 9;
+}
+
+// A message used for downloading to json.
+// It removes a lot of useless field from `WorkflowTemplateRevisionPb`, so please
+// make sure this proto is compatible with `WorkflowTemplateRevisionPb`.
+message WorkflowTemplateRevisionJson {
+  reserved 1, 4, 5, 8;
+  int32 revision_index = 2;
+  string comment = 3;
+  WorkflowDefinition config = 6;
+  WorkflowTemplateEditorInfo editor_info = 7;
+  string name = 9;
+}
+
+message WorkflowTemplatePb {
+  reserved 5;
+  int64 id = 1;
+  string name = 2;
+  string comment = 3;
+  string group_alias = 4;
+  int32 kind = 6;
+  WorkflowDefinition config = 7;
+  WorkflowTemplateEditorInfo editor_info = 8;
+  string creator_username = 9;
+  int64 created_at = 10;
+  int64 updated_at = 11;
+  bool is_local = 12;
+  string coordinator_pure_domain_name = 13;
+}
+
+// A message used for downloading to json.
+// It removes a lot of useless field from `WorkflowTemplatePb`, so please
+// make sure this proto is compatible with `WorkflowTemplatePb`.
+message WorkflowTemplateJson {
+  reserved 1, 5, 6, 9, 10, 11, 12;
+  string name = 2;
+  string comment = 3;
+  string group_alias = 4;
+  WorkflowDefinition config = 7;
+  WorkflowTemplateEditorInfo editor_info = 8;
+}

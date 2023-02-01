@@ -1,0 +1,64 @@
+load("@rules_python//python:defs.bzl", "py_library")
+
+package(default_visibility = ["//web_console_v2/api:console_api_package"])
+
+py_library(
+    name = "base_model_lib",
+    srcs = [
+        "auth_model.py",
+        "review_ticket_and_auth_model.py",
+        "review_ticket_model.py",
+        "softdelete_model.py",
+    ],
+    imports = ["../../.."],
+    deps = [
+        "//web_console_v2/api/protocols/fedlearner_webconsole/proto:py_proto",
+        "@com_google_protobuf//:protobuf_python",
+        "@common_sqlalchemy//:pkg",
+    ],
+)
+
+py_test(
+    name = "auth_model_test",
+    size = "small",
+    srcs = [
+        "auth_model_test.py",
+    ],
+    imports = ["../../.."],
+    main = "auth_model_test.py",
+    deps = [
+        ":base_model_lib",
+        "//web_console_v2/api/fedlearner_webconsole:db_lib",
+        "//web_console_v2/api/testing:common_lib",
+    ],
+)
+
+py_test(
+    name = "review_ticket_and_auth_model_test",
+    size = "small",
+    srcs = [
+        "review_ticket_and_auth_model_test.py",
+    ],
+    imports = ["../../.."],
+    main = "review_ticket_and_auth_model_test.py",
+    deps = [
+        ":base_model_lib",
+        "//web_console_v2/api/fedlearner_webconsole:db_lib",
+        "//web_console_v2/api/protocols/fedlearner_webconsole/proto:py_proto",
+        "//web_console_v2/api/testing:no_web_server_test_case_lib",
+    ],
+)
+
+py_test(
+    name = "review_ticket_model_test",
+    srcs = [
+        "review_ticket_model_test.py",
+    ],
+    imports = ["../../.."],
+    main = "review_ticket_model_test.py",
+    deps = [
+        ":base_model_lib",
+        "//web_console_v2/api/fedlearner_webconsole:db_lib",
+        "//web_console_v2/api/testing:no_web_server_test_case_lib",
+    ],
+)

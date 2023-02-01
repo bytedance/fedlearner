@@ -1,0 +1,79 @@
+@import '~styles/mixins.less';
+
+.dataset_detail_padding_box{
+    padding: 20px;
+    padding-bottom: 0;
+    :global(.arco-spin) {
+        width: 100%;
+    }
+}
+
+.dataset_detail_box{
+    padding: 0px;
+    flex: 1;
+}
+
+.dataset_detail_batch_box{
+  padding-bottom: 20px;
+}
+
+.dataset_detail_avatar{
+    .MixinSquare(44px);
+    background-color: var(--primaryColor);
+    color: white;
+    border-radius: 2px;
+    font-size: 18px;
+    text-align: center;
+
+    &::before {
+      content: attr(data-name);
+      line-height: 44px;
+      font-weight: bold;
+    }
+}
+
+.dataset_name_container{
+    display: flex;
+    align-items: center;
+}
+
+.dataset_name{
+    .MixinEllipsis('40vw');
+    display: inline-block;
+    margin-bottom: 0;
+    margin-right: 7px;
+    font-size: 16px;
+    height: 24px;
+    font-weight: 600;
+}
+
+.comment{
+    font-size: 12px;
+    line-height: 18px;
+    color: var(--textColorSecondary);
+}
+
+.data_source_text{
+    .MixinEllipsis();
+}
+
+.data_detail_tab_pane{
+    display: grid;
+}
+
+.data_detail_tab{
+    margin-bottom: 0 !important;
+}
+
+.data_detail_icon_question_circle{
+    margin: 0 4px;
+    color: var(--headerBackground);
+}
+
+.dataset_detal_auth_status{
+  width: 90px;
+}
+
+.dataset_detail_cron{
+  cursor: pointer;
+}

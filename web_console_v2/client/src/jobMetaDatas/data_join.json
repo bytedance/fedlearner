@@ -1,0 +1,213 @@
+{
+  "Slot_role": {
+    "reference": "",
+    "value_type": "STRING",
+    "default_value": "Leader",
+    "help": "Flapp 通讯时的角色 Leader 或 Follower",
+    "reference_type": "DEFAULT",
+    "label": "Flapp通讯时角色"
+  },
+  "Slot_storage_root_path": {
+    "reference": "project.variables.storage_root_path",
+    "value_type": "STRING",
+    "default_value": "/data",
+    "help": "联邦学习中任务存储根目录",
+    "reference_type": "PROJECT",
+    "label": "存储根目录"
+  },
+  "Slot_image_version": {
+    "reference": "",
+    "value_type": "STRING",
+    "default_value": "882310f",
+    "help": "建议不修改，指定Pod中运行的容器镜像版本，前缀为system.variables.image_repo + '/fedlearner:'",
+    "reference_type": "DEFAULT",
+    "label": "容器镜像版本"
+  },
+  "Slot_master_cpu": {
+    "reference": "",
+    "value_type": "STRING",
+    "default_value": "2000m",
+    "help": "Master Pod 所分配的CPU资源（request和limit一致）",
+    "reference_type": "DEFAULT",
+    "label": "Master的CPU"
+  },
+  "Slot_master_memory": {
+    "reference": "",
+    "value_type": "STRING",
+    "default_value": "3Gi",
+    "help": "Master Pod 所分配的内存资源（request和limit一致）",
+    "reference_type": "DEFAULT",
+    "label": "Master的内存"
+  },
+  "Slot_worker_cpu": {
+    "reference": "",
+    "value_type": "STRING",
+    "default_value": "2000m",
+    "help": "Worker Pod 所分配的CPU资源（request和limit一致）",
+    "reference_type": "DEFAULT",
+    "label": "Worker的CPU"
+  },
+  "Slot_worker_memory": {
+    "reference": "",
+    "value_type": "STRING",
+    "default_value": "3Gi",
+    "help": "Worker Pod 所分配的内存资源（request和limit一致）",
+    "reference_type": "DEFAULT",
+    "label": "Worker的内存"
+  },
+  "Slot_master_replicas": {
+    "reference": "",
+    "value_type": "INT",
+    "default_value": 1,
+    "help": "同时运行的完全相同的Master Pods数量",
+    "reference_type": "DEFAULT",
+    "label": "Master的Pod个数"
+  },
+  "Slot_batch_mode": {
+    "reference": "",
+    "value_type": "STRING",
+    "default_value": "--batch_mode",
+    "help": "如果为空则为常驻求交",
+    "reference_type": "DEFAULT",
+    "label": "是否为批处理模式"
+  },
+  "Slot_partition_num": {
+    "reference": "",
+    "value_type": "INT",
+    "default_value": 4,
+    "help": "建议修改，求交后数据分区的数量，建议和raw_data一致",
+    "reference_type": "DEFAULT",
+    "label": "数据分区的数量"
+  },
+  "Slot_start_time": {
+    "reference": "",
+    "value_type": "INT",
+    "default_value": 0,
+    "help": "建议不修改，使用自这个时间起的数据，仅从文件名筛选所以格式依据文件名（yyyymmdd或timestamp）",
+    "reference_type": "DEFAULT",
+    "label": "数据起始时间"
+  },
+  "Slot_end_time": {
+    "reference": "",
+    "value_type": "INT",
+    "default_value": 999999999999,
+    "help": "建议不修改，使用自这个时间以前的数据，仅从文件名筛选所以格式依据文件名（yyyymmdd或timestamp）",
+    "reference_type": "DEFAULT",
+    "label": "数据末尾时间"
+  },
+  "Slot_enable_negative_example_generator": {
+    "reference": "",
+    "value_type": "BOOL",
+    "default_value": false,
+    "help": "建议不修改，是否开启负采样，当follower求交时遇到无法匹配上的leader的example id，会以negative_sampling_rate为概率生成一个新的样本。",
+    "reference_type": "DEFAULT",
+    "label": "负采样比例"
+  },
+  "Slot_negative_sampling_rate": {
+    "reference": "",
+    "value_type": "NUMBER",
+    "default_value": 0,
+    "help": "建议不修改，负采样比例，当follower求交时遇到无法匹配上的leader的example id，会以此概率生成一个新的样本。",
+    "reference_type": "DEFAULT",
+    "label": "负采样比例"
+  },
+  "Slot_raw_data_name": {
+    "reference": "",
+    "value_type": "STRING","default_value": "",
+    "help": "必须修改，原始数据的发布地址，根据参数内容在portal_publish_dir地址下寻找",
+    "reference_type": "JOB_PROPERTY",
+    "label": "raw_data名字"
+  },
+  "Slot_data_block_dump_interval": {
+    "reference": "",
+    "value_type": "INT","default_value": -1,
+    "help": "建议不修改，最多每隔多少时间（实际时间，非样本时间）就dump一次data block，小于0则无此限制",
+    "reference_type": "DEFAULT",
+    "label": "数据dump时间间隔"
+  },
+  "Slot_data_block_dump_threshold": {
+    "reference": "",
+    "value_type": "INT","default_value": 4096,
+    "help": "建议不修改，最多多少个样本就dump为一个data block，小于等于0则无此限制",
+    "reference_type": "DEFAULT",
+    "label": "数据dump临界点"
+  },
+  "Slot_example_id_dump_interval": {
+    "reference": "",
+    "value_type": "INT","default_value": -1,
+    "help": "建议不修改，最多每隔多少时间（实际时间，非样本时间）就dump一次example id，小于0则无此限制",
+    "reference_type": "DEFAULT",
+    "label": "数据id dump时间间隔"
+  },
+  "Slot_example_id_dump_threshold": {
+    "reference": "",
+    "value_type": "INT","default_value": 4096,
+    "help": "建议不修改，最多每隔多少时间（实际时间，非样本时间）就dump一次example id，小于0则无此限制",
+    "reference_type": "DEFAULT",
+    "label": "数据id dump临界点"
+  },
+  "Slot_min_matching_window": {
+    "reference": "",
+    "value_type": "INT","default_value": 1024,
+    "help": "建议不修改，the min matching window for example join ,<=0 means window size is infinite",
+    "reference_type": "DEFAULT",
+    "label": "最小匹配滑窗"
+  },
+  "Slot_max_matching_window": {
+    "reference": "",
+    "value_type": "INT","default_value": 4096,
+    "help": "建议不修改，the max matching window for example join. <=0 means window size is infinite",
+    "reference_type": "DEFAULT",
+    "label": "最大匹配滑窗"
+  },
+  "Slot_raw_data_iter": {
+    "reference": "",
+    "value_type": "STRING","default_value": "TF_RECORD",
+    "help": "建议不修改，choices=['TF_RECORD', 'CSV_DICT']",
+    "reference_type": "DEFAULT",
+    "label": "raw_data文件类型"
+  },
+  "Slot_data_block_builder": {
+    "reference": "",
+    "value_type": "STRING",
+    "default_value": "TF_RECORD",
+    "help": "建议不修改，choices=['TF_RECORD', 'CSV_DICT']",
+    "reference_type": "DEFAULT",
+    "label": "data block output数据类型"
+  },
+  "Slot_master_envs": {
+    "reference": "",
+    "value_type": "LIST","default_value": [],
+    "help": "数组类型，master pod额外的环境变量",
+    "reference_type": "DEFAULT",
+    "label": "Master额外环境变量"
+  },
+  "Slot_worker_envs": {
+    "reference": "",
+    "value_type": "LIST","default_value": [],
+    "help": "数组类型，worker pod额外的环境变量",
+    "reference_type": "DEFAULT",
+    "label": "Worker额外环境变量"
+  },
+  "Slot_labels": {
+    "reference": "system.variables.labels",
+    "value_type": "OBJECT","default_value": {},
+    "help": "建议不修改，格式： {}",
+    "reference_type": "SYSTEM",
+    "label": "FLAPP额外元信息"
+  },
+  "Slot_volumes": {
+    "reference": "system.variables.volumes_list",
+    "value_type": "LIST","default_value": [{"persistentVolumeClaim": {"claimName": "pvc-fedlearner-default"},"name": "data"}],
+    "help": "建议不修改，数组类型，和volume_mounts一一对应",
+    "reference_type": "SYSTEM",
+    "label": "为Pod提供的卷"
+  },
+  "Slot_volume_mounts": {
+    "reference": "system.variables.volume_mounts_list",
+    "value_type": "LIST","default_value": [{ "mountPath": "/data", "name": "data"}],
+    "help": "建议不修改，容器中卷挂载的位置，数组类型",
+    "reference_type": "SYSTEM",
+    "label": "卷挂载位置"
+  }
+}

@@ -1,0 +1,35 @@
+.header{
+  margin-bottom: 20px;
+}
+.toggler {
+  display: inline-flex;
+  align-items: center;
+  font-size: 14px;
+  line-height: 1;
+  color: var(--primaryColor);
+  cursor: pointer;
+  user-select: none;
+  &:hover {
+    color: var(--newPrimaryHover);
+  }
+}
+.no_variables{
+  color: var(--textColorSecondary);
+}
+.add_button{
+  color: var(--primaryColor) !important;
+  font-weight: 500;
+}
+.list_container{
+  transition: 0.4s  var(--commonTiming);
+  overflow: hidden;
+  .hidden_variables {
+    opacity: 0;
+    overflow: hidden;
+  }
+}
+.remove_button{
+  position: absolute;
+  right: 0;
+}
+

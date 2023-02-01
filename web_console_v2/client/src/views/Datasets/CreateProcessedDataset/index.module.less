@@ -1,0 +1,61 @@
+@import '~styles/mixins.less';
+
+.dataset_processed_create_form{
+  max-width: 600px;
+  margin: 0 auto;
+}
+.dataset_processed_create_section{
+  margin-bottom: 20px;
+  overflow: hidden; // bfc
+  > h3 {
+    margin-bottom: 20px;
+    font-weight: 500;
+    font-size: 14px;
+    color: #1d252f;
+  }
+  .title-tag{
+    margin: 0 12px 0 12px;
+  }
+}
+.dataset_processed_avatar{
+  .MixinSquare(44px);
+  background-color: var(--primary-1);
+  color: white;
+  border-radius: 4px;
+  font-size: 18px;
+  text-align: center;
+
+  &::before {
+    display: inline-block;
+    width: 100%;
+    height: 100%;
+    content: '';
+    background: url('~assets/icons/atom-icon-algorithm-management.svg') no-repeat;
+    background-size: contain;
+  }
+}
+
+.dataset_processed_card{
+  :global(.arco-card-body){
+    padding: 32px 40px;
+  }
+}
+
+.dataset_processed_desc{
+  font-weight: 500;
+  color: #1D2129;
+  font-size: 12px;
+  line-height: 20px;
+}
+
+.dataset_processed_form_label{
+  height: 32px;
+  display: flex;
+  justify-content: flex-end !important;
+  align-items: center;
+}
+
+.dataset_processed_footer_button{
+  padding-left: 130px;
+}
+

@@ -1,0 +1,135 @@
+load("@rules_python//python:defs.bzl", "py_library")
+
+package(default_visibility = ["//web_console_v2/api:console_api_package"])
+
+py_library(
+    name = "models_lib",
+    srcs = ["models.py"],
+    imports = ["../.."],
+    deps = [
+        "//web_console_v2/api/fedlearner_webconsole:db_lib",
+        "//web_console_v2/api/fedlearner_webconsole/utils:mixins_lib",
+        "@common_passlib//:pkg",
+        "@common_sqlalchemy//:pkg",
+    ],
+)
+
+py_library(
+    name = "services_lib",
+    srcs = [
+        "services.py",
+    ],
+    imports = ["../.."],
+    deps = [
+        ":models_lib",
+        "//web_console_v2/api/fedlearner_webconsole/iam:client_lib",
+        "//web_console_v2/api/fedlearner_webconsole/utils:const_lib",
+        "//web_console_v2/api/fedlearner_webconsole/utils:pp_datetime_lib",
+        "@common_sqlalchemy//:pkg",
+    ],
+)
+
+py_test(
+    name = "services_lib_test",
+    size = "small",
+    srcs = [
+        "services_test.py",
+    ],
+    imports = ["../.."],
+    main = "services_test.py",
+    deps = [
+        ":models_lib",
+        ":services_lib",
+        "//web_console_v2/api/fedlearner_webconsole:db_lib",
+        "//web_console_v2/api/testing:no_web_server_test_case_lib",
+    ],
+)
+
+py_library(
+    name = "third_party_sso_lib",
+    srcs = [
+        "third_party_sso.py",
+    ],
+    imports = ["../.."],
+    deps = [
+        ":models_lib",
+        ":services_lib",
+        "//web_console_v2/api:config_lib",
+        "//web_console_v2/api:envs_lib",
+        "//web_console_v2/api/fedlearner_webconsole:db_lib",
+        "//web_console_v2/api/fedlearner_webconsole:exceptions_lib",
+        "//web_console_v2/api/fedlearner_webconsole/utils:const_lib",
+        "//web_console_v2/api/fedlearner_webconsole/utils:flask_utils_lib",
+        "//web_console_v2/api/fedlearner_webconsole/utils:metrics_lib",
+        "//web_console_v2/api/fedlearner_webconsole/utils:pp_base64_lib",
+        "//web_console_v2/api/fedlearner_webconsole/utils:pp_datetime_lib",
+        "//web_console_v2/api/fedlearner_webconsole/utils/decorators:decorators_lib",
+        "//web_console_v2/api/protocols/fedlearner_webconsole/proto:py_proto",
+        "//web_console_v2/api/testing:helpers_lib",
+        "@com_google_protobuf//:protobuf_python",
+        "@common_flask//:pkg",
+        "@common_pyjwt//:pkg",
+        "@common_requests//:pkg",
+        "@common_xmltodict//:pkg",
+    ],
+)
+
+py_test(
+    name = "third_party_sso_lib_test",
+    size = "medium",
+    srcs = [
+        "third_party_sso_test.py",
+    ],
+    data = [
+        "//web_console_v2/api/testing/test_data",
+    ],
+    imports = ["../.."],
+    main = "third_party_sso_test.py",
+    deps = [
+        ":third_party_sso_lib",
+        "//web_console_v2/api/testing:common_lib",
+    ],
+)
+
+py_library(
+    name = "apis_lib",
+    srcs = ["apis.py"],
+    imports = ["../.."],
+    deps = [
+        ":models_lib",
+        ":third_party_sso_lib",
+        "//web_console_v2/api/fedlearner_webconsole:db_lib",
+        "//web_console_v2/api/fedlearner_webconsole:exceptions_lib",
+        "//web_console_v2/api/fedlearner_webconsole/audit:decorators_lib",
+        "//web_console_v2/api/fedlearner_webconsole/auth:services_lib",
+        "//web_console_v2/api/fedlearner_webconsole/iam:client_lib",
+        "//web_console_v2/api/fedlearner_webconsole/swagger:models_lib",
+        "//web_console_v2/api/fedlearner_webconsole/utils:flask_utils_lib",
+        "//web_console_v2/api/fedlearner_webconsole/utils:pp_base64_lib",
+        "//web_console_v2/api/fedlearner_webconsole/utils:proto_lib",
+        "//web_console_v2/api/fedlearner_webconsole/utils/decorators:decorators_lib",
+        "//web_console_v2/api/protocols/fedlearner_webconsole/proto:py_proto",
+        "//web_console_v2/api/testing:helpers_lib",
+        "@common_flask//:pkg",
+        "@common_flask_restful//:pkg",
+        "@common_marshmallow//:pkg",
+        "@common_webargs//:pkg",
+    ],
+)
+
+py_test(
+    name = "apis_lib_test",
+    size = "medium",
+    srcs = [
+        "apis_test.py",
+    ],
+    data = [
+        "//web_console_v2/api/testing/test_data",
+    ],
+    imports = ["../.."],
+    main = "apis_test.py",
+    deps = [
+        ":apis_lib",
+        "//web_console_v2/api/testing:common_lib",
+    ],
+)

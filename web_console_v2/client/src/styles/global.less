@@ -1,0 +1,320 @@
+@custom-header-font: 12px;
+
+body,
+html {
+  width: 100%;
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  color: #4e5969;
+  font-size: 14px;
+  font-family: 'nunito_for_arco', 'Helvetica Neue', Helvetica, 'PingFang SC', 'Hiragino Sans GB',
+    'Microsoft YaHei', '微软雅黑', Arial, sans-serif;
+  font-variant: tabular-nums;
+  line-height: 1.5715;
+  background-color: #eff2f7;
+  font-feature-settings: 'tnum', 'tnum';
+  overflow: hidden;
+}
+
+input::-ms-clear,
+input::-ms-reveal {
+  display: none;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box; // 1
+}
+
+hr {
+  box-sizing: content-box; // 1
+  height: 0; // 1
+  overflow: visible; // 2
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  margin-top: 0;
+  margin-bottom: 0.5em;
+  color: rgba(0, 0, 0, 0.85);
+  font-weight: 500;
+}
+
+p {
+  margin-top: 0;
+  margin-bottom: 1em;
+}
+
+address {
+  margin-bottom: 1em;
+  font-style: normal;
+  line-height: inherit;
+}
+
+input[type='text'],
+input[type='password'],
+input[type='number'],
+textarea {
+  -webkit-appearance: none;
+}
+
+ol,
+ul,
+dl {
+  margin-top: 0;
+  margin-bottom: 1em;
+}
+
+ol ol,
+ul ul,
+ol ul,
+ul ol {
+  margin-bottom: 0;
+}
+
+dt {
+  font-weight: 500;
+}
+
+dd {
+  margin-bottom: 0.5em;
+  margin-left: 0; // Undo browser default
+}
+
+blockquote {
+  margin: 0 0 1em;
+}
+
+dfn {
+  font-style: italic; // Add the correct font style in Android 4.3-
+}
+
+b,
+strong {
+  font-weight: bolder; // Add the correct font weight in Chrome, Edge, and Safari
+}
+
+small {
+  font-size: 80%; // Add the correct font size in all browsers
+}
+
+a {
+  color: #1664ff;
+  text-decoration: none;
+  background-color: initial;
+  outline: none;
+  cursor: pointer;
+  transition: color 0.3s;
+}
+
+pre {
+  // remove browser default top margin
+  margin-top: 0;
+  // Reset browser default of `1em` to use `em`s
+  margin-bottom: 1em;
+  // Don't allow content to break outside
+  overflow: auto;
+}
+
+img {
+  vertical-align: middle;
+  border-style: none; // remove the border on images inside links in IE 10-.
+}
+
+output {
+  display: inline-block;
+}
+
+summary {
+  display: list-item; // Add the correct display in all browsers
+}
+
+template {
+  display: none; // Add the correct display in IE
+}
+
+// Always hide an element with the `hidden` HTML attribute (from PureCSS).
+// Needed for proper display in IE 10-.
+[hidden] {
+  display: none !important;
+}
+
+// 解决 arco drawer 被平台 header 遮住的问题
+.arco-drawer-wrapper {
+  top: var(--headerHeight);
+  z-index: 1001 !important;
+}
+// Arco Modal
+// ---
+.custom-modal {
+  .arco-modal-content {
+    text-align: center;
+  }
+  .arco-modal-title {
+    word-break: break-all;
+  }
+}
+
+.arco-modal-simple:not(.custom-modal) {
+  padding: 0 !important;
+  .arco-modal-header,
+  .arco-modal-content,
+  .arco-modal-footer {
+    padding: 16px 20px !important;
+  }
+
+  .arco-modal-header {
+    border-bottom: 1px solid var(--color-border-2) !important;
+    padding: 12px 20px !important;
+    margin-bottom: 20px;
+    .arco-modal-title {
+      line-height: 22px;
+    }
+  }
+  .arco-modal-content {
+    padding-top: 0 !important;
+  }
+  .arco-modal-footer {
+    border-top: 1px solid var(--color-border-2) !important;
+    text-align: right !important;
+    .arco-btn {
+      min-width: 72px！important;
+    }
+  }
+}
+
+// Arco Input
+// ---
+
+// make clear icon always visible, otherwise it would make e2e test fail
+.arco-input-clear-wrapper {
+  .arco-input-clear-icon {
+    display: inline-block;
+    margin-right: 5px;
+  }
+}
+
+// button
+.custom-text-button {
+  padding: 0;
+  border: none;
+  font-size: 12px;
+  background: transparent;
+  color: var(--primaryColor);
+  cursor: pointer;
+  &:hover {
+    color: var(--newPrimaryHover);
+    background-color: transparent !important;
+  }
+  &:disabled {
+    cursor: not-allowed;
+    color: var(--color-text-4);
+  }
+}
+
+.custom-operation-button {
+  font-size: @custom-header-font;
+  .arco-btn-size-default {
+    font-size: @custom-header-font;
+  }
+}
+
+// table
+
+.custom-table {
+  .arco-table-cell-wrap-value,
+  .arco-table-th-item-title {
+    font-size: var(--textFontSizePrimary);
+  }
+  .arco-pagination {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+  }
+}
+
+// make the filter icon on the left side
+.custom-table-left-side-filter {
+  --custom-table-th-height: 40px;
+  .arco-table-col-has-filter {
+    padding-top: 0;
+    padding-bottom: 0;
+    height: var(--custom-table-th-height);
+    line-height: var(--custom-table-th-height);
+  }
+  .arco-table-filters {
+    position: unset;
+    display: inline-block;
+    margin-left: 2px;
+    height: var(--custom-table-th-height);
+    line-height: var(--custom-table-th-height);
+    text-align: center;
+    vertical-align: top;
+    & > svg {
+      vertical-align: -4px;
+    }
+  }
+}
+
+// arco tabs with textFontSizePrimary
+.custom-tabs {
+  .arco-tabs-header-title-text {
+    font-size: var(--textFontSizePrimary);
+  }
+}
+
+// typography
+.custom-typography {
+  &.arco-typography {
+    font-size: var(--textFontSizePrimary);
+  }
+}
+
+// popover
+.custom-popover {
+  &.arco-popover {
+    max-width: 400px;
+    width: 400px;
+  }
+  .arco-popover-content {
+    max-height: 600px;
+    border: 1px solid #e5e6e8;
+    box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
+    border-radius: 4px;
+    overflow: auto;
+    padding: 0;
+    .arco-popover-inner {
+      border-radius: 0;
+    }
+  }
+
+  .arco-popover-arrow {
+    display: none !important;
+  }
+}
+
+// select
+
+.custom-select {
+  font-size: 12px;
+}
+
+// input
+
+.custom-input {
+  font-size: 12px;
+  input::-webkit-input-placeholder {
+    font-size: 12px;
+  }
+  input::-moz-placeholder {
+    font-size: 12px;
+  }
+}

@@ -1,0 +1,19 @@
+load("@rules_python//python:defs.bzl", "py_library")
+
+py_library(
+    name = "rpc",
+    srcs = [
+        "client.py",
+        "data_join_control_client.py",
+        "hashed_data_join_client.py",
+        "server.py",
+    ],
+    visibility = ["//pp_lite:pp_lite_package"],
+    deps = [
+        "//pp_lite/data_join:envs",
+        "//pp_lite/data_join/utils",
+        "//pp_lite/proto:py_grpc",
+        "//pp_lite/proto:py_proto",
+        "//pp_lite/utils",
+    ],
+)

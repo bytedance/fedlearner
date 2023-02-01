@@ -1,0 +1,32 @@
+package(default_visibility = ["//web_console_v2/api:console_api_package"])
+
+sh_test(
+    name = "ci",
+    srcs = [
+        "ci.sh",
+    ],
+    data = [
+        "//web_console_v2/api/cmds:flask_cli_bin",
+    ],
+    env = {
+        "APM_SERVER_ENDPOINT": "/dev/null",
+        "FLASK_APP": "web_console_v2/api/command:app",
+    },
+)
+
+py_test(
+    name = "meta_yaml_test",
+    srcs = [
+        "meta_yaml_test.py",
+    ],
+    data = [
+        "//web_console_v2/client/src/jobMetaDatas:srcs",
+    ],
+    imports = [".."],
+    main = "meta_yaml_test.py",
+    deps = [
+        "//web_console_v2/api/fedlearner_webconsole:db_lib",
+        "//web_console_v2/api/fedlearner_webconsole/workflow_template:service_lib",
+        "//web_console_v2/api/testing:common_lib",
+    ],
+)

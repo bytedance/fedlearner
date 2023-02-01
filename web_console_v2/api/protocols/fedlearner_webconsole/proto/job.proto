@@ -1,0 +1,58 @@
+/* Copyright 2023 The FedLearner Authors. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+syntax = "proto3";
+
+import "fedlearner_webconsole/proto/workflow_definition.proto";
+
+package fedlearner_webconsole.proto;
+
+message CrdMetaData {
+  // {group}/{version}, such as k8s.io.fedlearner/v1alpha1
+  string api_version = 1;
+}
+
+message JobErrorMessage {
+  string app = 1;
+  map<string, string> pods = 2;
+}
+
+message JobPb {
+  int64 id = 1;
+  string name = 2;
+  JobDefinition.JobType job_type = 3;
+  string state = 4;
+  bool is_disabled = 5;
+  int64 workflow_id = 6;
+  int64 project_id = 7;
+  string snapshot = 8;
+  JobErrorMessage error_message = 9;
+  CrdMetaData crd_meta = 10;
+  string crd_kind = 11;
+  int64 created_at = 12;
+  int64 updated_at = 13;
+  int64 complete_at = 14;
+  repeated PodPb pods = 15;
+  // start_at is the create time of the real custom resource app in k8s.
+  int64 start_at = 16;
+}
+
+message PodPb {
+  string name = 1;
+  string pod_type = 3;
+  string state = 4;
+  string pod_ip = 5;
+  string message = 6;
+  int64 creation_timestamp = 7;
+}

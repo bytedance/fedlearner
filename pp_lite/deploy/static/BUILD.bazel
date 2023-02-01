@@ -1,0 +1,8 @@
+filegroup(
+    name = "static",
+    srcs = [
+        ".env",
+        "start.sh",
+    ],
+    visibility = ["//pp_lite:pp_lite_package"],
+)
