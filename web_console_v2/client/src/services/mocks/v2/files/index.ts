@@ -23,4 +23,19 @@ const get = {
   status: 200,
 };
 
+export const post = {
+  data: {
+    data: {
+      uploaded_files: [
+        {
+          display_file_name: 'mock-file.tar.gz',
+          internal_path:
+            'hdfs:///home/byte_aml_tob/fedlearner_v2/upload/20211015_041720010240/mock-file.tar.gz',
+        },
+      ],
+    },
+  },
+  status: 200,
+};
+
 export default get;

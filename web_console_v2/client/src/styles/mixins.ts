@@ -1,5 +1,5 @@
 import { convertToUnit } from 'shared/helpers';
-import defaultTheme from './_theme';
+import defaultTheme from './theme';
 
 /* istanbul ignore next */
 export function MixinFontClarity() {
@@ -32,11 +32,12 @@ export function MixinFlexAlignCenter() {
 }
 
 /* istanbul ignore next */
-export function MixinEllipsis() {
+export function MixinEllipsis(maxWidth?: any, unit?: string) {
   return `
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    max-width: ${convertToUnit(maxWidth ?? 'auto', unit)};
   `;
 }
 
@@ -56,5 +57,42 @@ export function MixinCommonTransition(
 
   return `
     transition: ${arr.map((i) => `${i} ${duration}s ${defaultTheme.commonTiming}`).join(',')};
+  `;
+}
+
+export function MixinWritableShape() {
+  return `
+    width: 13px;
+    height: 11px;
+    background-color: var(--primaryColor);
+    clip-path: polygon(50% 0, 100% 100%, 0 100%, 50% 0);
+    transform: translateY(-0.5px);
+  `;
+}
+
+export function MixinReadableShape() {
+  return `
+    ${MixinSquare(11)};
+
+    background-color: var(--successColor);
+  `;
+}
+export function MixinPrivateShape() {
+  return `
+    ${MixinCircle(12)};
+
+    background-color: var(--warningColor);
+  `;
+}
+
+export function MixinBaseFontInfo(
+  fontSize: number = 12,
+  color: any = 'var(--textColor)',
+  fontWeight: any = 400,
+) {
+  return `
+    font-size: ${fontSize}px;
+    color: ${color};
+    font-weight: ${fontWeight};
   `;
 }

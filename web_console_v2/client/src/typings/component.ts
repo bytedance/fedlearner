@@ -14,3 +14,14 @@ export enum DisplayType {
   Card = 1,
   Table = 2,
 }
+
+export type InternalNamePath = string[];
+
+export type ValidateErrorEntity<Values = any> = {
+  values: Values;
+  errorFields: {
+    name: InternalNamePath;
+    // errors: string[];
+  }[];
+  outOfDate: boolean;
+};

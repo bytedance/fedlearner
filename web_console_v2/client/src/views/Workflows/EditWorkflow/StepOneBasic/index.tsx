@@ -1,6 +1,17 @@
-import React, { FC, useState, useEffect } from 'react';
-import styled from 'styled-components';
-import { Form, Select, Radio, Button, Input, Spin, Card, notification, message, Modal } from 'antd';
+import React, { FC, useState, useEffect, useMemo } from 'react';
+import styled from './index.module.less';
+import {
+  Form,
+  Select,
+  Radio,
+  Button,
+  Input,
+  Spin,
+  Card,
+  Notification,
+  Message,
+  Alert,
+} from '@arco-design/web-react';
 import { useTranslation } from 'react-i18next';
 import GridRow from 'components/_base/GridRow';
 import { useHistory, useLocation, useParams, Link } from 'react-router-dom';
@@ -22,6 +33,9 @@ import {
   getPeerWorkflowsConfig,
   getWorkflowDetailById,
   fetchTemplateById,
+  PEER_WORKFLOW_DETAIL_QUERY_KEY,
+  fetchRevisionList,
+  fetchRevisionDetail,
 } from 'services/workflow';
 import { parseComplexDictField } from 'shared/formSchema';
 import { to } from 'shared/helpers';
@@ -30,39 +44,42 @@ import ScheduledWorkflowRunning, {
   scheduleIntervalValidator,
 } from 'views/Workflows/ScheduledWorkflowRunning';
 import FormLabel from 'components/FormLabel';
-import { ExclamationCircle } from 'components/IconPark';
-import { Z_INDEX_GREATER_THAN_HEADER } from 'components/Header';
+import Modal from 'components/Modal';
+import { parseSearch } from 'shared/url';
+import { useIsFormValueChange } from 'hooks';
+import ButtonWithModalConfirm from 'components/ButtonWithModalConfirm';
+import { FilterOp } from 'typings/filter';
+import { constructExpressionTree } from 'shared/filter';
 
-const Container = styled(Card)`
-  padding-top: 20px;
-`;
-const StyledForm = styled.div`
-  width: 500px;
-  margin: 0 auto;
-`;
-const NoAvailableTpl = styled.span`
-  line-height: 32px;
-`;
+type FilterParams = {
+  groupAlias?: string;
+};
 
-const WorkflowsCreateStepOne: FC<{ onSuccess?: any }> = ({ onSuccess }) => {
+const WorkflowsEditStepOne: FC<{
+  onFormValueChange?: () => void;
+}> = ({ onFormValueChange: onFormValueChangeFromProps }) => {
   const { t } = useTranslation();
   const history = useHistory();
   const location = useLocation();
   const params = useParams<{ id: string }>();
 
   const [groupAlias, setGroupAlias] = useState('');
+  const [tplId, setTplId] = useState(0);
 
   const [formInstance] = Form.useForm<CreateWorkflowBasicForm>();
 
   const { data: projectList } = useRecoilQuery(projectListQuery);
   const [formData, setFormData] = useRecoilState(workflowBasicForm);
-  const setTemplateInUsing = useSetRecoilState(templateInUsing);
+  const [currTemplate, setTemplateInUsing] = useRecoilState(templateInUsing);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [workflowConfig, setWorkflowConfigForm] = useRecoilState(workflowConfigForm);
   const setPeerConfig = useSetRecoilState(peerConfigInPairing);
 
   // Using when Participant accept the initiation
   // it should be null if it's Coordinator side initiate a workflow
   const [workflow, setWorkflow] = useRecoilState(workflowInEditing);
+
+  const { isFormValueChanged, onFormValueChange } = useIsFormValueChange(onFormChange);
 
   const workflowQuery = useQuery(['getWorkflow', params.id], getWorkflowDetail, {
     // Only do workflow fetch if:
@@ -71,34 +88,39 @@ const WorkflowsCreateStepOne: FC<{ onSuccess?: any }> = ({ onSuccess }) => {
     enabled: Boolean(params.id) && !Boolean(workflow),
     refetchOnWindowFocus: false,
   });
-  const peerWorkflowQuery = useQuery(['getPeerWorkflow', params.id], getPeerWorkflow, {
-    enabled: Boolean(params.id),
+
+  const isLocalWorkflow = workflow?.is_local;
+
+  const peerWorkflowQuery = useQuery([PEER_WORKFLOW_DETAIL_QUERY_KEY, params.id], getPeerWorkflow, {
+    enabled: Boolean(params.id) && !isLocalWorkflow && !workflowQuery.isFetching,
     refetchOnWindowFocus: false,
     retry: false,
   });
 
-  const allowedIsLeftValue = !peerWorkflowQuery.data?.config?.is_left;
-
   const tplListQuery = useQuery(
-    ['getTemplateList', allowedIsLeftValue, groupAlias],
+    ['getTemplateList', groupAlias],
     async () =>
       fetchWorkflowTemplateList({
-        isLeft: allowedIsLeftValue,
-        groupAlias,
+        filter: constructFilterExpression({ groupAlias }),
       }),
     {
-      enabled: Boolean(!!peerWorkflowQuery.data && groupAlias),
+      enabled: Boolean(!!peerWorkflowQuery.data && groupAlias) || isLocalWorkflow,
       refetchOnWindowFocus: false,
     },
   );
+
+  const revisionListQuery = useQuery(['getRevisionList', tplId], () => fetchRevisionList(tplId), {
+    enabled: Boolean(tplId),
+    refetchOnWindowFocus: false,
+  });
 
   const peerErrorMsg = (peerWorkflowQuery.error as Error)?.message;
 
   useEffect(() => {
     if (peerErrorMsg) {
-      notification.error({
-        message: t('workflow.msg_peer_config_failed'),
-        description: `${peerErrorMsg} ${t('pls_try_again_later')}`,
+      Notification.error({
+        title: t('workflow.msg_peer_config_failed'),
+        content: `${peerErrorMsg} ${t('pls_try_again_later')}`,
         duration: 0,
       });
     }
@@ -107,24 +129,39 @@ const WorkflowsCreateStepOne: FC<{ onSuccess?: any }> = ({ onSuccess }) => {
   const tplList = tplListQuery.data?.data || [];
   const noAvailableTpl = tplList.length === 0;
 
-  const projectId = Number(new URLSearchParams(location.search).get('project')) || undefined;
+  const revisionList = useMemo(() => {
+    if (!revisionListQuery.data) return [];
+    return revisionListQuery.data?.data || [];
+  }, [revisionListQuery.data]);
+
+  const noAvailableRevision = revisionList.length === 0;
+
+  const projectId = Number(parseSearch(location).get('project')) || undefined;
   const initValues = _getInitialValues(formData, workflow, projectId);
 
   const pairingPrefix = 'pairing_';
 
   return (
-    <Spin spinning={workflowQuery.isLoading}>
-      <Container bordered={false}>
-        <StyledForm>
+    <Card bordered={false} className={styled.container}>
+      <Spin loading={workflowQuery.isLoading} style={{ width: '100%' }}>
+        <div className={styled.form_container}>
+          {isLocalWorkflow && (
+            <Alert
+              className={styled.local_alert}
+              type="info"
+              content="该任务为本地任务，仅支持单侧模板选择"
+              banner
+            />
+          )}
           <Form
             labelCol={{ span: 6 }}
             wrapperCol={{ span: 18 }}
             form={formInstance}
-            onValuesChange={onFormChange as any}
+            onValuesChange={onFormValueChange}
             initialValues={initValues}
           >
             <Form.Item
-              name="name"
+              field="name"
               hasFeedback
               label={t('workflow.label_name')}
               rules={[
@@ -136,7 +173,7 @@ const WorkflowsCreateStepOne: FC<{ onSuccess?: any }> = ({ onSuccess }) => {
             </Form.Item>
 
             <Form.Item
-              name="project_id"
+              field="project_id"
               label={t('workflow.label_project')}
               hasFeedback
               rules={[{ required: true, message: t('workflow.msg_project_required') }]}
@@ -151,10 +188,10 @@ const WorkflowsCreateStepOne: FC<{ onSuccess?: any }> = ({ onSuccess }) => {
               </Select>
             </Form.Item>
 
-            <Form.Item name="_keepUsingOriginalTemplate" label={t('workflow.label_template')}>
-              <Radio.Group>
-                <Radio.Button value={true}>{t('workflow.label_use_original_tpl')}</Radio.Button>
-                <Radio.Button value={false}>{t('workflow.label_choose_new_tpl')}</Radio.Button>
+            <Form.Item field="_keepUsingOriginalTemplate" label={t('workflow.label_template')}>
+              <Radio.Group type="button">
+                <Radio value={true}>{t('workflow.label_use_original_tpl')}</Radio>
+                <Radio value={false}>{t('workflow.label_choose_new_tpl')}</Radio>
               </Radio.Group>
             </Form.Item>
 
@@ -162,23 +199,27 @@ const WorkflowsCreateStepOne: FC<{ onSuccess?: any }> = ({ onSuccess }) => {
               <>
                 <Form.Item
                   wrapperCol={{ offset: 6 }}
-                  name="_templateSelected"
+                  field="_templateSelected"
                   hasFeedback
                   rules={[{ required: true, message: t('workflow.msg_template_required') }]}
                 >
                   {noAvailableTpl && !tplListQuery.isLoading && !tplListQuery.isIdle ? (
-                    <NoAvailableTpl>
+                    <span className={styled.no_available_tpl}>
                       {t(`workflow.msg_${pairingPrefix}no_abailable_tpl`)}
-                    </NoAvailableTpl>
+                    </span>
                   ) : (
                     <Select
                       loading={tplListQuery.isLoading}
-                      disabled={Boolean(tplListQuery.error) || noAvailableTpl}
+                      disabled={Boolean(tplListQuery.error)}
                       onChange={onTemplateSelectChange}
                       placeholder={t('workflow.placeholder_template')}
+                      showSearch
                       allowClear
+                      filterOption={(inputValue, option) =>
+                        option.props.children.toLowerCase().indexOf(inputValue.toLowerCase()) >= 0
+                      }
                     >
-                      {tplList?.map((tpl) => (
+                      {tplList.map((tpl) => (
                         <Select.Option key={tpl.id} value={tpl.id}>
                           {tpl.name}
                         </Select.Option>
@@ -191,39 +232,68 @@ const WorkflowsCreateStepOne: FC<{ onSuccess?: any }> = ({ onSuccess }) => {
                   wrapperCol={{ offset: 6 }}
                   style={{ marginBottom: 0, marginTop: '-10px' }}
                 >
-                  <Link to="/workflow-templates/create/basic" style={{ fontSize: '12px' }}>
+                  <Link
+                    to="/workflow-center/workflow-templates/create/basic"
+                    style={{ fontSize: '12px' }}
+                  >
                     {t('workflow.btn_go_create_new_tpl')}
                   </Link>
                 </Form.Item>
+
+                {noAvailableTpl && !tplListQuery.isLoading && !tplListQuery.isIdle ? (
+                  <></>
+                ) : (
+                  <Form.Item
+                    wrapperCol={{ offset: 6 }}
+                    field="_revisionSelected"
+                    hasFeedback
+                    // rules={[{ required: true, message: t('workflow.msg_revision_required') }]}
+                  >
+                    <Select
+                      loading={revisionListQuery.isLoading}
+                      disabled={Boolean(revisionListQuery.error || noAvailableRevision)}
+                      onChange={onRevisionSelectChange}
+                      placeholder={t('workflow.placeholder_revision')}
+                      showSearch
+                      allowClear
+                      filterOption={(inputValue, option) =>
+                        option.props.children
+                          .join('')
+                          .toLowerCase()
+                          .indexOf(inputValue.toLowerCase()) >= 0
+                      }
+                    >
+                      {revisionList?.map((revision) => (
+                        <Select.Option key={revision.id} value={revision.id}>
+                          V{revision.revision_index}
+                        </Select.Option>
+                      ))}
+                    </Select>
+                  </Form.Item>
+                )}
               </>
             )}
 
-            <Form.Item name="forkable" label={t('workflow.label_peer_forkable')}>
-              <Radio.Group>
-                <Radio.Button value={true}>{t('workflow.label_allow')}</Radio.Button>
-                <Radio.Button value={false}>{t('workflow.label_not_allow')}</Radio.Button>
-              </Radio.Group>
-            </Form.Item>
+            {renderForkableItem()}
 
-            {workflowConfig?.is_left && (
-              <Form.Item
-                name="batch_update_interval"
-                label={
-                  <FormLabel
-                    label={t('workflow.label_enable_batch_update_interval')}
-                    tooltip={t('workflow.msg_schduled_run')}
-                  />
-                }
-                rules={[
-                  {
-                    validator: scheduleIntervalValidator,
-                    message: t('workflow.msg_min_10_interval'),
-                  },
-                ]}
-              >
-                <ScheduledWorkflowRunning />
-              </Form.Item>
-            )}
+            <Form.Item
+              field="cron_config"
+              label={
+                <FormLabel
+                  label={t('workflow.label_enable_batch_update_interval')}
+                  tooltip={t('workflow.msg_schduled_run')}
+                />
+              }
+              rules={[
+                {
+                  validator: scheduleIntervalValidator,
+                  message: t('workflow.msg_time_required'),
+                  validateTrigger: 'onSubmit',
+                },
+              ]}
+            >
+              <ScheduledWorkflowRunning />
+            </Form.Item>
           </Form>
 
           <Form.Item wrapperCol={{ offset: 6 }}>
@@ -232,22 +302,32 @@ const WorkflowsCreateStepOne: FC<{ onSuccess?: any }> = ({ onSuccess }) => {
                 {t('next_step')}
               </Button>
 
-              <Button onClick={backToList}>{t('cancel')}</Button>
+              <ButtonWithModalConfirm onClick={backToList} isShowConfirmModal={isFormValueChanged}>
+                {t('cancel')}
+              </ButtonWithModalConfirm>
             </GridRow>
           </Form.Item>
-        </StyledForm>
-      </Container>
-    </Spin>
+        </div>
+      </Spin>
+    </Card>
   );
 
   function goNextStep() {
-    onSuccess && onSuccess();
-    history.push(`/workflows/edit/config/${params.id}`);
+    history.push(`/workflow-center/workflows/edit/config/${params.id}`);
   }
   function backToList() {
-    history.push('/workflows');
+    // if new tab only open this page，no other page has been opened，then go to workflows list page
+    if (history.length <= 2) {
+      history.push('/workflow-center/workflows');
+      return;
+    }
+    history.go(-1);
   }
-  function setCurrentUsingTemplate(tpl: WorkflowTemplate<any>) {
+  function setCurrentUsingTemplate(tpl?: WorkflowTemplate<any>) {
+    if (!tpl) {
+      setTemplateInUsing(null as any);
+      return;
+    }
     // Widget schemas of the template from backend side are JSON-string type
     // parse it before using
     const parsedTpl = parseComplexDictField(tpl);
@@ -263,6 +343,10 @@ const WorkflowsCreateStepOne: FC<{ onSuccess?: any }> = ({ onSuccess }) => {
     setWorkflow(data);
     setWorkflowConfigForm(data.config as WorkflowConfig<JobNodeRawData>);
     formInstance.setFieldsValue((data as any) as CreateWorkflowBasicForm);
+    setFormData({
+      ...formData,
+      cron_config: data.cron_config,
+    });
   }
   async function getPeerWorkflow() {
     const res = await getPeerWorkflowsConfig(params.id);
@@ -277,28 +361,75 @@ const WorkflowsCreateStepOne: FC<{ onSuccess?: any }> = ({ onSuccess }) => {
     return anyPeerWorkflow;
   }
   // --------- Handlers -----------
+  function constructFilterExpression(value: FilterParams) {
+    const expressionNodes = [];
+    if (value.groupAlias) {
+      expressionNodes.push({
+        field: 'group_alias',
+        op: FilterOp.EQUAL,
+        string_value: value.groupAlias,
+      });
+    }
+
+    return constructExpressionTree(expressionNodes);
+  }
+
   function onFormChange(_: any, values: CreateWorkflowBasicForm) {
+    onFormValueChangeFromProps?.();
     setFormData(values);
   }
   async function onTemplateSelectChange(id: number) {
+    formInstance.setFieldsValue({ _revisionSelected: undefined });
     if (!id) {
       // If user clear select
+      setCurrentUsingTemplate(undefined);
+      setTplId(0);
       return;
     }
 
+    setTplId(id);
     const [res, error] = await to(fetchTemplateById(id));
 
     if (error) {
-      message.error(t('workflow.msg_get_tpl_detail_failed'));
+      Message.error(t('workflow.msg_get_tpl_detail_failed'));
       return;
     }
     if (!res.data) return;
     setCurrentUsingTemplate(res.data);
   }
+
+  async function onRevisionSelectChange(revision_id: number) {
+    // fetch revision detail
+    if (!revision_id) return;
+
+    const [res, error] = await to(fetchRevisionDetail(revision_id));
+
+    if (error) {
+      Message.error(t('workflow.msg_get_revision_detail_failed'));
+      return;
+    }
+
+    setCurrentUsingTemplate({
+      ...currTemplate,
+      revision_id,
+      config: res.data.config,
+      editor_info: res.data.editor_info,
+    });
+  }
+
   async function onNextStepClick() {
+    if (
+      (!formData.cron_config && !initValues.cron_config) ||
+      formData.cron_config === initValues.cron_config
+    ) {
+      setFormData({
+        ...formData,
+        cron_config: undefined,
+      });
+    }
     try {
       // Any form invalidation happens will throw error to stop the try block
-      await formInstance.validateFields();
+      await formInstance.validate();
 
       if (formData._keepUsingOriginalTemplate) {
         goNextStep();
@@ -307,12 +438,7 @@ const WorkflowsCreateStepOne: FC<{ onSuccess?: any }> = ({ onSuccess }) => {
 
       Modal.confirm({
         title: t('workflow.msg_sure_2_replace_tpl'),
-        icon: <ExclamationCircle />,
-        zIndex: Z_INDEX_GREATER_THAN_HEADER,
         content: t('workflow.msg_loose_origin_vars_vals'),
-        style: {
-          top: '30%',
-        },
         onOk() {
           goNextStep();
         },
@@ -320,6 +446,22 @@ const WorkflowsCreateStepOne: FC<{ onSuccess?: any }> = ({ onSuccess }) => {
     } catch {
       /** ignore validation error */
     }
+  }
+
+  // ---------- Renders --------
+  function renderForkableItem() {
+    if (isLocalWorkflow) {
+      return null;
+    }
+
+    return (
+      <Form.Item field="forkable" label={t('workflow.label_peer_forkable')}>
+        <Radio.Group type="button">
+          <Radio value={true}>{t('workflow.label_allow')}</Radio>
+          <Radio value={false}>{t('workflow.label_not_allow')}</Radio>
+        </Radio.Group>
+      </Form.Item>
+    );
   }
 };
 
@@ -335,4 +477,4 @@ function _getInitialValues(form: CreateWorkflowBasicForm, workflow: Workflow, pr
   );
 }
 
-export default WorkflowsCreateStepOne;
+export default WorkflowsEditStepOne;

@@ -1,7 +1,7 @@
 import React, { FC, useEffect, useState } from 'react';
 import PrintLogs from 'components/PrintLogs';
 import { fetchPodNameList, fetchSystemLogs } from 'services/system';
-import { Tabs } from 'antd';
+import { Tabs } from '@arco-design/web-react';
 import { useQuery } from 'react-query';
 
 const { TabPane } = Tabs;
@@ -26,7 +26,7 @@ const SystemLogs: FC = () => {
       >
         {podNameList?.map((podName) => {
           return (
-            <TabPane tab={podName} key={podName}>
+            <TabPane title={podName} key={podName}>
               <PrintLogs
                 logsFetcher={getLogs}
                 refetchInterval={4000}
@@ -40,11 +40,11 @@ const SystemLogs: FC = () => {
     </>
   );
 
-  async function getLogs() {
+  async function getLogs(tailLines = 500) {
     if (!currentPodName) {
       return { data: ['Current pod name is undefined'] };
     }
-    return fetchSystemLogs(500, currentPodName).catch((error) => {
+    return fetchSystemLogs(tailLines, currentPodName).catch((error) => {
       return { data: [error.message] };
     });
   }

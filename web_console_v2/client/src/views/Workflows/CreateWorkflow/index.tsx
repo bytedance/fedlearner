@@ -1,6 +1,6 @@
-import React, { FC, useState } from 'react';
-import styled from 'styled-components';
-import { Steps, Row, Card } from 'antd';
+import React, { FC, useState, useEffect } from 'react';
+import styled from './index.module.less';
+import { Steps, Grid, Card } from '@arco-design/web-react';
 import StepOneBasic from './StepOneBasic';
 import SteptTwoConfig from './SteptTwoConfig';
 import { Route, useHistory, useParams } from 'react-router-dom';
@@ -11,15 +11,7 @@ import SharedPageLayout from 'components/SharedPageLayout';
 import BackButton from 'components/BackButton';
 
 const { Step } = Steps;
-
-const StepContainer = styled.div`
-  width: 350px;
-`;
-const FormArea = styled.section`
-  flex: 1;
-  margin-top: 12px;
-  background-color: white;
-`;
+const Row = Grid.Row;
 
 enum CreateSteps {
   basic,
@@ -31,6 +23,7 @@ export type WorkflowCreateProps = {
   isInitiate?: boolean;
   // is Participant accepting a workflow from Coordinator
   isAccept?: boolean;
+  onFormValueChange?: () => void;
 };
 
 /**
@@ -42,8 +35,14 @@ const WorkflowsCreate: FC<WorkflowCreateProps> = (workflowCreateProps) => {
   const { t } = useTranslation();
   const history = useHistory();
   const params = useParams<{ step: keyof typeof CreateSteps; id?: string }>();
-  const [currentStep, setStep] = useState(CreateSteps[params.step || 'basic']);
+  const [currentStep, setStep] = useState(CreateSteps[params.step || 'basic'] + 1);
+  const [isFormValueChanged, setIsFormValueChanged] = useState(false);
+
   const reset = useResetCreateForms();
+
+  useEffect(() => {
+    setStep(CreateSteps[params.step || 'basic'] + 1);
+  }, [params.step]);
 
   useUnmount(() => {
     reset();
@@ -51,51 +50,68 @@ const WorkflowsCreate: FC<WorkflowCreateProps> = (workflowCreateProps) => {
 
   return (
     <SharedPageLayout
-      title={<BackButton onClick={() => history.goBack()}>{t('menu.label_workflow')}</BackButton>}
+      title={
+        <BackButton
+          onClick={() => history.replace(`/workflow-center/workflows`)}
+          isShowConfirmModal={isFormValueChanged}
+        >
+          {t('menu.label_workflow')}
+        </BackButton>
+      }
       contentWrapByCard={false}
     >
       <Card>
         <Row justify="center">
-          <StepContainer>
+          <div className={styled.step_container}>
             <Steps current={currentStep}>
               <Step title={t('workflow.step_basic')} />
               <Step title={t('workflow.step_config')} />
             </Steps>
-          </StepContainer>
+          </div>
         </Row>
       </Card>
 
-      <FormArea>
+      <section className={styled.form_area}>
         <Route
-          path={`/workflows/initiate/basic`}
+          path={`/workflow-center/workflows/initiate/basic/:template_id?`}
           exact
           render={(props) => (
-            <StepOneBasic onSuccess={setToConfigStep} {...props} {...workflowCreateProps} />
+            <StepOneBasic
+              {...props}
+              {...workflowCreateProps}
+              onFormValueChange={onFormValueChange}
+            />
           )}
         />
         <Route
-          path={`/workflows/initiate/config`}
+          path={`/workflow-center/workflows/initiate/config`}
           exact
           render={(props) => <SteptTwoConfig {...props} {...workflowCreateProps} />}
         />
         <Route
-          path={`/workflows/accept/basic/:id`}
+          path={`/workflow-center/workflows/accept/basic/:id`}
           exact
           render={(props) => (
-            <StepOneBasic onSuccess={setToConfigStep} {...props} {...workflowCreateProps} />
+            <StepOneBasic
+              {...props}
+              {...workflowCreateProps}
+              onFormValueChange={onFormValueChange}
+            />
           )}
         />
         <Route
-          path={`/workflows/accept/config/:id`}
+          path={`/workflow-center/workflows/accept/config/:id`}
           exact
           render={(props) => <SteptTwoConfig {...props} {...workflowCreateProps} />}
         />
-      </FormArea>
+      </section>
     </SharedPageLayout>
   );
 
-  function setToConfigStep() {
-    setStep(CreateSteps.config);
+  function onFormValueChange() {
+    if (!isFormValueChanged) {
+      setIsFormValueChanged(true);
+    }
   }
 };
 

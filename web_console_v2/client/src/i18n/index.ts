@@ -35,5 +35,4 @@ export default i18next;
 export function setLocale(lng: FedLanguages) {
   i18next.changeLanguage(lng);
   dayjs.locale(lng);
-  store.set(LOCAL_STORAGE_KEYS.language, lng);
 }

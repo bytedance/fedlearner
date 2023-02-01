@@ -1,11 +1,13 @@
-FROM python:3.7
+FROM python:3.6.8
 
 RUN apt-get update && \
     apt install -y curl && \
     # For nodejs PA
     curl -sL https://deb.nodesource.com/setup_14.x | bash && \
+    # For krb5-user installation
+    export DEBIAN_FRONTEND=noninteractive && \
     # Install dependencies
-    apt-get install -y make nodejs nginx && \
+    apt-get install -y make nodejs nginx krb5-user cron && \
     apt-get clean
 
 WORKDIR /app
@@ -14,14 +16,15 @@ COPY . .
 
 # Builds frontend
 WORKDIR /app/client
-RUN npx pnpm install && npx pnpm build && rm -rf node_modules
+RUN npx pnpm@6.4.0 install && npx pnpm@6.4.0 build && rm -rf node_modules
 
 # Builds backend
 WORKDIR /app/api
 RUN pip3 install --no-cache-dir -r requirements.txt && make protobuf
 
+WORKDIR /app
 # Nginx configuration
-COPY nginx.conf /etc/nginx/conf.d/nginx.conf
+RUN cp nginx.conf /etc/nginx/conf.d/nginx.conf
 
 # Port for webconsole http server
 EXPOSE 1989
@@ -29,19 +32,7 @@ EXPOSE 1989
 # This should not be exposed in PROD
 EXPOSE 1990
 
-# Install vscode
-RUN curl -fOL https://github.com/cdr/code-server/releases/download/v3.8.0/code-server_3.8.0_amd64.deb && \
-    dpkg -i code-server_3.8.0_amd64.deb && \
-    rm code-server_3.8.0_amd64.deb && \
-    mkdir -p ~/.config/code-server/ && \
-    echo 'bind-addr: 0.0.0.0:1992\n\
-auth: password\n\
-password: fedlearner\n\
-cert: false\n' >> ~/.config/code-server/config.yaml
-
-# Port for VScode
-EXPOSE 1992
 ENV TZ="Asia/Shanghai"
 
 WORKDIR /app
-CMD sh run_prod.sh
+CMD bash run_prod.sh

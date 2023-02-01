@@ -1,105 +1,67 @@
 import {
   Workflow,
   WorkflowState,
-  TransactionState,
   WorkflowExecutionDetails,
+  WorkflowStateFilterParam,
+  WorkflowStateFilterParamType,
 } from 'typings/workflow';
 import i18n from 'i18n';
 import { StateTypes } from 'components/StateIndicator';
 import { Job } from 'typings/job';
 
-const { NEW, READY: W_READY, RUNNING, STOPPED, INVALID, COMPLETED, FAILED } = WorkflowState;
 const {
-  READY: T_READY,
-  COORDINATOR_PREPARE,
-  COORDINATOR_COMMITTABLE,
-  PARTICIPANT_PREPARE,
-  PARTICIPANT_COMMITTABLE,
-} = TransactionState;
+  RUNNING,
+  STOPPED,
+  INVALID,
+  COMPLETED,
+  FAILED,
+  PREPARE_RUN,
+  PREPARE_STOP,
+  WARMUP_UNDERHOOD,
+  PENDING_ACCEPT,
+  READY_TO_RUN,
+  PARTICIPANT_CONFIGURING,
+  UNKNOWN,
+} = WorkflowState;
 
-// --------------- State judgement ----------------
+export const workflowStateFilterParamToStateTextMap: Record<
+  WorkflowStateFilterParamType,
+  string
+> = {
+  [WorkflowStateFilterParam.RUNNING]: i18n.t('workflow.state_running'),
+  [WorkflowStateFilterParam.STOPPED]: i18n.t('workflow.state_stopped'),
+  [WorkflowStateFilterParam.INVALID]: i18n.t('workflow.state_invalid'),
+  [WorkflowStateFilterParam.COMPLETED]: i18n.t('workflow.state_success'),
+  [WorkflowStateFilterParam.FAILED]: i18n.t('workflow.state_failed'),
+  [WorkflowStateFilterParam.PREPARE_RUN]: i18n.t('workflow.state_prepare_run'),
+  [WorkflowStateFilterParam.PREPARE_STOP]: i18n.t('workflow.state_prepare_stop'),
+  [WorkflowStateFilterParam.WARMUP_UNDERHOOD]: i18n.t('workflow.state_warmup_underhood'),
+  [WorkflowStateFilterParam.PENDING_ACCEPT]: i18n.t('workflow.state_pending_accept'),
+  [WorkflowStateFilterParam.READY_TO_RUN]: i18n.t('workflow.state_ready_to_run'),
+  [WorkflowStateFilterParam.PARTICIPANT_CONFIGURING]: i18n.t('workflow.state_configuring'),
+  [WorkflowStateFilterParam.UNKNOWN]: i18n.t('workflow.state_unknown'),
+};
 
-export function isAwaitParticipantConfig(workflow: Workflow) {
-  const { state, target_state, transaction_state } = workflow;
-
-  return (
-    state === NEW &&
-    target_state === W_READY &&
-    [T_READY, COORDINATOR_COMMITTABLE, COORDINATOR_PREPARE].includes(transaction_state)
-  );
-}
-
-export function isPendingAccpet(workflow: Workflow) {
-  const { state, target_state, transaction_state } = workflow;
-
-  return state === NEW && target_state === W_READY && transaction_state === PARTICIPANT_PREPARE;
-}
-
-export function isWarmUpUnderTheHood(workflow: Workflow) {
-  const { state, target_state, transaction_state } = workflow;
-  return (
-    state === NEW &&
-    target_state === W_READY &&
-    [PARTICIPANT_COMMITTABLE].includes(transaction_state)
-  );
-}
-
-export function isReadyToRun(workflow: Workflow) {
-  const { state, target_state, transaction_state } = workflow;
-
-  return state === W_READY && target_state === INVALID && transaction_state === T_READY;
-}
-
-export function isPreparingRun(workflow: Workflow) {
-  const { state, target_state } = workflow;
-
-  return target_state === RUNNING && [W_READY, STOPPED].includes(state);
-}
-
-export function isRunning(workflow: Workflow) {
-  const { state, target_state } = workflow;
-
-  return state === RUNNING && target_state === INVALID;
-}
-
-export function isPreparingStop(workflow: Workflow) {
-  const { state, target_state } = workflow;
-
-  return target_state === STOPPED && [RUNNING, COMPLETED, FAILED].includes(state);
-}
-
-export function isStopped(workflow: Workflow) {
-  const { state, target_state } = workflow;
-
-  return target_state === STOPPED || (state === STOPPED && target_state === INVALID);
-}
-
-export function isCompleted(workflow: Workflow) {
-  const { state } = workflow;
-
-  return state === COMPLETED;
-}
-
-export function isFailed(workflow: Workflow) {
-  const { state } = workflow;
-  return state === FAILED;
-}
-
-export function isInvalid(workflow: Workflow) {
-  const { state } = workflow;
-  return state === INVALID;
-}
+const workflowStateFilterOrder = [
+  WorkflowStateFilterParam.PENDING_ACCEPT,
+  WorkflowStateFilterParam.READY_TO_RUN,
+  WorkflowStateFilterParam.COMPLETED,
+  WorkflowStateFilterParam.FAILED,
+  WorkflowStateFilterParam.RUNNING,
+  WorkflowStateFilterParam.STOPPED,
+  WorkflowStateFilterParam.INVALID,
+  WorkflowStateFilterParam.PARTICIPANT_CONFIGURING,
+  WorkflowStateFilterParam.WARMUP_UNDERHOOD,
+];
+export const workflowStateOptionList = workflowStateFilterOrder.map((item) => ({
+  label: workflowStateFilterParamToStateTextMap[item],
+  value: item,
+}));
 
 // --------------- Xable judgement ----------------
 
-/**
- * When target_state is not INVALID,
- * means underlying service of both sides are communicating
- * during which user cannot perform any action to this workflow
- * server would response 'bad request'
- */
 export function isOperable(workflow: Workflow) {
-  return workflow.target_state === INVALID;
+  return [READY_TO_RUN, RUNNING, STOPPED, COMPLETED, FAILED].includes(workflow.state);
 }
 
 export function isForkable(workflow: Workflow) {
@@ -107,98 +69,99 @@ export function isForkable(workflow: Workflow) {
   return forkable;
 }
 
+export function isEditable(workflow: Workflow) {
+  const { state } = workflow;
+  return [PARTICIPANT_CONFIGURING, READY_TO_RUN, STOPPED, COMPLETED, FAILED].includes(state);
+}
+
 // --------------- General stage getter ----------------
 
 export function getWorkflowStage(workflow: Workflow): { type: StateTypes; text: string } {
-  if (isAwaitParticipantConfig(workflow)) {
-    return {
-      text: i18n.t('workflow.state_configuring'),
-      type: 'gold',
-    };
-  }
+  const { state } = workflow;
 
-  if (isPendingAccpet(workflow)) {
-    return {
-      text: i18n.t('workflow.state_pending_accept'),
-      type: 'warning',
-    };
-  }
+  switch (state) {
+    case PARTICIPANT_CONFIGURING:
+      return {
+        text: i18n.t('workflow.state_configuring'),
+        type: 'gold',
+      };
 
-  if (isWarmUpUnderTheHood(workflow)) {
-    return {
-      text: i18n.t('workflow.state_warmup_underhood'),
-      type: 'warning',
-    };
-  }
+    case PENDING_ACCEPT:
+      return {
+        text: i18n.t('workflow.state_pending_accept'),
+        type: 'warning',
+      };
 
-  if (isPreparingRun(workflow)) {
-    return {
-      text: i18n.t('workflow.state_prepare_run'),
-      type: 'warning',
-    };
-  }
+    case WARMUP_UNDERHOOD:
+      return {
+        text: i18n.t('workflow.state_warmup_underhood'),
+        type: 'warning',
+      };
 
-  if (isReadyToRun(workflow)) {
-    return {
-      text: i18n.t('workflow.state_ready_to_run'),
-      type: 'lime',
-    };
-  }
+    case PREPARE_RUN:
+      return {
+        text: i18n.t('workflow.state_prepare_run'),
+        type: 'warning',
+      };
 
-  if (isRunning(workflow)) {
-    return {
-      text: i18n.t('workflow.state_running'),
-      type: 'processing',
-    };
-  }
+    case READY_TO_RUN:
+      return {
+        text: i18n.t('workflow.state_ready_to_run'),
+        type: 'lime',
+      };
 
-  if (isPreparingStop(workflow)) {
-    return {
-      text: i18n.t('workflow.state_prepare_stop'),
-      type: 'error',
-    };
-  }
+    case RUNNING:
+      return {
+        text: i18n.t('workflow.state_running'),
+        type: 'processing',
+      };
 
-  if (isStopped(workflow)) {
-    return {
-      text: i18n.t('workflow.state_stopped'),
-      type: 'error',
-    };
-  }
+    case PREPARE_STOP:
+      return {
+        text: i18n.t('workflow.state_prepare_stop'),
+        type: 'error',
+      };
 
-  if (isCompleted(workflow)) {
-    return {
-      text: i18n.t('workflow.state_success'),
-      type: 'success',
-    };
-  }
+    case STOPPED:
+      return {
+        text: i18n.t('workflow.state_stopped'),
+        type: 'error',
+      };
 
-  if (isFailed(workflow)) {
-    return {
-      text: i18n.t('workflow.state_failed'),
-      type: 'error',
-    };
-  }
+    case COMPLETED:
+      return {
+        text: i18n.t('workflow.state_success'),
+        type: 'success',
+      };
 
-  if (isInvalid(workflow)) {
-    return {
-      text: i18n.t('workflow.state_invalid'),
-      type: 'default',
-    };
-  }
+    case FAILED:
+      return {
+        text: i18n.t('workflow.state_failed'),
+        type: 'error',
+      };
 
-  return {
-    text: i18n.t('workflow.state_unknown'),
-    type: 'default',
-  };
+    case INVALID:
+      return {
+        text: i18n.t('workflow.state_invalid'),
+        type: 'default',
+      };
+    case UNKNOWN:
+    default:
+      return {
+        text: i18n.t('workflow.state_unknown'),
+        type: 'default',
+      };
+  }
 }
 
 // --------------- Misc ----------------
 export function findJobExeInfoByJobDef(jobDef: Job, workflow: WorkflowExecutionDetails) {
-  return workflow.jobs.find((exeInfo) => {
+  return workflow.jobs?.find((exeInfo) => {
     return (
       exeInfo.name === `${workflow.uuid}-${jobDef.name}` ||
+      /* istanbul ignore next */
       exeInfo.name === `${workflow.name}-${jobDef.name}` ||
+      /* istanbul ignore next */
       exeInfo.name.endsWith(jobDef.name)
     );
   });

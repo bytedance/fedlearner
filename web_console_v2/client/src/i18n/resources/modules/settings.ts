@@ -13,8 +13,11 @@ const settings = {
   },
 
   placeholder_image: { zh: '请选择镜像版本' },
-  system_log: { zh: '系统日志', en: 'system log' },
-  system_setting: { zh: '系统配置', en: 'system setting' },
+  system_log: { zh: '系统日志', en: 'System log' },
+  system_setting: { zh: '全局配置', en: 'Settings' },
+  edit_success: { zh: '修改环境变量成功', en: 'Edit environment variables succeed!' },
+
+  msg_wrong_format: { zh: 'JSON {{type}} 格式错误', en: 'JSON {{type}} wrong format' },
 };
 
 export default separateLng(settings);

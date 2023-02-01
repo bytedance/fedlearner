@@ -1,18 +1,8 @@
-import React, { ReactElement, useRef, useState } from 'react';
-import styled, { CSSProperties } from 'styled-components';
-import { Tooltip } from 'antd';
-import { MixinEllipsis } from 'styles/mixins';
+import React, { ReactElement, useRef, useState, CSSProperties } from 'react';
 import { useMount } from 'react-use';
+import { Tooltip } from '@arco-design/web-react';
 
-const Container = styled.div`
-  ${MixinEllipsis()}
-
-  color: var(--gray10);
-  font-weight: 500;
-  font-size: 15px;
-  line-height: 40px;
-  margin-left: 16px;
-`;
+import styles from './index.module.less';
 
 interface CreateTimeProps {
   text: string;
@@ -21,7 +11,7 @@ interface CreateTimeProps {
 
 function ProjectName({ text, style }: CreateTimeProps): ReactElement {
   const eleRef = useRef<HTMLDivElement>();
-  const [trigger, setTrigger] = useState('click');
+  const [toolTipContent, setToolTipContent] = useState<string | undefined>();
 
   useMount(() => {
     // Check element overflow at next-tick
@@ -29,16 +19,16 @@ function ProjectName({ text, style }: CreateTimeProps): ReactElement {
       const { current } = eleRef;
       if (current) {
         if (current.scrollWidth > current.offsetWidth) {
-          setTrigger('hover');
+          setToolTipContent(text);
         }
       }
     });
   });
   return (
-    <Tooltip title={text} trigger={trigger}>
-      <Container ref={eleRef as any} style={style}>
+    <Tooltip content={toolTipContent}>
+      <div className={styles.project_name_container} ref={eleRef as any} style={style}>
         {text}
-      </Container>
+      </div>
     </Tooltip>
   );
 }

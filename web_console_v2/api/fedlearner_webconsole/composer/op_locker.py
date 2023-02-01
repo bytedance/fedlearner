@@ -1,4 +1,4 @@
-# Copyright 2021 The FedLearner Authors. All Rights Reserved.
+# Copyright 2023 The FedLearner Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -23,11 +23,13 @@ from fedlearner_webconsole.db import get_session
 
 
 class OpLocker(object):
+
     def __init__(self, name: str, db_engine: Engine):
         """Optimistic Lock
 
         Args:
-            name: lock name should be unique in same thread
+            name (str): lock name should be unique in same thread
+            db_engine (Engine): db engine
         """
         self._name = name
         self._version = 0
@@ -45,14 +47,12 @@ class OpLocker(object):
     def try_lock(self) -> 'OpLocker':
         with get_session(self.db_engine) as session:
             try:
-                lock = session.query(OptimisticLock).filter_by(
-                    name=self._name).first()
+                lock = session.query(OptimisticLock).filter_by(name=self._name).first()
                 if lock:
                     self._has_lock = True
                     self._version = lock.version
                     return self
-                new_lock = OptimisticLock(name=self._name,
-                                          version=self._version)
+                new_lock = OptimisticLock(name=self._name, version=self._version)
                 session.add(new_lock)
                 session.commit()
                 self._has_lock = True
@@ -67,16 +67,13 @@ class OpLocker(object):
 
         with get_session(self.db_engine) as session:
             try:
-                new_lock = session.query(OptimisticLock).filter_by(
-                    name=self._name).first()
+                new_lock = session.query(OptimisticLock).filter_by(name=self._name).first()
                 if not new_lock:
                     return False
-                logging.info(f'[op_locker] version, current: {self._version}, '
-                             f'new: {new_lock.version}')
+                logging.info(f'[op_locker] version, current: {self._version}, ' f'new: {new_lock.version}')
                 return self._version == new_lock.version
             except Exception as e:  # pylint: disable=broad-except
-                logging.error(
-                    f'failed to check lock is conflict, exception: {e}')
+                logging.error(f'failed to check lock is conflict, exception: {e}')
                 return False
 
     def update_version(self) -> bool:
@@ -86,8 +83,7 @@ class OpLocker(object):
 
         with get_session(self.db_engine) as session:
             try:
-                lock = session.query(OptimisticLock).filter_by(
-                    name=self._name).first()
+                lock = session.query(OptimisticLock).filter_by(name=self._name).first()
                 lock.version = self._version + 1
                 session.commit()
                 return True

@@ -1,5 +1,7 @@
 import React from 'react';
 import {
+  RevisionDetail,
+  Workflow,
   WorkflowAcceptPayload,
   WorkflowExecutionDetails,
   WorkflowForkPayload,
@@ -14,9 +16,15 @@ import {
   VariableValueType,
 } from 'typings/variable';
 import { FormilySchema } from 'typings/formily';
-import { cloneDeep, merge } from 'lodash';
+import { cloneDeep, merge } from 'lodash-es';
 import variablePresets, { VariablePresets } from './variablePresets';
 import { FC } from 'react';
+import {
+  JobDefinitionForm,
+  VariableDefinitionForm,
+} from 'views/WorkflowTemplates/TemplateForm/stores';
+import { Job } from 'typings/job';
+import { parseValueFromString } from 'shared/helpers';
 
 const __IS_JEST__ = typeof jest !== 'undefined';
 
@@ -30,29 +38,38 @@ const FakeVariableLabel: FC<any> = ({ label, tooltip }: any) => {
   );
 };
 
-const VariableLabel = __IS_JEST__ ? FakeVariableLabel : require('components/VariableLabel').default;
+const VariableLabel = __IS_JEST__
+  ? FakeVariableLabel
+  : /* istanbul ignore next */ require('components/VariableLabel').default;
 
 // ------- Build form Formily schema --------
 type BuildOptions = {
   withPermissions?: boolean;
   readonly?: boolean;
+  labelAlign?: Position;
+  variablePrefix?: string;
 };
 
 // Make option variables name end with __OPTION
 // for better recognition
 let withPermissions__OPTION = false;
 let readonly__OPTION = false;
+let variablePrefix__OPTION = '';
 
 function _enableOptions(options?: BuildOptions) {
   if (!options) return;
 
   withPermissions__OPTION = !!options.withPermissions;
   readonly__OPTION = !!options.readonly;
+  variablePrefix__OPTION = options.variablePrefix || '';
 }
 function _resetOptions() {
   withPermissions__OPTION = false;
   readonly__OPTION = false;
+  variablePrefix__OPTION = '';
 }
+
+export const JOB_NAME_PREFIX = '___';
 
 /**
  * Give a job definition with varables inside, return a formily form-schema,
@@ -64,15 +81,31 @@ export default function buildFormSchemaFromJobDef(
   options?: BuildOptions,
 ): FormilySchema {
   const { variables, name } = cloneDeep(job);
+
+  const jobName = `${JOB_NAME_PREFIX}${name}`; // Avoid duplicate names with job variables
+
   const schema: FormilySchema = {
     type: 'object',
-    title: name,
-    properties: {},
+    title: jobName,
+    properties: {
+      [jobName]: {
+        type: 'void',
+        'x-component': 'FormLayout',
+        'x-component-props': {
+          labelAlign: options?.labelAlign ?? 'left',
+          labelCol: 8,
+          wrapperCol: 16,
+          // wrapperWidth: 'max-content',
+        },
+        properties: {},
+      },
+    },
   };
 
   return variables.reduce((schema, current, index) => {
     const worker =
       componentToWorkersMap[current.widget_schema?.component || VariableComponent.Input] ||
+      /* istanbul ignore next */
       createInput;
 
     current.widget_schema = _mergeVariableSchemaWithPresets(current, variablePresets);
@@ -80,7 +113,7 @@ export default function buildFormSchemaFromJobDef(
 
     _enableOptions(options);
 
-    Object.assign(schema.properties, worker(current));
+    Object.assign(schema.properties![jobName].properties, worker(current));
 
     _resetOptions();
 
@@ -90,19 +123,26 @@ export default function buildFormSchemaFromJobDef(
 
 //---- Variable to Schema private helpers --------
 
-function _getPermissions({ access_mode }: Variable) {
+function _getPermissions(variable: Variable) {
+  const { access_mode, widget_schema } = variable;
+  const display = !widget_schema.hidden;
+  const readOnly = widget_schema.readOnly ?? false;
+  const permissionControl = withPermissions__OPTION;
+
   return {
-    readOnly:
-      (withPermissions__OPTION && access_mode === VariableAccessMode.PEER_READABLE) ||
-      readonly__OPTION,
-    display: withPermissions__OPTION === false ? true : access_mode !== VariableAccessMode.PRIVATE,
+    readOnly: readonly__OPTION
+      ? true
+      : permissionControl
+      ? access_mode === VariableAccessMode.PEER_READABLE
+      : readOnly,
+    display: permissionControl ? access_mode !== VariableAccessMode.PRIVATE : display,
   };
 }
 
-function _getDatas({ value, widget_schema: { type, enum: enums } }: Variable) {
+function _getDatas({ value, widget_schema: { type, enum: enums } }: Variable, forceValue?: any) {
   return {
     type,
-    default: value,
+    default: forceValue ?? value,
     enum: enums,
   };
 }
@@ -118,6 +158,11 @@ function _getUIs({
       : VariableLabel({ label: name, tooltip, accessMode: access_mode }),
     description,
     'x-index': index,
+    'x-decorator': 'FormItem',
+    'x-decorator-props': {
+      colon: true,
+      tooltip: null,
+    },
     'x-component-props': {
       size,
       placeholder: placeholder || tooltip || `请输入 ${name}`,
@@ -129,7 +174,7 @@ function _getValidations({ widget_schema: { pattern, rules, required } }: Variab
   return {
     required,
     pattern,
-    'x-rules': rules,
+    'x-validator': rules,
   };
 }
 
@@ -138,19 +183,31 @@ export function createInput(variable: Variable): FormilySchema {
   const {
     name,
     widget_schema: { prefix, suffix, maxLength },
+    value_type,
+    value,
   } = variable;
 
+  let forceValue = value;
+  if (
+    value_type &&
+    [VariableValueType.CODE, VariableValueType.LIST, VariableValueType.OBJECT].includes(
+      value_type,
+    ) &&
+    typeof variable.value === 'object'
+  ) {
+    forceValue = JSON.stringify(value);
+  }
+
   return {
-    [name]: merge(
+    [variablePrefix__OPTION + name]: merge(
       _getUIs(variable),
-      _getDatas(variable),
+      _getDatas(variable, forceValue),
       _getPermissions(variable),
+      // TODO: JSON Check
       _getValidations(variable),
       {
-        'x-component': 'Input',
+        'x-component': VariableComponent.Input,
         'x-component-props': {
-          // check here for more Input props:
-          // https://ant.design/components/input/#Input
           prefix,
           suffix,
           maxLength,
@@ -168,13 +225,13 @@ export function createTextArea(variable: Variable): FormilySchema {
   } = variable;
 
   return {
-    [name]: merge(
+    [variablePrefix__OPTION + name]: merge(
       _getUIs(variable),
       _getDatas(variable),
       _getPermissions(variable),
       _getValidations(variable),
       {
-        'x-component': 'TextArea',
+        'x-component': VariableComponent.TextArea,
         'x-component-props': {
           rows,
           showCount,
@@ -192,17 +249,15 @@ export function createSelect(variable: Variable): FormilySchema {
   } = variable;
 
   return {
-    [name]: merge(
+    [variablePrefix__OPTION + name]: merge(
       _getUIs(variable),
       _getDatas(variable),
       _getPermissions(variable),
       _getValidations(variable),
       {
         enum: options?.source || /* istanbul ignore next: no need to test empty array */ [],
-        'x-component': 'Select',
+        'x-component': VariableComponent.Select,
         'x-component-props': {
-          // check here for more Select props:
-          // https://ant.design/components/select
           allowClear: true,
           filterOption: filterOption,
           mode: multiple ? /* istanbul ignore next */ 'multiple' : null,
@@ -219,13 +274,13 @@ export function createSwitch(variable: Variable): FormilySchema {
   } = variable;
 
   return {
-    [name]: merge(
+    [variablePrefix__OPTION + name]: merge(
       _getUIs(variable),
       _getDatas(variable),
       _getPermissions(variable),
       _getValidations(variable),
       {
-        'x-component': 'Switch',
+        'x-component': VariableComponent.Switch,
         'x-component-props': {
           checkedChildren,
           unCheckedChildren,
@@ -243,14 +298,14 @@ export function createCheckbox(variable: Variable): FormilySchema {
   } = variable;
 
   return {
-    [name]: merge(
+    [variablePrefix__OPTION + name]: merge(
       _getUIs(variable),
       _getDatas(variable),
       _getPermissions(variable),
       _getValidations(variable),
       {
         enum: options?.source || [],
-        'x-component': 'Checkbox',
+        'x-component': VariableComponent.Checkbox,
       },
     ),
   };
@@ -264,14 +319,14 @@ export function createRadio(variable: Variable): FormilySchema {
   } = variable;
 
   return {
-    [name]: merge(
+    [variablePrefix__OPTION + name]: merge(
       _getUIs(variable),
       _getDatas(variable),
       _getPermissions(variable),
       _getValidations(variable),
       {
         enum: options?.source || [],
-        'x-component': 'Radio',
+        'x-component': VariableComponent.Radio,
       },
     ),
   };
@@ -284,7 +339,7 @@ export function createNumberPicker(variable: Variable): FormilySchema {
   } = variable;
 
   return {
-    [name]: merge(
+    [variablePrefix__OPTION + name]: merge(
       _getUIs(variable),
       _getDatas(variable),
       _getPermissions(variable),
@@ -292,12 +347,65 @@ export function createNumberPicker(variable: Variable): FormilySchema {
       {
         minimum: min,
         maximum: max,
-        'x-component': 'NumberPicker',
+        'x-component': VariableComponent.NumberPicker,
         'x-component-props': {
           min,
           max,
-          parser: (v: string) => v,
-          formatter: (value: number) => `${value}`,
+          parser: /* istanbul ignore next */ (v: string) => v,
+          formatter: /* istanbul ignore next */ (value: number) => `${value}`,
+        },
+      },
+    ),
+  };
+}
+
+export function createCpuInput(variable: Variable): FormilySchema {
+  const {
+    name,
+    widget_schema: { min, max },
+  } = variable;
+  const minVal = min || 1000;
+  const maxVal = max || Number.MAX_SAFE_INTEGER;
+
+  return {
+    [variablePrefix__OPTION + name]: merge(
+      _getUIs(variable),
+      _getDatas(variable),
+      _getPermissions(variable),
+      _getValidations(variable),
+      {
+        // minimum: minVal,
+        // maximum: maxVal,
+        'x-component': VariableComponent.CPU,
+        'x-component-props': {
+          min: minVal,
+          max: maxVal,
+        },
+      },
+    ),
+  };
+}
+export function createMemInput(variable: Variable): FormilySchema {
+  const {
+    name,
+    widget_schema: { min, max },
+  } = variable;
+  const minVal = min || 1;
+  const maxVal = max || 100;
+
+  return {
+    [variablePrefix__OPTION + name]: merge(
+      _getUIs(variable),
+      _getDatas(variable),
+      _getPermissions(variable),
+      _getValidations(variable),
+      {
+        minimum: minVal,
+        maximum: maxVal,
+        'x-component': VariableComponent.MEM,
+        'x-component-props': {
+          min: minVal,
+          max: maxVal,
         },
       },
     ),
@@ -308,13 +416,31 @@ export function createModelCodesEditor(variable: Variable): FormilySchema {
   const { name } = variable;
 
   return {
-    [name]: merge(
+    [variablePrefix__OPTION + name]: merge(
       _getUIs(variable),
       _getDatas(variable),
       _getPermissions(variable),
       _getValidations(variable),
       {
-        'x-component': 'Code',
+        'x-component': VariableComponent.Code,
+      },
+    ),
+  };
+}
+export function createJSONEditor(variable: Variable): FormilySchema {
+  const { name } = variable;
+
+  return {
+    [variablePrefix__OPTION + name]: merge(
+      _getUIs(variable),
+      _getDatas(variable),
+      _getPermissions(variable),
+      _getValidations(variable),
+      {
+        'x-component': VariableComponent.JSON,
+        'x-component-props': {
+          language: 'json',
+        },
       },
     ),
   };
@@ -324,13 +450,122 @@ export function createDatasetSelect(variable: Variable): FormilySchema {
   const { name } = variable;
 
   return {
-    [name]: merge(
+    [variablePrefix__OPTION + name]: merge(
       _getUIs(variable),
       _getDatas(variable),
       _getPermissions(variable),
       _getValidations(variable),
       {
-        'x-component': 'Dataset',
+        'x-component': VariableComponent.Dataset,
+      },
+    ),
+  };
+}
+
+export function createDatasePathSelect(variable: Variable): FormilySchema {
+  const { name } = variable;
+
+  return {
+    [variablePrefix__OPTION + name]: merge(
+      _getUIs(variable),
+      _getDatas(variable),
+      _getPermissions(variable),
+      _getValidations(variable),
+      {
+        'x-component': VariableComponent.DatasetPath,
+      },
+    ),
+  };
+}
+
+export function createFeatureSelect(variable: Variable): FormilySchema {
+  const { name } = variable;
+
+  return {
+    [variablePrefix__OPTION + name]: merge(
+      _getUIs(variable),
+      _getDatas(variable),
+      _getPermissions(variable),
+      _getValidations(variable),
+      {
+        'x-component': VariableComponent.FeatureSelect,
+      },
+    ),
+  };
+}
+
+export function createEnvsInput(variable: Variable): FormilySchema {
+  const {
+    name,
+    widget_schema: { required },
+  } = variable;
+  return {
+    [variablePrefix__OPTION + name]: merge(
+      _getUIs(variable),
+      _getDatas(variable),
+      _getPermissions(variable),
+      _getValidations(variable),
+      {
+        type: 'array',
+        'x-component': 'ArrayItems',
+        items: {
+          type: 'object',
+          properties: {
+            NO_NAME_FIELD_$0: {
+              type: 'void',
+              'x-component': 'Space',
+              properties: {
+                name: {
+                  key: 'name',
+                  type: 'string',
+                  title: 'name',
+                  'x-component': 'Input',
+                  'x-decorator': 'FormItem',
+                  required,
+                },
+                value: {
+                  key: 'value',
+                  type: 'string',
+                  title: 'value',
+                  'x-component': 'Input',
+                  'x-decorator': 'FormItem',
+                  required,
+                },
+                remove: {
+                  type: 'void',
+                  'x-decorator': 'FormItem',
+                  'x-component': 'ArrayItems.Remove',
+                },
+              },
+            },
+          },
+        },
+        properties: {
+          add: {
+            type: 'void',
+            title: '添加参数',
+            'x-component': 'ArrayItems.Addition',
+          },
+        },
+      },
+    ),
+  };
+}
+
+export function createAlgorithmSelect(variable: Variable): FormilySchema {
+  const { name } = variable;
+
+  return {
+    [variablePrefix__OPTION + name]: merge(
+      _getUIs(variable),
+      _getDatas(variable),
+      _getPermissions(variable),
+      _getValidations(variable),
+      {
+        'x-component': VariableComponent.AlgorithmSelect,
+        'x-component-props': {
+          containerStyle: { width: '100%' },
+        },
       },
     ),
   };
@@ -345,25 +580,62 @@ const componentToWorkersMap: { [key: string]: (v: Variable) => FormilySchema } =
   [VariableComponent.Select]: createSelect,
   [VariableComponent.Radio]: createRadio,
   [VariableComponent.NumberPicker]: createNumberPicker,
+  [VariableComponent.CPU]: createCpuInput,
+  [VariableComponent.MEM]: createMemInput,
   [VariableComponent.Code]: createModelCodesEditor,
+  [VariableComponent.JSON]: createJSONEditor,
+  [VariableComponent.DatasetPath]: createDatasePathSelect,
   [VariableComponent.Dataset]: createDatasetSelect,
+  [VariableComponent.FeatureSelect]: createFeatureSelect,
+  [VariableComponent.EnvsInput]: createEnvsInput,
+  [VariableComponent.AlgorithmSelect]: createAlgorithmSelect,
 };
 
 // ---------- Widget schemas stringify, parse -----------
 
 export function stringifyVariableValue(variable: Variable) {
-  if (variable.value_type === VariableValueType.CODE && typeof variable.value === 'object') {
+  if (
+    [VariableValueType.CODE, VariableValueType.LIST, VariableValueType.OBJECT].includes(
+      variable.value_type!,
+    ) &&
+    typeof variable.value === 'object'
+  ) {
     variable.value = JSON.stringify(variable.value);
   }
-
-  if (variable.value_type === VariableValueType.STRING && typeof variable.value !== 'string') {
+  // Otherwise, type is STRING/NUMBER/BOOLEAN
+  if (typeof variable.value !== 'string') {
     variable.value = String(variable.value);
   }
 }
 
 export function parseVariableValue(variable: Variable) {
-  if (variable.value_type === VariableValueType.CODE && typeof variable.value === 'string') {
-    variable.value = JSON.parse(variable.value);
+  if (
+    [VariableValueType.CODE, VariableValueType.LIST, VariableValueType.OBJECT].includes(
+      variable.value_type!,
+    ) &&
+    typeof variable.value !== 'object'
+  ) {
+    try {
+      variable.value = JSON.parse(variable.value);
+    } catch (error) {}
+  }
+
+  if (variable.value_type === VariableValueType.STRING && typeof variable.value !== 'string') {
+    variable.value = String(variable.value);
+  }
+  if (variable.value_type === VariableValueType.NUMBER && typeof variable.value !== 'number') {
+    variable.value = variable.value ? Number(variable.value) : undefined;
+  }
+  if (variable.value_type === VariableValueType.BOOLEAN && typeof variable.value !== 'boolean') {
+    variable.value = Boolean(variable.value);
+  }
+}
+
+export function processVariableTypedValue(variable: Variable) {
+  if (variable.value_type) {
+    variable.typed_value = parseValueFromString(variable.value, variable.value_type as any);
+  } else {
+    variable.typed_value = variable.value;
   }
 }
 
@@ -373,19 +645,20 @@ export function parseVariableValue(variable: Variable) {
 export function stringifyComplexDictField<
   T extends
     | WorkflowInitiatePayload
+    | WorkflowInitiatePayload<Job>
     | WorkflowTemplatePayload
+    | WorkflowTemplatePayload<JobDefinitionForm, VariableDefinitionForm>
     | WorkflowAcceptPayload
     | WorkflowForkPayload
 >(input: T): T {
-  const ret = cloneDeep(input);
-
+  let ret = cloneDeep(input);
   ret.config?.job_definitions.forEach((job: any) => {
     job.variables.forEach(_stringify);
   });
 
   ret.config.variables?.forEach(_stringify);
 
-  let ifIsForking = (ret as WorkflowForkPayload).fork_proposal_config;
+  const ifIsForking = (ret as WorkflowForkPayload).fork_proposal_config;
 
   /* istanbul ignore if */
   if (ifIsForking) {
@@ -395,6 +668,9 @@ export function stringifyComplexDictField<
 
     ifIsForking.variables?.forEach(_stringify);
   }
+
+  // process typed_value
+  ret = processTypedValue(ret);
 
   return ret;
 
@@ -412,7 +688,7 @@ export function stringifyComplexDictField<
  * Parse each variable's widget schema & codes value
  */
 export function parseComplexDictField<
-  T extends WorkflowExecutionDetails | WorkflowTemplate | WorkflowForkPayload
+  T extends WorkflowExecutionDetails | WorkflowTemplate | WorkflowForkPayload | RevisionDetail
 >(input: T): T {
   const ret = cloneDeep(input);
 
@@ -422,7 +698,7 @@ export function parseComplexDictField<
 
   ret.config?.variables?.forEach(_parse);
 
-  let ifIsForking = (ret as WorkflowForkPayload).fork_proposal_config;
+  const ifIsForking = (ret as WorkflowForkPayload).fork_proposal_config;
 
   /* istanbul ignore if: logic is same as above */
   if (ifIsForking) {
@@ -432,19 +708,83 @@ export function parseComplexDictField<
 
     ifIsForking.variables?.forEach(_parse);
   }
-
   return ret;
 
   function _parse(variable: Variable): any {
     /* istanbul ignore next: needless to test */
     if (typeof variable.widget_schema === 'string') {
-      variable.widget_schema = variable.widget_schema
-        ? JSON.parse(variable.widget_schema)
-        : /* istanbul ignore next */ {};
+      try {
+        variable.widget_schema = variable.widget_schema
+          ? JSON.parse(variable.widget_schema)
+          : /* istanbul ignore next */ {};
+      } catch (error) {
+        variable.widget_schema = {};
+      }
     }
 
     parseVariableValue(variable);
   }
+}
+
+export function processTypedValue<
+  T extends
+    | WorkflowInitiatePayload
+    | WorkflowInitiatePayload<Job>
+    | WorkflowTemplatePayload
+    | WorkflowTemplatePayload<JobDefinitionForm, VariableDefinitionForm>
+    | WorkflowAcceptPayload
+    | WorkflowForkPayload
+>(input: T): T {
+  const ret = cloneDeep(input);
+  ret.config?.job_definitions.forEach((job: any) => {
+    job.variables.forEach(processVariableTypedValue);
+  });
+
+  ret.config.variables?.forEach(processVariableTypedValue);
+
+  const ifIsForking = (ret as WorkflowForkPayload).fork_proposal_config;
+
+  /* istanbul ignore if */
+  if (ifIsForking) {
+    ifIsForking.job_definitions.forEach((job: any) => {
+      job.variables.forEach(processVariableTypedValue);
+    });
+
+    ifIsForking.variables?.forEach(processVariableTypedValue);
+  }
+
+  return ret;
+}
+
+export function parseVariableToFormValue<T extends Workflow>(
+  input: T,
+): {
+  [key: string]: any;
+} {
+  const formValue: any = {};
+  const config = input.config;
+
+  let variablesList: Variable[] = [];
+
+  // global
+  if (config && config.variables && config.variables.length > 0) {
+    variablesList = variablesList.concat(config.variables);
+  }
+
+  // job
+  if (config && config.job_definitions && config.job_definitions.length > 0) {
+    config.job_definitions.forEach((item) => {
+      variablesList = variablesList.concat(item.variables || []);
+    });
+  }
+
+  if (variablesList.length > 0) {
+    variablesList.forEach((item) => {
+      formValue[item.name] = item.value;
+    });
+  }
+
+  return formValue;
 }
 
 // -------------- Private helpers ---------------

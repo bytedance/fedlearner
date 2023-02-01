@@ -2,10 +2,12 @@ import React, { FC } from 'react';
 import styled from 'styled-components';
 import pythonSvg from 'assets/icons/python.svg';
 import { VS_DARK_COLOR } from 'components/CodeEditor';
-import { Tooltip, Row, Input } from 'antd';
+import { Tooltip, Grid, Input, Message } from '@arco-design/web-react';
 import { PlusCircle, MinusCircle, Undo } from 'components/IconPark';
 import GridRow from 'components/_base/GridRow';
 import { useToggle } from 'react-use';
+
+const Row = Grid.Row;
 
 const Container = styled.aside`
   position: sticky;
@@ -84,12 +86,20 @@ const NewFileInput = styled(Input)`
 type Props = {
   active: string;
   files: string[];
+  isReadOnly?: boolean;
   onSelect?: (path: string) => void;
   onCreate?: (newPath: string) => void;
   onDelete?: (path: string) => void;
 };
 
-const FileExplorer: FC<Props> = ({ files, active, onSelect, onCreate, onDelete }) => {
+const FileExplorer: FC<Props> = ({
+  files,
+  active,
+  onSelect,
+  onCreate,
+  onDelete,
+  isReadOnly = false,
+}) => {
   const [inputVisible, toggleInputVisible] = useToggle(false);
 
   return (
@@ -102,14 +112,16 @@ const FileExplorer: FC<Props> = ({ files, active, onSelect, onCreate, onDelete }
               className={active === file ? 'is-active' : ''}
               onClick={() => onFileClick(file)}
             >
-              <Row justify="space-between" align="middle">
+              <Row justify="space-between" align="center">
                 <span>{file}</span>
-                <Tooltip title="删除该文件" placement="right" color="orange">
-                  <MinusCircle
-                    className="del-button"
-                    onClick={(event) => onDelClick(file, event)}
-                  />
-                </Tooltip>
+                {!isReadOnly && (
+                  <Tooltip content="删除该文件" position="right" color="orange">
+                    <MinusCircle
+                      className="del-button"
+                      onClick={(event) => onDelClick(file, event)}
+                    />
+                  </Tooltip>
+                )}
               </Row>
             </File>
           );
@@ -124,10 +136,12 @@ const FileExplorer: FC<Props> = ({ files, active, onSelect, onCreate, onDelete }
         />
       )}
 
-      <AddFileButton gap="8" top="30" left="auto" onClick={onAddClick}>
-        {inputVisible ? <Undo /> : <PlusCircle />}
-        {inputVisible ? '取消添加' : '添加文件'}
-      </AddFileButton>
+      {!isReadOnly && (
+        <AddFileButton gap="8" top="30" left="auto" onClick={onAddClick}>
+          {inputVisible ? <Undo /> : <PlusCircle />}
+          {inputVisible ? '取消添加' : '添加文件'}
+        </AddFileButton>
+      )}
     </Container>
   );
 
@@ -143,7 +157,14 @@ const FileExplorer: FC<Props> = ({ files, active, onSelect, onCreate, onDelete }
     toggleInputVisible();
   }
   function onConfirmAdd(event: React.KeyboardEvent<HTMLInputElement>) {
-    onCreate && onCreate((event.target as any).value);
+    const fileName = (event.target as any).value;
+
+    if (!fileName) {
+      Message.error('请输入文件名！');
+      return;
+    }
+
+    onCreate && onCreate(fileName);
     toggleInputVisible();
   }
 };

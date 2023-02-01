@@ -1,10 +1,27 @@
 import request from 'libs/request';
-import { SettingOptions } from 'typings/settings';
+import { SettingOptions, SettingInfo, SystemInfo, SettingVariables } from 'typings/settings';
 
-export function fetchSettings(): Promise<{ data: SettingOptions }> {
-  return request('/v2/settings');
+export function fetchSettingsImage(): Promise<{ data: SettingInfo }> {
+  return request('/v2/settings/webconsole_image');
 }
 
-export function updateSettings(payload: SettingOptions): Promise<{ data: any }> {
-  return request.patch('/v2/settings', payload);
+export function fetchSettingVariables(): Promise<{ data: SettingVariables }> {
+  return request('/v2/settings/system_variables');
+}
+export function updateSettingVariables(
+  payload: SettingVariables,
+): Promise<{ data: SettingVariables }> {
+  return request.post('/v2/settings:update_system_variables', payload);
+}
+
+export function updateImage(payload: SettingOptions): Promise<{ data: SettingOptions }> {
+  return request.post('/v2/settings:update_image', payload);
+}
+
+export function fetchSysEmailGroup(): Promise<{ data: SettingInfo }> {
+  return request('/v2/settings/sys_email_group');
+}
+
+export function fetchSysInfo(): Promise<{ data: SystemInfo }> {
+  return request('/v2/settings/system_info');
 }

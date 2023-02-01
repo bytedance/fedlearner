@@ -1,4 +1,4 @@
-# Copyright 2021 The FedLearner Authors. All Rights Reserved.
+# Copyright 2023 The FedLearner Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,34 +15,61 @@
 # coding: utf-8
 
 import os
-import logging
+
 from envs import Envs
 
-LOGGING_CONFIG = {
-    'version': 1,
-    'disable_existing_loggers': False,
-    'root': {
-        'handlers': ['console', 'root_file'],
-        'level': 'INFO'
-    },
-    'handlers': {
-        'console': {
-            'class': 'logging.StreamHandler',
+root_file_path = os.path.join(Envs.FEDLEARNER_WEBCONSOLE_LOG_DIR, 'root.log')
+
+_extra_handlers = {}
+
+
+def set_extra_handlers(handlers: dict):
+    """Sets extra handlers for logger.
+
+    Incremental configurations are hard, so we keep LOGGING_CONFIG
+    as the source of truth and inject extra handlers."""
+    global _extra_handlers  # pylint:disable=global-statement
+    _extra_handlers = handlers
+
+
+def get_logging_config():
+    return {
+        'version':
+            1,
+        'disable_existing_loggers':
+            False,
+        'root': {
+            'handlers': ['console', 'root_file'] + list(_extra_handlers.keys()),
+            'level': Envs.LOG_LEVEL
         },
-        'root_file': {
-            'class': 'logging.handlers.TimedRotatingFileHandler',
-            'formatter': 'generic',
-            'filename': os.path.join(Envs.FEDLEARNER_WEBCONSOLE_LOG_DIR, 'root.log'),
-            'when': 'D',
-            'interval': 1,
-            'backupCount': 7
-        }
-    },
-    'formatters': {
-        'generic': {
-            'format': '%(asctime)s [%(process)d] [%(levelname)s] %(message)s',
-            'datefmt': '%Y-%m-%d %H:%M:%S',
-            'class': 'logging.Formatter'
+        'filters': {
+            'requestIdFilter': {
+                '()': 'fedlearner_webconsole.middleware.log_filter.RequestIdLogFilter'
+            }
+        },
+        'handlers':
+            dict(
+                {
+                    'console': {
+                        'class': 'logging.StreamHandler',
+                        'formatter': 'generic',
+                        'filters': ['requestIdFilter']
+                    },
+                    'root_file': {
+                        'class': 'logging.handlers.TimedRotatingFileHandler',
+                        'formatter': 'generic',
+                        'filename': root_file_path,
+                        'when': 'D',
+                        'interval': 1,
+                        'backupCount': 7,
+                        'filters': ['requestIdFilter']
+                    }
+                }, **_extra_handlers),
+        'formatters': {
+            'generic': {
+                'format': '%(asctime)s [%(process)d] [%(request_id)s] [%(levelname)s] %(message)s',
+                'datefmt': '%Y-%m-%d %H:%M:%S',
+                'class': 'logging.Formatter'
+            }
         }
     }
-}

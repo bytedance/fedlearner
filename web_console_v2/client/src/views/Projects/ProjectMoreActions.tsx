@@ -1,62 +1,53 @@
 import React, { ReactElement } from 'react';
-import styled, { CSSProperties } from 'styled-components';
-import { useTranslation } from 'react-i18next';
-import { Popover } from 'antd';
-import IconButton from 'components/IconButton';
-import { More } from 'components/IconPark';
-
-const ActionListContainer = styled.div`
-  display: flex;
-  flex-direction: column;
-  height: 74px;
-  padding: 6px 0;
-  border-radius: 4px;
-
-  .actionItem {
-    flex: 1;
-    width: 100%;
-    background-color: transparent;
-    line-height: 30px;
-    padding-left: 12px;
-    cursor: pointer;
-    &:hover {
-      background-color: var(--gray1);
-    }
-  }
-`;
+import { useHistory } from 'react-router';
+import MoreActions from 'components/MoreActions';
+import { Project, ProjectListType, RoleType } from 'typings/project';
 
 interface ProjectMoreActionsProps {
-  suffix?: React.ReactNode;
-  actionList?: React.ReactNode;
-  onEdit?: () => void;
-  onViewDetail?: () => void;
-  style?: CSSProperties;
+  project: Project;
+  projectListType: ProjectListType;
+  role: RoleType;
+  onDeleteProject: (projectId: ID, projectListType: ProjectListType) => void;
 }
 
-function ActionList({ onEdit, onViewDetail }: ProjectMoreActionsProps): ReactElement {
-  const { t } = useTranslation();
+function ProjectMoreActions({
+  project,
+  role,
+  projectListType,
+  onDeleteProject,
+}: ProjectMoreActionsProps): ReactElement {
+  const history = useHistory();
+  //todo: Uncomment when editing pendingProjects is supported
+  // const editDisable =
+  //   project.ticket_status === ProjectTicketStatus.PENDING ||
+  //   (role === RoleType.PARTICIPANT && project.state !== ProjectStateType.ACCEPTED);
+  const editDisable = projectListType === ProjectListType.PENDING;
+  //todo: Uncomment when deleting project is supported
+  // const deleteDisable = role === RoleType.PARTICIPANT;
+  const deleteDisable =
+    projectListType === ProjectListType.COMPLETE || role === RoleType.PARTICIPANT;
   return (
-    <ActionListContainer>
-      <div className="actionItem" onClick={onEdit}>
-        {t('project.action_edit')}
-      </div>
-      <div className="actionItem" onClick={onViewDetail}>
-        {t('project.action_detail')}
-      </div>
-    </ActionListContainer>
+    <MoreActions
+      actionList={[
+        {
+          label: '编辑',
+          onClick: handleEdit,
+          disabled: editDisable,
+        },
+        {
+          label: '删除',
+          onClick: () => {
+            onDeleteProject(project.id, projectListType);
+          },
+          disabled: deleteDisable,
+          danger: true,
+        },
+      ]}
+    />
   );
-}
-
-function ProjectMoreActions(props: ProjectMoreActionsProps): ReactElement {
-  return (
-    <Popover
-      content={props.actionList ?? <ActionList {...props} />}
-      placement="bottomLeft"
-      overlayClassName="project-actions"
-    >
-      <IconButton type="text" icon={<More />} circle />
-    </Popover>
-  );
+  function handleEdit() {
+    project && history.push(`/projects/edit/${project.id}`);
+  }
 }
 
 export default ProjectMoreActions;

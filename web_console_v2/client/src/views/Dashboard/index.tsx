@@ -1,7 +1,14 @@
-import React, { ReactElement } from 'react';
+import React from 'react';
+import { Route } from 'react-router-dom';
+import DashboardDetail from './DashboardDetail';
 
-function DashboardPage(): ReactElement {
-  return <div className="container">dashboard</div>;
+function Dashboard() {
+  return (
+    <>
+      <Route path="/dashboard" exact component={DashboardDetail} />
+      <Route path="/dashboard/:uuid" exact component={DashboardDetail} />
+    </>
+  );
 }
 
-export default DashboardPage;
+export default Dashboard;

@@ -1,4 +1,4 @@
-/* Copyright 2021 The FedLearner Authors. All Rights Reserved.
+/* Copyright 2023 The FedLearner Authors. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,8 @@
 syntax = "proto3";
 
 import "fedlearner_webconsole/proto/common.proto";
+
+import "google/protobuf/struct.proto";
 
 package fedlearner_webconsole.proto;
 
@@ -36,6 +38,9 @@ message JobDefinition {
         TREE_MODEL_TRAINING = 5;
         NN_MODEL_EVALUATION = 6;
         TREE_MODEL_EVALUATION = 7;
+        TRANSFORMER = 8;
+        ANALYZER = 9;
+        CUSTOMIZED = 10;
     }
 
     string name = 1;
@@ -44,7 +49,8 @@ message JobDefinition {
     repeated Variable variables = 4;
     repeated JobDependency dependencies = 5;
     string yaml_template = 6;
-    bool expert_mode = 7;
+    // If true, the job's latest edition used easy editing mode
+    bool easy_mode = 8;
 }
 
 message Slot {
@@ -60,11 +66,24 @@ message Slot {
         JOB_PROPERTY = 6;
     }
     string reference = 1;
-    string default = 2;
+
+    // will be delete in the future
+    string default = 2 [deprecated = true];
+
     string help = 3;
     ReferenceType reference_type = 4;
     string label = 5;
+    google.protobuf.Value default_value = 6;
 
+    enum ValueType{
+        STRING = 0;
+        NUMBER = 1;
+        LIST = 2;
+        OBJECT = 3;
+        BOOL = 4;
+        INT = 5;
+    }
+    ValueType value_type = 7;
 }
 
 message YamlEditorInfo {
@@ -79,8 +98,8 @@ message WorkflowTemplateEditorInfo {
 }
 
 message WorkflowDefinition {
+    reserved 2;
     string group_alias = 1;
-    bool is_left = 2;
     repeated Variable variables = 3;
     repeated JobDefinition job_definitions = 4;
 }

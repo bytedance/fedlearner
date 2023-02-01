@@ -1,91 +1,12 @@
+/* istanbul ignore file */
+
 import React, { useState, FC, useEffect } from 'react';
-import styled from 'styled-components';
-import { message, Upload } from 'antd';
-import { useTranslation } from 'react-i18next';
-import classNames from 'classnames';
-import { MixinCommonTransition } from 'styles/mixins';
+import { Message, Upload } from '@arco-design/web-react';
 import { ReactComponent as FileIcon } from 'assets/images/file.svg';
-import { RcFile } from 'antd/lib/upload';
-import { isNil } from 'lodash';
+import { UploadItem } from '@arco-design/web-react/es/Upload';
+import { isNil } from 'lodash-es';
 import { PlusCircle, Delete } from 'components/IconPark';
-
-const Container = styled.div`
-  position: relative;
-  min-height: 32px;
-  border-radius: 2px;
-`;
-const WithoutFile = styled.div`
-  ${MixinCommonTransition(['max-height', 'opacity'])};
-
-  max-height: 400px;
-  will-change: max-height;
-
-  &.hidden {
-    max-height: 0;
-  }
-`;
-const File = styled.div`
-  ${MixinCommonTransition(['opacity'])};
-
-  position: absolute;
-  top: 0;
-  z-index: 2;
-  display: flex;
-  height: 32px;
-  width: 100%;
-  padding-left: 16px;
-  padding-right: 12px;
-  align-items: center;
-  opacity: 0;
-  pointer-events: none;
-
-  &.visible {
-    opacity: 1;
-    pointer-events: initial;
-
-    > .anticon-check-circle {
-      animation: zoomIn 0.3s cubic-bezier(0.12, 0.4, 0.29, 1.46);
-    }
-  }
-
-  > .filename {
-    padding-left: 10px;
-    flex: 1;
-  }
-
-  > .anticon-check-circle {
-    color: var(--errorColor);
-  }
-`;
-const DeleteFileBtn = styled.div`
-  position: absolute;
-  right: -20px;
-  cursor: pointer;
-
-  &:hover {
-    color: var(--primaryColor);
-  }
-`;
-const ContentInner = styled.div`
-  padding: 20px 0 40px;
-`;
-const PlusIcon = styled.p`
-  font-size: 16px;
-`;
-const UploadPlaceholder = styled.div`
-  margin-bottom: 4px;
-  line-height: 24px;
-  font-size: 16px;
-`;
-const UploadHint = styled.small`
-  display: block;
-  font-size: 12px;
-  line-height: 18px;
-  color: var(--textColorSecondary);
-`;
-const DragUpload = styled(Upload.Dragger)`
-  padding: 0;
-`;
+import styles from './index.module.less';
 
 type Props = React.ComponentProps<typeof Upload> & {
   reader: (file: File) => Promise<any>;
@@ -96,9 +17,6 @@ type Props = React.ComponentProps<typeof Upload> & {
 };
 
 const ReadFile: FC<Props> = ({ maxSize, value, reader, onRemoveFile, onChange, ...props }) => {
-  const { beforeUpload } = props;
-
-  const { t } = useTranslation();
   const [file, setFile] = useState<File>();
 
   const hasValue = Boolean(value);
@@ -108,58 +26,60 @@ const ReadFile: FC<Props> = ({ maxSize, value, reader, onRemoveFile, onChange, .
       setFile(null as any);
     }
   }, [value]);
-
   const uploadProps = {
     ...props,
     disabled: hasValue || props.disabled,
     showUploadList: false,
     onChange: onFileChange,
-    beforeUpload: onFileInput,
   };
 
   return (
-    <Container>
-      <File className={classNames({ visible: hasValue })}>
+    <div className={styles.read_file_container}>
+      <div className={`${styles.read_file} ${hasValue && styles.visible}`}>
         <FileIcon />
         <span className="filename">{file?.name}</span>
-        <DeleteFileBtn onClick={onDeleteClick}>
+        <div className={styles.delete_file_btn} onClick={onDeleteClick}>
           <Delete />
-        </DeleteFileBtn>
-      </File>
+        </div>
+      </div>
 
-      <DragUpload {...(uploadProps as any)}>
-        <WithoutFile className={classNames({ hidden: hasValue })}>
-          <ContentInner>
-            <PlusIcon>
+      <Upload className={styles.read_file_upload} {...(uploadProps as any)} drag={true}>
+        <div className={`${styles.read_file_without_upload} ${hasValue && styles.hidden}`}>
+          <div className={styles.read_file_content_inner}>
+            <p className={styles.read_file_plus_icon}>
               <PlusCircle />
-            </PlusIcon>
+            </p>
 
-            <UploadPlaceholder>{t('upload.placeholder')}</UploadPlaceholder>
+            <div className={styles.read_file_upload_placeholder}>点击或拖拽文件到此处上传</div>
 
-            <UploadHint>
-              {t('upload.hint', { fileTypes: props.accept, maxSize: maxSize })}
-            </UploadHint>
-          </ContentInner>
-        </WithoutFile>
-      </DragUpload>
-    </Container>
+            <small className={styles.read_file_upload_hint}>
+              {maxSize || maxSize === 0
+                ? `请上传${props.accept}格式文件，大小不超过${maxSize}MB`
+                : `请上传${props.accept}格式文件`}
+            </small>
+          </div>
+        </div>
+      </Upload>
+    </div>
   );
 
-  function onFileChange({ file, event }: any) {
+  function onFileChange(fileList: UploadItem[], { originFile: file }: UploadItem) {
+    if (!file) return;
+    if ((maxSize || maxSize === 0) && file.size > maxSize * 1024 * 1024) {
+      Message.warning(`大小不超过${maxSize}MB!`);
+      return;
+    }
+
     return reader(file)
       .then((result) => {
         onChange && onChange(result, file);
         setFile(file);
       })
       .catch((error) => {
-        message.error(error.message);
+        Message.error(error.message);
       });
   }
-  function onFileInput(file: RcFile, fileList: RcFile[]) {
-    beforeUpload && beforeUpload(file, fileList);
 
-    return false;
-  }
   function onDeleteClick() {
     onRemoveFile && onRemoveFile(file);
     onChange && onChange(null as any);

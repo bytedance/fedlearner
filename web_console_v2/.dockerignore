@@ -4,5 +4,5 @@ Dockerfile
 
 # Tests
 client/tests
-api/test
+api/tests
 api/testing

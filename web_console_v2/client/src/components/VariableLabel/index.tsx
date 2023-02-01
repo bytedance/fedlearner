@@ -1,15 +1,10 @@
 import React, { FC } from 'react';
-import { Tooltip } from 'antd';
+import { Tooltip } from '@arco-design/web-react';
 import { QuestionCircle } from 'components/IconPark';
 import { VariableAccessMode } from 'typings/variable';
 import VariablePermission from 'components/VariblePermission';
 import GridRow from 'components/_base/GridRow';
-import styled from 'styled-components';
-
-const LabelText = styled.span`
-  font-size: 13px;
-  line-height: 22px;
-`;
+import styled from './index.module.less';
 
 type Props = {
   label: string;
@@ -31,8 +26,7 @@ const VariableLabel: FC<Props> = ({ label, tooltip, accessMode }) => {
     return (
       <GridRow gap="8" role="label">
         <PermissionIndicator />
-
-        <LabelText>{label}</LabelText>
+        <span className={styled.label_text}>{label}</span>
       </GridRow>
     );
   }
@@ -41,11 +35,11 @@ const VariableLabel: FC<Props> = ({ label, tooltip, accessMode }) => {
     <GridRow gap="8" role="label">
       <PermissionIndicator />
 
-      <Tooltip title={tooltip}>
-        <LabelText>
+      <Tooltip content={tooltip}>
+        <span className={styled.label_text}>
           {label}
           <QuestionCircle style={{ marginLeft: '5px' }} />
-        </LabelText>
+        </span>
       </Tooltip>
     </GridRow>
   );

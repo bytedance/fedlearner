@@ -1,6 +1,6 @@
 import React, { FC } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Input } from 'antd';
+import { Input } from '@arco-design/web-react';
 
 type Props = {
   value?: string;

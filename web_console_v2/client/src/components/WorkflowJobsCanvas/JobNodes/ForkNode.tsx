@@ -13,13 +13,11 @@ import { configStatusText, JobNodeProps, statusIcons, WORKFLOW_JOB_NODE_CHANNELS
 import GridRow from 'components/_base/GridRow';
 import { useTranslation } from 'react-i18next';
 import classNames from 'classnames';
-import { Dropdown, Modal, Menu } from 'antd';
-import { Z_INDEX_GREATER_THAN_HEADER } from 'components/Header';
-import { MenuInfo } from 'rc-menu/lib/interface';
+import { Dropdown, Menu, Tooltip } from '@arco-design/web-react';
+import Modal from 'components/Modal';
 import DisabledSwitch from './DisabledSwitch';
 import PubSub from 'pubsub-js';
 import { QuestionCircle } from 'components/IconPark';
-import { Tooltip } from 'antd';
 
 const ForkJobNode: FC<JobNodeProps> = ({ data, id }) => {
   const { t } = useTranslation();
@@ -43,7 +41,7 @@ const ForkJobNode: FC<JobNodeProps> = ({ data, id }) => {
       <DisabledSwitch size="small" checked={!isDisabled} onChange={onDisabledChange} />
 
       {isDisabled ? (
-        <Tooltip title={t('workflow.msg_diable_job_will_cause')} placement="bottomLeft">
+        <Tooltip content={t('workflow.msg_diable_job_will_cause')} position="bl">
           <GridRow gap="4" style={{ fontSize: '11px' }}>
             <JobStatusText>{t('workflow.job_node_disabled')}</JobStatusText>
             <QuestionCircle />
@@ -57,7 +55,7 @@ const ForkJobNode: FC<JobNodeProps> = ({ data, id }) => {
       )}
 
       <Dropdown
-        overlay={
+        droplist={
           <Menu>
             <InheritMentItem key="0" onClick={(e) => changeInheritance(e, true)}>
               {labelReusable}
@@ -83,8 +81,8 @@ const ForkJobNode: FC<JobNodeProps> = ({ data, id }) => {
     PubSub.publish(WORKFLOW_JOB_NODE_CHANNELS.disable_job, { id, data, disabled: !val });
   }
 
-  function changeInheritance(event: MenuInfo, whetherInherit: boolean) {
-    event.domEvent.stopPropagation();
+  function changeInheritance(event: Event, whetherInherit: boolean) {
+    event.stopPropagation();
 
     if (whetherInherit === data.inherited) {
       return;
@@ -94,8 +92,6 @@ const ForkJobNode: FC<JobNodeProps> = ({ data, id }) => {
       title: t('workflow.title_toggle_reusable', {
         state: whetherInherit ? labelReusable : labelNonreusable,
       }),
-      zIndex: Z_INDEX_GREATER_THAN_HEADER,
-      icon: null,
       content: whetherInherit
         ? t('workflow.msg_reuse_noti', {
             name: id,
@@ -105,11 +101,6 @@ const ForkJobNode: FC<JobNodeProps> = ({ data, id }) => {
           }),
 
       mask: false,
-      okText: t('confirm'),
-      cancelText: t('cancel'),
-      style: {
-        top: '35%',
-      },
       onOk() {
         PubSub.publish(WORKFLOW_JOB_NODE_CHANNELS.change_inheritance, { id, data, whetherInherit });
       },

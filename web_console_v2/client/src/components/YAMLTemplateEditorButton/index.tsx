@@ -1,53 +1,58 @@
-import { Button, Drawer } from 'antd';
+/* istanbul ignore file */
+
+import { Button, Drawer } from '@arco-design/web-react';
 import React, { FC } from 'react';
-import styled from 'styled-components';
-import { CodeOutlined } from '@ant-design/icons';
 import { useToggle } from 'react-use';
 import CodeEditor from 'components/CodeEditor';
+import { formatJSONValue } from 'shared/helpers';
 
-const Container = styled.div``;
-
-const StyledDrawer = styled(Drawer)`
-  top: 60px;
-
-  .ant-drawer-body {
-    padding: 10px 0 0;
-    height: 100%;
-    background-color: #1e1e1e;
-  }
-`;
+import styles from './index.module.less';
+import { IconCodeSquare } from '@arco-design/web-react/icon';
 
 type Props = {
   value?: string;
   onChange?: (val: string) => any;
+  disabled?: boolean;
+  language?: string;
+  isCheck?: boolean;
 };
 
-const CodeEditorButton: FC<Props> = ({ value, onChange }) => {
+const CodeEditorButton: FC<Props> = ({
+  value,
+  onChange,
+  disabled,
+  language = 'python',
+  isCheck,
+}) => {
   const [visible, toggleVisible] = useToggle(false);
 
   return (
-    <Container>
-      <Button icon={<CodeOutlined />} onClick={onButtonClick}>
+    <div>
+      <Button icon={<IconCodeSquare />} onClick={onButtonClick}>
         打开编辑器
       </Button>
 
-      <StyledDrawer
-        getContainer="#app-content"
+      <Drawer
+        className={styles.drawer_container}
         placement="left"
         width={window.innerWidth - 400}
         visible={visible}
-        contentWrapperStyle={{
-          boxShadow: 'none',
-        }}
         headerStyle={{
           display: 'none',
         }}
+        bodyStyle={{ overflow: 'hidden' }}
         maskStyle={{ backdropFilter: 'blur(3px)' }}
-        onClose={toggleVisible}
+        onCancel={toggleVisible}
+        footer={null}
       >
-        <CodeEditor value={value} language="json" onChange={onCodeChange} />
-      </StyledDrawer>
-    </Container>
+        <CodeEditor
+          value={language === 'json' ? formatJSONValue(value || '') : value}
+          language={language as any}
+          onChange={onCodeChange}
+          isReadOnly={disabled || isCheck}
+        />
+      </Drawer>
+    </div>
   );
 
   function onButtonClick() {
