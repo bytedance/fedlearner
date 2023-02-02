@@ -200,14 +200,14 @@ class TransmitLeader(object):
                 self._worker_map[self._producer_name()].setup_args(
                         self._impl_ctx
                     )
-                fly_item_cnt = self._impl_ctx.get_flying_item_cnt()
-                oom_risk = common.get_heap_mem_stats(None).CheckOomRisk(
-                        fly_item_cnt, 0.60
-                    )
-            status = self._impl_ctx is not None and not oom_risk and \
+                # fly_item_cnt = self._impl_ctx.get_flying_item_cnt()
+                # oom_risk = common.get_heap_mem_stats(None).CheckOomRisk(
+                #         fly_item_cnt, 0.60
+                #     )
+            status = self._impl_ctx is not None and \
                     not self._impl_ctx.is_produce_finished()
-            logging.debug("%s producer condition return %s",
-                          self.__class__.__name__, status)
+            logging.info("%s producer condition return %s",
+                         self.__class__.__name__, status)
             return status
 
     def _wakeup_data_consumer(self):
