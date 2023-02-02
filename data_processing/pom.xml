@@ -19,17 +19,6 @@
         <maven.compiler.release>8</maven.compiler.release>
     </properties>
 
-    <!-- <distributionManagement>
-        <repository>
-            <id>bytedance-releases</id>
-            <url>https://maven.byted.org/repository/releases</url>
-        </repository>
-        <snapshotRepository>
-            <id>bytedance-snapshots</id>
-            <url>https://maven.byted.org/repository/snapshots</url>
-        </snapshotRepository>
-    </distributionManagement> -->
-
     <dependencies>
         <!-- Scala -->
         <dependency>
