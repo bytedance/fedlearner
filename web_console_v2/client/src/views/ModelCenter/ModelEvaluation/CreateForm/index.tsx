@@ -234,11 +234,11 @@ const CreateForm: React.FC<Props> = ({ job, createReq, patchReq, jobType }) => {
   );
 
   const peerModelJobData = useQuery(
-    ['model-evaluation-peer-model-detail'],
+    ['model-evaluation-peer-model-detail', modelJobIsOldVersion],
     () =>
       fetchPeerModelJobDetail_new(projectId!, params.id, participantId!).then((res) => res.data),
     {
-      enabled: Boolean(projectId && params.id && isEdit),
+      enabled: Boolean(projectId && params.id && isEdit && modelJobIsOldVersion),
     },
   );
 
@@ -724,6 +724,10 @@ const CreateForm: React.FC<Props> = ({ job, createReq, patchReq, jobType }) => {
   }
 
   async function submitWrapper_new(value: any) {
+    if (!projectId) {
+      Message.info('请选择工作区！');
+      return;
+    }
     const algorithmType = selectedModelJobDetail.data?.algorithm_type || job?.algorithm_type;
     const selectedModelJob = selectedModelJobDetail.data;
     const selectedDataset = selectedDatasetRef.current;
@@ -778,6 +782,21 @@ const CreateForm: React.FC<Props> = ({ job, createReq, patchReq, jobType }) => {
     };
 
     if (isEdit) {
+      try {
+        updateModelJob(projectId!, params.id, {
+          metric_is_public: value.metric_is_public,
+          comment: value.comment,
+          auth_status: 'AUTHORIZED',
+        });
+        Message.success('授权成功！所有合作伙伴授权完成后任务开始运行');
+        history.replace(
+          generatePath(routes.ModelEvaluationList, {
+            module: params.module,
+          }),
+        );
+      } catch (err: any) {
+        Message.error(err.message);
+      }
       patchMutation.mutate(
         omit(
           { ...payload, metric_is_public: value.metric_is_public },
@@ -787,10 +806,6 @@ const CreateForm: React.FC<Props> = ({ job, createReq, patchReq, jobType }) => {
       return;
     }
     try {
-      if (!projectId) {
-        Message.info('请选择工作区！');
-        return;
-      }
       const res = await createModelJob(projectId!, payload);
       value.metric_is_public && updateModelJob(projectId!, res.data.id, { metric_is_public: true });
       Message.success('创建成功');

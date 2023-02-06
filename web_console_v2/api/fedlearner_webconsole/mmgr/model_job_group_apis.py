@@ -223,6 +223,7 @@ class ModelJobGroupsApi(Resource):
                 if len(group.model_jobs) != 0:
                     ModelJobService(session).update_model_job_status(group.model_jobs[0])
             data = [d.to_ref() for d in pagination.get_items()]
+            session.commit()
             return make_flask_response(data=data, page_meta=pagination.get_metadata())
 
     @input_validator

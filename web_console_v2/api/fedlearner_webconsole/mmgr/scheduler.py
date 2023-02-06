@@ -40,6 +40,7 @@ class ModelJobSchedulerRunner(IRunnerV2):
         with db.session_scope() as session:
             model_job = session.query(ModelJob).get(model_job_id)
             ModelJobService(session).update_model_job_status(model_job)
+            session.commit()
             logging.info(f'[ModelJobScheduler] model_job {model_job.name} updates status to {model_job.status}')
 
     @staticmethod
@@ -50,6 +51,7 @@ class ModelJobSchedulerRunner(IRunnerV2):
             global_config = model_job.get_global_config()
             if global_config is None:
                 ModelJobService(session).update_model_job_status(model_job)
+                session.commit()
                 return
             domain_name = SettingService(session).get_system_info().pure_domain_name
             model_job_config: ModelJobConfig = global_config.global_config.get(domain_name)

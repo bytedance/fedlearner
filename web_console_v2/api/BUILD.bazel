@@ -146,10 +146,5 @@ py_binary(
         "//web_console_v2/api/fedlearner_webconsole/utils:hooks_lib",
         "@common_flask//:pkg",
         "@common_gunicorn//:pkg",
-    ] + select(
-        {
-            "//:byted": ["//internal/python:hook_lib"],
-            "//conditions:default": [],
-        },
-    ),
+    ],
 )

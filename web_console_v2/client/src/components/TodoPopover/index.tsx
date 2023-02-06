@@ -21,12 +21,13 @@ import { Todo, Right } from 'components/IconPark';
 
 import { Workflow } from 'typings/workflow';
 import { ModelServing, ModelServingState } from 'typings/modelServing';
-import { ModelJob, ModelJobGroup, ModelJobState } from 'typings/modelCenter';
+import { ModelJob, ModelJobGroup } from 'typings/modelCenter';
 import { Algorithm } from 'typings/algorithm';
 
 import newModelCenterRoutes, { ModelEvaluationModuleType } from 'views/ModelCenter/routes';
 import { getCoordinateName, PENDING_PROJECT_FILTER_MAPPER } from 'views/Projects/shard';
 import { filterExpressionGenerator } from 'views/Datasets/shared';
+import { FILTER_MODEL_JOB_OPERATOR_MAPPER } from 'views/ModelCenter/shared';
 import {
   useGetAppFlagValue,
   useGetCurrentProjectId,
@@ -171,7 +172,10 @@ function EvaluationModelNew({
       }
 
       return fetchModelJobList_new(projectId, {
-        states: [ModelJobState.PENDING_ACCEPT],
+        filter: filterExpressionGenerator(
+          { auth_status: ['PENDING'] },
+          FILTER_MODEL_JOB_OPERATOR_MAPPER,
+        ),
         types: isPrediction ? 'PREDICTION' : 'EVALUATION',
       });
     },

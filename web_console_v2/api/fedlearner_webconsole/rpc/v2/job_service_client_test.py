@@ -35,7 +35,7 @@ from fedlearner_webconsole.proto.rpc.v2.job_service_pb2 import CreateModelJobReq
     GetTrustedJobGroupResponse, CreateDatasetJobStageRequest, GetDatasetJobStageRequest, GetDatasetJobStageResponse, \
     CreateModelJobGroupRequest, GetModelJobRequest, GetModelJobGroupRequest, InformModelJobGroupRequest, \
     InformTrustedJobRequest, GetTrustedJobRequest, GetTrustedJobResponse, CreateTrustedExportJobRequest, \
-    UpdateDatasetJobSchedulerStateRequest, UpdateModelJobGroupRequest
+    UpdateDatasetJobSchedulerStateRequest, UpdateModelJobGroupRequest, InformModelJobRequest
 
 _SERVICE_DESCRIPTOR: ServiceDescriptor = job_service_pb2.DESCRIPTOR.services_by_name['JobService']
 
@@ -163,6 +163,22 @@ class JobServiceClientTest(RpcClientTestCase):
                                   algorithm_type='NN_VERTICAL',
                                   global_config=ModelJobGlobalConfig(),
                                   version=3))
+        self.assertEqual(call.result(), expected_response)
+
+    def test_inform_model_job(self):
+        call = self.client_execution_pool.submit(self._client.inform_model_job,
+                                                 uuid='uuid',
+                                                 auth_status=AuthStatus.AUTHORIZED)
+        invocation_metadata, request, rpc = self._fake_channel.take_unary_unary(
+            _SERVICE_DESCRIPTOR.methods_by_name['InformModelJob'])
+        expected_response = Empty()
+        rpc.terminate(
+            response=expected_response,
+            code=grpc.StatusCode.OK,
+            trailing_metadata=(),
+            details=None,
+        )
+        self.assertEqual(request, InformModelJobRequest(uuid='uuid', auth_status=AuthStatus.AUTHORIZED.name))
         self.assertEqual(call.result(), expected_response)
 
     def test_create_dataset_job_stage(self):

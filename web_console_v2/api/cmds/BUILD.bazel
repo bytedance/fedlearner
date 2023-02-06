@@ -14,12 +14,7 @@ py_binary(
         # Although `//web_console_v2/api:command_lib` is not directly used in `flask_cli.py`, we have to `deps` it for discovering python dependencies at runtime.
         "//web_console_v2/api:command_lib",
         "@common_flask//:pkg",
-    ] + select(
-        {
-            "//:byted": ["//internal/python:hook_lib"],
-            "//conditions:default": [],
-        },
-    ),
+    ],
 )
 
 py_binary(
@@ -36,12 +31,7 @@ py_binary(
         # Although `//web_console_v2/api:server_lib"` is not directly used in `gunicorn_cli.py`, we have to `deps` it for discovering python dependencies at runtime.
         "//web_console_v2/api:server_lib",
         "@common_gunicorn//:pkg",
-    ] + select(
-        {
-            "//:byted": ["//internal/python:hook_lib"],
-            "//conditions:default": [],
-        },
-    ),
+    ],
 )
 
 py_binary(
@@ -55,12 +45,7 @@ py_binary(
     main = "supervisorctl_cli.py",
     deps = [
         "@common_supervisor//:pkg",
-    ] + select(
-        {
-            "//:byted": ["//internal/python:hook_lib"],
-            "//conditions:default": [],
-        },
-    ),
+    ],
 )
 
 py_binary(
@@ -74,12 +59,7 @@ py_binary(
     main = "supervisord_cli.py",
     deps = [
         "@common_supervisor//:pkg",
-    ] + select(
-        {
-            "//:byted": ["//internal/python:hook_lib"],
-            "//conditions:default": [],
-        },
-    ),
+    ],
 )
 
 filegroup(

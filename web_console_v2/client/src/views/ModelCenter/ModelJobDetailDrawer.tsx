@@ -327,15 +327,18 @@ function ModelJobDetailDrawer({
     ['fetchDatasetBatchDetail'],
     () => fetchDataBatchById(modelJobDetail?.dataset_id!, modelJobDetail?.data_batch_id!),
     {
-      enabled: Boolean(modelJobDetail?.dataset_id),
+      enabled: Boolean(modelJobDetail?.dataset_id && modelJobDetail?.data_batch_id),
       retry: 2,
       refetchOnWindowFocus: false,
     },
   );
 
   const datasetBatchDetail = useMemo(() => {
+    if (!modelJobDetail?.data_batch_id) {
+      return undefined;
+    }
     return datasetBatchDetailQuery.data?.data;
-  }, [datasetBatchDetailQuery.data?.data]);
+  }, [datasetBatchDetailQuery.data?.data, modelJobDetail?.data_batch_id]);
   const isOldModelJob = useMemo(() => {
     return !modelJobDetailQuery.data?.data.global_config;
   }, [modelJobDetailQuery.data?.data.global_config]);

@@ -80,6 +80,12 @@ message CreateModelJobRequest {
     int64 version = 7;
 }
 
+message InformModelJobRequest {
+    string uuid = 1;
+    // ref: AuthStatus
+    string auth_status = 2;
+}
+
 message CreateDatasetJobStageRequest {
     string dataset_job_uuid = 1;
     string dataset_job_stage_uuid = 2;
@@ -147,6 +153,7 @@ service JobService {
     rpc UpdateDatasetJobSchedulerState (UpdateDatasetJobSchedulerStateRequest) returns (google.protobuf.Empty) {}
     rpc CreateModelJobGroup (CreateModelJobGroupRequest) returns (google.protobuf.Empty) {}
     rpc GetModelJob (GetModelJobRequest) returns (ModelJobPb) {}
+    rpc InformModelJob (InformModelJobRequest) returns (google.protobuf.Empty) {}
     rpc GetModelJobGroup (GetModelJobGroupRequest) returns (ModelJobGroupPb) {}
     rpc InformModelJobGroup (InformModelJobGroupRequest) returns (google.protobuf.Empty) {}
     rpc UpdateModelJobGroup (UpdateModelJobGroupRequest) returns (google.protobuf.Empty) {}

@@ -22,10 +22,10 @@
                     },
                     {
                         "name": "image_version",
-                        "value": "608e2c3",
+                        "value": "50a6945",
                         "access_mode": "PEER_WRITABLE",
                         "widget_schema": "{\"component\":\"Input\",\"required\":true,\"tag\":\"INPUT_PARAM\"}",
-                        "typed_value": "608e2c3",
+                        "typed_value": "50a6945",
                         "tag": "INPUT_PARAM",
                         "value_type": "STRING"
                     },
@@ -173,7 +173,7 @@
                         "help": "建议不修改，指定Pod中运行的容器镜像地址，修改此项可能导致本基本模板不适用",
                         "reference_type": "SELF",
                         "label": "容器镜像",
-                        "default_value": "artifact.bytedance.com/fedlearner/fedlearner:608e2c3",
+                        "default_value": "artifact.bytedance.com/fedlearner/fedlearner:50a6945",
                         "default": "",
                         "value_type": "STRING"
                     },

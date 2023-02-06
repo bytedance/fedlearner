@@ -8,7 +8,6 @@ import GridRow from 'components/_base/GridRow';
 import TodoPopover from 'components/TodoPopover';
 import { useGetCurrentProjectId, useTablePaginationWithUrlState, useUrlState } from 'hooks';
 import * as service from 'services/modelCenter';
-import { ModelJobState } from 'typings/modelCenter';
 import { ModelJob, ModelJobQueryParams_new as ModelJobQueryParams } from 'typings/modelCenter';
 import { TIME_INTERVAL } from 'shared/constants';
 
@@ -28,7 +27,12 @@ const { Search } = Input;
 const List: FC<TProps> = function () {
   const history = useHistory();
   const params = useParams<ModelEvaluationListParams>();
-  const [urlState, setUrlState] = useUrlState<ModelJobQueryParams>({});
+  const [urlState, setUrlState] = useUrlState<ModelJobQueryParams>({
+    filter: filterExpressionGenerator(
+      { auth_status: ['AUTHORIZED'] },
+      FILTER_MODEL_JOB_OPERATOR_MAPPER,
+    ),
+  });
   const { urlState: pageInfo, paginationProps } = useTablePaginationWithUrlState();
   const projectId = useGetCurrentProjectId();
   const isModelEvaluation = params.module === 'model-evaluation';
@@ -43,18 +47,6 @@ const List: FC<TProps> = function () {
         page: pageInfo.page,
         page_size: pageInfo.pageSize,
         types: params.module === 'offline-prediction' ? 'PREDICTION' : 'EVALUATION',
-        states: [
-          ModelJobState.COMPLETED,
-          ModelJobState.FAILED,
-          ModelJobState.INVALID,
-          ModelJobState.PARTICIPANT_CONFIGURING,
-          ModelJobState.PREPARE_RUN,
-          ModelJobState.PREPARE_STOP,
-          ModelJobState.READY_TO_RUN,
-          ModelJobState.RUNNING,
-          ModelJobState.STOPPED,
-          ModelJobState.WARMUP_UNDERHOOD,
-        ],
         filter: urlState.filter || undefined,
       });
     },
@@ -103,7 +95,7 @@ const List: FC<TProps> = function () {
               page: 1,
               keyword,
               filter: filterExpressionGenerator(
-                { ...filter, name: keyword },
+                { ...filter, name: keyword, auth_status: ['AUTHORIZED'] },
                 FILTER_MODEL_JOB_OPERATOR_MAPPER,
               ),
             }));
@@ -132,6 +124,7 @@ const List: FC<TProps> = function () {
                   status: filters.status,
                   role: filters.role,
                   name: urlState.keyword,
+                  auth_status: ['AUTHORIZED'],
                 },
                 FILTER_MODEL_JOB_OPERATOR_MAPPER,
               ),

@@ -32,7 +32,7 @@ from fedlearner_webconsole.proto.rpc.v2.job_service_pb2 import CreateModelJobReq
     GetTrustedJobGroupResponse, CreateDatasetJobStageRequest, GetDatasetJobStageRequest, GetDatasetJobStageResponse, \
     CreateModelJobGroupRequest, GetModelJobRequest, GetModelJobGroupRequest, InformModelJobGroupRequest, \
     InformTrustedJobRequest, GetTrustedJobRequest, GetTrustedJobResponse, CreateTrustedExportJobRequest, \
-    UpdateDatasetJobSchedulerStateRequest, UpdateModelJobGroupRequest
+    UpdateDatasetJobSchedulerStateRequest, UpdateModelJobGroupRequest, InformModelJobRequest
 
 
 def _need_retry_for_get(err: Exception) -> bool:
@@ -105,6 +105,11 @@ class JobServiceClient(ParticipantProjectRpcClient):
                                         global_config=global_config,
                                         version=version)
         return self._stub.CreateModelJob(request=request, timeout=Envs.GRPC_CLIENT_TIMEOUT)
+
+    @retry_fn(retry_times=3, need_retry=_default_need_retry)
+    def inform_model_job(self, uuid: str, auth_status: AuthStatus) -> empty_pb2.Empty:
+        msg = InformModelJobRequest(uuid=uuid, auth_status=auth_status.name)
+        return self._stub.InformModelJob(request=msg, timeout=Envs.GRPC_CLIENT_TIMEOUT)
 
     @retry_fn(retry_times=3, need_retry=_need_retry_for_get)
     def get_model_job_group(self, uuid: str) -> ModelJobGroupPb:

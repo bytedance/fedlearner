@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { PaginationProps, Table, TableProps, Space } from '@arco-design/web-react';
 import { generatePath, Link } from 'react-router-dom';
 import StateIndicator from 'components/StateIndicator';
-import { ModelJobState } from 'typings/modelCenter';
+import { ModelJobAuthStatus, ModelJobState } from 'typings/modelCenter';
 import { ModelJob } from 'typings/modelCenter';
 import {
   ColumnsGetterOptions,
@@ -10,6 +10,9 @@ import {
   roleFilters,
   statusFilters,
   getModelJobStatus,
+  MODEL_JOB_STATUS_MAPPER,
+  resetAuthInfo,
+  AUTH_STATUS_TEXT_MAP,
 } from '../../shared';
 import { formatTimestamp } from 'shared/date';
 import MoreActions from 'components/MoreActions';
@@ -17,6 +20,8 @@ import routeMaps from '../../routes';
 import { CONSTANTS } from 'shared/constants';
 import AlgorithmType from 'components/AlgorithmType';
 import { EnumAlgorithmProjectType } from 'typings/algorithm';
+import ProgressWithText from 'components/ProgressWithText';
+import { useGetCurrentProjectParticipantList, useGetCurrentPureDomainName } from 'hooks';
 
 const staticPaginationProps: Partial<PaginationProps> = {
   pageSize: 10,
@@ -55,6 +60,40 @@ export const getTableColumns = (options: ColumnsGetterOptions) => {
       filters: algorithmTypeFilters.filters,
       render(value: ModelJob['algorithm_type']) {
         return <AlgorithmType type={value as EnumAlgorithmProjectType} />;
+      },
+    },
+    {
+      title: '授权状态',
+      dataIndex: 'auth_frontend_status',
+      key: 'auth_frontend_status',
+      width: 120,
+      render: (value: ModelJobAuthStatus, record: any) => {
+        const progressConfig = MODEL_JOB_STATUS_MAPPER?.[value];
+        const authInfo = resetAuthInfo(
+          record.participants_info.participants_map,
+          options.participantList ?? [],
+          options.myPureDomainName ?? '',
+        );
+        return (
+          <ProgressWithText
+            status={progressConfig?.status}
+            statusText={progressConfig?.name}
+            percent={progressConfig?.status}
+            toolTipContent={
+              [ModelJobAuthStatus.PART_AUTH_PENDING, ModelJobAuthStatus.SELF_AUTH_PENDING].includes(
+                value,
+              ) ? (
+                <>
+                  {authInfo.map((item: any) => (
+                    <div key={item.name}>{`${item.name}: ${
+                      AUTH_STATUS_TEXT_MAP?.[item.authStatus]
+                    }`}</div>
+                  ))}
+                </>
+              ) : undefined
+            }
+          />
+        );
       },
     },
     {
@@ -169,6 +208,8 @@ const EvaluationTable: React.FC<EvaluationTableProps> = (props) => {
     nameFieldText,
     filterDropdownValues = {},
   } = props;
+  const participantList = useGetCurrentProjectParticipantList();
+  const myPureDomainName = useGetCurrentPureDomainName();
   const paginationProps = useMemo(() => {
     return {
       ...staticPaginationProps,
@@ -188,6 +229,8 @@ const EvaluationTable: React.FC<EvaluationTableProps> = (props) => {
         onStopClick,
         nameFieldText,
         filterDropdownValues,
+        participantList,
+        myPureDomainName,
       })}
       pagination={paginationProps}
       {...props}

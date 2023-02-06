@@ -53,7 +53,8 @@ def get_arguments():
     arguments['worker_rank'] = int(getenv('INDEX', '0'))
     if getenv('NUM_WORKERS'):
         arguments['num_workers'] = int(getenv('NUM_WORKERS'))
-    if getenv('CLUSTER_SPEC'):
+    role = getenv('ROLE', '')
+    if getenv('CLUSTER_SPEC') and role != 'light_client':
         cluster_spec = json.loads(getenv('CLUSTER_SPEC'))
 
         # Only accept CLUSTER_SPEC in cluster environment,

@@ -22,6 +22,7 @@ import {
   ModelJobVariable,
   ModelGroupStatus,
   ModelJobStatus,
+  ModelJobAuthStatus,
 } from 'typings/modelCenter';
 
 import { ModelEvaluationModuleType } from './routes';
@@ -127,6 +128,8 @@ export type ColumnsGetterOptions = {
   isRestartLoading?: boolean;
   isHideAllActionList?: boolean;
   filterDropdownValues?: TableFiltersValue;
+  participantList?: Participant[];
+  myPureDomainName?: string;
 };
 
 export function getModelJobState(
@@ -896,6 +899,7 @@ export const FILTER_MODEL_JOB_OPERATOR_MAPPER = {
   model_job_type: FilterOp.IN,
   status: FilterOp.IN,
   configured: FilterOp.EQUAL,
+  auth_status: FilterOp.IN,
 };
 
 export const MODEL_GROUP_STATUS_MAPPER: Record<ModelGroupStatus, any> = {
@@ -973,4 +977,42 @@ export const ALGORITHM_TYPE_LABEL_MAPPER: Record<string, string> = {
   NN_HORIZONTAL: '横向联邦-NN模型',
   NN_VERTICAL: '纵向联邦-NN模型',
   TREE_VERTICAL: '纵向联邦-树模型',
+};
+
+export const MODEL_JOB_STATUS_MAPPER: Record<ModelJobAuthStatus, any> = {
+  TICKET_PENDING: {
+    status: 'default',
+    percent: 30,
+    name: '待审批',
+  },
+  CREATE_PENDING: {
+    status: 'default',
+    percent: 40,
+    name: '创建中',
+  },
+  CREATE_FAILED: {
+    status: 'warning',
+    percent: 100,
+    name: '创建失败',
+  },
+  TICKET_DECLINE: {
+    status: 'warning',
+    percent: 30,
+    name: '审批拒绝',
+  },
+  SELF_AUTH_PENDING: {
+    status: 'default',
+    percent: 50,
+    name: '待我方授权',
+  },
+  PART_AUTH_PENDING: {
+    status: 'default',
+    percent: 70,
+    name: '待合作伙伴授权',
+  },
+  ALL_AUTHORIZED: {
+    status: 'success',
+    percent: 100,
+    name: '授权通过',
+  },
 };

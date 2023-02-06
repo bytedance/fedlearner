@@ -14,6 +14,7 @@
 #
 
 import logging
+import numpy as np
 import time
 import unittest
 import json
@@ -31,7 +32,6 @@ class IntegratedTest(unittest.TestCase):
 
     def test_e2e(self):
         logging.basicConfig(level=logging.INFO)
-
         cluster_spec_str = json.dumps({
             'master': ['localhost:50101'],
             'ps': ['localhost:50102', 'localhost:50104'],
@@ -50,6 +50,7 @@ class IntegratedTest(unittest.TestCase):
             raise TypeError('Input cluster_spec type error')
 
         args = TrainerArguments(data_path='pp_lite/trainer/data/',
+                                file_wildcard='**/*',
                                 export_path='pp_lite/trainer/model/',
                                 server_port=55550,
                                 tf_port=51001,
@@ -119,16 +120,21 @@ def np_to_tfrecords(X, Y, file_path_prefix):
 
     # iterate over each sample,
     # and serialize it as ProtoBuf.
+    # temporarily enable eager execution so _bytes_feature can call Tensor.numpy()
+    tf.enable_eager_execution()
     for idx in range(X.shape[0]):
         x = X[idx]
         y = Y[idx]
-
-        data = {'X': _float_feature(x), 'X_size': _int64_feature(x.shape[0]), 'Y': _int64_feature(y)}
-
+        data = {
+            'X': _bytes_feature(tf.serialize_tensor(x.astype(np.float32))),
+            'X_size': _int64_feature(x.shape[0]),
+            'Y': _int64_feature(y)
+        }
         features = tf.train.Features(feature=data)
         example = tf.train.Example(features=features)
         serialized = example.SerializeToString()
         writer.write(serialized)
+    tf.disable_eager_execution()
 
 
 if __name__ == '__main__':

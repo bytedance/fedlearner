@@ -26,7 +26,7 @@ from fedlearner_webconsole.proto.rpc.v2.job_service_pb2 import CreateModelJobReq
     GetTrustedJobGroupResponse, CreateDatasetJobStageRequest, GetDatasetJobStageRequest, GetDatasetJobStageResponse, \
     CreateModelJobGroupRequest, GetModelJobGroupRequest, GetModelJobRequest, InformModelJobGroupRequest, \
     InformTrustedJobRequest, GetTrustedJobRequest, GetTrustedJobResponse, CreateTrustedExportJobRequest, \
-    UpdateDatasetJobSchedulerStateRequest, UpdateModelJobGroupRequest
+    UpdateDatasetJobSchedulerStateRequest, UpdateModelJobGroupRequest, InformModelJobRequest
 from fedlearner_webconsole.proto.mmgr_pb2 import ModelJobPb, ModelJobGroupPb
 from fedlearner_webconsole.participant.models import Participant
 from fedlearner_webconsole.tee.services import TrustedJobGroupService, TrustedJobService
@@ -174,6 +174,27 @@ class JobServiceServicer(job_service_pb2_grpc.JobServiceServicer):
                 group.latest_version = model_job.version
             session.commit()
         return empty_pb2.Empty()
+
+    @emits_rpc_event(resource_type=Event.ResourceType.MODEL_JOB,
+                     op_type=Event.OperationType.INFORM,
+                     resource_name_fn=lambda request: request.uuid)
+    def InformModelJob(self, request: InformModelJobRequest, context: ServicerContext) -> empty_pb2.Empty:
+        with db.session_scope() as session:
+            project_id, client_id = get_grpc_context_info(session, context)
+            model_job: ModelJob = session.query(ModelJob).populate_existing().with_for_update().filter_by(
+                project_id=project_id, uuid=request.uuid).first()
+            if model_job is None:
+                context.abort(grpc.StatusCode.NOT_FOUND, f'model job {request.uuid} is not found')
+            try:
+                auth_status = AuthStatus[request.auth_status]
+            except KeyError:
+                context.abort(grpc.StatusCode.INVALID_ARGUMENT, f'auth_status {request.auth_status} is invalid')
+            pure_domain_name = session.query(Participant).get(client_id).pure_domain_name()
+            participants_info = model_job.get_participants_info()
+            participants_info.participants_map[pure_domain_name].auth_status = auth_status.name
+            model_job.set_participants_info(participants_info)
+            session.commit()
+            return empty_pb2.Empty()
 
     @emits_rpc_event(resource_type=Event.ResourceType.DATASET_JOB_STAGE,
                      op_type=Event.OperationType.CREATE,

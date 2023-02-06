@@ -295,7 +295,6 @@ class ModelJobService:
                 model_job.status = ModelJobStatus.SUCCEEDED
             if workflow.state in [WorkflowState.FAILED]:
                 model_job.status = ModelJobStatus.FAILED
-        self._session.commit()
 
     def initialize_auth_status(self, model_job: ModelJob):
         pure_domain_name = SettingService(self._session).get_system_info().pure_domain_name
@@ -318,6 +317,14 @@ class ModelJobService:
         elif model_job.role in [ModelJobRole.COORDINATOR]:
             participants_info.participants_map[pure_domain_name].auth_status = AuthStatus.AUTHORIZED.name
             model_job.auth_status = AuthStatus.AUTHORIZED
+        model_job.set_participants_info(participants_info)
+
+    @staticmethod
+    def update_model_job_auth_status(model_job: ModelJob, auth_status: AuthStatus):
+        model_job.auth_status = auth_status
+        participants_info = model_job.get_participants_info()
+        pure_domain_name = SettingService.get_system_info().pure_domain_name
+        participants_info.participants_map[pure_domain_name].auth_status = auth_status.name
         model_job.set_participants_info(participants_info)
 
     def delete(self, job_id: int):

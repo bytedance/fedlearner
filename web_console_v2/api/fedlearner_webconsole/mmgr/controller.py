@@ -267,18 +267,45 @@ class ModelJobGroupController:
 
 class ModelJobController:
 
-    def __init__(self, session: Session):
+    def __init__(self, session: Session, project_id: int):
         self._session = session
+        self._client = []
+        self._participants = ParticipantService(self._session).get_participants_by_project(project_id)
+        self._project_id = project_id
+        project = self._session.query(Project).get(project_id)
+        for p in self._participants:
+            self._client.append(JobServiceClient.from_project_and_participant(p.domain_name, project.name))
 
-    def launch_model_job(self, project_id: int, group_id: int) -> ModelJob:
-        check_model_job_group(project_id, group_id, self._session)
+    def launch_model_job(self, group_id: int) -> ModelJob:
+        check_model_job_group(self._project_id, group_id, self._session)
         group = ModelJobGroupService(self._session).lock_and_update_version(group_id)
         self._session.commit()
-        succeeded, msg = LaunchModelJob().run(project_id=project_id, group_id=group_id, version=group.latest_version)
+        succeeded, msg = LaunchModelJob().run(project_id=self._project_id,
+                                              group_id=group_id,
+                                              version=group.latest_version)
         if not succeeded:
             raise InternalException(f'launching model job by 2PC with message: {msg}')
         model_job = self._session.query(ModelJob).filter_by(group_id=group_id, version=group.latest_version).first()
         return model_job
+
+    def inform_auth_status_to_participants(self, model_job: ModelJob):
+        for client, p in zip(self._client, self._participants):
+            try:
+                client.inform_model_job(model_job.uuid, model_job.auth_status)
+            except grpc.RpcError as e:
+                logging.warning(f'[model-job] failed to inform participants {p.id}\'s model job '
+                                f'{model_job.uuid} with grpc code {e.code()} and details {e.details()}')
+
+    def update_participants_auth_status(self, model_job: ModelJob):
+        participants_info = model_job.get_participants_info()
+        for client, p in zip(self._client, self._participants):
+            try:
+                resp = client.get_model_job(model_job.uuid)
+                participants_info.participants_map[p.pure_domain_name()].auth_status = resp.auth_status
+            except grpc.RpcError as e:
+                logging.warning(f'[model-job] failed to get participant {p.id}\'s model job {model_job.uuid} '
+                                f'with grpc code {e.code()} and details {e.details()}')
+        model_job.set_participants_info(participants_info)
 
 
 # TODO(gezhengqiang): provide start model job rpc

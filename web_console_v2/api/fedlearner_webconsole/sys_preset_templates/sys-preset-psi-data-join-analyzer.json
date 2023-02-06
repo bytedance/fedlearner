@@ -57,8 +57,8 @@
                 "access_mode": "PEER_READABLE",
                 "name": "fedlearner_image_version",
                 "tag": "INPUT_PARAM",
-                "typed_value": "608e2c3",
-                "value": "608e2c3",
+                "typed_value": "50a6945",
+                "value": "50a6945",
                 "value_type": "STRING",
                 "widget_schema": "{\"component\":\"Input\",\"required\":true,\"tooltip\":\"镜像版本不建议修改，如若修改请使用新于此版本的镜像\",\"tag\":\"INPUT_PARAM\"}"
             },

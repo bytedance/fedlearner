@@ -71,4 +71,6 @@ message TrainerArguments {
   float client_model_weight = 17;
   string data_path = 18;
   string export_path = 19;
+  // filter out tfrecord files we want to use
+  string file_wildcard = 20;
 }

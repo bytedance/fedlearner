@@ -47,7 +47,7 @@ from fedlearner_webconsole.proto.rpc.v2.job_service_pb2 import CreateModelJobReq
     GetTrustedJobGroupResponse, CreateDatasetJobStageRequest, GetDatasetJobStageRequest, CreateModelJobGroupRequest, \
     GetModelJobRequest, GetModelJobGroupRequest, InformModelJobGroupRequest, InformTrustedJobRequest, \
     GetTrustedJobRequest, GetTrustedJobResponse, CreateTrustedExportJobRequest, UpdateDatasetJobSchedulerStateRequest, \
-    UpdateModelJobGroupRequest
+    UpdateModelJobGroupRequest, InformModelJobRequest
 from fedlearner_webconsole.review.common import NO_CENTRAL_SERVER_UUID
 
 
@@ -408,6 +408,44 @@ class SystemServiceTest(NoWebServerTestCase):
                                                  global_config=global_config,
                                                  version=4)
 
+    @patch('fedlearner_webconsole.rpc.v2.job_service_server.get_grpc_context_info')
+    def test_inform_model_job(self, mock_get_grpc_context_info: MagicMock):
+        mock_get_grpc_context_info.return_value = 1, 1
+        with db.session_scope() as session:
+            project = Project(id=1, name='project')
+            participant = Participant(id=1, name='part1', domain_name='fl-demo1.com')
+            pro_part = ProjectParticipant(id=1, project_id=1, participant_id=1)
+            model_job = ModelJob(id=1,
+                                 name='model_job',
+                                 uuid='uuid',
+                                 project_id=1,
+                                 auth_status=ModelAuthStatus.AUTHORIZED)
+            participants_info = ParticipantsInfo()
+            participants_info.participants_map['demo1'].auth_status = AuthStatus.PENDING.name
+            model_job.set_participants_info(participants_info)
+            session.add_all([project, participant, pro_part, model_job])
+            session.commit()
+        self._stub.InformModelJob(InformModelJobRequest(uuid='uuid', auth_status=AuthStatus.AUTHORIZED.name))
+        # authorized
+        with db.session_scope() as session:
+            model_job = session.query(ModelJob).get(1)
+            participants_info = model_job.get_participants_info()
+            self.assertEqual(participants_info.participants_map['demo1'].auth_status, AuthStatus.AUTHORIZED.name)
+        # pending
+        self._stub.InformModelJob(InformModelJobRequest(uuid='uuid', auth_status=AuthStatus.PENDING.name))
+        with db.session_scope() as session:
+            model_job = session.query(ModelJob).get(1)
+            participants_info = model_job.get_participants_info()
+            self.assertEqual(participants_info.participants_map['demo1'].auth_status, AuthStatus.PENDING.name)
+        # fail due to model job not found
+        with self.assertRaises(grpc.RpcError) as cm:
+            self._stub.InformModelJob(InformModelJobRequest(uuid='uuid1', auth_status=AuthStatus.PENDING.name))
+        self.assertEqual(cm.exception.code(), grpc.StatusCode.NOT_FOUND)
+        # fail due to auth_status invalid
+        with self.assertRaises(grpc.RpcError) as cm:
+            self._stub.InformModelJob(InformModelJobRequest(uuid='uuid', auth_status='aaaaa'))
+        self.assertEqual(cm.exception.code(), grpc.StatusCode.INVALID_ARGUMENT)
+
     @patch('fedlearner_webconsole.dataset.models.DataBatch.is_available')
     @patch('fedlearner_webconsole.rpc.v2.job_service_server.get_grpc_context_info')
     def test_create_dataset_job_stage(self, mock_get_grpc_context_info: MagicMock, mock_is_available: MagicMock):
@@ -703,7 +741,7 @@ class SystemServiceTest(NoWebServerTestCase):
         with db.session_scope() as session:
             group = session.query(ModelJobGroup).get(1)
             participants_info = group.get_participants_info()
-            self.assertEqual(participants_info.participants_map['demo2'].auth_status, AuthStatus.PENDING.name)
+            self.assertEqual(participants_info.participants_map['demo1'].auth_status, AuthStatus.PENDING.name)
         # fail due to group not found
         with self.assertRaises(grpc.RpcError) as cm:
             self._stub.InformModelJobGroup(

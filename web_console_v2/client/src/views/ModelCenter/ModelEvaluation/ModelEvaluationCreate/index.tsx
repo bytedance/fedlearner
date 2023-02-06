@@ -47,7 +47,9 @@ const Create: React.FC = () => {
           {params.module === ModelEvaluationModuleType.Evaluation ? '模型评估' : '离线预测'}
         </BackButton>
       }
-      centerTitle={params.module === ModelEvaluationModuleType.Evaluation ? '创建评估' : '创建预测'}
+      centerTitle={`${params.role === 'receiver' ? '授权' : '创建'}${
+        params.module === ModelEvaluationModuleType.Evaluation ? '评估' : '预测'
+      }`}
     >
       <CreateForm
         job={job}

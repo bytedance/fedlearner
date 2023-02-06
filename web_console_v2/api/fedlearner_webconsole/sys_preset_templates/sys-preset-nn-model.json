@@ -203,10 +203,10 @@
                     },
                     {
                         "name": "image_version",
-                        "value": "608e2c3",
+                        "value": "50a6945",
                         "access_mode": "PEER_WRITABLE",
                         "widget_schema": "{\"component\":\"Input\",\"required\":true,\"tooltip\":\"镜像版本\",\"tag\":\"INPUT_PARAM\"}",
-                        "typed_value": "608e2c3",
+                        "typed_value": "50a6945",
                         "tag": "INPUT_PARAM",
                         "value_type": "STRING"
                     },

@@ -517,6 +517,28 @@ class ModelJobServiceTest(NoWebServerTestCase):
                         'demo2': ParticipantInfo(auth_status=AuthStatus.PENDING.name)
                     }))
 
+    @patch('fedlearner_webconsole.project.services.SettingService.get_system_info')
+    def test_update_model_job_auth_status(self, mock_get_system_info):
+        mock_get_system_info.return_value = SystemInfo(pure_domain_name='test')
+        with db.session_scope() as session:
+            model_job = session.query(ModelJob).filter_by(name='test-model-job').first()
+            ModelJobService.update_model_job_auth_status(model_job, AuthStatus.AUTHORIZED)
+            session.commit()
+        with db.session_scope() as session:
+            model_job = session.query(ModelJob).filter_by(name='test-model-job').first()
+            self.assertEqual(model_job.auth_status, AuthStatus.AUTHORIZED)
+            self.assertEqual(
+                model_job.get_participants_info(),
+                ParticipantsInfo(participants_map={'test': ParticipantInfo(auth_status=AuthStatus.AUTHORIZED.name)}))
+            ModelJobService.update_model_job_auth_status(model_job, AuthStatus.PENDING)
+            session.commit()
+        with db.session_scope() as session:
+            model_job = session.query(ModelJob).filter_by(name='test-model-job').first()
+            self.assertEqual(model_job.auth_status, AuthStatus.PENDING)
+            self.assertEqual(
+                model_job.get_participants_info(),
+                ParticipantsInfo(participants_map={'test': ParticipantInfo(auth_status=AuthStatus.PENDING.name)}))
+
     @patch('fedlearner_webconsole.rpc.v2.job_service_client.JobServiceClient.create_model_job')
     @patch('fedlearner_webconsole.setting.service.SettingService.get_system_info')
     def test_create_auto_update_model_job(self, mock_get_system_info, mock_create_model_job):

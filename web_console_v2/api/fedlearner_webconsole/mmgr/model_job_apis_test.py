@@ -24,7 +24,6 @@ from pathlib import Path
 from http import HTTPStatus
 from datetime import datetime
 from unittest.mock import patch, Mock, MagicMock, call
-
 from envs import Envs
 from testing.common import BaseTestCase
 from testing.fake_model_job_config import get_global_config, get_workflow_config
@@ -46,8 +45,9 @@ from fedlearner_webconsole.workflow_template.utils import make_variable
 from fedlearner_webconsole.proto.common_pb2 import Variable
 from fedlearner_webconsole.proto.workflow_definition_pb2 import WorkflowDefinition, JobDefinition
 from fedlearner_webconsole.proto.service_pb2 import GetModelJobResponse
-from fedlearner_webconsole.proto.project_pb2 import ParticipantsInfo
-from fedlearner_webconsole.proto.mmgr_pb2 import ModelJobGlobalConfig, ModelJobConfig
+from fedlearner_webconsole.proto.setting_pb2 import SystemInfo
+from fedlearner_webconsole.proto.project_pb2 import ParticipantsInfo, ParticipantInfo
+from fedlearner_webconsole.proto.mmgr_pb2 import ModelJobGlobalConfig, ModelJobConfig, ModelJobPb
 from fedlearner_webconsole.workflow.models import WorkflowState, TransactionState
 from fedlearner_webconsole.dataset.models import Dataset, DatasetJob, DatasetJobKind, DatasetType, DatasetJobState, \
     DatasetJobStage, DataBatch
@@ -92,6 +92,7 @@ class ModelJobsApiTest(BaseTestCase):
             pro_participant = ProjectParticipant(id=1, project_id=1, participant_id=1)
             group = ModelJobGroup(id=1, name='test-group', project_id=project.id, uuid='uuid', latest_version=2)
             session.add_all([project, group, dataset, dataset_job, data_batch, dataset_job_stage])
+            participants_info = ParticipantsInfo()
             w1 = Workflow(name='w1',
                           uuid='u1',
                           state=WorkflowState.NEW,
@@ -106,6 +107,7 @@ class ModelJobsApiTest(BaseTestCase):
                            role=ModelJobRole.COORDINATOR,
                            auth_status=AuthStatus.PENDING,
                            created_at=datetime(2022, 8, 4, 0, 0, 0))
+            mj1.set_participants_info(participants_info)
             w2 = Workflow(name='w2', uuid='u2', state=WorkflowState.READY, target_state=None)
             w2.set_config(get_workflow_config(model_job_type=ModelJobType.EVALUATION))
             mj2 = ModelJob(name='mj2',
@@ -117,26 +119,29 @@ class ModelJobsApiTest(BaseTestCase):
                            role=ModelJobRole.PARTICIPANT,
                            auth_status=AuthStatus.AUTHORIZED,
                            created_at=datetime(2022, 8, 4, 0, 0, 1))
+            mj2.set_participants_info(participants_info)
             w3 = Workflow(name='w3', uuid='u3', state=WorkflowState.RUNNING, target_state=None)
             w3.set_config(get_workflow_config(model_job_type=ModelJobType.PREDICTION))
             mj3 = ModelJob(name='mj3',
                            workflow_uuid=w3.uuid,
-                           project_id=2,
+                           project_id=1,
                            algorithm_type=AlgorithmType.NN_HORIZONTAL,
                            model_job_type=ModelJobType.PREDICTION,
                            role=ModelJobRole.COORDINATOR,
                            auth_status=AuthStatus.PENDING,
                            created_at=datetime(2022, 8, 4, 0, 0, 2))
+            mj3.set_participants_info(participants_info)
             w4 = Workflow(name='w4', uuid='u4', state=WorkflowState.RUNNING, target_state=None)
             w4.set_config(get_workflow_config(model_job_type=ModelJobType.PREDICTION))
             mj4 = ModelJob(name='mj31',
                            workflow_uuid=w4.uuid,
-                           project_id=2,
+                           project_id=1,
                            algorithm_type=AlgorithmType.TREE_VERTICAL,
                            model_job_type=ModelJobType.PREDICTION,
                            role=ModelJobRole.PARTICIPANT,
                            auth_status=AuthStatus.AUTHORIZED,
                            created_at=datetime(2022, 8, 4, 0, 0, 3))
+            mj4.set_participants_info(participants_info)
             w5 = Workflow(name='w5', uuid='u5', state=WorkflowState.COMPLETED, target_state=None)
             mj5 = ModelJob(id=123,
                            project_id=1,
@@ -145,16 +150,25 @@ class ModelJobsApiTest(BaseTestCase):
                            role=ModelJobRole.COORDINATOR,
                            auth_status=AuthStatus.PENDING,
                            created_at=datetime(2022, 8, 4, 0, 0, 4))
+            mj5.set_participants_info(participants_info)
+            mj6 = ModelJob(id=124,
+                           project_id=2,
+                           name='mj6',
+                           workflow_uuid=w5.uuid,
+                           role=ModelJobRole.COORDINATOR,
+                           auth_status=AuthStatus.PENDING,
+                           created_at=datetime(2022, 8, 4, 0, 0, 4))
+            mj5.set_participants_info(participants_info)
             model = Model(id=12, name='test', model_job_id=123, group_id=1, uuid='model-uuid', project_id=1)
-            session.add_all([w1, w2, w3, mj1, mj2, mj3, w4, mj4, w5, mj5, model, participant, pro_participant])
+            session.add_all([w1, w2, w3, mj1, mj2, mj3, w4, mj4, w5, mj5, mj6, model, participant, pro_participant])
             session.commit()
 
     def test_get_model_jobs_by_project_or_group(self):
-        resp = self.get_helper('/api/v2/projects/1/model_jobs')
+        resp = self.get_helper('/api/v2/projects/2/model_jobs')
         self.assertEqual(resp.status_code, HTTPStatus.OK)
         data = self.get_response_data(resp)
         model_job_names = sorted([d['name'] for d in data])
-        self.assertEqual(model_job_names, ['mj1', 'mj2', 'mj5'])
+        self.assertEqual(model_job_names, ['mj6'])
         resp = self.get_helper('/api/v2/projects/1/model_jobs?group_id=2')
         data = self.get_response_data(resp)
         model_job_names = sorted([d['name'] for d in data])
@@ -172,24 +186,24 @@ class ModelJobsApiTest(BaseTestCase):
             '/api/v2/projects/1/model_jobs?algorithm_types=NN_VERTICAL&&algorithm_types=TREE_VERTICAL')
         data = self.get_response_data(resp)
         model_job_names = sorted([d['name'] for d in data])
-        self.assertEqual(model_job_names, ['mj1', 'mj2'])
-        resp = self.get_helper('/api/v2/projects/2/model_jobs?algorithm_types=NN_HORIZONTAL')
+        self.assertEqual(model_job_names, ['mj1', 'mj2', 'mj31'])
+        resp = self.get_helper('/api/v2/projects/1/model_jobs?algorithm_types=NN_HORIZONTAL')
         data = self.get_response_data(resp)
         model_job_names = sorted([d['name'] for d in data])
         self.assertEqual(model_job_names, ['mj3'])
 
     def test_get_model_jobs_by_states(self):
-        resp = self.get_helper('/api/v2/projects/0/model_jobs?states=PENDING_ACCEPT')
+        resp = self.get_helper('/api/v2/projects/1/model_jobs?states=PENDING_ACCEPT')
         data = self.get_response_data(resp)
         model_job_names = sorted([d['name'] for d in data])
         self.assertEqual(model_job_names, ['mj1'])
-        resp = self.get_helper('/api/v2/projects/0/model_jobs?states=RUNNING&states=READY_TO_RUN')
+        resp = self.get_helper('/api/v2/projects/1/model_jobs?states=RUNNING&states=READY_TO_RUN')
         data = self.get_response_data(resp)
         model_job_names = sorted([d['name'] for d in data])
         self.assertEqual(model_job_names, ['mj2', 'mj3', 'mj31'])
 
     def test_get_model_jobs_by_keyword(self):
-        resp = self.get_helper('/api/v2/projects/2/model_jobs?keyword=mj3')
+        resp = self.get_helper('/api/v2/projects/1/model_jobs?keyword=mj3')
         data = self.get_response_data(resp)
         model_job_names = sorted([d['name'] for d in data])
         self.assertEqual(model_job_names, ['mj3', 'mj31'])
@@ -198,45 +212,45 @@ class ModelJobsApiTest(BaseTestCase):
         resp = self.get_helper('/api/v2/projects/1/model_jobs?configured=false')
         data = self.get_response_data(resp)
         self.assertEqual(sorted([d['name'] for d in data]), ['mj1', 'mj5'])
-        resp = self.get_helper('/api/v2/projects/0/model_jobs?configured=true')
+        resp = self.get_helper('/api/v2/projects/1/model_jobs?configured=true')
         data = self.get_response_data(resp)
         self.assertEqual(sorted([d['name'] for d in data]), ['mj2', 'mj3', 'mj31'])
 
     def test_get_model_jobs_by_expression(self):
         filter_param = urllib.parse.quote('(algorithm_type:["NN_VERTICAL","TREE_VERTICAL"])')
-        resp = self.get_helper(f'/api/v2/projects/0/model_jobs?filter={filter_param}')
+        resp = self.get_helper(f'/api/v2/projects/1/model_jobs?filter={filter_param}')
         data = self.get_response_data(resp)
         self.assertEqual(sorted([d['name'] for d in data]), ['mj1', 'mj2', 'mj31'])
         filter_param = urllib.parse.quote('(algorithm_type:["NN_HORIZONTAL"])')
-        resp = self.get_helper(f'/api/v2/projects/0/model_jobs?filter={filter_param}')
+        resp = self.get_helper(f'/api/v2/projects/1/model_jobs?filter={filter_param}')
         data = self.get_response_data(resp)
         self.assertEqual(sorted(d['name'] for d in data), ['mj3'])
         filter_param = urllib.parse.quote('(role:["COORDINATOR"])')
-        resp = self.get_helper(f'/api/v2/projects/0/model_jobs?filter={filter_param}')
+        resp = self.get_helper(f'/api/v2/projects/1/model_jobs?filter={filter_param}')
         data = self.get_response_data(resp)
         self.assertEqual(sorted(d['name'] for d in data), ['mj1', 'mj3', 'mj5'])
         filter_param = urllib.parse.quote('(name~="1")')
-        resp = self.get_helper(f'/api/v2/projects/0/model_jobs?filter={filter_param}')
+        resp = self.get_helper(f'/api/v2/projects/1/model_jobs?filter={filter_param}')
         data = self.get_response_data(resp)
         self.assertEqual(sorted(d['name'] for d in data), ['mj1', 'mj31'])
         filter_param = urllib.parse.quote('(model_job_type:["TRAINING","EVALUATION"])')
-        resp = self.get_helper(f'/api/v2/projects/0/model_jobs?filter={filter_param}')
+        resp = self.get_helper(f'/api/v2/projects/1/model_jobs?filter={filter_param}')
         data = self.get_response_data(resp)
         self.assertEqual(sorted(d['name'] for d in data), ['mj1', 'mj2'])
         filter_param = urllib.parse.quote('(status:["RUNNING"])')
-        resp = self.get_helper(f'/api/v2/projects/0/model_jobs?filter={filter_param}')
+        resp = self.get_helper(f'/api/v2/projects/1/model_jobs?filter={filter_param}')
         data = self.get_response_data(resp)
         self.assertEqual(sorted(d['name'] for d in data), ['mj3', 'mj31'])
         filter_param = urllib.parse.quote('(configured=true)')
-        resp = self.get_helper(f'/api/v2/projects/0/model_jobs?filter={filter_param}')
+        resp = self.get_helper(f'/api/v2/projects/1/model_jobs?filter={filter_param}')
         data = self.get_response_data(resp)
         self.assertEqual(sorted(d['name'] for d in data), ['mj2', 'mj3', 'mj31'])
         filter_param = urllib.parse.quote('(auth_status:["AUTHORIZED"])')
-        resp = self.get_helper(f'/api/v2/projects/0/model_jobs?filter={filter_param}')
+        resp = self.get_helper(f'/api/v2/projects/1/model_jobs?filter={filter_param}')
         data = self.get_response_data(resp)
         self.assertEqual(sorted(d['name'] for d in data), ['mj2', 'mj31'])
         sorter_param = urllib.parse.quote('created_at asc')
-        resp = self.get_helper(f'/api/v2/projects/0/model_jobs?order_by={sorter_param}')
+        resp = self.get_helper(f'/api/v2/projects/1/model_jobs?order_by={sorter_param}')
         data = self.get_response_data(resp)
         self.assertEqual([d['name'] for d in data], ['mj1', 'mj2', 'mj3', 'mj31', 'mj5'])
         self.assertEqual(data[0]['status'], ModelJobStatus.PENDING.name)
@@ -244,9 +258,35 @@ class ModelJobsApiTest(BaseTestCase):
         self.assertEqual(data[2]['status'], ModelJobStatus.RUNNING.name)
         self.assertEqual(data[3]['status'], ModelJobStatus.RUNNING.name)
         self.assertEqual(data[4]['status'], ModelJobStatus.SUCCEEDED.name)
-        resp = self.get_helper(f'/api/v2/projects/0/model_jobs?page=2&page_size=2&order_by={sorter_param}')
+        resp = self.get_helper(f'/api/v2/projects/1/model_jobs?page=2&page_size=2&order_by={sorter_param}')
         data = self.get_response_data(resp)
         self.assertEqual(sorted(d['name'] for d in data), ['mj3', 'mj31'])
+
+    @patch('fedlearner_webconsole.project.services.SettingService.get_system_info')
+    def test_update_auth_status_of_old_data(self, mock_get_system_info):
+        mock_get_system_info.return_value = SystemInfo(pure_domain_name='test')
+        with db.session_scope() as session:
+            project = Project(id=3, name='project2')
+            participant = Participant(id=3, name='peer2', domain_name='fl-peer2.com')
+            pro_participant = ProjectParticipant(id=2, project_id=3, participant_id=3)
+            model_job6 = ModelJob(id=6, project_id=3, name='j6', participants_info=None)
+            model_job7 = ModelJob(id=7, project_id=3, name='j7', participants_info=None)
+            session.add_all([project, participant, pro_participant, model_job6, model_job7])
+            session.commit()
+        resp = self.get_helper('/api/v2/projects/3/model_jobs')
+        self.assertEqual(resp.status_code, HTTPStatus.OK)
+        participants_info = ParticipantsInfo(
+            participants_map={
+                'test': ParticipantInfo(auth_status=AuthStatus.AUTHORIZED.name),
+                'peer2': ParticipantInfo(auth_status=AuthStatus.AUTHORIZED.name)
+            })
+        with db.session_scope() as session:
+            model_job6 = session.query(ModelJob).get(6)
+            self.assertEqual(model_job6.auth_status, AuthStatus.AUTHORIZED)
+            self.assertEqual(model_job6.get_participants_info(), participants_info)
+            model_job7 = session.query(ModelJob).get(7)
+            self.assertEqual(model_job7.auth_status, AuthStatus.AUTHORIZED)
+            self.assertEqual(model_job7.get_participants_info(), participants_info)
 
     @patch('fedlearner_webconsole.rpc.v2.system_service_client.SystemServiceClient.list_flags')
     @patch('fedlearner_webconsole.two_pc.model_job_creator.ModelJobCreator.prepare')
@@ -349,6 +389,7 @@ class ModelJobsApiTest(BaseTestCase):
             self.assertEqual(model_job.get_global_config(), get_global_config())
             self.assertEqual(model_job.comment, 'comment')
             self.assertEqual(model_job.status, ModelJobStatus.PENDING)
+            self.assertEqual(model_job.creator_username, 'ada')
         mock_list_flags.return_value = {'model_job_global_config_enabled': True}
         resp = self.post_helper('/api/v2/projects/1/model_jobs',
                                 data={
@@ -561,6 +602,8 @@ class ModelJobApiTest(BaseTestCase):
         Envs.SYSTEM_INFO = '{"domain_name": "fl-test.com"}'
         with db.session_scope() as session:
             project = Project(id=1, name='test-project')
+            participant = Participant(id=1, name='part', domain_name='fl-demo1.com')
+            pro_part = ProjectParticipant(id=1, project_id=1, participant_id=1)
             group = ModelJobGroup(id=1, name='test-group', project_id=project.id, uuid='uuid')
             workflow_uuid = 'uuid'
             workflow = Workflow(id=1,
@@ -595,10 +638,18 @@ class ModelJobApiTest(BaseTestCase):
                                  job_id=2,
                                  job_name='uuid-train-job',
                                  created_at=datetime(2022, 5, 10, 0, 0, 0))
-            session.add_all([project, group, workflow, model_job, dataset, dataset_job])
+            participants_info = ParticipantsInfo(
+                participants_map={
+                    'test': ParticipantInfo(auth_status=AuthStatus.PENDING.name),
+                    'demo1': ParticipantInfo(auth_status=AuthStatus.PENDING.name)
+                })
+            model_job.set_participants_info(participants_info)
+            session.add_all([project, group, workflow, model_job, dataset, dataset_job, participant, pro_part])
             session.commit()
 
-    def test_get_model_job(self):
+    @patch('fedlearner_webconsole.rpc.v2.job_service_client.JobServiceClient.get_model_job')
+    def test_get_model_job(self, mock_get_model_job):
+        mock_get_model_job.side_effect = [ModelJobPb(auth_status=AuthStatus.AUTHORIZED.name)]
         with db.session_scope() as session:
             workflow: Workflow = session.query(Workflow).filter_by(uuid='uuid').first()
             config = get_workflow_config(model_job_type=ModelJobType.TRAINING)
@@ -654,13 +705,35 @@ class ModelJobApiTest(BaseTestCase):
             'metric_is_public': False,
             'auth_frontend_status': 'SELF_AUTH_PENDING',
             'participants_info': {
-                'participants_map': {}
+                'participants_map': {
+                    'demo1': {
+                        'auth_status': 'AUTHORIZED',
+                        'name': '',
+                        'role': '',
+                        'state': '',
+                        'type': ''
+                    },
+                    'test': {
+                        'auth_status': 'PENDING',
+                        'name': '',
+                        'role': '',
+                        'state': '',
+                        'type': ''
+                    }
+                }
             }
         },
                                   ignore_fields=['config', 'output_models', 'updated_at', 'data_batch_id'])
 
+    @patch('fedlearner_webconsole.rpc.v2.job_service_client.JobServiceClient.inform_model_job')
+    @patch('fedlearner_webconsole.project.services.SettingService.get_system_info')
     @patch('fedlearner_webconsole.scheduler.scheduler.Scheduler.wakeup')
-    def test_put_model_job(self, mock_wake_up):
+    def test_put_model_job(self, mock_wake_up, mock_get_system_info, mock_inform_model_job):
+        mock_get_system_info.return_value = SystemInfo(pure_domain_name='test')
+        with db.session_scope() as session:
+            model_job = session.query(ModelJob).get(1)
+            model_job.uuid = 'uuid'
+            session.commit()
         config = get_workflow_config(ModelJobType.TRAINING)
         data = {'algorithm_id': 1, 'config': to_dict(config)}
         resp = self.put_helper('/api/v2/projects/1/model_jobs/1', data=data)
@@ -685,9 +758,29 @@ class ModelJobApiTest(BaseTestCase):
                                   ],
                                   yaml_template='{}')
                 ]))
+            participants_info = ParticipantsInfo(
+                participants_map={
+                    'test': ParticipantInfo(auth_status=AuthStatus.AUTHORIZED.name),
+                    'demo1': ParticipantInfo(auth_status=AuthStatus.PENDING.name)
+                })
+            self.assertEqual(model_job.get_participants_info(), participants_info)
+            self.assertEqual(mock_inform_model_job.call_args_list, [(('uuid', AuthStatus.AUTHORIZED),)])
             mock_wake_up.assert_called_with(model_job.workflow_id)
 
-    def test_patch_model_job(self):
+    @patch('fedlearner_webconsole.project.services.SettingService.get_system_info')
+    @patch('fedlearner_webconsole.rpc.v2.job_service_client.JobServiceClient.inform_model_job')
+    def test_patch_model_job(self, mock_inform_model_job, mock_get_system_info):
+        mock_get_system_info.return_value = SystemInfo(pure_domain_name='test')
+        with db.session_scope() as session:
+            model_job = session.query(ModelJob).get(1)
+            model_job.uuid = 'uuid'
+            participants_info = ParticipantsInfo(
+                participants_map={
+                    'test': ParticipantInfo(auth_status=AuthStatus.PENDING.name),
+                    'demo1': ParticipantInfo(auth_status=AuthStatus.PENDING.name)
+                })
+            model_job.set_participants_info(participants_info)
+            session.commit()
         resp = self.patch_helper('/api/v2/projects/1/model_jobs/1',
                                  data={
                                      'metric_is_public': False,
@@ -697,13 +790,24 @@ class ModelJobApiTest(BaseTestCase):
         resp = self.patch_helper('/api/v2/projects/1/model_jobs/1',
                                  data={
                                      'metric_is_public': False,
-                                     'auth_status': 'PENDING'
+                                     'auth_status': 'PENDING',
+                                     'comment': 'hahahaha'
                                  })
         self.assertEqual(resp.status_code, HTTPStatus.OK)
         with db.session_scope() as session:
             model_job = session.query(ModelJob).get(1)
             self.assertFalse(model_job.metric_is_public)
             self.assertEqual(model_job.auth_status, AuthStatus.PENDING)
+            participants_info = ParticipantsInfo(
+                participants_map={
+                    'test': ParticipantInfo(auth_status=AuthStatus.PENDING.name),
+                    'demo1': ParticipantInfo(auth_status=AuthStatus.PENDING.name)
+                })
+            self.assertEqual(model_job.get_participants_info(), participants_info)
+            self.assertEqual(mock_inform_model_job.call_args_list, [(('uuid', AuthStatus.PENDING),)])
+            self.assertEqual(model_job.creator_username, 'ada')
+            self.assertEqual(model_job.comment, 'hahahaha')
+        mock_inform_model_job.reset_mock()
         self.patch_helper('/api/v2/projects/1/model_jobs/1',
                           data={
                               'metric_is_public': True,
@@ -713,6 +817,13 @@ class ModelJobApiTest(BaseTestCase):
             model_job = session.query(ModelJob).get(1)
             self.assertTrue(model_job.metric_is_public)
             self.assertEqual(model_job.auth_status, AuthStatus.AUTHORIZED)
+            participants_info = ParticipantsInfo(
+                participants_map={
+                    'test': ParticipantInfo(auth_status=AuthStatus.AUTHORIZED.name),
+                    'demo1': ParticipantInfo(auth_status=AuthStatus.PENDING.name)
+                })
+            self.assertEqual(model_job.get_participants_info(), participants_info)
+            self.assertEqual(mock_inform_model_job.call_args_list, [(('uuid', AuthStatus.AUTHORIZED),)])
 
     @patch('fedlearner_webconsole.mmgr.model_job_configer.ModelJobConfiger.get_config')
     def test_put_model_job_with_global_config(self, mock_get_config):

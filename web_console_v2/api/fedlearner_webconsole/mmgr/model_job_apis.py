@@ -56,7 +56,9 @@ from fedlearner_webconsole.swagger.models import schema_manager
 from fedlearner_webconsole.workflow_template.models import WorkflowTemplate
 from fedlearner_webconsole.proto.audit_pb2 import Event
 from fedlearner_webconsole.proto.mmgr_pb2 import PeerModelJobPb, ModelJobGlobalConfig
+from fedlearner_webconsole.proto.project_pb2 import ParticipantsInfo, ParticipantInfo
 from fedlearner_webconsole.project.models import Project
+from fedlearner_webconsole.participant.services import ParticipantService
 from fedlearner_webconsole.rpc.v2.system_service_client import SystemServiceClient
 from fedlearner_webconsole.flag.models import Flag
 
@@ -195,6 +197,8 @@ class ModelJobApi(Resource):
         with db.session_scope() as session:
             model_job = get_model_job(project_id, model_job_id, session)
             ModelJobService(session).update_model_job_status(model_job)
+            ModelJobController(session, project_id).update_participants_auth_status(model_job)
+            session.commit()
             return make_flask_response(model_job.to_proto())
 
     @input_validator
@@ -254,6 +258,9 @@ class ModelJobApi(Resource):
             ModelJobService(session).config_model_job(model_job, config=config, create_workflow=False)
             model_job.role = ModelJobRole.PARTICIPANT
             model_job.creator_username = get_current_user().username
+            # Compatible with old versions, use PUT for authorization
+            ModelJobService.update_model_job_auth_status(model_job=model_job, auth_status=AuthStatus.AUTHORIZED)
+            ModelJobController(session, project_id).inform_auth_status_to_participants(model_job)
 
             session.commit()
             scheduler.wakeup(model_job.workflow_id)
@@ -266,10 +273,13 @@ class ModelJobApi(Resource):
             'metric_is_public':
                 fields.Boolean(required=False, load_default=None),
             'auth_status':
-                fields.String(required=False, load_default=None, validate=validate.OneOf([s.name for s in AuthStatus]))
+                fields.String(required=False, load_default=None, validate=validate.OneOf([s.name for s in AuthStatus])),
+            'comment':
+                fields.String(required=False, load_default=None)
         },
         location='json')
-    def patch(self, project_id: int, model_job_id: int, metric_is_public: Optional[bool], auth_status: Optional[str]):
+    def patch(self, project_id: int, model_job_id: int, metric_is_public: Optional[bool], auth_status: Optional[str],
+              comment: Optional[str]):
         """Patch the attribute of model job
         ---
         tags:
@@ -297,6 +307,8 @@ class ModelJobApi(Resource):
                     type: boolean
                   auth_status:
                     type: string
+                  comment:
+                    type: string
         responses:
           200:
             description: detail of the model job
@@ -310,7 +322,11 @@ class ModelJobApi(Resource):
             if metric_is_public is not None:
                 model_job.metric_is_public = metric_is_public
             if auth_status is not None:
-                model_job.auth_status = AuthStatus[auth_status]
+                ModelJobService.update_model_job_auth_status(model_job=model_job, auth_status=AuthStatus[auth_status])
+                ModelJobController(session, project_id).inform_auth_status_to_participants(model_job)
+            model_job.creator_username = get_current_user().username
+            if comment is not None:
+                model_job.comment = comment
             session.commit()
             return make_flask_response(model_job.to_proto())
 
@@ -622,6 +638,20 @@ class ModelJobsApi(Resource):
                   items:
                     $ref: '#/definitions/fedlearner_webconsole.proto.ModelJobRef'
         """
+        # update auth_status and participants_info of old data
+        with db.session_scope() as session:
+            model_jobs = session.query(ModelJob).filter_by(participants_info=None, project_id=project_id).all()
+            if model_jobs is not None:
+                participants = ParticipantService(session).get_participants_by_project(project_id)
+                participants_info = ParticipantsInfo(participants_map={
+                    p.pure_domain_name(): ParticipantInfo(auth_status=AuthStatus.AUTHORIZED.name) for p in participants
+                })
+                pure_domain_name = SettingService.get_system_info().pure_domain_name
+                participants_info.participants_map[pure_domain_name].auth_status = AuthStatus.AUTHORIZED.name
+                for model_job in model_jobs:
+                    model_job.auth_status = AuthStatus.AUTHORIZED
+                    model_job.set_participants_info(participants_info)
+            session.commit()
         with db.session_scope() as session:
             query = session.query(ModelJob)
             if project_id:
@@ -660,6 +690,7 @@ class ModelJobsApi(Resource):
             if states is not None:
                 model_jobs = [m for m in model_jobs if m.state in states]
             data = [m.to_ref() for m in model_jobs]
+            session.commit()
             return make_flask_response(data=data, page_meta=pagination.get_metadata())
 
     @input_validator
@@ -715,7 +746,7 @@ class ModelJobsApi(Resource):
             # model job type is TRAINING
             if model_job_type in [ModelJobType.TRAINING]:
                 with db.session_scope() as session:
-                    model_job = ModelJobController(session).launch_model_job(project_id=project_id, group_id=group_id)
+                    model_job = ModelJobController(session, project_id).launch_model_job(group_id=group_id)
                     session.commit()
                     return make_flask_response(model_job.to_proto(), status=HTTPStatus.CREATED)
             # model job type is EVALUATION or PREDICTION
@@ -766,6 +797,7 @@ class ModelJobsApi(Resource):
                                                                   data_batch_id=data_batch_id,
                                                                   comment=comment,
                                                                   version=version)
+            model_job.creator_username = get_current_user().username
             if group_id and data_batch_id is not None:
                 group.auto_update_status = GroupAutoUpdateStatus.ACTIVE
                 group.start_data_batch_id = data_batch_id
@@ -912,7 +944,7 @@ class LaunchModelJobApi(Resource):
             description: error exists when launching model job by 2PC
         """
         with db.session_scope() as session:
-            model_job = ModelJobController(session).launch_model_job(project_id=project_id, group_id=group_id)
+            model_job = ModelJobController(session, project_id).launch_model_job(group_id=group_id)
             return make_flask_response(model_job.to_proto(), status=HTTPStatus.CREATED)
 
 

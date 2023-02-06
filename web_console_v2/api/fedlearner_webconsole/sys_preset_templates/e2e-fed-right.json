@@ -178,8 +178,8 @@
                 "access_mode": "PEER_WRITABLE",
                 "name": "image",
                 "tag": "",
-                "typed_value": "artifact.bytedance.com/fedlearner/fedlearner:608e2c3",
-                "value": "artifact.bytedance.com/fedlearner/fedlearner:608e2c3",
+                "typed_value": "artifact.bytedance.com/fedlearner/fedlearner:50a6945",
+                "value": "artifact.bytedance.com/fedlearner/fedlearner:50a6945",
                 "value_type": "STRING",
                 "widget_schema": "{\"component\":\"Input\",\"required\":true}"
             },
@@ -300,7 +300,7 @@
                     },
                     "Slot_image": {
                         "default": "",
-                        "default_value": "artifact.bytedance.com/fedlearner/fedlearner:608e2c3",
+                        "default_value": "artifact.bytedance.com/fedlearner/fedlearner:50a6945",
                         "help": "建议不修改，指定Pod中运行的容器镜像地址，修改此项可能导致本基本模版不适用",
                         "label": "容器镜像",
                         "reference": "workflow.variables.image",
@@ -561,7 +561,7 @@
                     },
                     "Slot_image": {
                         "default": "",
-                        "default_value": "artifact.bytedance.com/fedlearner/fedlearner:608e2c3",
+                        "default_value": "artifact.bytedance.com/fedlearner/fedlearner:50a6945",
                         "help": "建议不修改，指定Pod中运行的容器镜像地址，修改此项可能导致本基本模板不适用",
                         "label": "容器镜像",
                         "reference": "workflow.variables.image",
@@ -921,7 +921,7 @@
                     },
                     "Slot_image": {
                         "default": "",
-                        "default_value": "artifact.bytedance.com/fedlearner/fedlearner:608e2c3",
+                        "default_value": "artifact.bytedance.com/fedlearner/fedlearner:50a6945",
                         "help": "建议不修改，指定Pod中运行的容器镜像地址，修改此项可能导致本基本模版不适用",
                         "label": "容器镜像",
                         "reference": "workflow.variables.image",
@@ -1227,7 +1227,7 @@
                     },
                     "Slot_image": {
                         "default": "",
-                        "default_value": "artifact.bytedance.com/fedlearner/fedlearner:608e2c3",
+                        "default_value": "artifact.bytedance.com/fedlearner/fedlearner:50a6945",
                         "help": "建议不修改，指定Pod中运行的容器镜像地址，修改此项可能导致本基本模版不适用",
                         "label": "容器镜像",
                         "reference": "workflow.variables.image",
@@ -1479,7 +1479,7 @@
                     },
                     "Slot_image": {
                         "default": "",
-                        "default_value": "artifact.bytedance.com/fedlearner/fedlearner:608e2c3",
+                        "default_value": "artifact.bytedance.com/fedlearner/fedlearner:50a6945",
                         "help": "建议不修改，指定Pod中运行的容器镜像地址，修改此项可能导致本基本模版不适用",
                         "label": "容器镜像",
                         "reference": "workflow.variables.image",
@@ -1740,7 +1740,7 @@
                     },
                     "Slot_image": {
                         "default": "",
-                        "default_value": "artifact.bytedance.com/fedlearner/fedlearner:608e2c3",
+                        "default_value": "artifact.bytedance.com/fedlearner/fedlearner:50a6945",
                         "help": "建议不修改，指定Pod中运行的容器镜像地址，修改此项可能导致本基本模版不适用",
                         "label": "容器镜像",
                         "reference": "workflow.variables.image",

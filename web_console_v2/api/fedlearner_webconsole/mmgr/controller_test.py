@@ -30,14 +30,14 @@ from fedlearner_webconsole.dataset.models import Dataset, DatasetJob, DatasetJob
     DatasetJobStage, DataBatch
 from fedlearner_webconsole.initial_db import _insert_or_update_templates
 from fedlearner_webconsole.mmgr.models import ModelJob, ModelJobGroup, ModelJobType, ModelJobRole, GroupCreateStatus, \
-    GroupAutoUpdateStatus
+    GroupAutoUpdateStatus, AuthStatus as ModelJobAuthStatus
 from fedlearner_webconsole.mmgr.controller import start_model_job, stop_model_job, ModelJobGroupController, \
     ModelJobController
 from fedlearner_webconsole.project.models import Project
 from fedlearner_webconsole.proto.algorithm_pb2 import AlgorithmPb
-from fedlearner_webconsole.proto.project_pb2 import ParticipantsInfo
+from fedlearner_webconsole.proto.project_pb2 import ParticipantsInfo, ParticipantInfo
 from fedlearner_webconsole.proto.setting_pb2 import SystemInfo
-from fedlearner_webconsole.proto.mmgr_pb2 import ModelJobGroupPb, AlgorithmProjectList
+from fedlearner_webconsole.proto.mmgr_pb2 import ModelJobGroupPb, AlgorithmProjectList, ModelJobPb
 from fedlearner_webconsole.proto.common_pb2 import Variable
 from fedlearner_webconsole.proto.workflow_definition_pb2 import WorkflowDefinition, JobDefinition
 from fedlearner_webconsole.workflow_template.utils import set_value
@@ -277,6 +277,10 @@ class ModelJobControllerTest(NoWebServerTestCase):
         with db.session_scope() as session:
             _insert_or_update_templates(session)
             project = Project(id=1, name='test-project')
+            participant1 = Participant(id=1, name='part1', domain_name='fl-demo1.com')
+            participant2 = Participant(id=2, name='part2', domain_name='fl-demo2.com')
+            pro_part1 = ProjectParticipant(id=1, project_id=1, participant_id=1)
+            pro_part2 = ProjectParticipant(id=2, project_id=1, participant_id=2)
             dataset_job = DatasetJob(id=1,
                                      name='datasetjob',
                                      uuid='uuid',
@@ -299,8 +303,23 @@ class ModelJobControllerTest(NoWebServerTestCase):
                                   algorithm_id=2,
                                   role=ModelJobRole.COORDINATOR,
                                   dataset_id=3)
+            model_job = ModelJob(id=1,
+                                 name='model_job',
+                                 uuid='uuid',
+                                 project_id=1,
+                                 auth_status=ModelJobAuthStatus.AUTHORIZED)
+            participants_info = ParticipantsInfo(
+                participants_map={
+                    'test': ParticipantInfo(auth_status=AuthStatus.AUTHORIZED.name),
+                    'demo1': ParticipantInfo(auth_status=AuthStatus.PENDING.name),
+                    'demo2': ParticipantInfo(auth_status=AuthStatus.PENDING.name)
+                })
+            model_job.set_participants_info(participants_info)
             group.set_config(get_workflow_config(ModelJobType.TRAINING))
-            session.add_all([dataset_job, dataset, project, group, algorithm])
+            session.add_all([
+                dataset_job, dataset, project, group, algorithm, participant1, participant2, pro_part1, pro_part2,
+                model_job
+            ])
             session.commit()
 
     @patch('fedlearner_webconsole.two_pc.transaction_manager.TransactionManager._remote_do_two_pc')
@@ -309,7 +328,7 @@ class ModelJobControllerTest(NoWebServerTestCase):
             group = session.query(ModelJobGroup).filter_by(uuid='uuid').first()
         mock_remote_do_two_pc.return_value = True, ''
         with db.session_scope() as session:
-            ModelJobController(session).launch_model_job(project_id=1, group_id=1)
+            ModelJobController(session=session, project_id=1).launch_model_job(group_id=1)
             group: ModelJobGroup = session.query(ModelJobGroup).filter_by(name='group').first()
             model_job = group.model_jobs[0]
             self.assertEqual(model_job.group_id, group.id)
@@ -320,6 +339,58 @@ class ModelJobControllerTest(NoWebServerTestCase):
             self.assertTrue(model_job.model_job_type, ModelJobType.TRAINING)
             self.assertTrue(model_job.dataset_id, group.dataset_id)
             self.assertTrue(model_job.workflow.get_config(), group.get_config())
+
+    @patch('fedlearner_webconsole.rpc.v2.job_service_client.JobServiceClient.inform_model_job')
+    def test_inform_auth_status_to_participants(self, mock_inform_model_job: MagicMock):
+        mock_inform_model_job.return_value = Empty()
+        with db.session_scope() as session:
+            model_job = session.query(ModelJob).get(1)
+            ModelJobController(session, 1).inform_auth_status_to_participants(model_job)
+            self.assertEqual(mock_inform_model_job.call_args_list, [(('uuid', ModelJobAuthStatus.AUTHORIZED),),
+                                                                    (('uuid', ModelJobAuthStatus.AUTHORIZED),)])
+        # fail due to grpc abort
+        mock_inform_model_job.reset_mock()
+        mock_inform_model_job.side_effect = FakeRpcError(grpc.StatusCode.NOT_FOUND, 'model job uuid is not found')
+        with db.session_scope() as session:
+            model_job = session.query(ModelJob).get(1)
+            ModelJobController(session, 1).inform_auth_status_to_participants(model_job)
+            self.assertEqual(mock_inform_model_job.call_args_list, [(('uuid', ModelJobAuthStatus.AUTHORIZED),),
+                                                                    (('uuid', ModelJobAuthStatus.AUTHORIZED),)])
+
+    @patch('fedlearner_webconsole.rpc.v2.job_service_client.JobServiceClient.get_model_job')
+    def test_get_participants_auth_status(self, mock_get_model_job: MagicMock):
+        mock_get_model_job.side_effect = [
+            ModelJobPb(auth_status=AuthStatus.AUTHORIZED.name),
+            ModelJobPb(auth_status=AuthStatus.AUTHORIZED.name)
+        ]
+        with db.session_scope() as session:
+            model_job = session.query(ModelJob).get(1)
+            ModelJobController(session, 1).update_participants_auth_status(model_job)
+            session.commit()
+        with db.session_scope() as session:
+            model_job = session.query(ModelJob).get(1)
+            participants_info = ParticipantsInfo(
+                participants_map={
+                    'test': ParticipantInfo(auth_status=AuthStatus.AUTHORIZED.name),
+                    'demo1': ParticipantInfo(auth_status=AuthStatus.AUTHORIZED.name),
+                    'demo2': ParticipantInfo(auth_status=AuthStatus.AUTHORIZED.name)
+                })
+            self.assertEqual(model_job.get_participants_info(), participants_info)
+        # fail due to grpc abort
+        mock_get_model_job.side_effect = FakeRpcError(grpc.StatusCode.NOT_FOUND, 'model job uuid is not found')
+        with db.session_scope() as session:
+            model_job = session.query(ModelJob).get(1)
+            ModelJobController(session, 1).update_participants_auth_status(model_job)
+            session.commit()
+        with db.session_scope() as session:
+            model_job = session.query(ModelJob).get(1)
+            participants_info = ParticipantsInfo(
+                participants_map={
+                    'test': ParticipantInfo(auth_status=AuthStatus.AUTHORIZED.name),
+                    'demo1': ParticipantInfo(auth_status=AuthStatus.AUTHORIZED.name),
+                    'demo2': ParticipantInfo(auth_status=AuthStatus.AUTHORIZED.name)
+                })
+            self.assertEqual(model_job.get_participants_info(), participants_info)
 
 
 if __name__ == '__main__':

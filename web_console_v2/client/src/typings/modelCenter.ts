@@ -301,6 +301,7 @@ export type ModelJob = {
   global_config?: ModelJobGlobalConfig;
   auto_update?: boolean;
   data_batch_id?: ID;
+  auth_status?: string;
 };
 
 export type ModelUpdatePayload = {
@@ -429,6 +430,16 @@ export type ModelJobVariable = Omit<Variable, 'widget_schema'> & {
 };
 // TODO: 等后端定义
 export enum ModelGroupStatus {
+  TICKET_PENDING = 'TICKET_PENDING',
+  TICKET_DECLINE = 'TICKET_DECLINE',
+  CREATE_PENDING = 'CREATE_PENDING',
+  CREATE_FAILED = 'CREATE_FAILED',
+  SELF_AUTH_PENDING = 'SELF_AUTH_PENDING',
+  PART_AUTH_PENDING = 'PART_AUTH_PENDING',
+  ALL_AUTHORIZED = 'ALL_AUTHORIZED',
+}
+
+export enum ModelJobAuthStatus {
   TICKET_PENDING = 'TICKET_PENDING',
   TICKET_DECLINE = 'TICKET_DECLINE',
   CREATE_PENDING = 'CREATE_PENDING',
