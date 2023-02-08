@@ -18,6 +18,7 @@ import shutil
 import unittest
 import tempfile
 from concurrent.futures import ThreadPoolExecutor
+import importlib.util as imutil
 
 from pp_lite.data_join import envs
 from pp_lite.proto.arguments_pb2 import Arguments
@@ -25,7 +26,15 @@ from pp_lite.proto.common_pb2 import DataJoinType
 from pp_lite.data_join.psi_ot.client import run as client_run
 from pp_lite.data_join.psi_ot.server import run as server_run
 from pp_lite.testing.make_data import make_data
-from pp_lite.data_join.psi_ot.joiner.ot_psi_joiner import CMD
+
+
+def check_psi_oprf():
+    spec = imutil.find_spec('psi_oprf')
+    if spec is None:
+        psi_oprf_existed = False
+    else:
+        psi_oprf_existed = True
+    return psi_oprf_existed
 
 
 class IntegratedTest(unittest.TestCase):
@@ -80,7 +89,7 @@ class IntegratedTest(unittest.TestCase):
     def test_run_hashed_data_join(self):
         self._run(DataJoinType.HASHED_DATA_JOIN)
 
-    @unittest.skipUnless(os.path.exists(CMD), 'require ot psi file')
+    @unittest.skipUnless(check_psi_oprf(), 'require ot psi file')
     def test_ot_psi(self):
         self._run(DataJoinType.OT_PSI)
 

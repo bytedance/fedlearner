@@ -16,15 +16,12 @@
 import fsspec
 import logging
 import datetime
-import subprocess
 from enum import Enum
 from typing import List
 
 from pp_lite.data_join import envs
 from pp_lite.proto.common_pb2 import DataJoinType
 from pp_lite.data_join.psi_ot.joiner.joiner_interface import Joiner
-
-CMD = '/app/psi_oprf/bin/PSI_test'
 
 
 def _write_ids(filename: str, ids: List[str]):
@@ -59,10 +56,14 @@ class OtPsiJoiner(Joiner):
         input_path = f'{envs.STORAGE_ROOT}/data/{role.name}-input-{timestamp}'
         output_path = f'{envs.STORAGE_ROOT}/data/{role.name}-output-{timestamp}'
         _write_ids(input_path, ids)
-        cmd = f'{CMD} -r {role.value} -file {input_path} -ofile {output_path} -ip localhost:{self.joiner_port}'.split()
-        logging.info(f'[OtPsiJoiner] run cmd: {cmd}')
+        # cmd = f'{CMD} -r {role.value} -file {input_path} -ofile {output_path}  && \
+        # -ip localhost:{self.joiner_port}'.split()
+        # logging.info(f'[OtPsiJoiner] run cmd: {cmd}')
         try:
-            subprocess.run(cmd, check=True)
+            import psi_oprf  # pylint: disable=import-outside-toplevel
+            psi_oprf.PsiRun(role.value, input_path, output_path, f'localhost:{self.joiner_port}')
+            logging.info('[ot_psi_joiner] PsiRun finished.')
+            # subprocess.run(cmd, check=True)
             joined_ids = _read_ids(output_path)
         except Exception as e:  # pylint: disable=broad-except
             logging.exception('[OtPsiJoiner] error happened during ot psi!')

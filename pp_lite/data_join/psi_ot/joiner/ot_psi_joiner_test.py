@@ -13,14 +13,15 @@
 # limitations under the License.
 #
 
-import os
 import unittest
 from typing import List
 from unittest.mock import patch
 from tempfile import TemporaryDirectory
 from concurrent.futures import ThreadPoolExecutor
+import importlib.util as imutil
+
 from pp_lite.data_join import envs
-from pp_lite.data_join.psi_ot.joiner.ot_psi_joiner import OtPsiJoiner, CMD
+from pp_lite.data_join.psi_ot.joiner.ot_psi_joiner import OtPsiJoiner
 
 
 def _write_fake_output(filename: str, ids: List[str]):
@@ -28,10 +29,19 @@ def _write_fake_output(filename: str, ids: List[str]):
         f.write('\n'.join(ids))
 
 
+def check_psi_oprf():
+    spec = imutil.find_spec('psi_oprf')
+    if spec is None:
+        psi_oprf_existed = False
+    else:
+        psi_oprf_existed = True
+    return psi_oprf_existed
+
+
+@unittest.skipUnless(check_psi_oprf(), 'require ot psi file')
 class OtPsiJoinerTest(unittest.TestCase):
 
     @patch('pp_lite.data_join.psi_ot.joiner.ot_psi_joiner._timestamp')
-    @patch('subprocess.run')
     def test_client_run(self, mock_run, mock_timestamp):
         joiner = OtPsiJoiner(joiner_port=12345)
         timestamp = '20220310-185545'
@@ -47,13 +57,10 @@ class OtPsiJoinerTest(unittest.TestCase):
 
             mock_run.side_effect = _side_effect
             ids = joiner.client_run(['1', '2', '3'])
-            mock_run.assert_called_with(
-                f'/app/psi_oprf/bin/PSI_test -r 0 -file {input_path} -ofile {output_path} -ip localhost:12345'.split(),
-                check=True)
+            mock_run.assert_called_with(0, input_path, output_path, f'localhost:{self.joiner_port}')
             self.assertEqual(ids, inter_ids)
 
     @patch('pp_lite.data_join.psi_ot.joiner.ot_psi_joiner._timestamp')
-    @patch('subprocess.run')
     def test_server_run(self, mock_run, mock_timestamp):
         joiner = OtPsiJoiner(joiner_port=12345)
         timestamp = '20220310-185545'
@@ -69,13 +76,11 @@ class OtPsiJoinerTest(unittest.TestCase):
 
             mock_run.side_effect = _side_effect
             ids = joiner.server_run(['1', '2', '3'])
-            mock_run.assert_called_with(
-                f'/app/psi_oprf/bin/PSI_test -r 1 -file {input_path} -ofile {output_path} -ip localhost:12345'.split(),
-                check=True)
+            mock_run.assert_called_with(1, input_path, output_path, f'localhost:{self.joiner_port}')
             self.assertEqual(ids, inter_ids)
 
 
-@unittest.skipUnless(os.path.exists(CMD), 'require ot psi file')
+@unittest.skipUnless(check_psi_oprf(), 'require ot psi file')
 class OtPsiJoinerInContainerTest(unittest.TestCase):
 
     def test_joiner(self):
