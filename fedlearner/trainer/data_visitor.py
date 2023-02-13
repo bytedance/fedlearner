@@ -344,10 +344,13 @@ class DataPathVisitor(_DataVisitor):
 
         datablocks = []
         for dirname, _, filenames in tf.io.gfile.walk(data_path):
+            base_path = data_path
+            if os.path.basename(data_path) != 'batch':
+                base_path = os.path.dirname(data_path)
             for filename in filenames:
                 if not fnmatch(os.path.join(dirname, filename), wildcard):
                     continue
-                subdirname = os.path.relpath(dirname, data_path)
+                subdirname = os.path.relpath(dirname, base_path)
                 block_id = os.path.join(subdirname, filename)
                 datablock = _RawDataBlock(
                     id=block_id, data_path=os.path.join(dirname, filename),
@@ -359,11 +362,14 @@ class DataPathVisitor(_DataVisitor):
                         local_data_path)
         local_datablocks = []
         if local_data_path and tf.io.gfile.exists(local_data_path):
+            local_base_path = local_data_path
+            if os.path.basename(local_data_path) != 'batch':
+                local_base_path = os.path.dirname(local_data_path)
             for dirname, _, filenames in tf.io.gfile.walk(local_data_path):
                 for filename in filenames:
                     if not fnmatch(os.path.join(dirname, filename), wildcard):
                         continue
-                    subdirname = os.path.relpath(dirname, local_data_path)
+                    subdirname = os.path.relpath(dirname, local_base_path)
                     block_id = os.path.join(subdirname, filename)
                     datablock = _RawDataBlock(
                         id=block_id, data_path=os.path.join(dirname, filename),
