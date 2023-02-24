@@ -106,7 +106,7 @@
     "react": "16.13.1",
     "react-dom": "16.13.1",
     "react-toastify": "6.0.9",
-    "sequelize": "5.21.12",
+    "sequelize": "6.29.0",
     "sockjs-client": "1.5.0",
     "styled-jsx": "3.3.0",
     "swr": "0.2.3",
