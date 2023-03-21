@@ -15,7 +15,7 @@ const get = (config: AxiosRequestConfig) => {
         username: 'admin',
         participant_id: null,
         path:
-          'hdfs:///home/byte_aml_tob/fedlearner_v2/algorithms/hang-e2e-test-122323-v3-20220106_100837-2ddea',
+          'hdfs:///trimmed',
         parameter: {
           variables: [
             {

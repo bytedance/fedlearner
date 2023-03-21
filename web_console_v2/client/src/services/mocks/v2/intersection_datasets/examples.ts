@@ -12,7 +12,7 @@ export const readyToRun: IntersectionDataset = {
   kind: 0,
   name: '求交数据集 2021-05-20-17:31:54',
   path:
-    'hdfs:///home/byte_aml_tob/experiments/fedlearner/data_source/u9d9fd94b01324f5ba90-data-join-job',
+    'hdfs:///trimmed',
   peer_name: 'aliyun-test1',
   project_id: 14,
   status: 'READY_TO_RUN',
@@ -27,7 +27,7 @@ export const invalid: IntersectionDataset = {
   workflow_id: 121734,
   name: '求交数据集 2021-08-11-21:27:44',
   path:
-    'hdfs:///home/byte_aml_tob/experiments/fedlearner/data_source/u9d9fd94b01324f5ba90-data-join-job',
+    'hdfs:///trimmed',
   comment: '',
   kind: 0,
   created_at: 1628688464,
@@ -47,7 +47,7 @@ export const running: IntersectionDataset = {
   workflow_id: 153713,
   name: '求交数据集 2021-09-02-15:47:02',
   path:
-    'hdfs:///home/byte_aml_tob/experiments/fedlearner/data_source/u7e0239d6f0f94271a33-data-join-job',
+    'hdfs:///trimmed',
   comment: '',
   kind: 0,
   created_at: 1630568822,
@@ -72,7 +72,7 @@ export const completed: IntersectionDataset = {
   kind: 0,
   name: '求交数据集 2021-09-09-14:14:57',
   path:
-    'hdfs:///home/byte_aml_tob/experiments/fedlearner/data_source/ue24311305a4a4b6397d-psi-data-join-job',
+    'hdfs:///trimmed',
   peer_name: 'aliyun-test1',
   project_id: 14,
   status: 'COMPLETED',
@@ -87,7 +87,7 @@ export const stopped: IntersectionDataset = {
   workflow_id: 88949,
   name: '求交数据集 2021-07-19-21:06:12',
   path:
-    'hdfs:///home/byte_aml_tob/experiments/fedlearner/data_source/ua01bceb669ee42a3b6b-data-join-job',
+    'hdfs:///trimmed',
   comment: '',
   kind: 0,
   created_at: 1626699972,
@@ -107,7 +107,7 @@ export const failed: IntersectionDataset = {
   workflow_id: 68479,
   name: '求交数据集 2021-07-01-12:37:00',
   path:
-    'hdfs:///home/byte_aml_tob/experiments/fedlearner/data_source/ua01bceb669ee42a3b6b-data-join-job',
+    'hdfs:///trimmed',
   comment: '',
   kind: 0,
   created_at: 1625114220,

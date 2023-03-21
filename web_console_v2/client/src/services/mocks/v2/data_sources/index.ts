@@ -20,7 +20,7 @@ const list: DataSource[] = [
     name: 'mock数据源2',
     created_at: 1609582145,
     url:
-      'hdfs://home/byte_aml_tob/fedlearner_v2/dataset/20220218_141000_e2e-test-dataset-20220218-060927',
+      'hdfs:///trimmed',
     project_id: 1,
     dataset_format: 'TABULAR',
     dataset_type: 'STREAMING',

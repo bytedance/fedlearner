@@ -7,7 +7,7 @@ const modelList: Model[] = [
     uuid: 'u3a0507d64bc442a2b66',
     model_type: 'NN_MODEL',
     model_path:
-      'hdfs:///home/byte_aml_tob/experiments/fedlearner/model_output/u3a0507d64bc442a2b66',
+      'hdfs:///trimmed',
     favorite: false,
     comment: 'created_by ucce42a49cbff4c4e930-nn-train at 2021-09-27 12:44:32.419496+00:00',
     group_id: null,
@@ -30,7 +30,7 @@ const modelList: Model[] = [
     uuid: 'u195c5a39d1e44804a1a',
     model_type: 'NN_MODEL',
     model_path:
-      'hdfs:///home/byte_aml_tob/experiments/fedlearner/model_output/u195c5a39d1e44804a1a',
+      'hdfs:///trimmed',
     favorite: false,
     comment: 'created_by ucce42a49cbff4c4e930-nn-train at 2021-09-27 12:44:37.030088+00:00',
     group_id: null,
@@ -53,7 +53,7 @@ const modelList: Model[] = [
     uuid: 'u70ca285687eb4d2fbb0',
     model_type: 'NN_MODEL',
     model_path:
-      'hdfs:///home/byte_aml_tob/experiments/fedlearner/model_output/u70ca285687eb4d2fbb0',
+      'hdfs:///trimmed',
     favorite: false,
     comment: 'created_by ud8b9cb500fc3435cb66-nn-train at 2021-10-09 07:08:48.729397+00:00',
     group_id: 1,
@@ -76,7 +76,7 @@ const modelList: Model[] = [
     uuid: 'u4b6e82b75e644c90907',
     model_type: 'NN_MODEL',
     model_path:
-      'hdfs:///home/byte_aml_tob/experiments/fedlearner/model_output/u4b6e82b75e644c90907',
+      'hdfs:///trimmed',
     favorite: false,
     comment: 'created_by ud8b9cb500fc3435cb66-nn-train at 2021-10-09 07:08:56.799515+00:00',
     group_id: 2,

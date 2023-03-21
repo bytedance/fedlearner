@@ -30,7 +30,7 @@ export const post = {
         {
           display_file_name: 'mock-file.tar.gz',
           internal_path:
-            'hdfs:///home/byte_aml_tob/fedlearner_v2/upload/20211015_041720010240/mock-file.tar.gz',
+            'hdfs:///trimmed',
         },
       ],
     },

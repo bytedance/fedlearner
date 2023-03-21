@@ -682,7 +682,7 @@ it('getDataSource', () => {
   expect(getDataSource('/data_source/abc')).toBe('abc');
   expect(
     getDataSource(
-      'hdfs:///home/byte_aml_tob/experiments/fedlearner/data_source/u0bae4aa7dcde477e8ee-psi-data-join-job',
+      'hdfs:///trimmed',
     ),
   ).toBe('u0bae4aa7dcde477e8ee-psi-data-join-job');
 });
