@@ -1,6 +1,7 @@
 import os
 import tensorflow as tf
 from fedlearner.common import metrics
+from fedlearner.common.metric_collector import metric_collector
 from fedlearner.fedavg.master import LeaderMaster, FollowerMaster
 from fedlearner.fedavg.cluster.cluster_spec import FLClusterSpec
 from fedlearner.fedavg._global_context import global_context as _gtx
@@ -48,6 +49,13 @@ class MasterControlKerasCallback(tf.keras.callbacks.Callback):
             stats_pipe.gauge("trainer.metric_value",
                              value, tags={"metric": key})
             metrics.emit_store(name=key, value=value)
+
+            name_prefix = 'model.train.nn_horizontal'
+            metric_collector.emit_store(
+                f'{name_prefix}.{key}', value)
+            # for compatibility, also emit one with metric name in tags
+            metric_collector.emit_store(f'{name_prefix}.metric_value',
+                                        value, tags={'metric': key})
         stats_pipe.send()
 
 

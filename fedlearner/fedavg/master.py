@@ -260,7 +260,7 @@ class LeaderMaster(_Master):
                         break
 
                     logging.info(
-                        "wait followers push, pushed follwoers: %s,"
+                        "wait followers push, pushed followers: %s,"
                         " unpushed followers: %s,"
                         " train_end followers: %s", pushed, unpush, train_end)
                     self._cv.wait(1)
@@ -372,7 +372,7 @@ class LeaderMaster(_Master):
     def _grpc_push_handler(self, request):
         follower = self._follower_mapping.get(request.name)
         if not follower:
-            return PullResponse(
+            return PushResponse(
                 Status(code=Status.Code.ERROR,
                        message="invaild follower: {}".format(request.name)))
 
