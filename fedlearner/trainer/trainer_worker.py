@@ -428,7 +428,9 @@ def _create_data_visitor(args):
                                   args.local_data_path,
                                   wildcard=args.data_path_wildcard,
                                   epoch_num=args.epoch_num,
-                                  shuffle_type=shuffle_type)
+                                  shuffle_type=shuffle_type,
+                                  start_date=start_date,
+                                  end_date=end_date)
     if not visitor:
         raise ValueError("cannot found any data to train, "
                          "please specify [--data-source] or "
