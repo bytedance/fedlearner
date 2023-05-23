@@ -29,7 +29,9 @@ from typing import Optional
 import tensorflow.compat.v1 as tf
 from fedlearner.common import fl_logging
 from fedlearner.common import trainer_master_service_pb2 as tm_pb
+from fedlearner.common.common import convert_time_string_to_datetime
 from fedlearner.data_join.data_block_visitor import DataBlockVisitor
+from fedlearner.trainer.utils import match_date
 
 
 kvstore_type = os.environ.get('KVSTORE_TYPE', 'etcd')
@@ -337,17 +339,29 @@ class DataPathVisitor(_DataVisitor):
                  local_data_path: str,
                  wildcard: str,
                  epoch_num: int = 1,
-                 shuffle_type=None):
+                 shuffle_type=None,
+                 start_date=None,
+                 end_date=None):
         fl_logging.info("create DataVisitor by data_path: %s", data_path)
         if not tf.io.gfile.exists(data_path):
             raise ValueError("data_path not found: %s"%data_path)
 
+        if start_date:
+            start_date = convert_time_string_to_datetime(str(start_date))
+        if end_date:
+            end_date = convert_time_string_to_datetime(str(end_date))
         datablocks = []
         for dirname, _, filenames in tf.io.gfile.walk(data_path):
             for filename in filenames:
                 if not fnmatch(os.path.join(dirname, filename), wildcard):
                     continue
                 subdirname = os.path.relpath(dirname, data_path)
+                try:
+                    cur_date = datetime.strptime(subdirname, '%Y%m%d')
+                    if not match_date(cur_date, start_date, end_date):
+                        continue
+                except Exception:
+                    fl_logging.info('subdirname is not the format of time')
                 block_id = os.path.join(subdirname, filename)
                 datablock = _RawDataBlock(
                     id=block_id, data_path=os.path.join(dirname, filename),
