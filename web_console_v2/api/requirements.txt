@@ -17,7 +17,7 @@ kubernetes==12.0.1
 elasticsearch==7.11.0
 flatten-dict==0.3.0
 pymysql==1.0.2
-setuptools==41.0.0
+setuptools==65.5.1
 tensorflow==1.15.2
 pyopenssl==20.0.1
 mpld3==0.5.2
