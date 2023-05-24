@@ -130,7 +130,7 @@
     "husky": "4.3.0",
     "lint-staged": "10.4.2",
     "mocha": "6.2.3",
-    "nodemon": "2.0.6",
+    "nodemon": "2.0.20",
     "nyc": "15.1.0",
     "sequelize-cli": "6.2.0",
     "standard-version": "9.0.0",
