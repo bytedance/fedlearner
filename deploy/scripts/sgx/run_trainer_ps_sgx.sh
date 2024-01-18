@@ -15,9 +15,15 @@
 # limitations under the License.
 
 set -ex
-
+source ~/.env
 export CUDA_VISIBLE_DEVICES=
 source /app/deploy/scripts/hdfs_common.sh || true
+source /app/deploy/scripts/pre_start_hook.sh || true
+
+LISTEN_PORT=50052
+if [[ -n "${PORT1}" ]]; then
+  LISTEN_PORT=${PORT1}
+fi
 
 source /app/deploy/scripts/sgx/enclave_env.sh
 cp /app/sgx/gramine/CI-Examples/tensorflow_io.py ./
@@ -25,5 +31,6 @@ cp /app/sgx/token/* ./
 unset HTTPS_PROXY https_proxy http_proxy ftp_proxy
 
 make_custom_env 4
+source /root/start_aesm_service.sh
 
-taskset -c 0-3 stdbuf -o0 gramine-sgx python -m fedlearner.trainer.parameter_server $POD_IP:50051 
+taskset -c 0-3 stdbuf -o0 gramine-sgx python -m fedlearner.trainer.parameter_server $POD_IP:${LISTEN_PORT}
