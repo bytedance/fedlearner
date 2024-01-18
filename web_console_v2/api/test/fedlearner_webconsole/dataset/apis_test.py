@@ -13,9 +13,8 @@
 # limitations under the License.
 
 # coding: utf-8
-import stat
-import time
 import json
+import time
 import os
 import shutil
 import tempfile
@@ -26,37 +25,42 @@ from pathlib import Path
 from unittest import mock
 from unittest.mock import patch, MagicMock
 
+from collections import namedtuple
 from testing.common import BaseTestCase
-from fedlearner_webconsole.db import db
-from fedlearner_webconsole.dataset.models import (Dataset, DatasetType,
-                                                  DataBatch)
+from fedlearner_webconsole.db import db_handler as db
+from fedlearner_webconsole.dataset.models import (Dataset, DatasetType)
+from tensorflow.io import gfile
+
+FakeFileStatistics = namedtuple('FakeFileStatistics', ['length', 'mtime_nsec'])
 
 
 class DatasetApiTest(BaseTestCase):
     class Config(BaseTestCase.Config):
-        STORAGE_ROOT = '/tmp'
+        STORAGE_ROOT = tempfile.gettempdir()
 
     def setUp(self):
         super().setUp()
-        self.default_dataset1 = Dataset(
-            name='default dataset1',
-            dataset_type=DatasetType.STREAMING,
-            comment='test comment1',
-            path='/data/dataset/123',
-            project_id=1,
-        )
-        db.session.add(self.default_dataset1)
-        db.session.commit()
+        with db.session_scope() as session:
+            self.default_dataset1 = Dataset(
+                name='default dataset1',
+                dataset_type=DatasetType.STREAMING,
+                comment='test comment1',
+                path='/data/dataset/123',
+                project_id=1,
+            )
+            session.add(self.default_dataset1)
+            session.commit()
         time.sleep(1)
-        self.default_dataset2 = Dataset(
-            name='default dataset2',
-            dataset_type=DatasetType.STREAMING,
-            comment='test comment2',
-            path='123',
-            project_id=2,
-        )
-        db.session.add(self.default_dataset2)
-        db.session.commit()
+        with db.session_scope() as session:
+            self.default_dataset2 = Dataset(
+                name='default dataset2',
+                dataset_type=DatasetType.STREAMING,
+                comment='test comment2',
+                path=os.path.join(tempfile.gettempdir(), 'dataset/123'),
+                project_id=2,
+            )
+            session.add(self.default_dataset2)
+            session.commit()
 
     def test_get_dataset(self):
         get_response = self.get_helper(
@@ -89,6 +93,74 @@ class DatasetApiTest(BaseTestCase):
         self.assertEqual(datasets[0]['name'], 'default dataset2')
         self.assertEqual(datasets[1]['name'], 'default dataset1')
 
+    def test_get_datasets_with_project_id(self):
+        get_response = self.get_helper('/api/v2/datasets?project=1')
+        self.assertEqual(get_response.status_code, HTTPStatus.OK)
+        datasets = self.get_response_data(get_response)
+        self.assertEqual(len(datasets), 1)
+        self.assertEqual(datasets[0]['name'], 'default dataset1')
+
+    def test_preview_dataset_and_feature_metrics(self):
+        # write data
+        gfile.makedirs(self.default_dataset2.path)
+        meta_path = os.path.join(self.default_dataset2.path, '_META')
+        meta_data = {
+            'dtypes': {
+                'f01': 'bigint'
+            },
+            'samples': [
+                [1],
+                [0],
+            ],
+        }
+        with gfile.GFile(meta_path, 'w') as f:
+            f.write(json.dumps(meta_data))
+
+        features_path = os.path.join(self.default_dataset2.path, '_FEATURES')
+        features_data = {
+            'f01': {
+                'count': '2',
+                'mean': '0.0015716767309123998',
+                'stddev': '0.03961485047808605',
+                'min': '0',
+                'max': '1',
+                'missing_count': '0'
+            }
+        }
+        with gfile.GFile(features_path, 'w') as f:
+            f.write(json.dumps(features_data))
+
+        hist_path = os.path.join(self.default_dataset2.path, '_HIST')
+        hist_data = {
+            "f01": {
+                "x": [
+                    0.0, 0.1, 0.2, 0.30000000000000004, 0.4, 0.5,
+                    0.6000000000000001, 0.7000000000000001, 0.8, 0.9, 1
+                ],
+                "y": [12070, 0, 0, 0, 0, 0, 0, 0, 0, 19]
+            }
+        }
+        with gfile.GFile(hist_path, 'w') as f:
+            f.write(json.dumps(hist_data))
+
+        response = self.client.get('/api/v2/datasets/2/preview')
+        self.assertEqual(response.status_code, 200)
+        preview_data = self.get_response_data(response)
+        meta_data['metrics'] = features_data
+        self.assertEqual(preview_data, meta_data, 'should has preview data')
+
+        feat_name = 'f01'
+        feature_response = self.client.get(
+            f'/api/v2/datasets/2/feature_metrics?name={feat_name}')
+        self.assertEqual(response.status_code, 200)
+        feature_data = self.get_response_data(feature_response)
+        self.assertEqual(
+            feature_data, {
+                'name': feat_name,
+                'metrics': features_data.get(feat_name, {}),
+                'hist': hist_data.get(feat_name, {})
+            }, 'should has feature data')
+
     @patch('fedlearner_webconsole.dataset.apis.datetime')
     def test_post_datasets(self, mock_datetime):
         mock_datetime.now = MagicMock(
@@ -106,13 +178,15 @@ class DatasetApiTest(BaseTestCase):
         self.assertEqual(create_response.status_code, HTTPStatus.OK)
         created_dataset = self.get_response_data(create_response)
 
+        dataset_path = os.path.join(
+            tempfile.gettempdir(), 'dataset/20200608_060606_test-post-dataset')
         self.assertEqual(
             {
                 'id': 3,
                 'name': 'test post dataset',
                 'dataset_type': dataset_type,
                 'comment': comment,
-                'path': '/tmp/dataset/20200608_060606_test-post-dataset',
+                'path': dataset_path,
                 'created_at': mock.ANY,
                 'updated_at': mock.ANY,
                 'deleted_at': None,
@@ -130,7 +204,7 @@ class DatasetApiTest(BaseTestCase):
                 'name': 'test post dataset',
                 'dataset_type': dataset_type,
                 'comment': updated_comment,
-                'path': '/tmp/dataset/20200608_060606_test-post-dataset',
+                'path': dataset_path,
                 'created_at': mock.ANY,
                 'updated_at': mock.ANY,
                 'deleted_at': None,
@@ -216,7 +290,7 @@ class FilesApiTest(BaseTestCase):
         def fake_stat(path, *arg, **kwargs):
             return self._get_file_stat(self._orig_os_stat, path)
 
-        os.stat = fake_stat
+        gfile.stat = fake_stat
 
     def tearDown(self):
         os.stat = self._orig_os_stat
@@ -229,11 +303,9 @@ class FilesApiTest(BaseTestCase):
 
     def _get_file_stat(self, orig_os_stat, path):
         if path == self._get_temp_path('f1.txt') or \
-            path == self._get_temp_path('f2.txt') or \
-            path == self._get_temp_path('s/s3.txt'):
-            faked = list(orig_os_stat(path))
-            faked[stat.ST_MTIME] = 1613982390
-            return os.stat_result(faked)
+                path == self._get_temp_path('f2.txt') or \
+                path == self._get_temp_path('s/s3.txt'):
+            return FakeFileStatistics(2, 1613982390 * 1e9)
         else:
             return orig_os_stat(path)
 
@@ -241,7 +313,7 @@ class FilesApiTest(BaseTestCase):
         get_response = self.get_helper('/api/v2/files')
         self.assertEqual(get_response.status_code, HTTPStatus.OK)
         files = self.get_response_data(get_response)
-        self.assertEqual(sorted(files, key=lambda f: f['size']), [
+        self.assertEqual(sorted(files, key=lambda f: f['path']), [
             {
                 'path': self._get_temp_path('f1.txt'),
                 'size': 2,
@@ -249,12 +321,12 @@ class FilesApiTest(BaseTestCase):
             },
             {
                 'path': self._get_temp_path('f2.txt'),
-                'size': 4,
+                'size': 2,
                 'mtime': 1613982390
             },
             {
                 'path': self._get_temp_path('s/s3.txt'),
-                'size': 6,
+                'size': 2,
                 'mtime': 1613982390
             },
         ])
@@ -267,7 +339,7 @@ class FilesApiTest(BaseTestCase):
         self.assertEqual(files, [
             {
                 'path': self._get_temp_path('s/s3.txt'),
-                'size': 6,
+                'size': 2,
                 'mtime': 1613982390
             },
         ])

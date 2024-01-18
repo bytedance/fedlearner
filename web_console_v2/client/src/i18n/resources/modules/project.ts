@@ -80,7 +80,8 @@ const project = {
   msg_no_var_yet: { zh: '当前没有环境变量参数，请添加' },
   msg_token_required: { zh: '联邦密码为必填项' },
   msg_token_invalid: { zh: '只允许英文、数字的组合' },
-
+  placeholder_global_project_filter: { zh: '选择特定项目筛选资源' },
+  placeholder_no_project: { zh: '暂无项目' },
   placeholder_domain_name: { zh: '泛域名间值' },
   placeholder_token: { zh: '请输入联邦密码' },
   placeholder_participant_url: {

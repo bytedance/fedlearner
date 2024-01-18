@@ -18,9 +18,13 @@ pull_code() {
   elif [[ $1 == "http://"* || $1 == "https://"* ]]; then
       wget $1 -O pulled_file
   elif [[ $1 == "oss://"* ]]; then
-      python -c "import tensorflow.compat.v1 as tf; import tensorflow_io; open('pulled_file', 'wb').write(tf.io.gfile.GFile('$1', 'rb').read())"
+      python -c "import tensorflow as tf; import tensorflow_io; open('pulled_file', 'wb').write(tf.io.gfile.GFile('$1', 'rb').read())"
   elif [[ $1 == "base64://"* ]]; then
       python -c "import base64; f = open('pulled_file', 'wb'); f.write(base64.b64decode('$1'[9:])); f.close()"
+  elif [[ $1 == "file://"* ]]; then
+      path=$1
+      pure_path=${path#file://}
+      cp -r $pure_path pulled_file
   else
       cp -r $1 pulled_file
   fi

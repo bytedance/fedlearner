@@ -1,13 +1,14 @@
 import React, { FC, useState } from 'react';
 import styled from 'styled-components';
 import { Steps, Row, Card } from 'antd';
-import BreadcrumbLink from 'components/BreadcrumbLink';
 import StepOneBasic from './StepOneBasic';
 import SteptTwoConfig from './SteptTwoConfig';
-import { Route, useParams } from 'react-router-dom';
+import { Route, useHistory, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useUnmount } from 'react-use';
 import { useResetCreateForms } from 'hooks/workflow';
+import SharedPageLayout from 'components/SharedPageLayout';
+import BackButton from 'components/BackButton';
 
 const { Step } = Steps;
 
@@ -27,6 +28,7 @@ enum CreateSteps {
 
 const WorkflowsEdit: FC = () => {
   const { t } = useTranslation();
+  const history = useHistory();
   const params = useParams<{ step: keyof typeof CreateSteps; id?: string }>();
   const [currentStep, setStep] = useState(CreateSteps[params.step || 'basic']);
   const reset = useResetCreateForms();
@@ -36,14 +38,10 @@ const WorkflowsEdit: FC = () => {
   });
 
   return (
-    <>
-      <BreadcrumbLink
-        paths={[
-          { label: 'menu.label_workflow', to: '/workflows' },
-          { label: 'workflow.edit_workflow' },
-        ]}
-      />
-
+    <SharedPageLayout
+      title={<BackButton onClick={() => history.goBack()}>{t('menu.label_workflow')}</BackButton>}
+      contentWrapByCard={false}
+    >
       <Card>
         <Row justify="center">
           <StepContainer>
@@ -63,7 +61,7 @@ const WorkflowsEdit: FC = () => {
         />
         <Route path={`/workflows/edit/config/:id`} exact component={SteptTwoConfig} />
       </FormArea>
-    </>
+    </SharedPageLayout>
   );
 
   function setToConfigStep() {

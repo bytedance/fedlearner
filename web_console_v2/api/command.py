@@ -15,8 +15,11 @@
 # coding: utf-8
 from config import Config
 from fedlearner_webconsole.app import create_app
-from fedlearner_webconsole.db import db
+from fedlearner_webconsole.db import db_handler as db
 from fedlearner_webconsole.initial_db import initial_db
+from flask_migrate import Migrate
+
+from fedlearner_webconsole.utils.hooks import pre_start_hook
 
 
 class CliConfig(Config):
@@ -25,7 +28,10 @@ class CliConfig(Config):
     START_COMPOSER = False
 
 
+pre_start_hook()
+migrate = Migrate()
 app = create_app(CliConfig())
+migrate.init_app(app, db)
 
 
 @app.cli.command('create-initial-data')
@@ -36,4 +42,3 @@ def create_initial_data():
 @app.cli.command('create-db')
 def create_db():
     db.create_all()
-    db.session.commit()

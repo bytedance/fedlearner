@@ -29,6 +29,10 @@ const users = {
   placeholder_name: { zh: '请输入用户昵称' },
   placeholder_email: { zh: '请输入用户邮箱' },
 
+  placeholder_password_message: {
+    zh: '至少包含一个字母、一个数字、一个特殊字符，且长度在8到20之间',
+  },
+
   message_modify_success: { zh: '修改成功' },
   message_del_user: { zh: '确认删除该用户吗' },
 };

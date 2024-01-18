@@ -23,8 +23,9 @@ from os.path import dirname
 from fedlearner_webconsole.sparkapp.schema import SparkAppInfo
 
 from testing.common import BaseTestCase
+from envs import Envs
 
-BASE_DIR = os.path.abspath(os.path.join(dirname(__file__), '../../../'))
+BASE_DIR = Envs.BASE_DIR
 
 
 class SparkAppApiTest(BaseTestCase):

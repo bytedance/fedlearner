@@ -6,7 +6,7 @@ const get = () => {
   const modified = cloneDeep(withExecutionDetail);
 
   modified.jobs[1].state = JobState.COMPLETED;
-  modified.jobs[2].state = JobState.RUNNING;
+  modified.jobs[2].state = JobState.STARTED;
 
   return {
     data: {

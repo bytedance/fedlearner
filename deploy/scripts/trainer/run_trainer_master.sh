@@ -18,6 +18,7 @@ set -ex
 
 export CUDA_VISIBLE_DEVICES=
 source /app/deploy/scripts/hdfs_common.sh || true
+source /app/deploy/scripts/pre_start_hook.sh || true
 source /app/deploy/scripts/env_to_args.sh
 
 mode=$(normalize_env_to_args "--mode" "$MODE")
@@ -29,7 +30,14 @@ summary_save_secs=$(normalize_env_to_args "--summary-save-secs" "$SUMMARY_SAVE_S
 epoch_num=$(normalize_env_to_args "--epoch-num" $EPOCH_NUM)
 start_date=$(normalize_env_to_args "--start-date" $START_DATE)
 end_date=$(normalize_env_to_args "--end-date" $END_DATE)
+extra_params=$(normalize_env_to_args "--extra-params" "$EXTRA_PARAMS")
+export_model=$(normalize_env_to_args "--export-model" $EXPORT_MODEL)
 shuffle=$(normalize_env_to_args "--shuffle" $SUFFLE_DATA_BLOCK)
+shuffle_in_day=$(normalize_env_to_args "--shuffle-in-day" $SHUFFLE_IN_DAY)
+local_data_source=$(normalize_env_to_args "--local-data-source" $LOCAL_DATA_SOURCE)
+local_data_path=$(normalize_env_to_args "--local-data-path" $LOCAL_DATA_PATH)
+local_start_date=$(normalize_env_to_args "--local-start-date" $LOCAL_START_DATE)
+local_end_date=$(normalize_env_to_args "--local-end-date" $LOCAL_END_DATE)
 
 if [ -n "$CHECKPOINT_PATH" ]; then
     checkpoint_path="--checkpoint-path=$CHECKPOINT_PATH"
@@ -46,6 +54,7 @@ else
     export_path="--export-path=$OUTPUT_BASE_DIR/exported_models"
 fi
 
+
 if [ -n "$CLUSTER_SPEC" ]; then
   # rewrite tensorflow ClusterSpec for compatibility
   # master port 50051 is used for fedlearner master server, so rewrite to 50052
@@ -59,10 +68,16 @@ def rewrite_port(address, old, new):
   return address
 
 cluster_spec = json.loads('$CLUSTER_SPEC')['clusterSpec']
+for i, ps in enumerate(cluster_spec.get('PS', [])):
+  cluster_spec['PS'][i] = rewrite_port(ps, '50051', '50052')
 for i, master in enumerate(cluster_spec.get('Master', [])):
   cluster_spec['Master'][i] = rewrite_port(master, '50051', '50052')
 for i, worker in enumerate(cluster_spec.get('Worker', [])):
   cluster_spec['Worker'][i] = rewrite_port(worker, '50051', '50052')
+if 'LocalWorker' in cluster_spec:
+  for i, worker in enumerate(cluster_spec.get('LocalWorker', [])):
+    cluster_spec['Worker'].append(rewrite_port(worker, '50051', '50052'))
+  del cluster_spec['LocalWorker']
 print(json.dumps({'clusterSpec': cluster_spec}))
 """`
 fi
@@ -74,15 +89,27 @@ else
 fi
 cd ${ROLE}
 
+LISTEN_PORT=50051
+if [[ -n "${PORT0}" ]]; then
+  LISTEN_PORT=${PORT0}
+fi
+
+server_port=$(normalize_env_to_args "--server-port" "$PORT1")
+
 python main.py --master \
     --application-id=$APPLICATION_ID \
     --data-source=$DATA_SOURCE \
-    --master-addr=0.0.0.0:50051 \
+    --data-path=$DATA_PATH \
+    --data-path-wildcard=$DATA_PATH_WILDCARD \
+    --master-addr=0.0.0.0:${LISTEN_PORT} \
     --cluster-spec="$CLUSTER_SPEC" \
+    $server_port \
     $checkpoint_path $load_checkpoint_path \
     $load_checkpoint_filename $load_checkpoint_filename_with_path \
     $export_path \
     $mode $sparse_estimator \
     $save_checkpoint_steps $save_checkpoint_secs \
     $summary_save_steps $summary_save_secs \
-    $epoch_num $start_date $end_date $shuffle
+    $local_data_source $local_data_path $local_start_date \
+    $local_end_date $epoch_num $start_date $end_date \
+    $shuffle $shuffle_in_day $extra_params $export_model

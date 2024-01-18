@@ -15,16 +15,23 @@
 # coding: utf-8
 # pylint: disable=broad-except
 
+from fnmatch import fnmatch
 import os
 import zlib
 import json
 import threading
 import collections
 import random
+import sys
+from datetime import timedelta, datetime
+from typing import Optional
 
 import tensorflow.compat.v1 as tf
 from fedlearner.common import fl_logging
+from fedlearner.common import trainer_master_service_pb2 as tm_pb
+from fedlearner.common.common import convert_time_string_to_datetime
 from fedlearner.data_join.data_block_visitor import DataBlockVisitor
+from fedlearner.trainer.utils import match_date
 
 
 kvstore_type = os.environ.get('KVSTORE_TYPE', 'etcd')
@@ -33,34 +40,114 @@ kvstore_use_mock = os.environ.get('KVSTORE_USE_MOCK', "off") == "on"
 
 class _RawDataBlock(
     collections.namedtuple('RowDataBlock',
-                           ['id', 'data_path'])):
+                           ['id', 'data_path', 'start_time', 'end_time',
+                            'type'])):
     pass
 
 
 class DataBlock(
     collections.namedtuple('DataBlock',
-                           ['id', 'epoch', 'data_path'])):
+                           ['id', 'epoch', 'data_path', 'type'])):
     pass
 
 
+class ShuffleType(object):
+    ALL = 'all'
+    DAY = 'day'
+
+
+class RawDataBlockDealer(object):
+    def __init__(self, data_blocks):
+        self._data_blocks = data_blocks
+
+    @property
+    def data_blocks(self):
+        return self._data_blocks
+
+    def time_translate(self, forward, day, hour=0,):
+        delta = timedelta(days=day, hours=hour)
+        date_fmt = '%Y%m%d'
+        for db in self._data_blocks:
+            start_time = str(db.start_time)[:8]
+            end_time = str(db.end_time)[:8]
+            if forward:
+                new_start_time = datetime.strptime(start_time, date_fmt) + delta
+                new_end_time = datetime.strptime(end_time, date_fmt) + delta
+            else:
+                new_start_time = datetime.strptime(start_time, date_fmt) - delta
+                new_end_time = datetime.strptime(end_time, date_fmt) - delta
+            db.start_time = new_start_time.strftime(date_fmt) + start_time[8:]
+            db.end_time = new_end_time.strftime(date_fmt) + end_time[8:]
+        return self
+
+    def merge_data_blocks(self, data_blocks):
+        self._data_blocks.extend(data_blocks)
+        return self
+
+    def shuffle(self):
+        random.shuffle(self._data_blocks)
+        return self
+
+    def shuffle_in_day(self):
+        def _shuffle(_start_index, _end_index):
+            # using Fisher–Yates shuffle Algorithm
+            for i in range(_end_index, _start_index, -1):
+                j = random.randint(_start_index, i)
+                self._data_blocks[i], self._data_blocks[j] = \
+                    self._data_blocks[j], self._data_blocks[i]
+
+        start_index = 0
+        end_index = 1
+        num_data_blocks = len(self._data_blocks)
+        if not self._data_blocks or not self._data_blocks[0].end_time:
+            return self
+        start_day = str(self._data_blocks[0].end_time)[:8]
+        while end_index < num_data_blocks:
+            new_day = str(self._data_blocks[end_index].end_time)[:8]
+            if new_day != start_day:
+                _shuffle(start_index, end_index-1)
+                start_index = end_index
+                start_day = new_day
+            end_index += 1
+        _shuffle(start_index, end_index - 1)
+        return self
+
+
 class _DataVisitor(object):
-    def __init__(self, datablocks, epoch_num=1, shuffle=False):
-        self._datablocks = list(datablocks)
+    def __init__(self, datablocks, local_datablocks=None, epoch_num=1,
+                 shuffle_type: Optional[ShuffleType] = None):
+        self._datablocks = {
+            tm_pb.JOINED: list(datablocks),
+        }
         self._datablock_dict = {}
         for datablock in datablocks:
-            fl_logging.info("load datablock, id: %s, data_path: %s",
-                            datablock.id, datablock.data_path)
             self._datablock_dict[datablock.id] = datablock
+        if local_datablocks:
+            self._datablocks[tm_pb.LOCAL] = list(local_datablocks)
+            for datablock in local_datablocks:
+                self._datablock_dict[datablock.id] = datablock
         self._epoch_num = epoch_num if epoch_num > 0 else 1
-        self._shuffle = shuffle
+        self._shuffle_type = shuffle_type
 
         self._lock = threading.Lock()
-        self._datablock_index = 0
+        self._datablock_index = {
+            tm_pb.JOINED: 0,
+            tm_pb.LOCAL: 0
+        }
+
         self._current_epoch = 1
         self._allocated = {} # epoch -> set(datablock.id)
 
-        if self._shuffle:
-            random.shuffle(self._datablocks)
+        self._shuffle_data_blocks()
+        for datablock in self._datablocks[tm_pb.JOINED]:
+            fl_logging.info("load data block, id: %s, data_path: %s, type %s",
+                            datablock.id, datablock.data_path, datablock.type)
+        if local_datablocks:
+            for datablock in self._datablocks[tm_pb.LOCAL]:
+                fl_logging.info("load data block, id: %s, data_path: %s, "
+                                "type %s",
+                                datablock.id, datablock.data_path,
+                                datablock.type)
 
     @property
     def epoch_num(self):
@@ -68,13 +155,38 @@ class _DataVisitor(object):
 
     @property
     def datablock_size(self):
-        return len(self._datablocks) * self._epoch_num
+        return len(self._datablocks[tm_pb.JOINED]) * self._epoch_num
+
+    @property
+    def local_datablock_size(self):
+        if tm_pb.LOCAL in self._datablocks:
+            return len(self._datablocks[tm_pb.LOCAL]) * self._epoch_num
+        return 0
+
+    def _shuffle_data_blocks(self):
+        for datablocks in self._datablocks.values():
+            dealer = RawDataBlockDealer(datablocks)
+            if self._shuffle_type == ShuffleType.ALL:
+                dealer.shuffle()
+            elif self._shuffle_type == ShuffleType.DAY:
+                dealer.shuffle_in_day()
+            elif self._shuffle_type:
+                fl_logging.fatal("Not supported shuffle type %s",
+                                 self._shuffle_type)
+                sys.exit(-1)
 
     def summary(self):
         with self._lock:
+            local_allocated_blocks = 0
+            if tm_pb.LOCAL in self._datablocks:
+                local_allocated_blocks = (self._current_epoch - 1) * \
+                                         len(self._datablocks[tm_pb.LOCAL]) \
+                                         + self._datablock_index[tm_pb.LOCAL]
             return (self._current_epoch,
-                    (self._current_epoch-1) * len(self._datablocks) \
-                        + self._datablock_index)
+                    (self._current_epoch-1) *
+                    len(self._datablocks[tm_pb.JOINED]) \
+                        + self._datablock_index[tm_pb.JOINED],
+                    local_allocated_blocks)
 
     def dump(self):
         with self._lock:
@@ -113,7 +225,8 @@ class _DataVisitor(object):
         if block_id not in self._datablock_dict:
             return None
         datablock = self._datablock_dict[block_id]
-        return DataBlock(datablock.id, epoch, datablock.data_path)
+        return DataBlock(datablock.id, epoch, datablock.data_path,
+                         datablock.type)
 
     def _try_parse_v2(self, buff):
         try:
@@ -143,26 +256,35 @@ class _DataVisitor(object):
             self._allocated[epoch] = set()
         self._allocated[epoch].add(datablock.id)
 
-    def _next(self, peek=False):
+    def _next(self, peek=False, data_type=tm_pb.JOINED):
         while True:
-            while self._datablock_index < len(self._datablocks):
-                datablock = self._datablocks[self._datablock_index]
+            while self._datablock_index[data_type] < \
+                    len(self._datablocks[data_type]):
+                datablock = self._datablocks[data_type][
+                    self._datablock_index[data_type]]
                 if self._check_allocated(self._current_epoch, datablock):
                     if not peek:
-                        self._datablock_index += 1
+                        self._datablock_index[data_type] += 1
                         self._allocate(self._current_epoch, datablock)
                     return DataBlock(datablock.id,
                                      self._current_epoch,
-                                     datablock.data_path)
-                self._datablock_index += 1
+                                     datablock.data_path,
+                                     datablock.type)
+                self._datablock_index[data_type] += 1
 
             if self._current_epoch == self._epoch_num:
                 raise StopIteration()
 
             self._current_epoch += 1
-            self._datablock_index = 0
-            if self._shuffle:
-                random.shuffle(self._datablocks)
+            self._datablock_index = {
+                tm_pb.JOINED: 0,
+                tm_pb.LOCAL: 0
+            }
+            self._shuffle_data_blocks()
+
+    def next_with_type(self, data_block_type):
+        with self._lock:
+            return self._next(data_type=data_block_type)
 
     def __next__(self):
         with self._lock:
@@ -176,44 +298,102 @@ class DataSourceVisitor(_DataVisitor):
                  data_source,
                  start_date=None,
                  end_date=None,
+                 local_data_source=None,
+                 local_start_date=None,
+                 local_end_date=None,
                  epoch_num=1,
-                 shuffle=False):
-        fl_logging.info("create DataVisitor by data_source: %s", data_source)
-        self._data_block_visitor = DataBlockVisitor(
+                 shuffle_type=None):
+        fl_logging.info("Load data_source: %s", data_source)
+        data_block_visitor = DataBlockVisitor(
             data_source, kvstore_type, kvstore_use_mock)
-        datablocks = []
-        for datablock in self._data_block_visitor.LoadDataBlockRepByTimeFrame(
+        data_blocks = []
+        for datablock in data_block_visitor.LoadDataBlockRepByTimeFrame(
             start_date, end_date).values():
-            datablocks.append(datablock)
-        datablocks.sort(key=lambda x: x.start_time)
+            data_blocks.append(
+                _RawDataBlock(datablock.block_id, datablock.data_block_fpath,
+                              datablock.start_time, datablock.end_time,
+                              tm_pb.JOINED))
+        local_data_blocks = []
+        if local_data_source:
+            fl_logging.info("Load local data_source: %s", local_data_source)
+            data_block_visitor = DataBlockVisitor(
+                local_data_source, kvstore_type, kvstore_use_mock)
+            for datablock in data_block_visitor.LoadDataBlockRepByTimeFrame(
+                    local_start_date, local_end_date).values():
+                local_data_blocks.append(
+                    _RawDataBlock(datablock.block_id,
+                                  datablock.data_block_fpath,
+                                  datablock.start_time,
+                                  datablock.end_time,
+                                  tm_pb.LOCAL))
+        data_blocks.sort(key=lambda x: x.end_time)
+        local_data_blocks.sort(key=lambda x: x.end_time)
 
         super(DataSourceVisitor, self).__init__(
-            [_RawDataBlock(d.block_id, d.data_block_fpath) for d in datablocks],
-            epoch_num,
-            shuffle)
+            data_blocks, local_data_blocks, epoch_num, shuffle_type)
 
 
 class DataPathVisitor(_DataVisitor):
     def __init__(self,
-                 data_path,
-                 ext=".tfrecord",
-                 epoch_num=1,
-                 shuffle=False):
+                 data_path: str,
+                 local_data_path: str,
+                 wildcard: str,
+                 epoch_num: int = 1,
+                 shuffle_type=None,
+                 start_date=None,
+                 end_date=None):
         fl_logging.info("create DataVisitor by data_path: %s", data_path)
         if not tf.io.gfile.exists(data_path):
             raise ValueError("data_path not found: %s"%data_path)
 
+        if start_date:
+            start_date = convert_time_string_to_datetime(str(start_date))
+        if end_date:
+            end_date = convert_time_string_to_datetime(str(end_date))
         datablocks = []
         for dirname, _, filenames in tf.io.gfile.walk(data_path):
             for filename in filenames:
-                _, fileext = os.path.splitext(filename)
-                if ext and fileext != ext:
+                if not fnmatch(os.path.join(dirname, filename), wildcard):
                     continue
                 subdirname = os.path.relpath(dirname, data_path)
+                try:
+                    cur_date = datetime.strptime(subdirname, '%Y%m%d')
+                    if not match_date(cur_date, start_date, end_date):
+                        continue
+                except Exception:
+                    fl_logging.info('subdirname is not the format of time')
                 block_id = os.path.join(subdirname, filename)
-                datablock = _RawDataBlock(block_id,
-                                          os.path.join(dirname, filename))
+                datablock = _RawDataBlock(
+                    id=block_id, data_path=os.path.join(dirname, filename),
+                    start_time=None, end_time=None, type=tm_pb.JOINED)
                 datablocks.append(datablock)
-        datablocks.sort()
+        datablocks.sort(key=lambda x: x.id)
 
-        super(DataPathVisitor, self).__init__(datablocks, epoch_num, shuffle)
+        fl_logging.info("create DataVisitor by local_data_path: %s",
+                        local_data_path)
+        local_datablocks = []
+        if local_data_path and tf.io.gfile.exists(local_data_path):
+            for dirname, _, filenames in tf.io.gfile.walk(local_data_path):
+                for filename in filenames:
+                    if not fnmatch(os.path.join(dirname, filename), wildcard):
+                        continue
+                    subdirname = os.path.relpath(dirname, local_data_path)
+                    block_id = os.path.join(subdirname, filename)
+                    datablock = _RawDataBlock(
+                        id=block_id, data_path=os.path.join(dirname, filename),
+                        start_time=None, end_time=None, type=tm_pb.LOCAL)
+                    local_datablocks.append(datablock)
+        local_datablocks.sort(key=lambda x: x.id)
+
+        super(DataPathVisitor, self).__init__(datablocks, local_datablocks,
+                                              epoch_num, shuffle_type)
+
+    def _check_allocated(self, epoch: int, datablock: _RawDataBlock):
+        if epoch not in self._allocated:
+            return True
+        return datablock.data_path not in self._allocated[epoch]
+
+    def _allocate(self, epoch: int, datablock: _RawDataBlock):
+        if epoch not in self._allocated:
+            self._allocated[epoch] = set()
+        self._allocated[epoch].add(datablock.data_path)

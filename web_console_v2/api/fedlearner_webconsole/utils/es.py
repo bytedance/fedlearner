@@ -26,7 +26,7 @@ class ElasticSearchClient(object):
     def __init__(self):
         self._es_client = None
         self._es_client = Elasticsearch([{
-            'host': Envs.ES_HOST,
+            'host': Envs.ES_READ_HOST or Envs.ES_HOST,
             'port': Envs.ES_PORT
         }],
                                         http_auth=(Envs.ES_USERNAME,

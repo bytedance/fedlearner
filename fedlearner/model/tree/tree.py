@@ -24,6 +24,7 @@ from concurrent.futures import ProcessPoolExecutor
 import numpy as np
 from google.protobuf import text_format
 import tensorflow.compat.v1 as tf
+from fedlearner.common.metric_collector import metric_collector
 from fedlearner.model.tree.packing import GradHessPacker
 from fedlearner.model.tree.loss import LogisticLoss, MSELoss
 from fedlearner.model.crypto import paillier, fixed_point_number
@@ -424,6 +425,10 @@ class BaseGrower(object):
         gain = left_g*left_g/(left_h + lam) + \
             right_g*right_g/(right_h + lam) - \
             sum_g*sum_g/(sum_h + lam)
+        if not gain >= 0:
+            logging.warning("the value of gain %f is invalid, left_h: %f, "
+                            "right_h: %f, left_g: %f, right_g: %f, lam: %f",
+                            gain, left_g, right_g, left_h, right_h, lam)
         if gain > split_info.gain:
             split_info.gain = gain
             split_info.feature_id = feature_id
@@ -443,6 +448,8 @@ class BaseGrower(object):
             else:
                 self._find_cont_split(node, fid, split_info)
 
+        assert len(split_info.split_point) != 0, \
+            'the length of split point must not be 0'
         self._split_candidates.put((-split_info.gain, split_info))
 
         return split_info.gain, split_info
@@ -1286,8 +1293,15 @@ class BoostingTreeEnsamble(object):
 
     def iter_metrics_handler(self, metrics, mode):
         for name, value in metrics.items():
+            # TODO(lixiaoguang.01) old version, to be deleted
             emit_store(name=name, value=value,
                        tags={'iteration': len(self._trees), 'mode': mode})
+            # new version
+            metrics_name = f'model.{mode}.tree_vertical.{name}'
+            metrics_label = {
+                'iteration': len(self._trees)
+            }
+            metric_collector.emit_store(metrics_name, value, metrics_label)
 
     def fit(self,
             features,

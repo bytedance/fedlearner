@@ -234,7 +234,7 @@ def convert_tf_example_to_dict(src_tf_example):
         else:
             assert False, "feat type must in int64, byte, float"
         assert isinstance(csv_val, list)
-        dst_dict[key] = csv_val[0] if len(csv_val) == 1 else csv_val
+        dst_dict[key] = csv_val
     return dst_dict
 
 def int2bytes(digit, byte_len, byteorder='little'):

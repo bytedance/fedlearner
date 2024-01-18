@@ -18,16 +18,19 @@ import json
 import threading
 
 import tensorflow.compat.v1 as tf
-from fedlearner.common import fl_logging, stats
+from fedlearner.common import fl_logging
 from fedlearner.common.argparse_util import str_as_bool
-from fedlearner.trainer.bridge import Bridge
+from fedlearner.common import trainer_master_service_pb2 as tm_pb
+from fedlearner.trainer.bridge import Bridge, FakeBridge
+from fedlearner.common.metric_collector import metric_collector
 from fedlearner.trainer.estimator import FLEstimator
 from fedlearner.trainer.sparse_estimator import SparseFLEstimator
 from fedlearner.trainer.trainer_master_client \
     import LocalTrainerMasterClient, TrainerMasterClient
 from fedlearner.trainer.trainer_master \
     import LeaderTrainerMaster, FollowerTrainerMaster, ExportModelHook
-from fedlearner.trainer.data_visitor import DataPathVisitor, DataSourceVisitor
+from fedlearner.trainer.data_visitor import DataPathVisitor, \
+    DataSourceVisitor, ShuffleType
 from fedlearner.trainer.cluster_server import ClusterServer
 from fedlearner.trainer._global_context import global_context as _gctx
 from fedlearner.trainer.run_hooks import StepLossAucMetricsHook, StepMetricsHook #pylint: disable=unused-import
@@ -35,6 +38,7 @@ from fedlearner.trainer.run_hooks import StepLossAucMetricsHook, StepMetricsHook
 
 LEADER = "leader"
 FOLLOER = "follower"
+
 
 def create_argument_parser():
     parser = argparse.ArgumentParser(description='FedLearner Trainer.')
@@ -61,6 +65,10 @@ def create_argument_parser():
                         type=str,
                         help='Address of peer\'s bridge, ' \
                              'in [IP]:[PORT] format')
+    parser.add_argument('--server-port',
+                        type=int,
+                        default=None,
+                        help='server port of tensorflow server, e.g. 50052')
     parser.add_argument('--cluster-spec',
                         type=str,
                         help='ClusterSpec description for master/ps/worker, '\
@@ -78,16 +86,34 @@ def create_argument_parser():
     parser.add_argument('--data-source',
                         type=str,
                         help='path to data source for training')
+    parser.add_argument('--local-data-source',
+                        type=str,
+                        help='path to local data source for training')
     parser.add_argument('--data-path',
                         type=str,
                         help='path to data block files for training.'
                              'Ignore if data-source is set')
+    parser.add_argument('--local-data-path',
+                        type=str,
+                        help='path to local data block files for training.'
+                             'Ignore if local-data-source is set')
+    parser.add_argument('--data-path-wildcard',
+                        type=str,
+                        default='part-*',
+                        help='file wildcard under data path for training.'
+                        '* for any files')
     parser.add_argument('--start-date',
                         type=int,
                         help='training data start time')
     parser.add_argument('--end-date',
                         type=int,
                         help='training data end time')
+    parser.add_argument('--local-start-date',
+                        type=int,
+                        help='local training data start time')
+    parser.add_argument('--local-end-date',
+                        type=int,
+                        help='local training data end time')
     parser.add_argument('--epoch-num',
                         type=int,
                         default=1,
@@ -97,6 +123,9 @@ def create_argument_parser():
                         type=str_as_bool,
                         default=False, const=True, nargs='?',
                         help='shuffle the data block or not')
+    parser.add_argument('--shuffle-in-day',
+                        type=bool,
+                        help='shuffle the data block within a day or not')
     parser.add_argument('--export-path',
                         type=str,
                         help='Path to save exported models.')
@@ -138,11 +167,19 @@ def create_argument_parser():
                         type=str,
                         default='train',
                         help='Train or eval.')
+    parser.add_argument('--export-model',
+                        type=str_as_bool,
+                        default=None, nargs='?',
+                        help='export model to export_path')
     parser.add_argument('--loglevel',
                         type=str,
                         default=None,
                         help="Specify verbosity level. It can be one of "
                              "'debug', 'info', 'warning', 'error', 'critical'")
+    parser.add_argument('--extra-params',
+                        type=str,
+                        default=None,
+                        help="extra params string for training")
 
     return parser
 
@@ -163,7 +200,8 @@ def _run_master(role,
 
     cluster_server = None
     if cluster_spec:
-        cluster_server = ClusterServer(cluster_spec, "master")
+        cluster_server = ClusterServer(cluster_spec, "master",
+                                       server_port=args.server_port)
 
     checkpoint_filename_with_path = _get_checkpoint_filename_with_path(args)
     data_visitor = _create_data_visitor(args)
@@ -186,33 +224,43 @@ def _run_master(role,
              summary_save_secs=args.summary_save_secs,
              export_path=args.export_path,
              sparse_estimator=args.sparse_estimator,
-             export_model_hook=export_model_hook)
+             export_model_hook=export_model_hook,
+             export_model=args.export_model)
     master.run_forever(args.master_addr)
 
 def _run_worker(role, args, input_fn, model_fn):
-    if not args.local_addr:
-        raise ValueError("local-addr is required")
-    if not args.peer_addr:
-        raise ValueError("peer-addr is required")
     if not args.master_addr:
         raise ValueError("master-addr is required")
     mode = args.mode.lower()
 
+    worker_type = tm_pb.WorkerType.REMOTE_WORKER
+    if hasattr(args, "local_worker") and args.local_worker:
+        worker_type = tm_pb.WorkerType.LOCAL_WORKER
+        bridge = FakeBridge()
+    else:
+        if not args.local_addr:
+            raise ValueError("local-addr is required")
+        if not args.peer_addr:
+            raise ValueError("peer-addr is required")
+        bridge = Bridge(role,
+                        int(args.local_addr.split(':')[1]),
+                        args.peer_addr,
+                        args.application_id,
+                        args.worker_rank)
+
+    fl_logging.info("Start worker rank %d with type %s", args.worker_rank,
+                    worker_type)
+
     cluster_spec = _create_cluster_spec(args, require_ps=True)
     cluster_server = ClusterServer(cluster_spec,
                                    "worker",
-                                   task_index=args.worker_rank)
-
+                                   task_index=args.worker_rank,
+                                   server_port=args.server_port)
     trainer_master = TrainerMasterClient(args.master_addr,
-                                         args.worker_rank)
+                                         args.worker_rank,
+                                         worker_type)
     if not trainer_master.worker_register(cluster_spec.as_cluster_def()):
         return
-
-    bridge = Bridge(role,
-                    int(args.local_addr.split(':')[1]),
-                    args.peer_addr,
-                    args.application_id,
-                    args.worker_rank)
 
     estimator_factory = SparseFLEstimator \
         if args.sparse_estimator else FLEstimator
@@ -237,10 +285,6 @@ def _run_local(role,
                model_fn,
                serving_input_receiver_fn,
                export_model_hook=None):
-    if not args.local_addr:
-        raise ValueError("local-addr is required")
-    if not args.peer_addr:
-        raise ValueError("peer-addr is required")
     mode = args.mode.lower()
 
     cluster_spec = _create_cluster_spec(args)
@@ -267,20 +311,29 @@ def _run_local(role,
              summary_save_secs=args.summary_save_secs,
              export_path=args.export_path,
              sparse_estimator=args.sparse_estimator,
-             export_model_hook=export_model_hook)
+             export_model_hook=export_model_hook,
+             export_model=args.export_model)
     master_thread = threading.Thread(target=local_master.run_forever)
     master_thread.setDaemon(True)
     master_thread.start()
 
     # run worker
+    if hasattr(args, "local_worker") and args.local_worker:
+        bridge = FakeBridge()
+    else:
+        if not args.local_addr:
+            raise ValueError("local-addr is required")
+        if not args.peer_addr:
+            raise ValueError("peer-addr is required")
+        bridge = Bridge(role,
+                        int(args.local_addr.split(':')[1]),
+                        args.peer_addr,
+                        args.application_id,
+                        0)
+
     trainer_master = LocalTrainerMasterClient(local_master, 0)
     if not trainer_master.worker_register():
         return
-    bridge = Bridge(role,
-                    int(args.local_addr.split(':')[1]),
-                    args.peer_addr,
-                    args.application_id,
-                    0)
 
     estimator_factory = \
         SparseFLEstimator if args.sparse_estimator else FLEstimator
@@ -310,7 +363,7 @@ def _get_checkpoint_filename_with_path(args):
             raise ValueError("load_checkpoint_path or checkpoint_path is "
                              "required when provide load_checkpoint_filename")
         checkpoint_filename_with_path = \
-            os.path.join(load_checkpoint_path, args.checkpoint_filename)
+            os.path.join(load_checkpoint_path, args.load_checkpoint_filename)
     elif args.load_checkpoint_path or args.checkpoint_path:
         load_checkpoint_path = args.load_checkpoint_path or args.checkpoint_path
         checkpoint_filename_with_path = \
@@ -351,19 +404,37 @@ def _create_data_visitor(args):
     visitor = None
     start_date = int(args.start_date) if args.start_date else None
     end_date = int(args.end_date) if args.end_date else None
+    local_start_date = int(args.local_start_date) if args.local_start_date \
+        else None
+    local_end_date = int(args.local_end_date) if args.local_end_date \
+        else None
+
+    shuffle_type = None
+    if args.shuffle:
+        shuffle_type = ShuffleType.ALL
+    elif args.shuffle_in_day:
+        shuffle_type = ShuffleType.DAY
     if args.data_source:
         visitor = DataSourceVisitor(args.data_source,
                                     start_date=start_date,
                                     end_date=end_date,
+                                    local_data_source=args.local_data_source,
+                                    local_start_date=local_start_date,
+                                    local_end_date=local_end_date,
                                     epoch_num=args.epoch_num,
-                                    shuffle=args.shuffle)
-    elif args.data_path:
+                                    shuffle_type=shuffle_type)
+    elif args.data_path and args.data_path_wildcard:
         visitor = DataPathVisitor(args.data_path,
+                                  args.local_data_path,
+                                  wildcard=args.data_path_wildcard,
                                   epoch_num=args.epoch_num,
-                                  shuffle=args.shuffle)
+                                  shuffle_type=shuffle_type,
+                                  start_date=start_date,
+                                  end_date=end_date)
     if not visitor:
         raise ValueError("cannot found any data to train, "
-                   "please specify --data-source or --data-path")
+                         "please specify [--data-source] or "
+                         "[--data-path and --data-path-wildcard]")
     return visitor
 
 def train(role,
@@ -402,8 +473,16 @@ def train(role,
     else:
         raise ValueError("duplication specify --master and --worker")
 
-    stats.enable_cpu_stats(_gctx.stats_client)
-    stats.enable_mem_stats(_gctx.stats_client)
+    global_tags = {
+        'task': _gctx.task,
+        'task_index': str(_gctx.task_index),
+        'role': role.lower(),
+        'node_name': os.environ.get('HOSTNAME', 'default_node_name'),
+        'pod_name': os.environ.get('POD_NAME', 'default_pod_name'),
+    }
+    metric_collector.add_global_tags(global_tags)
+    name_prefix = f'model.{mode}.nn_vertical'
+    metric_collector.emit_counter(f'{name_prefix}.start_count', 1)
 
     if _gctx.task == "local":
         _run_local(role, args, input_fn, model_fn,

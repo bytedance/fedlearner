@@ -14,9 +14,10 @@
 
 # coding: utf-8
 
+import logging
 from sqlalchemy.orm.session import Session
 from fedlearner_webconsole.rpc.client import RpcClient
-from fedlearner_webconsole.job.models import Job, JobDependency
+from fedlearner_webconsole.job.models import Job, JobDependency, JobState
 from fedlearner_webconsole.proto import common_pb2
 from fedlearner_webconsole.utils.metrics import emit_counter
 
@@ -33,7 +34,7 @@ class JobService:
             src_job = self._session.query(Job).get(dep.src_job_id)
             assert src_job is not None, 'Job {} not found'.format(
                 dep.src_job_id)
-            if not src_job.is_complete():
+            if not src_job.state == JobState.COMPLETED:
                 return False
         return True
 
@@ -49,3 +50,20 @@ class JobService:
             if not resp.is_ready:
                 return False
         return True
+
+    def update_running_state(self, job_name):
+        job = self._session.query(Job).filter_by(name=job_name).first()
+        if job is None:
+            emit_counter('[JobService]job_not_found', 1)
+            return
+        if not job.state == JobState.STARTED:
+            emit_counter('[JobService]wrong_job_state', 1)
+            return
+        if job.is_flapp_complete():
+            job.complete()
+            logging.debug('[JobService]change job %s state to %s',
+                          job.name, JobState(job.state))
+        elif job.is_flapp_failed():
+            job.fail()
+            logging.debug('[JobService]change job %s state to %s',
+                          job.name, JobState(job.state))

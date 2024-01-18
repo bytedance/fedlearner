@@ -18,14 +18,22 @@ set -ex
 
 export CUDA_VISIBLE_DEVICES=
 source /app/deploy/scripts/hdfs_common.sh || true
+source /app/deploy/scripts/pre_start_hook.sh || true
 source /app/deploy/scripts/env_to_args.sh
 
-input_file_wildcard=$(normalize_env_to_args "--input_file_wildcard" $FILE_WILDCARD)
+input_file_wildcard=$(normalize_env_to_args "--input_file_wildcard" "$FILE_WILDCARD")
 kvstore_type=$(normalize_env_to_args '--kvstore_type' $KVSTORE_TYPE)
 files_per_job_limit=$(normalize_env_to_args '--files_per_job_limit' $FILES_PER_JOB_LIMIT)
+start_date=$(normalize_env_to_args '--start_date' $START_DATE)
+end_date=$(normalize_env_to_args '--end_date' $END_DATE)
+
+LISTEN_PORT=50051
+if [[ -n "${PORT0}" ]]; then
+  LISTEN_PORT=${PORT0}
+fi
 
 python -m fedlearner.data_join.cmd.data_portal_master_service \
-    --listen_port=50051 \
+    --listen_port=${LISTEN_PORT} \
     --data_portal_name=$DATA_PORTAL_NAME \
     --data_portal_type=$DATA_PORTAL_TYPE \
     --output_partition_num=$OUTPUT_PARTITION_NUM \
@@ -33,4 +41,5 @@ python -m fedlearner.data_join.cmd.data_portal_master_service \
     --output_base_dir=$OUTPUT_BASE_DIR \
     --raw_data_publish_dir=$RAW_DATA_PUBLISH_DIR \
     $input_file_wildcard $LONG_RUNNING $CHECK_SUCCESS_TAG \
-    $kvstore_type $SINGLE_SUBFOLDER $files_per_job_limit
+    $kvstore_type $SINGLE_SUBFOLDER $files_per_job_limit \
+    $start_date $end_date

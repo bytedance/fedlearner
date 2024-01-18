@@ -28,6 +28,7 @@ from fedlearner.channel import Channel
 from fedlearner.common import common_pb2 as common_pb
 from fedlearner.common import trainer_worker_service_pb2 as tws2_pb
 from fedlearner.common import trainer_worker_service_pb2_grpc as tws2_grpc
+from fedlearner.common.metric_collector import metric_collector
 from fedlearner.trainer._global_context import global_context as _gctx
 
 _BRIDGE_SUPERVISE_ENABLED = strtobool(
@@ -397,9 +398,9 @@ class Bridge(object):
             duration = (time.time() - self._iter_started_at) * 1000
             self._current_iter_id = None
 
-        with _gctx.stats_client.pipeline() as pipe:
-            pipe.gauge("trainer.bridge.iterator_step", iter_id)
-            pipe.timing("trainer.bridge.iterator_timing", duration)
+        name_prefix = 'model.grpc.bridge'
+        metric_collector.emit_store(f'{name_prefix}.iterator_step', iter_id)
+        metric_collector.emit_store(f'{name_prefix}.iterator_timing', duration)
 
     def register_data_block_handler(self, func):
         assert self._data_block_handler_fn is None, \
@@ -480,10 +481,9 @@ class Bridge(object):
             data = self._received_data[iter_id][name]
 
         duration = time.time() - start_time
-        _gctx.stats_client.timing(
-            "trainer.bridge.receive_timing", duration * 1000,
-            {"bridge_receive_name": name}
-        )
+        metric_collector.emit_store(f'model.grpc.bridge.receive_timing',
+                                    duration * 1000,
+                                    {'bridge_receive_name': name})
         fl_logging.debug("[Bridge] Data: received iter_id: %d, name: %s "
                          "after %f sec",
                          iter_id, name, duration)
@@ -500,3 +500,63 @@ class Bridge(object):
             return tf.convert_to_tensor(self.receive(name), dtype=dtype)
 
         return tf.py_function(func=func, inp=[], Tout=dtype, name='recv_'+name)
+
+
+class FakeBridge(object):
+    def __init__(self):
+        self._condition = threading.Condition()
+        self._current_iter_id = None
+        self._next_iter_id = 0
+        self._iter_started_at = 0
+        self._termiated_at = None
+
+    @property
+    def terminated_at(self):
+        return self._termiated_at
+
+    def connect(self):
+        fl_logging.debug("[Fake Bridge] connected")
+
+    def start(self):
+        with self._condition:
+            fl_logging.debug("[Fake Bridge] started")
+            self._current_iter_id = self._next_iter_id
+            self._next_iter_id += 1
+            self._iter_started_at = time.time()
+
+    def commit(self):
+        with self._condition:
+            fl_logging.debug("[Fake Bridge] send commit iter_id: %d",
+                             self._current_iter_id)
+            iter_id = self._current_iter_id
+            duration = (time.time() - self._iter_started_at) * 1000
+            self._current_iter_id = None
+
+        with _gctx.stats_client.pipeline() as pipe:
+            pipe.gauge("trainer.fake_bridge.iterator_step", iter_id)
+            pipe.timing("trainer.fake_bridge.iterator_timing", duration)
+
+    def terminate(self):
+        fl_logging.debug("[Fake Bridge] terminated")
+        with self._condition:
+            self._termiated_at = int(time.time())
+
+    def load_data_block(self, count, block_id):
+        fl_logging.debug("[Fake Bridge] load DataBlock with id %s", block_id)
+        return True
+
+    def send_op(self, name, x):
+        def func(x):
+            raise RuntimeError("Unexcepted call send op")
+
+        out = tf.py_function(func=func, inp=[x], Tout=[], name='send_' + name)
+        return out
+
+    def receive_op(self, name, dtype):
+        def func():
+            raise RuntimeError("Unexcepted call receive op")
+
+        return tf.py_function(func=func, inp=[], Tout=[dtype])[0]
+
+    def register_data_block_handler(self, handler):
+        pass

@@ -16,11 +16,15 @@
 
 import os
 import csv
+import time
 import queue
 import logging
 import argparse
 import traceback
 import itertools
+from typing import Optional
+from concurrent.futures import ProcessPoolExecutor
+import multiprocessing
 import numpy as np
 
 import tensorflow.compat.v1 as tf
@@ -30,7 +34,7 @@ from fedlearner.trainer.bridge import Bridge
 from fedlearner.model.tree.tree import BoostingTreeEnsamble
 from fedlearner.model.tree.trainer_master_client import LocalTrainerMasterClient
 from fedlearner.model.tree.trainer_master_client import DataBlockInfo
-
+from fedlearner.model.tree.utils import filter_files
 
 def create_argument_parser():
     parser = argparse.ArgumentParser(
@@ -61,8 +65,12 @@ def create_argument_parser():
     parser.add_argument('--no-data', type=str_as_bool,
                         default=False, const=True, nargs='?',
                         help='Run prediction without data.')
-    parser.add_argument('--file-ext', type=str, default='.csv',
-                        help='File extension to use')
+    parser.add_argument('--file-ext', type=str, default='',
+                        help='File extension to use including .' \
+                             'for example: .csv')
+    # TODO(gezhengqiang): delete file_ext
+    parser.add_argument('--file-wildcard', type=str, default='',
+                        help='the wildcard filter for the file')
     parser.add_argument('--file-type', type=str, default='csv',
                         help='input file type: csv or tfrecord')
     parser.add_argument('--load-model-path',
@@ -144,6 +152,10 @@ def create_argument_parser():
                         type=str_as_bool,
                         default=False, const=True, nargs='?',
                         help='Whether to enable packing grad and hess')
+    parser.add_argument('--label-field',
+                        type=str,
+                        default='label',
+                        help='selected label name')
 
     return parser
 
@@ -156,16 +168,16 @@ def parse_tfrecord(record):
     for key, value in example.features.feature.items():
         kind = value.WhichOneof('kind')
         if kind == 'float_list':
-            assert len(value.float_list.value) == 1, "Invalid tfrecord format"
+            assert len(value.float_list.value) == 1, 'Invalid tfrecord format'
             parsed[key] = value.float_list.value[0]
         elif kind == 'int64_list':
-            assert len(value.int64_list.value) == 1, "Invalid tfrecord format"
+            assert len(value.int64_list.value) == 1, 'Invalid tfrecord format'
             parsed[key] = value.int64_list.value[0]
         elif kind == 'bytes_list':
-            assert len(value.bytes_list.value) == 1, "Invalid tfrecord format"
+            assert len(value.bytes_list.value) == 1, 'Invalid tfrecord format'
             parsed[key] = value.bytes_list.value[0]
         else:
-            raise ValueError("Invalid tfrecord format")
+            raise ValueError('Invalid tfrecord format')
 
     return parsed
 
@@ -175,12 +187,12 @@ def extract_field(field_names, field_name, required):
         return []
 
     assert not required, \
-        "Field %s is required but missing in data"%field_name
+        'Field %s is required but missing in data'%field_name
     return None
 
 
-def read_data(file_type, filename, require_example_ids,
-              require_labels, ignore_fields, cat_fields):
+def read_data(file_type, filename, require_example_ids, require_labels,
+              ignore_fields, cat_fields, label_field):
     logging.debug('Reading data file from %s', filename)
 
     if file_type == 'tfrecord':
@@ -198,13 +210,13 @@ def read_data(file_type, filename, require_example_ids,
     raw_ids = extract_field(
         field_names, 'raw_id', False)
     labels = extract_field(
-        field_names, 'label', require_labels)
+        field_names, label_field, require_labels)
 
     ignore_fields = set(filter(bool, ignore_fields.strip().split(',')))
-    ignore_fields.update(['example_id', 'raw_id', 'label'])
+    ignore_fields.update(['example_id', 'raw_id', label_field])
     cat_fields = set(filter(bool, cat_fields.strip().split(',')))
     for name in cat_fields:
-        assert name in field_names, "cat_field %s missing"%name
+        assert name in field_names, 'cat_field %s missing'%name
 
     cont_columns = list(filter(
         lambda x: x not in ignore_fields and x not in cat_fields, field_names))
@@ -215,6 +227,9 @@ def read_data(file_type, filename, require_example_ids,
 
     features = []
     cat_features = []
+
+    def to_float(x):
+        return float(x if x not in ['', None] else 'nan')
     for line in reader:
         if file_type == 'tfrecord':
             line = parse_tfrecord(line)
@@ -223,8 +238,8 @@ def read_data(file_type, filename, require_example_ids,
         if raw_ids is not None:
             raw_ids.append(str(line['raw_id']))
         if labels is not None:
-            labels.append(float(line['label']))
-        features.append([float(line[i]) for i in cont_columns])
+            labels.append(float(line[label_field]))
+        features.append([to_float(line.get(i)) for i in cont_columns])
         cat_features.append([int(line[i]) for i in cat_columns])
 
     features = np.array(features, dtype=np.float)
@@ -236,56 +251,80 @@ def read_data(file_type, filename, require_example_ids,
         labels, example_ids, raw_ids
 
 
-def read_data_dir(file_ext, file_type, path, require_example_ids,
-                  require_labels, ignore_fields, cat_fields):
+def read_data_dir(file_ext: str, file_wildcard: str, file_type: str, path: str,
+                  require_example_ids: bool, require_labels: bool,
+                  ignore_fields: str, cat_fields: str, label_field: str,
+                  num_parallel: Optional[int]):
+
     if not tf.io.gfile.isdir(path):
         return read_data(
             file_type, path, require_example_ids,
-            require_labels, ignore_fields, cat_fields)
+            require_labels, ignore_fields, cat_fields, label_field)
 
-    files = []
-    for dirname, _, filenames in tf.io.gfile.walk(path):
-        for filename in filenames:
-            _, ext = os.path.splitext(filename)
-            if file_ext and ext != file_ext:
-                continue
-            subdirname = os.path.join(path, os.path.relpath(dirname, path))
-            files.append(os.path.join(subdirname, filename))
-
+    files = filter_files(path, file_ext, file_wildcard)
     files.sort()
-    features = None
-    for fullname in files:
-        ifeatures, icat_features, icont_columns, icat_columns, \
-            ilabels, iexample_ids, iraw_ids = read_data(
-                file_type, fullname, require_example_ids,
-                require_labels, ignore_fields, cat_fields
-            )
-        if features is None:
-            features = ifeatures
-            cat_features = icat_features
-            cont_columns = icont_columns
-            cat_columns = icat_columns
-            labels = ilabels
-            example_ids = iexample_ids
-            raw_ids = iraw_ids
-        else:
-            assert cont_columns == icont_columns, \
-                "columns mismatch between files %s vs %s"%(
-                    cont_columns, icont_columns)
-            assert cat_columns == icat_columns, \
-                "columns mismatch between files %s vs %s"%(
-                    cat_columns, icat_columns)
-            features = np.concatenate((features, ifeatures), axis=0)
-            cat_features = np.concatenate(
-                (cat_features, icat_features), axis=0)
-            if labels is not None:
-                labels = np.concatenate((labels, ilabels), axis=0)
-            if example_ids is not None:
-                example_ids.extend(iexample_ids)
-            if raw_ids is not None:
-                raw_ids.extend(iraw_ids)
+    assert len(files) > 0, f'No file exsists in directory(path={path} ' \
+        f'extension={file_ext} wildcard={file_wildcard})'
 
-    assert features is not None, "No data found in %s"%path
+    if num_parallel:
+        assert num_parallel >= 1, 'Invalid num_parallel'
+    else:
+        num_parallel = 1
+
+    if num_parallel > len(files):
+        logging.info('Number of files(%s) is less than num_parallel(%s), '
+                     'switch num_parallel to %s',
+                     len(files), num_parallel, len(files))
+        num_parallel = len(files)
+
+    features = None
+
+    start_time = time.time()
+    logging.info('taskes start time: %s', str(start_time))
+    logging.info('Data loader count = %s', str(num_parallel))
+
+    with ProcessPoolExecutor(max_workers=num_parallel) as pool:
+        futures = []
+        for fullname in files:
+            future = pool.submit(
+                read_data, file_type, fullname,
+                require_example_ids, require_labels,
+                ignore_fields, cat_fields, label_field)
+            futures.append(future)
+        for future in futures:
+            ifeatures, icat_features, icont_columns, icat_columns, \
+                ilabels, iexample_ids, iraw_ids = future.result()
+            if features is None:
+                features = ifeatures
+                cat_features = icat_features
+                cont_columns = icont_columns
+                cat_columns = icat_columns
+                labels = ilabels
+                example_ids = iexample_ids
+                raw_ids = iraw_ids
+            else:
+                assert cont_columns == icont_columns, \
+                    'columns mismatch between files %s vs %s'%(
+                        cont_columns, icont_columns)
+                assert cat_columns == icat_columns, \
+                    'columns mismatch between files %s vs %s'%(
+                        cat_columns, icat_columns)
+                features = np.concatenate((features, ifeatures), axis=0)
+                cat_features = np.concatenate(
+                    (cat_features, icat_features), axis=0)
+                if labels is not None:
+                    labels = np.concatenate((labels, ilabels), axis=0)
+                if example_ids is not None:
+                    example_ids.extend(iexample_ids)
+                if raw_ids is not None:
+                    raw_ids.extend(iraw_ids)
+
+    end_time = time.time()
+    elapsed_time = end_time - start_time
+    logging.info('taskes end time: %s', str(end_time))
+    logging.info('elapsed time for reading data: %ss', str(elapsed_time))
+
+    assert features is not None, 'No data found in %s'%path
 
     return features, cat_features, cont_columns, cat_columns, \
         labels, example_ids, raw_ids
@@ -293,22 +332,24 @@ def read_data_dir(file_ext, file_type, path, require_example_ids,
 
 def train(args, booster):
     X, cat_X, X_names, cat_X_names, y, example_ids, _ = read_data_dir(
-        args.file_ext, args.file_type, args.data_path, args.verify_example_ids,
-        args.role != 'follower', args.ignore_fields, args.cat_fields)
+        args.file_ext, args.file_wildcard, args.file_type, args.data_path,
+        args.verify_example_ids, args.role != 'follower', args.ignore_fields,
+        args.cat_fields, args.label_field, args.num_parallel)
 
     if args.validation_data_path:
         val_X, val_cat_X, val_X_names, val_cat_X_names, val_y, \
             val_example_ids, _ = \
             read_data_dir(
-                args.file_ext, args.file_type, args.validation_data_path,
-                args.verify_example_ids, args.role != 'follower',
-                args.ignore_fields, args.cat_fields)
+                args.file_ext, args.file_wildcard, args.file_type,
+                args.validation_data_path, args.verify_example_ids,
+                args.role != 'follower', args.ignore_fields,
+                args.cat_fields, args.label_field, args.num_parallel)
         assert X_names == val_X_names, \
-            "Train data and validation data must have same features"
+            'Train data and validation data must have same features'
         assert cat_X_names == val_cat_X_names, \
-            "Train data and validation data must have same features"
+            'Train data and validation data must have same features'
     else:
-        val_X = val_cat_X = X_names = val_y = val_example_ids = None
+        val_X = val_cat_X = val_y = val_example_ids = None
 
     if args.output_path:
         tf.io.gfile.makedirs(os.path.dirname(args.output_path))
@@ -330,7 +371,7 @@ def train(args, booster):
 
 
 def write_predictions(filename, pred, example_ids=None, raw_ids=None):
-    logging.debug("Writing predictions to %s.tmp", filename)
+    logging.debug('Writing predictions to %s.tmp', filename)
     headers = []
     lines = []
     if example_ids is not None:
@@ -349,7 +390,7 @@ def write_predictions(filename, pred, example_ids=None, raw_ids=None):
         fout.write(','.join([str(i) for i in line]) + '\n')
     fout.close()
 
-    logging.debug("Renaming %s.tmp to %s", filename, filename)
+    logging.debug('Renaming %s.tmp to %s', filename, filename)
     tf.io.gfile.rename(filename+'.tmp', filename, overwrite=True)
 
 def test_one_file(args, bridge, booster, data_file, output_file):
@@ -359,7 +400,7 @@ def test_one_file(args, bridge, booster, data_file, output_file):
         X, cat_X, X_names, cat_X_names, y, example_ids, raw_ids = \
             read_data(
                 args.file_type, data_file, args.verify_example_ids,
-                False, args.ignore_fields, args.cat_fields)
+                False, args.ignore_fields, args.cat_fields, args.label_field)
 
     pred = booster.batch_predict(
         X,
@@ -370,9 +411,10 @@ def test_one_file(args, bridge, booster, data_file, output_file):
 
     if y is not None:
         metrics = booster.loss.metrics(pred, y)
+        booster.iter_metrics_handler(metrics, 'eval')
     else:
         metrics = {}
-    logging.info("Test metrics: %s", metrics)
+    logging.info('Test metrics: %s', metrics)
 
     if args.role == 'follower':
         bridge.start()
@@ -390,8 +432,10 @@ def test_one_file(args, bridge, booster, data_file, output_file):
 
 
 class DataBlockLoader(object):
-    def __init__(self, role, bridge, data_path, ext,
-                 worker_rank=0, num_workers=1, output_path=None):
+    def __init__(self, role: str, bridge: Optional[Bridge], data_path: str,
+                 ext: Optional[str], file_wildcard: Optional[str],
+                 worker_rank: int = 0, num_workers: int = 1,
+                 output_path: Optional[str] = None):
         self._role = role
         self._bridge = bridge
         self._num_workers = num_workers
@@ -406,8 +450,10 @@ class DataBlockLoader(object):
                 files = [os.path.basename(data_path)]
                 data_path = os.path.dirname(data_path)
             self._trainer_master = LocalTrainerMasterClient(
-                self._tm_role, data_path, files=files, ext=ext,
-                skip_datablock_checkpoint=True)
+                role=self._tm_role, path=data_path, files=files,
+                ext=ext, file_wildcard=file_wildcard,
+                skip_datablock_checkpoint=True,
+                from_data_source=False)
         else:
             self._trainer_master = None
 
@@ -473,13 +519,15 @@ class DataBlockLoader(object):
 
 def test(args, bridge, booster):
     if not args.no_data:
-        assert args.data_path, "Data path must not be empty"
+        assert args.data_path, 'Data path must not be empty'
     else:
         assert not args.data_path and args.role == 'leader'
 
     data_loader = DataBlockLoader(
-        args.role, bridge, args.data_path, args.file_ext,
-        args.worker_rank, args.num_workers, args.output_path)
+        role=args.role, bridge=bridge, data_path=args.data_path,
+        ext=args.file_ext, file_wildcard=args.file_wildcard,
+        worker_rank=args.worker_rank, num_workers=args.num_workers,
+        output_path=args.output_path)
 
     while True:
         data_block = data_loader.get_next_block()
@@ -503,9 +551,9 @@ def run(args):
         logging.basicConfig(level=logging.DEBUG)
 
     assert args.role in ['leader', 'follower', 'local'], \
-        "role must be leader, follower, or local"
+        'role must be leader, follower, or local'
     assert args.mode in ['train', 'test', 'eval'], \
-        "mode must be train, test, or eval"
+        'mode must be train, test, or eval'
 
     if args.role != 'local':
         bridge = Bridge(args.role, int(args.local_addr.split(':')[1]),
@@ -548,4 +596,10 @@ def run(args):
 
 
 if __name__ == '__main__':
+    # Experiments show `spawn` method is essential for ProcessPoolExecutor
+    # to get stable performance in multiprocessing HDFS data read.
+    # Otherwise, forked processes may lead to deadlock problems.
+    # Similar cases reported: https://github.com/crs4/pydoop/issues/311
+    # Reason discussed: https://github.com/dask/hdfs3/issues/100
+    multiprocessing.set_start_method('spawn')
     run(create_argument_parser().parse_args())
