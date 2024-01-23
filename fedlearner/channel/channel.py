@@ -25,7 +25,7 @@ import grpc
 from fedlearner.common import fl_logging, stats, common
 from fedlearner.channel import channel_pb2, channel_pb2_grpc
 from fedlearner.common.metric_collector import metric_collector
-from fedlearner.proxy.channel import make_insecure_channel, ChannelType
+from fedlearner.proxy.channel import make_insecure_channel, make_secure_channel, ChannelType
 from fedlearner.channel.client_interceptor import ClientInterceptor
 from fedlearner.channel.server_interceptor import ServerInterceptor
 
