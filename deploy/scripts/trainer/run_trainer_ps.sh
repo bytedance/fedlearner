@@ -17,6 +17,8 @@
 set -ex
 
 export CUDA_VISIBLE_DEVICES=
+
+cp /app/sgx/gramine/CI-Examples/tensorflow_io.py ./
 source /app/deploy/scripts/hdfs_common.sh || true
 source /app/deploy/scripts/pre_start_hook.sh || true
 

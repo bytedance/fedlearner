@@ -19,6 +19,7 @@ set -ex
 export CUDA_VISIBLE_DEVICES=
 export MODEL_NAME=${APPLICATION_ID}
 
+cp /app/sgx/gramine/CI-Examples/tensorflow_io.py ./
 source /app/deploy/scripts/hdfs_common.sh || true
 source /app/deploy/scripts/pre_start_hook.sh || true
 source /app/deploy/scripts/env_to_args.sh
@@ -32,6 +33,7 @@ else
 fi
 
 cd ${ROLE}
+cp /app/sgx/gramine/CI-Examples/tensorflow_io.py ./
 
 mode=$(normalize_env_to_args "--mode" "$MODE")
 sparse_estimator=$(normalize_env_to_args "--sparse-estimator" "$SPARSE_ESTIMATOR")

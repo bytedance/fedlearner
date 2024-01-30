@@ -25,8 +25,8 @@ function make_custom_env() {
     export GRPC_VERBOSITY=ERROR
     export GRPC_POLL_STRATEGY=epoll1
     export TF_CPP_MIN_LOG_LEVEL=1
-    export TF_GRPC_SGX_RA_TLS_ENABLE=on
-    export FL_GRPC_SGX_RA_TLS_ENABLE=on
+    export TF_GRPC_SGX_RA_TLS_ENABLE=off
+    export FL_GRPC_SGX_RA_TLS_ENABLE=off
     export TF_DISABLE_MKL=0
     export TF_ENABLE_MKL_NATIVE_FORMAT=1
     export parallel_num_threads=$1
@@ -54,5 +54,13 @@ function generate_token() {
     cp python.manifest.sgx /app/sgx/token/
     cd -
 }
+
+
+# 为站内不同临时设置，后续改为环境变量区分，参考文档‘隐私计算支持sgx’
+sed -i 's|PCCS_URL=https://[^ ]*|PCCS_URL=https://pccs_url:8081/sgx/certification/v3/|' /etc/sgx_default_qcnl.conf
+sed -i 's/USE_SECURE_CERT=TRUE/USE_SECURE_CERT=FALSE/' /etc/sgx_default_qcnl.conf
+echo >> /etc/hosts
+echo "10.137.29.200   pccs_url" | tee -a /etc/hosts
+mkdir -p /data
 
 generate_token

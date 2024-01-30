@@ -17,6 +17,8 @@
 set -ex
 
 export CUDA_VISIBLE_DEVICES=
+
+cp /app/sgx/gramine/CI-Examples/tensorflow_io.py ./
 source /app/deploy/scripts/hdfs_common.sh || true
 source /app/deploy/scripts/pre_start_hook.sh || true
 source /app/deploy/scripts/env_to_args.sh
@@ -88,6 +90,7 @@ else
   pull_code ${CODE_TAR} $PWD
 fi
 cd ${ROLE}
+cp /app/sgx/gramine/CI-Examples/tensorflow_io.py ./
 
 LISTEN_PORT=50051
 if [[ -n "${PORT0}" ]]; then
