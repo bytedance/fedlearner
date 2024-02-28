@@ -1,9 +1,9 @@
 package main
 
 import (
-	"fedlearner.net/tools/tcp_grpc_proxy/pkg/proxy"
 	"flag"
 	"fmt"
+	"tcp_grpc_proxy/proxy"
 )
 
 func main() {
@@ -14,6 +14,6 @@ func main() {
 	flag.Parse()
 	grpcServerAddress := fmt.Sprintf("0.0.0.0:%d", grpcServerPort)
 
-	grpc2tcpServer := proxy.NewGrpc2TcpServer(grpcServerAddress, targetTCPAddress)
+	grpc2tcpServer := proxy.NewGrpc2TCPServer(grpcServerAddress, targetTCPAddress)
 	grpc2tcpServer.Run()
 }
