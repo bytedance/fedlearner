@@ -19,12 +19,19 @@ source ~/.env
 export CUDA_VISIBLE_DEVICES=
 export MODEL_NAME=${APPLICATION_ID}
 
+LISTEN_PORT=50051
+if [[ -n "${PORT0}" ]]; then
+  LISTEN_PORT=${PORT0}
+fi
+
+echo $LISTEN_PORT > /pod-data/listen_port
+
 cp /app/sgx/gramine/CI-Examples/tensorflow_io.py ./
 source /app/deploy/scripts/hdfs_common.sh || true
 source /app/deploy/scripts/pre_start_hook.sh || true
 source /app/deploy/scripts/env_to_args.sh
 
-PEER_ADDR=$SERVICE_ID
+PEER_ADDR="localhost:${PROXY_LOCAL_PORT}"
 
 if [[ -n "${CODE_KEY}" ]]; then
   pull_code ${CODE_KEY} $PWD
@@ -77,11 +84,6 @@ if 'LocalWorker' in cluster_spec:
   del cluster_spec['LocalWorker']
 print(json.dumps({'clusterSpec': cluster_spec}))
 """`
-fi
-
-LISTEN_PORT=50051
-if [[ -n "${PORT0}" ]]; then
-  LISTEN_PORT=${PORT0}
 fi
 
 make_custom_env 4

@@ -12,6 +12,10 @@ RUN unset PWD HOSTNAME http_proxy https_proxy
 
 RUN env && env > ~/.env && sed -i "s/^/export ${i}\t&/g" ~/.env && echo "source ~/.env" >> ~/.bashrc
 
+RUN rm -rf /gramine/driver && rm -rf /gramine/build
+
 FROM scratch
 
 COPY --from=builder / /
+
+RUN mv /fedlearner /app

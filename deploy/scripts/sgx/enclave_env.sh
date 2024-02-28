@@ -25,8 +25,8 @@ function make_custom_env() {
     export GRPC_VERBOSITY=ERROR
     export GRPC_POLL_STRATEGY=epoll1
     export TF_CPP_MIN_LOG_LEVEL=1
-    export TF_GRPC_SGX_RA_TLS_ENABLE=off
-    export FL_GRPC_SGX_RA_TLS_ENABLE=off
+    export TF_GRPC_SGX_RA_TLS_ENABLE=on
+    export FL_GRPC_SGX_RA_TLS_ENABLE=on
     export TF_DISABLE_MKL=0
     export TF_ENABLE_MKL_NATIVE_FORMAT=1
     export parallel_num_threads=$1
@@ -35,10 +35,16 @@ function make_custom_env() {
     export GRPC_SERVER_CHANNEL_THREADS=4
     export KMP_SETTINGS=1
     export KMP_BLOCKTIME=0
+    export HADOOP_HOME=${HADOOP_HOME:-/opt/tiger/yarn_deploy/hadoop_current}
+    export PATH=$PATH:${HADOOP_HOME}/bin
+    export JAVA_HOME=/opt/tiger/jdk/openjdk-1.8.0_265
+    export LD_LIBRARY_PATH=${HADOOP_HOME}/lib/native:${JAVA_HOME}/jre/lib/amd64/server:${LD_LIBRARY_PATH}
+    export CLASSPATH=.:$CLASSPATH:$JAVA_HOME/lib/dt.jar:$JAVA_HOME/lib/tools.jar:$($HADOOP_HOME/bin/hadoop classpath --glob)
     export MR_ENCLAVE=`get_env mr_enclave`
     export MR_SIGNER=`get_env mr_signer`
     export ISV_PROD_ID=`get_env isv_prod_id`
     export ISV_SVN=`get_env isv_svn`
+    export RA_TLS_ALLOW_OUTDATED_TCB_INSECURE=1
     # network proxy
     unset http_proxy https_proxy
     jq ' .sgx_mrs[0].mr_enclave = ''"'`get_env mr_enclave`'" | .sgx_mrs[0].mr_signer = ''"'`get_env mr_signer`'" ' \
@@ -50,17 +56,21 @@ function generate_token() {
     ./generate.sh
     mkdir -p /app/sgx/token/
     cp python.sig /app/sgx/token/
-    cp python.token /app/sgx/token/
     cp python.manifest.sgx /app/sgx/token/
+    cp python.token /app/sgx/token/
+    cp python.manifest /app/sgx/token/
     cd -
 }
 
+if [ -n "$PCCS_IP" ]; then
+        sed -i "s|PCCS_URL=https://[^ ]*|PCCS_URL=https://pccs_url:8081/sgx/certification/v3/|" /etc/sgx_default_qcnl.conf
+        echo >> /etc/hosts
+        echo "$PCCS_IP   pccs_url" | tee -a /etc/hosts
+elif [ -n "$PCCS_URL" ]; then
+        sed -i "s|PCCS_URL=[^ ]*|PCCS_URL=$PCCS_URL|" /etc/sgx_default_qcnl.conf
+fi
 
-# 为站内不同临时设置，后续改为环境变量区分，参考文档‘隐私计算支持sgx’
-sed -i 's|PCCS_URL=https://[^ ]*|PCCS_URL=https://pccs_url:8081/sgx/certification/v3/|' /etc/sgx_default_qcnl.conf
 sed -i 's/USE_SECURE_CERT=TRUE/USE_SECURE_CERT=FALSE/' /etc/sgx_default_qcnl.conf
-echo >> /etc/hosts
-echo "10.137.29.200   pccs_url" | tee -a /etc/hosts
 mkdir -p /data
 
 generate_token

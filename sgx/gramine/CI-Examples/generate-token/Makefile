@@ -3,7 +3,7 @@
 GRAMINEDIR ?= ../..
 SGX_SIGNER_KEY ?= $(GRAMINEDIR)/Pal/src/host/Linux-SGX/signer/enclave-key.pem
 
-include $(GRAMINEDIR)/Scripts/Makefile.configs
+ARCH_LIBDIR ?= /lib/$(shell $(CC) -dumpmachine)
 
 ifeq ($(DEBUG),1)
 GRAPHENE_LOG_LEVEL = debug
@@ -14,7 +14,7 @@ endif
 .PHONY: all
 all: python.manifest
 ifeq ($(SGX),1)
-all: python.manifest.sgx python.sig python.token
+all: python.manifest python.manifest.sgx python.sig python.token
 endif
 
 ################################ fedlearner MANIFEST ###############################

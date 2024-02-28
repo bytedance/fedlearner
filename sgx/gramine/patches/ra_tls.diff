@@ -1,0 +1,13 @@
+diff --git a/tools/sgx/ra-tls/ra_tls.h b/tools/sgx/ra-tls/ra_tls.h
+index cb5a7805..3968f3a2 100644
+--- a/tools/sgx/ra-tls/ra_tls.h
++++ b/tools/sgx/ra-tls/ra_tls.h
+@@ -61,7 +61,7 @@ int verify_quote_body_against_envvar_measurements(const sgx_quote_body_t* quote_
+ __attribute__ ((visibility("hidden")))
+ int ra_tls_verify_callback(void* data, mbedtls_x509_crt* crt, int depth, uint32_t* flags);
+ 
+-__attribute__ ((visibility("hidden")))
++__attribute__ ((visibility("default")))
+ int ra_tls_create_key_and_crt(mbedtls_pk_context* key, mbedtls_x509_crt* crt);
+ 
+ /*!

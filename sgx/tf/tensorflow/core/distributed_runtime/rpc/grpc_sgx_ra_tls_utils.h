@@ -40,8 +40,6 @@
 namespace grpc {
 namespace sgx {
 
-#include <mbedtls/config.h>
-#include <mbedtls/certs.h>
 #include <mbedtls/ctr_drbg.h>
 #include <mbedtls/debug.h>
 #include <mbedtls/entropy.h>

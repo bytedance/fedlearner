@@ -45,24 +45,25 @@ ENV GRAMINEDIR=/gramine
 ENV SGX_DCAP_VERSION=DCAP_1.11
 # ENV GRAPHENE_VERSION=master
 # ENV GRAMINE_VERSION=497847c0353a13c9e83c0ec4c0cbe99f11d4a75d
-ENV GRAMINE_VERSION=c662f63bba76736e6d5122a866da762efd1978c1
+ENV GRAMINE_VERSION=devel-v1.3.1-2023-07-13
 ENV ISGX_DRIVER_PATH=${GRAMINEDIR}/driver
-ENV SGX_SIGNER_KEY=${GRAMINEDIR}/Pal/src/host/Linux-SGX/signer/enclave-key.pem
+ENV SGX_SIGNER_KEY=/root/.config/gramine/enclave-key.pem
 ENV LC_ALL=C.UTF-8 LANG=C.UTF-8
 ENV WERROR=1
 ENV SGX=1
 
 # https://gramine.readthedocs.io/en/latest/building.html
 # golang is needed by grpc/BoringSSL
+RUN apt-get update
 RUN apt-get install -y gawk bison python3-click python3-jinja2 golang ninja-build
 RUN apt-get install -y libcurl4-openssl-dev libprotobuf-c-dev python3-protobuf protobuf-c-compiler
-RUN apt-get install -y libgmp-dev libmpfr-dev libmpc-dev libisl-dev
+RUN apt-get install -y libgmp-dev libmpfr-dev libmpc-dev libisl-dev nasm protobuf-compiler
 
 RUN ln -s /usr/bin/python3 /usr/bin/python \
     && pip3 install --upgrade pip \
-    && pip3 install toml meson
+    && pip3 install toml meson pyelftools
 
-RUN git clone https://github.com/gramineproject/gramine.git ${GRAMINEDIR} \
+RUN git clone https://github.com/analytics-zoo/gramine ${GRAMINEDIR} \
     && cd ${GRAMINEDIR} \
     && git checkout ${GRAMINE_VERSION}
 
@@ -75,7 +76,7 @@ RUN cd ${GRAMINEDIR} \
     && git apply *.diff
 
 # https://gramine.readthedocs.io/en/latest/quickstart.html#quick-start-with-sgx-support
-RUN openssl genrsa -3 -out ${SGX_SIGNER_KEY} 3072
+RUN mkdir -p /root/.config/gramine/ && openssl genrsa -3 -out ${SGX_SIGNER_KEY} 3072
 RUN cd ${GRAMINEDIR} \
     && LD_LIBRARY_PATH="" meson setup build/ --buildtype=release -Dprefix=${INSTALL_PREFIX} -Ddirect=enabled -Dsgx=enabled -Ddcap=enabled -Dsgx_driver=dcap1.10 -Dsgx_driver_include_path=${ISGX_DRIVER_PATH}/driver/linux/include \
     && LD_LIBRARY_PATH="" ninja -C build/ \
@@ -83,8 +84,8 @@ RUN cd ${GRAMINEDIR} \
 
 # Install mbedtls
 RUN cd ${GRAMINEDIR}/build/subprojects/mbedtls-mbedtls* \
-    && cp -r `find . -name "*_gramine.a"` ${INSTALL_PREFIX}/lib \
-    && cp -r ${GRAMINEDIR}/subprojects/mbedtls-mbedtls*/include ${INSTALL_PREFIX}
+    && cp -r `find . -maxdepth 1 -name "*_gramine.a"` ${INSTALL_PREFIX}/lib \
+    && cp -r ${GRAMINEDIR}/subprojects/mbedtls-mbedtls*/mbedtls-mbedtls*/include ${INSTALL_PREFIX}
 
 # Install cJSON
 RUN cd ${GRAMINEDIR}/subprojects/cJSON* \
@@ -126,6 +127,7 @@ RUN apt-get install -y libmysqlclient-dev
 COPY sgx/grpc/common ${GRPC_PATH}
 COPY sgx/grpc/v1.38.1 ${GRPC_PATH}
 
+RUN pip3 install 'cython==0.29.36'
 RUN ${GRPC_PATH}/build_python.sh
 
 # Build tensorflow
@@ -136,7 +138,7 @@ RUN cd ${TF_BUILD_PATH} \
 
 ARG TF_BUILD_CFG="--config=numa --config=mkl --config=mkl_threadpool --copt=-march=native --copt=-O3 --cxxopt=-march=native --cxxopt=-O3 --cxxopt=-D_GLIBCXX_USE_CXX11_ABI=0"
 RUN cd ${TF_BUILD_PATH} \
-    && bazel build -c opt ${TF_BUILD_CFG} //tensorflow/tools/pip_package:build_pip_package \
+    && bazel build --local_ram_resources=2048 -c opt ${TF_BUILD_CFG} //tensorflow/tools/pip_package:build_pip_package \
     && bazel-bin/tensorflow/tools/pip_package/build_pip_package ${TF_BUILD_OUTPUT}
 
 # Build and install fedlearner
