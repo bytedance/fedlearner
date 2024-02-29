@@ -28,6 +28,3 @@ COPY sgx_network_simulation/ /app/
 WORKDIR /app
 COPY --from=go /app/tcp2grpc ./
 COPY --from=go /app/grpc2tcp ./
-RUN pip3 install -r requirements.txt && make protobuf
-
-ENTRYPOINT ["bash", "docker_entrypoint.sh"]
