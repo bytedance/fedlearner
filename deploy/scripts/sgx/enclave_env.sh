@@ -70,6 +70,17 @@ elif [ -n "$PCCS_URL" ]; then
         sed -i "s|PCCS_URL=[^ ]*|PCCS_URL=$PCCS_URL|" /etc/sgx_default_qcnl.conf
 fi
 
+if [ -n "$GRAMINE_LOG_LEVEL" ]; then
+        FILE="/gramine/CI-Examples/generate-token/python.manifest.template"
+        sed -i "/loader.log_level/ s/\"[^\"]*\"/\"$GRAMINE_LOG_LEVEL\"/" "$FILE"
+        # 检查sed命令是否成功执行
+        if [ $? -eq 0 ]; then
+            echo "Log level changed to $GRAMINE_LOG_LEVEL in $FILE"
+        else
+            echo "Failed to change log level in $FILE"
+        fi
+fi
+
 sed -i 's/USE_SECURE_CERT=TRUE/USE_SECURE_CERT=FALSE/' /etc/sgx_default_qcnl.conf
 mkdir -p /data
 
