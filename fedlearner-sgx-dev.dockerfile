@@ -188,5 +188,7 @@ WORKDIR ${WORK_SPACE_PATH}
 
 EXPOSE 6006 50051 50052
 
+RUN bash -x /app/deploy/scripts/sgx/get_token.sh
+
 RUN chmod +x /root/entrypoint.sh
 # ENTRYPOINT ["/root/entrypoint.sh"]

@@ -45,9 +45,20 @@ function make_custom_env() {
     export ISV_PROD_ID=`get_env isv_prod_id`
     export ISV_SVN=`get_env isv_svn`
     export RA_TLS_ALLOW_OUTDATED_TCB_INSECURE=1
+
+    if [ -z "$PEER_MR_SIGNER" ]; then
+        export PEER_MR_SIGNER=`get_env mr_signer`
+    fi
+
+    if [ -z "$PEER_MR_ENCLAVE" ]; then
+        export PEER_MR_ENCLAVE=`get_env mr_enclave`
+    fi
+
     # network proxy
     unset http_proxy https_proxy
-    jq ' .sgx_mrs[0].mr_enclave = ''"'`get_env mr_enclave`'" | .sgx_mrs[0].mr_signer = ''"'`get_env mr_signer`'" ' \
+    # need meituan's
+    jq --arg mr_enclave "$PEER_MR_ENCLAVE" --arg mr_signer "$PEER_MR_SIGNER" \
+        '.sgx_mrs[0].mr_enclave = $mr_enclave | .sgx_mrs[0].mr_signer = $mr_signer' \
         $GRPC_PATH/examples/dynamic_config.json > ./dynamic_config.json
 }
 
