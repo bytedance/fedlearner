@@ -403,23 +403,15 @@ const WidgetSchema: FC<Props> = ({ form, path, value, isCheck }) => {
   function onTypeChange(type: VariableValueType) {
     setValueType(type);
 
-    const variables = form.getFieldValue('variables');
-
-    set(variables, `[${variableIdx[0]}].value_type`, type);
-
-    form.setFieldsValue({
-      variables,
-    });
+    const result = { variables: form.getFieldValue('variables') };
+    set(result, `[${variableIdx[0]}].value_type`, type);
+    form.setFieldsValue(result);
   }
 
   function onTagChange(tag: string) {
-    const variables = form.getFieldValue('variables');
-
-    set(variables, `[${variableIdx[0]}].tag`, tag);
-
-    form.setFieldsValue({
-      variables,
-    });
+    const result = { variables: form.getFieldValue('variables') };
+    set(result, `[${variableIdx[0]}].tag`, tag);
+    form.setFieldsValue(result);
   }
 
   function onComponentChange(val: VariableComponent) {
