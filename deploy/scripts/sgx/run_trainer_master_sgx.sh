@@ -103,7 +103,14 @@ fi
 
 server_port=$(normalize_env_to_args "--server-port" "$PORT1")
 
-taskset -c 0-3 stdbuf -o0 gramine-sgx python main.py --master \
+if [[ -z "${START_CPU_SN}" ]]; then
+    START_CPU_SN=0
+fi
+if [[ -z "${END_CPU_SN}" ]]; then
+    END_CPU_SN=3
+fi
+
+taskset -c $START_CPU_SN-$END_CPU_SN stdbuf -o0 gramine-sgx python main.py --master \
     --application-id=$APPLICATION_ID \
     --data-source=$DATA_SOURCE \
     --data-path=$DATA_PATH \

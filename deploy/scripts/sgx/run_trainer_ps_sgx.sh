@@ -34,4 +34,11 @@ unset HTTPS_PROXY https_proxy http_proxy ftp_proxy
 make_custom_env 4
 source /root/start_aesm_service.sh
 
-taskset -c 0-3 stdbuf -o0 gramine-sgx python -m fedlearner.trainer.parameter_server $POD_IP:${LISTEN_PORT}
+if [[ -z "${START_CPU_SN}" ]]; then
+    START_CPU_SN=0
+fi
+if [[ -z "${END_CPU_SN}" ]]; then
+    END_CPU_SN=3
+fi
+
+taskset -c $START_CPU_SN-$END_CPU_SN stdbuf -o0 gramine-sgx python -m fedlearner.trainer.parameter_server $POD_IP:${LISTEN_PORT}
