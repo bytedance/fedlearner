@@ -26,7 +26,6 @@ files_per_job_limit=$(normalize_env_to_args '--files_per_job_limit' $FILES_PER_J
 
 source /app/deploy/scripts/sgx/enclave_env.sh
 cp /app/sgx/gramine/CI-Examples/tensorflow_io.py ./
-cp /app/sgx/token/* ./
 unset HTTPS_PROXY https_proxy http_proxy ftp_proxy
 
 make_custom_env 4

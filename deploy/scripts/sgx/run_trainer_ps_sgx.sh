@@ -20,20 +20,27 @@ export CUDA_VISIBLE_DEVICES=
 cp /app/sgx/gramine/CI-Examples/tensorflow_io.py ./
 source /app/deploy/scripts/hdfs_common.sh || true
 source /app/deploy/scripts/pre_start_hook.sh || true
+source /app/deploy/scripts/env_to_args.sh
 
 LISTEN_PORT=50052
 if [[ -n "${PORT1}" ]]; then
   LISTEN_PORT=${PORT1}
 fi
 
+if [[ -n "${CODE_KEY}" ]]; then
+  pull_code ${CODE_KEY} $PWD
+else
+  pull_code ${CODE_TAR} $PWD
+fi
+
+cp /app/sgx/gramine/CI-Examples/tensorflow_io.py /gramine/leader
+cp /app/sgx/gramine/CI-Examples/tensorflow_io.py /gramine/follower
 source /app/deploy/scripts/sgx/enclave_env.sh
-cp /app/sgx/gramine/CI-Examples/tensorflow_io.py ./
-cp /app/sgx/token/* ./
-unset HTTPS_PROXY https_proxy http_proxy ftp_proxy
 
 make_custom_env 4
 source /root/start_aesm_service.sh
 
+cd $EXEC_DIR
 if [[ -z "${START_CPU_SN}" ]]; then
     START_CPU_SN=0
 fi

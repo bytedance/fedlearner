@@ -14,11 +14,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+EXEC_DIR=/app/exec_dir
+
 function get_env() {
     gramine-sgx-get-token -s python.sig -o /dev/null | grep $1 | awk -F ":" '{print $2}' | xargs
 }
 
 function make_custom_env() {
+    cd $EXEC_DIR
+
     export DEBUG=0
     export CUDA_VISIBLE_DEVICES=""
     export DNNL_VERBOSE=0
@@ -59,17 +63,20 @@ function make_custom_env() {
     # need meituan's
     jq --arg mr_enclave "$PEER_MR_ENCLAVE" --arg mr_signer "$PEER_MR_SIGNER" \
         '.sgx_mrs[0].mr_enclave = $mr_enclave | .sgx_mrs[0].mr_signer = $mr_signer' \
-        $GRPC_PATH/examples/dynamic_config.json > ./dynamic_config.json
+        $GRPC_PATH/examples/dynamic_config.json > $EXEC_DIR/dynamic_config.json
+    
+    cd -
 }
 
 function generate_token() {
     cd /gramine/CI-Examples/generate-token/
     ./generate.sh
-    mkdir -p /app/sgx/token/
-    cp python.sig /app/sgx/token/
-    cp python.manifest.sgx /app/sgx/token/
-    cp python.token /app/sgx/token/
-    cp python.manifest /app/sgx/token/
+    mkdir -p $EXEC_DIR
+    cp /app/sgx/gramine/CI-Examples/tensorflow_io.py $EXEC_DIR
+    cp python.sig $EXEC_DIR
+    cp python.manifest.sgx $EXEC_DIR
+    cp python.token $EXEC_DIR
+    cp python.manifest $EXEC_DIR
     cd -
 }
 
@@ -81,15 +88,41 @@ elif [ -n "$PCCS_URL" ]; then
         sed -i "s|PCCS_URL=[^ ]*|PCCS_URL=$PCCS_URL|" /etc/sgx_default_qcnl.conf
 fi
 
+TEMPLATE_PATH="/gramine/CI-Examples/generate-token/python.manifest.template"
 if [ -n "$GRAMINE_LOG_LEVEL" ]; then
-        FILE="/gramine/CI-Examples/generate-token/python.manifest.template"
-        sed -i "/loader.log_level/ s/\"[^\"]*\"/\"$GRAMINE_LOG_LEVEL\"/" "$FILE"
-        # 检查sed命令是否成功执行
+        sed -i "/loader.log_level/ s/\"[^\"]*\"/\"$GRAMINE_LOG_LEVEL\"/" "$TEMPLATE_PATH"
         if [ $? -eq 0 ]; then
-            echo "Log level changed to $GRAMINE_LOG_LEVEL in $FILE"
+            echo "Log level changed to $GRAMINE_LOG_LEVEL in $TEMPLATE_PATH"
         else
-            echo "Failed to change log level in $FILE"
+            echo "Failed to change log level in $TEMPLATE_PATH"
         fi
+fi
+
+if [ -n "$GRAMINE_ENCLAVE_SIZE" ]; then
+    sed -i "/sgx.enclave_size/ s/\"[^\"]*\"/\"$GRAMINE_ENCLAVE_SIZE\"/" "$TEMPLATE_PATH"
+    if [ $? -eq 0 ]; then
+        echo "Enclave size changed to $GRAMINE_ENCLAVE_SIZE in $TEMPLATE_PATH"
+    else
+        echo "Failed to change enclave size in $TEMPLATE_PATH"
+    fi
+fi
+
+if [ -n "$GRAMINE_THREAD_NUM" ]; then
+    sed -i "s/sgx.thread_num = [0-9]\+/sgx.thread_num = $GRAMINE_THREAD_NUM/" "$TEMPLATE_PATH"
+    if [ $? -eq 0 ]; then
+        echo "Thread number changed to $GRAMINE_THREAD_NUM in $TEMPLATE_PATH"
+    else
+        echo "Failed to change thread number in $TEMPLATE_PATH"
+    fi
+fi
+
+if [ -n "$GRAMINE_STACK_SIZE" ]; then
+    sed -i "/sys.stack.size/ s/\"[^\"]*\"/\"$GRAMINE_STACK_SIZE\"/" "$TEMPLATE_PATH"
+    if [ $? -eq 0 ]; then
+        echo "Stack size changed to $GRAMINE_STACK_SIZE in $TEMPLATE_PATH"
+    else
+        echo "Failed to change stack size in $TEMPLATE_PATH"
+    fi
 fi
 
 sed -i 's/USE_SECURE_CERT=TRUE/USE_SECURE_CERT=FALSE/' /etc/sgx_default_qcnl.conf
