@@ -33,7 +33,7 @@ from fedlearner.trainer.bridge import FakeBridge
 from fedlearner.trainer.estimator import FLEstimator
 from fedlearner.trainer.sparse_estimator import SparseFLEstimator
 from fedlearner.trainer.cluster_server import ClusterServer
-
+from fedlearner.common.hdfs_util import upload_to_mt_hdfs
 
 class ExportModelHook():
     def after_save(self, sess, model, export_dir, inputs, outputs):
@@ -169,7 +169,8 @@ class _TrainerMaster(tm_grpc.TrainerMasterServiceServicer):
                  export_path=None,
                  sparse_estimator=False,
                  export_model_hook=None,
-                 export_model: Optional[bool] = None):
+                 export_model: Optional[bool] = None,
+                 using_mt_hadoop: Optional[bool] = None):
         self._cluster_server = cluster_server
         self._role = role
         self._mode = mode
@@ -199,6 +200,8 @@ class _TrainerMaster(tm_grpc.TrainerMasterServiceServicer):
         # for compatibility
         self._worker0_terminated_at = 0
         self._worker0_cluster_def = None
+
+        self.using_mt_hadoop = using_mt_hadoop
 
     def _check_status(self, callback_fn):
         with self._lock:
@@ -376,6 +379,9 @@ class _TrainerMaster(tm_grpc.TrainerMasterServiceServicer):
                     tf.saved_model.simple_save(sess, export_path,
                                                receiver.receiver_tensors,
                                                spec.predictions, None)
+                    if self.using_mt_hadoop:
+                        upload_to_mt_hdfs(export_path)
+                        upload_to_mt_hdfs(self._checkpoint_path)
                     if self._export_model_hook:
                         self._export_model_hook.after_save(
                             sess, model, export_path,
@@ -487,7 +493,8 @@ class LeaderTrainerMaster(_TrainerMaster):
                  export_path=None,
                  sparse_estimator=False,
                  export_model_hook=None,
-                 export_model: Optional[bool] = None):
+                 export_model: Optional[bool] = None,
+                 using_mt_hadoop: Optional[bool] = None):
         super(LeaderTrainerMaster, self).__init__(
             cluster_server,
             "leader",
@@ -505,7 +512,8 @@ class LeaderTrainerMaster(_TrainerMaster):
             export_path,
             sparse_estimator,
             export_model_hook,
-            export_model=export_model
+            export_model=export_model,
+            using_mt_hadoop=using_mt_hadoop
         )
 
         self._data_visitor = data_visitor
@@ -616,7 +624,8 @@ class FollowerTrainerMaster(_TrainerMaster):
                  export_path=None,
                  sparse_estimator=False,
                  export_model_hook=None,
-                 export_model: Optional[bool] = None
+                 export_model: Optional[bool] = None,
+                 using_mt_hadoop: Optional[bool] = None
                  ):
 
         super(FollowerTrainerMaster, self).__init__(
@@ -636,7 +645,8 @@ class FollowerTrainerMaster(_TrainerMaster):
             export_path,
             sparse_estimator,
             export_model_hook,
-            export_model=export_model
+            export_model=export_model,
+            using_mt_hadoop=using_mt_hadoop
         )
 
         self._data_visitor = data_visitor

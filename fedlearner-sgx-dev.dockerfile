@@ -123,7 +123,7 @@ ENV FEDLEARNER_PATH=/fedlearner
 
 RUN apt-get install -y libmysqlclient-dev
 
-# Build gRPC 
+# Build gRPC
 COPY sgx/grpc/common ${GRPC_PATH}
 COPY sgx/grpc/v1.38.1 ${GRPC_PATH}
 
@@ -144,8 +144,14 @@ RUN cd ${TF_BUILD_PATH} \
 # Build and install fedlearner
 COPY . ${FEDLEARNER_PATH}
 
+# For meituan hadoop
+RUN if [ -f ${FEDLEARNER_PATH}/docker/hadoop-mt-2.7.0.tar.gz ]; then mkdir -p /opt/meituan/ && tar -xzf ${FEDLEARNER_PATH}/docker/hadoop-mt-2.7.0.tar.gz -C /opt/meituan/; fi
+
+# For meituan hadoop auth
+RUN apt-get install -y libkrb5-dev openjdk-8-jdk
+
 RUN pip3 install --upgrade pip \
-    && pip3 install -r ${FEDLEARNER_PATH}/requirements.txt
+    && pip3 install -r ${FEDLEARNER_PATH}/requirements.txt -i https://mirrors.aliyun.com/pypi/simple/
 
 RUN cd ${FEDLEARNER_PATH} \
     && make protobuf \
@@ -188,7 +194,7 @@ WORKDIR ${WORK_SPACE_PATH}
 
 EXPOSE 6006 50051 50052
 
-RUN bash -x /app/deploy/scripts/sgx/get_token.sh
+RUN bash -x /fedlearner/deploy/scripts/sgx/get_token.sh
 
 RUN chmod +x /root/entrypoint.sh
 # ENTRYPOINT ["/root/entrypoint.sh"]

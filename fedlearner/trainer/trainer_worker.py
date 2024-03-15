@@ -33,6 +33,7 @@ from fedlearner.trainer.data_visitor import DataPathVisitor, \
     DataSourceVisitor, ShuffleType
 from fedlearner.trainer.cluster_server import ClusterServer
 from fedlearner.trainer._global_context import global_context as _gctx
+from fedlearner.common.hdfs_util import get_local_temp_path, exists, mt_hadoop_download
 from fedlearner.trainer.run_hooks import StepLossAucMetricsHook, StepMetricsHook #pylint: disable=unused-import
 
 
@@ -180,7 +181,10 @@ def create_argument_parser():
                         type=str,
                         default=None,
                         help="extra params string for training")
-
+    parser.add_argument('--using_mt_hadoop',
+                        type=str,
+                        default=None,
+                        help="use Meituan hadoop to get or upload data")
     return parser
 
 def _run_master(role,
@@ -225,7 +229,8 @@ def _run_master(role,
              export_path=args.export_path,
              sparse_estimator=args.sparse_estimator,
              export_model_hook=export_model_hook,
-             export_model=args.export_model)
+             export_model=args.export_model,
+             using_mt_hadoop=args.using_mt_hadoop)
     master.run_forever(args.master_addr)
 
 def _run_worker(role, args, input_fn, model_fn):
@@ -448,6 +453,33 @@ def train(role,
 
     if not isinstance(role, str) or role.lower() not in (LEADER, FOLLOER):
         raise ValueError("--role must set one of %s or %s"%(LEADER, FOLLOER))
+
+    # use Meituan hadoop
+    # first：convert Meituan HDFS path to local storage path, if local exit psi result file, user local file
+    # second：if local not exit psi result file，from Meituan HDFS download to local
+    if args.using_mt_hadoop:
+        data_path = args.data_path
+        if data_path:
+            local_data_path = get_local_temp_path(data_path)
+            if not exists(local_data_path):
+                data_path = mt_hadoop_download(data_path)
+            else:
+                data_path = local_data_path
+            args.data_path = data_path
+
+        checkpoint_path = args.checkpoint_path
+        if checkpoint_path:
+            args.checkpoint_path = get_local_temp_path(checkpoint_path)
+
+        load_checkpoint_path = args.load_checkpoint_path
+        if load_checkpoint_path:
+            args.load_checkpoint_path = get_local_temp_path(load_checkpoint_path)
+            if not exists(args.load_checkpoint_path):
+                mt_hadoop_download(load_checkpoint_path)
+
+        export_path = args.export_path
+        if export_path:
+            args.export_path = get_local_temp_path(export_path)
 
     if args.loglevel:
         fl_logging.set_level(args.loglevel)
