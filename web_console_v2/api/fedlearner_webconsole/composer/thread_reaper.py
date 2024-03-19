@@ -1,4 +1,4 @@
-# Copyright 2021 The FedLearner Authors. All Rights Reserved.
+# Copyright 2023 The FedLearner Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -18,12 +18,14 @@ import logging
 import threading
 from concurrent.futures import Future
 from concurrent.futures.thread import ThreadPoolExecutor
+from typing import Callable, Optional
 
-from fedlearner_webconsole.composer.models import Context
-from fedlearner_webconsole.composer.interface import IRunner
+from fedlearner_webconsole.composer.context import RunnerContext
+from fedlearner_webconsole.composer.interface import IRunnerV2
 
 
 class ThreadReaper(object):
+
     def __init__(self, worker_num: int):
         """ThreadPool with battery
 
@@ -33,26 +35,51 @@ class ThreadReaper(object):
         self.lock = threading.RLock()
         self.worker_num = worker_num
         self.running_worker_num = 0
+        self._running_workers = {}
         self._thread_pool = ThreadPoolExecutor(max_workers=worker_num)
 
-    def enqueue(self, name: str, fn: IRunner, context: Context) -> bool:
+    def is_running(self, runner_id: int) -> bool:
+        with self.lock:
+            return runner_id in self._running_workers
+
+    def submit(self,
+               runner_id: int,
+               fn: IRunnerV2,
+               context: RunnerContext,
+               done_callback: Optional[Callable[[int, Future], None]] = None) -> bool:
         if self.is_full():
             return False
-        logging.info(f'[thread_reaper] enqueue {name}')
+
+        def full_done_callback(fu: Future):
+            # The order matters, as we need to update the status at the last.
+            if done_callback:
+                done_callback(runner_id, fu)
+            self._track_status(runner_id, fu)
+
+        logging.info(f'[thread_reaper] enqueue {runner_id}')
         with self.lock:
+            if runner_id in self._running_workers:
+                logging.warning(f'f[thread_reaper] {runner_id} already enqueued')
+                return False
             self.running_worker_num += 1
-            fu = self._thread_pool.submit(fn.start, context=context)
-            fu.add_done_callback(self._track_status)
+            self._running_workers[runner_id] = fn
+            fu = self._thread_pool.submit(fn.run, context=context)
+            fu.add_done_callback(full_done_callback)
         return True
 
-    def _track_status(self, fu: Future):
+    def _track_status(self, runner_id: int, fu: Future):
         with self.lock:
             self.running_worker_num -= 1
-            logging.info(f'this job is done, result: {fu.result()}')
+            # Safely removing
+            self._running_workers.pop(runner_id, None)
+            try:
+                logging.info(f'f------Job {runner_id} is done------')
+                logging.info(f'result: {fu.result()}')
+            except Exception as e:  # pylint: disable=broad-except
+                logging.info(f'error: {str(e)}')
             if self.running_worker_num < 0:
-                logging.error(
-                    f'[thread_reaper] something wrong, should be non-negative, '
-                    f'val: f{self.running_worker_num}')
+                logging.error(f'[thread_reaper] something wrong, should be non-negative, '
+                              f'val: f{self.running_worker_num}')
 
     def is_full(self) -> bool:
         with self.lock:

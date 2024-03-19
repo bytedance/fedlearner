@@ -1,0 +1,70 @@
+@import '~styles/mixins.less';
+.todo_button{
+    z-index: 2;
+    background-color: rgb(var(--arcoblue-1)) !important;
+    color: var(--primaryColor) !important;
+   .icon_todo{
+    position: relative;
+    margin-right: 10px;
+    font-size: 18px;
+  }
+  &[disabled] {
+    cursor: not-allowed;
+  }
+}
+.overlay_header{
+  padding: 10px 16px;
+  border-bottom: 1px solid #e5e8ee;
+}
+.overlay_item_header{
+  display: flex;
+  padding-right: 16px;
+}
+.number_tag{
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  background: #f6f7fb;
+  border-radius: 40px;
+  font-size: 12px;
+  color: var(--textColorSecondary);
+  font-weight: 600;
+  text-align: center;
+  line-height: 18px;
+}
+.overlay_item{
+  position: relative;
+  width: 100%;
+  padding: 7px 16px;
+  border-bottom: 1px solid #e5e8ee;
+  cursor: pointer;
+  &:hover {
+    background-color: #f6f7fb;
+  }
+}
+.label{
+  display: inline-block;
+  margin-right: 4px;
+  font-size: 12px;
+  color: var(--textColorSecondary);
+  font-weight: 500;
+}
+.label_tiny{
+  font-size: 11px;
+  color: var(--textColorSecondary);
+}
+.label_strong{
+  .MixinEllipsis();
+  flex:1;
+  font-size: 12px;
+  color: var(--textColorStrong);
+  font-weight: 500;
+}
+.icon_right{
+  position: absolute;
+  right: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 12px;
+}
+

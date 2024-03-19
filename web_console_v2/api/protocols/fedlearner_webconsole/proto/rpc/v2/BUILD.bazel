@@ -1,0 +1,67 @@
+load("@rules_proto//proto:defs.bzl", "proto_library")
+load("@io_bazel_rules_go//proto:def.bzl", "go_proto_library")
+load("@com_github_grpc_grpc//bazel:python_rules.bzl", "py_grpc_library", "py_proto_library")
+
+proto_library(
+    name = "proto",
+    srcs = [
+        "job_service.proto",
+        "project_service.proto",
+        "resource_service.proto",
+        "review_service.proto",
+        "system_service.proto",
+    ],
+    strip_import_prefix = "/web_console_v2/api/protocols",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//web_console_v2/api/protocols/fedlearner_webconsole/proto",
+        "//web_console_v2/api/protocols/fedlearner_webconsole/proto/common:proto",
+        "@com_google_protobuf//:empty_proto",
+        "@com_google_protobuf//:struct_proto",
+    ],
+)
+
+py_proto_library(
+    name = "py_proto_internal",
+    visibility = ["//visibility:private"],
+    deps = [
+        ":proto",
+    ],
+)
+
+py_grpc_library(
+    name = "py_grpc_internal",
+    srcs = [
+        ":proto",
+    ],
+    visibility = ["//visibility:private"],
+    deps = [
+        ":py_proto_internal",
+    ],
+)
+
+py_library(
+    name = "py_proto",
+    imports = ["../../.."],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":py_grpc_internal",
+        ":py_proto_internal",
+        "//web_console_v2/api/protocols/fedlearner_webconsole/proto:py_proto",
+        "//web_console_v2/api/protocols/fedlearner_webconsole/proto/common:py_proto",
+    ],
+)
+
+go_proto_library(
+    name = "go_proto",
+    compilers = ["@io_bazel_rules_go//proto:go_grpc"],
+    importpath = "fedlearner.net/proto/console/rpc/v2",
+    protos = [
+        ":proto",
+    ],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//web_console_v2/api/protocols/fedlearner_webconsole/proto:go_proto",
+        "//web_console_v2/api/protocols/fedlearner_webconsole/proto/common:go_proto",
+    ],
+)

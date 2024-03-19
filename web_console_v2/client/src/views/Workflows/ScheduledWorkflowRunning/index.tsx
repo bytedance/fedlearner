@@ -1,22 +1,16 @@
 import React, { FC, useEffect } from 'react';
-import styled from 'styled-components';
-import { InputNumber, Switch } from 'antd';
+import styled from './index.module.less';
+import { Switch } from '@arco-design/web-react';
 import { useToggle } from 'react-use';
-
-export const MIN_SCHEDULED_MINUTES = 1;
-
-const SwitchContainer = styled.div`
-  margin-top: 5px;
-  margin-bottom: 15px;
-`;
+import CronTimePicker, { parseCron, PickerValue, toCron } from 'components/CronTimePicker';
 
 type Props = {
-  value?: number;
-  onChange?: (v: number) => void;
+  value?: string;
+  onChange?: (value: string) => void;
 };
 
 const ScheduledWorkflowRunning: FC<Props> = ({ value, onChange }) => {
-  const isEnabled = value !== -1 || value >= MIN_SCHEDULED_MINUTES;
+  const isEnabled = !!value;
   const [inputVisible, toggleVisible] = useToggle(isEnabled);
 
   useEffect(() => {
@@ -27,17 +21,16 @@ const ScheduledWorkflowRunning: FC<Props> = ({ value, onChange }) => {
 
   return (
     <>
-      <SwitchContainer>
+      <div className={styled.switch_container}>
         <Switch checked={inputVisible} onChange={onSwitchChange} />
-      </SwitchContainer>
+      </div>
 
       {inputVisible && (
-        <InputNumber
-          min={MIN_SCHEDULED_MINUTES}
-          value={value}
-          onChange={onValueChange}
-          formatter={(value: any) => `${value}min`}
-          parser={(value: any) => value.replace('min', '')}
+        <CronTimePicker
+          value={parseCron(value || '')}
+          onChange={(value: PickerValue) => {
+            onValueChange(toCron(value));
+          }}
         />
       )}
     </>
@@ -45,23 +38,21 @@ const ScheduledWorkflowRunning: FC<Props> = ({ value, onChange }) => {
 
   function onSwitchChange(val: boolean) {
     toggleVisible(val);
-
     if (val === false) {
-      onChange && onChange(-1);
+      onValueChange('');
     } else {
-      onChange && onChange(MIN_SCHEDULED_MINUTES);
+      onValueChange('null');
     }
   }
-  function onValueChange(val: number) {
+  function onValueChange(val: string) {
     onChange && onChange(val);
   }
 };
-
-export function scheduleIntervalValidator(_: any, value: number) {
-  if (value >= MIN_SCHEDULED_MINUTES || value === -1) {
-    return Promise.resolve();
+export function scheduleIntervalValidator(value: any, callback: (error?: string) => void) {
+  if (!value || value !== 'null') {
+    return;
   }
-  return Promise.reject();
+  callback('请选择时间');
 }
 
 export default ScheduledWorkflowRunning;

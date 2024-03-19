@@ -1,0 +1,253 @@
+load("@rules_python//python:defs.bzl", "py_library")
+
+package(default_visibility = ["//web_console_v2/api:console_api_package"])
+
+py_library(
+    name = "composer_service_lib",
+    srcs = ["composer_service.py"],
+    imports = ["../.."],
+    deps = [
+        ":common_lib",
+        "//web_console_v2/api/fedlearner_webconsole:exceptions_lib",
+        "//web_console_v2/api/fedlearner_webconsole/utils:filtering_lib",
+        "//web_console_v2/api/fedlearner_webconsole/utils:metrics_lib",
+        "//web_console_v2/api/fedlearner_webconsole/utils:paginate_lib",
+        "//web_console_v2/api/protocols/fedlearner_webconsole/proto:py_proto",
+        "@common_croniter//:pkg",
+        "@common_sqlalchemy//:pkg",
+    ],
+)
+
+py_test(
+    name = "composer_service_lib_test",
+    srcs = [
+        "composer_service_test.py",
+    ],
+    imports = ["../.."],
+    main = "composer_service_test.py",
+    deps = [
+        ":common_lib",
+        ":composer_service_lib",
+        "//web_console_v2/api/fedlearner_webconsole:db_lib",
+        "//web_console_v2/api/protocols/fedlearner_webconsole/proto:py_proto",
+        "//web_console_v2/api/testing:no_web_server_test_case_lib",
+    ],
+)
+
+py_library(
+    name = "common_lib",
+    srcs = [
+        "context.py",
+        "interface.py",
+        "models.py",
+    ],
+    imports = ["../.."],
+    deps = [
+        "//web_console_v2/api/fedlearner_webconsole:db_lib",
+        "//web_console_v2/api/fedlearner_webconsole/utils:mixins_lib",
+        "//web_console_v2/api/fedlearner_webconsole/utils:pp_datetime_lib",
+        "//web_console_v2/api/fedlearner_webconsole/utils:proto_lib",
+        "//web_console_v2/api/protocols/fedlearner_webconsole/proto:py_proto",
+        "@common_croniter//:pkg",
+        "@common_sqlalchemy//:pkg",
+    ],
+)
+
+py_test(
+    name = "context_test",
+    srcs = [
+        "context_test.py",
+    ],
+    imports = ["../.."],
+    main = "context_test.py",
+    deps = [
+        ":common_lib",
+        "//web_console_v2/api/protocols/fedlearner_webconsole/proto:py_proto",
+    ],
+)
+
+py_test(
+    name = "models_test",
+    srcs = [
+        "models_test.py",
+    ],
+    imports = ["../.."],
+    main = "models_test.py",
+    deps = [
+        ":common_lib",
+        "//web_console_v2/api/fedlearner_webconsole:db_lib",
+        "//web_console_v2/api/fedlearner_webconsole/utils:pp_datetime_lib",
+        "//web_console_v2/api/fedlearner_webconsole/utils:proto_lib",
+        "//web_console_v2/api/protocols/fedlearner_webconsole/proto:py_proto",
+        "//web_console_v2/api/testing:no_web_server_test_case_lib",
+    ],
+)
+
+py_library(
+    name = "runner_lib",
+    srcs = [
+        "runner.py",
+    ],
+    imports = ["../.."],
+    visibility = ["//visibility:private"],
+    deps = [
+        ":common_lib",
+        "//web_console_v2/api/fedlearner_webconsole/cleanup:cleaner_cronjob_lib",
+        "//web_console_v2/api/fedlearner_webconsole/dataset:batch_stats_lib",
+        "//web_console_v2/api/fedlearner_webconsole/dataset/scheduler",
+        "//web_console_v2/api/fedlearner_webconsole/job:scheduler_lib",
+        "//web_console_v2/api/fedlearner_webconsole/mmgr:cronjob_lib",
+        "//web_console_v2/api/fedlearner_webconsole/mmgr:scheduler_lib",
+        "//web_console_v2/api/fedlearner_webconsole/project:project_scheduler_lib",
+        "//web_console_v2/api/fedlearner_webconsole/serving:runners_lib",
+        "//web_console_v2/api/fedlearner_webconsole/tee:runners_lib",
+        "//web_console_v2/api/fedlearner_webconsole/workflow:cronjob_lib",
+        "//web_console_v2/api/fedlearner_webconsole/workflow:workflow_scheduler_lib",
+    ],
+)
+
+py_library(
+    name = "composer_lib",
+    srcs = [
+        "composer.py",
+        "context.py",
+        "op_locker.py",
+        "pipeline.py",
+        "strategy.py",
+        "thread_reaper.py",
+    ],
+    imports = ["../.."],
+    deps = [
+        ":common_lib",
+        ":runner_lib",
+        "//web_console_v2/api:envs_lib",
+        "//web_console_v2/api/fedlearner_webconsole:db_lib",
+        "//web_console_v2/api/fedlearner_webconsole/utils:pp_time_lib",
+        "//web_console_v2/api/protocols/fedlearner_webconsole/proto:py_proto",
+        "@com_github_grpc_grpc//src/python/grpcio_health_checking/grpc_health/v1:grpc_health",
+        "@com_github_grpc_grpc//src/python/grpcio_health_checking/grpc_health/v1:health_py_pb2",
+        "@com_github_grpc_grpc//src/python/grpcio_health_checking/grpc_health/v1:health_py_pb2_grpc",
+        "@common_sqlalchemy//:pkg",
+    ],
+)
+
+py_test(
+    name = "composer_test",
+    srcs = [
+        "composer_test.py",
+    ],
+    imports = ["../.."],
+    main = "composer_test.py",
+    deps = [
+        ":composer_lib",
+        ":composer_service_lib",
+        "//web_console_v2/api/fedlearner_webconsole:db_lib",
+        "//web_console_v2/api/protocols/fedlearner_webconsole/proto:py_proto",
+        "//web_console_v2/api/testing:fake_lib",
+        "//web_console_v2/api/testing:no_web_server_test_case_lib",
+        "//web_console_v2/api/testing/composer",
+    ],
+)
+
+py_test(
+    name = "op_locker_test",
+    srcs = [
+        "op_locker_test.py",
+    ],
+    imports = ["../.."],
+    main = "op_locker_test.py",
+    deps = [
+        ":common_lib",
+        ":composer_lib",
+        "//web_console_v2/api/fedlearner_webconsole:db_lib",
+        "//web_console_v2/api/testing:common_lib",
+    ],
+)
+
+py_test(
+    name = "pipeline_test",
+    srcs = [
+        "pipeline_test.py",
+    ],
+    imports = ["../.."],
+    main = "pipeline_test.py",
+    deps = [
+        ":common_lib",
+        ":composer_lib",
+        "//web_console_v2/api/fedlearner_webconsole:db_lib",
+        "//web_console_v2/api/protocols/fedlearner_webconsole/proto:py_proto",
+        "//web_console_v2/api/testing:fake_lib",
+        "//web_console_v2/api/testing:no_web_server_test_case_lib",
+        "//web_console_v2/api/testing/composer",
+    ],
+)
+
+py_test(
+    name = "strategy_test",
+    srcs = [
+        "strategy_test.py",
+    ],
+    imports = ["../.."],
+    main = "strategy_test.py",
+    deps = [
+        ":common_lib",
+        ":composer_lib",
+        "//web_console_v2/api/protocols/fedlearner_webconsole/proto:py_proto",
+        "//web_console_v2/api/testing:no_web_server_test_case_lib",
+        "//web_console_v2/api/testing/composer",
+    ],
+)
+
+py_test(
+    name = "thread_reaper_test",
+    srcs = [
+        "thread_reaper_test.py",
+    ],
+    # It's unpredictable to keep first runner running when same runner are submitted again.
+    # Ref: web_console_v2/api/fedlearner_webconsole/composer/thread_reaper_test.py:ThreadReaperTest.test_submit
+    flaky = True,
+    imports = ["../.."],
+    main = "thread_reaper_test.py",
+    deps = [
+        ":common_lib",
+        ":composer_lib",
+        "//web_console_v2/api/testing:fake_lib",
+        "//web_console_v2/api/testing:no_web_server_test_case_lib",
+        "//web_console_v2/api/testing/composer",
+    ],
+)
+
+py_library(
+    name = "apis_lib",
+    srcs = ["apis.py"],
+    imports = ["../.."],
+    deps = [
+        ":common_lib",
+        ":composer_service_lib",
+        "//web_console_v2/api/fedlearner_webconsole:db_lib",
+        "//web_console_v2/api/fedlearner_webconsole:exceptions_lib",
+        "//web_console_v2/api/fedlearner_webconsole/auth:third_party_sso_lib",
+        "//web_console_v2/api/fedlearner_webconsole/utils:flask_utils_lib",
+        "//web_console_v2/api/fedlearner_webconsole/utils/decorators:decorators_lib",
+        "@common_flask_restful//:pkg",
+        "@common_marshmallow//:pkg",
+        "@common_webargs//:pkg",
+    ],
+)
+
+py_test(
+    name = "apis_lib_test",
+    size = "medium",
+    srcs = [
+        "apis_test.py",
+    ],
+    imports = ["../.."],
+    main = "apis_test.py",
+    deps = [
+        ":apis_lib",
+        "//web_console_v2/api/fedlearner_webconsole/composer:common_lib",
+        "//web_console_v2/api/protocols/fedlearner_webconsole/proto:py_proto",
+        "//web_console_v2/api/testing:common_lib",
+        "@com_google_protobuf//:protobuf_python",
+    ],
+)

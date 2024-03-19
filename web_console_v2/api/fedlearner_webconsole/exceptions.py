@@ -1,4 +1,4 @@
-# Copyright 2021 The FedLearner Authors. All Rights Reserved.
+# Copyright 2023 The FedLearner Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@ from flask import jsonify
 
 
 class WebConsoleApiException(Exception):
+
     def __init__(self, status_code, error_code, message, details=None):
         Exception.__init__(self)
         self.status_code = status_code
@@ -40,40 +41,52 @@ class WebConsoleApiException(Exception):
 
 
 class InvalidArgumentException(WebConsoleApiException):
+
     def __init__(self, details):
-        WebConsoleApiException.__init__(self, HTTPStatus.BAD_REQUEST, 400,
-                                        'Invalid argument or payload.', details)
+        WebConsoleApiException.__init__(self, HTTPStatus.BAD_REQUEST, 400, 'Invalid argument or payload.', details)
+
+
+class NetworkException(WebConsoleApiException):
+
+    def __init__(self, details):
+        WebConsoleApiException.__init__(self, HTTPStatus.BAD_REQUEST, 400, 'Network exception', details)
 
 
 class NotFoundException(WebConsoleApiException):
+
     def __init__(self, message=None):
-        WebConsoleApiException.__init__(
-            self, HTTPStatus.NOT_FOUND, 404,
-            message if message else 'Resource not found.')
+        WebConsoleApiException.__init__(self, HTTPStatus.NOT_FOUND, 404, message if message else 'Resource not found.')
 
 
 class UnauthorizedException(WebConsoleApiException):
+
     def __init__(self, message):
-        WebConsoleApiException.__init__(self, HTTPStatus.UNAUTHORIZED,
-                                        401, message)
+        WebConsoleApiException.__init__(self, HTTPStatus.UNAUTHORIZED, 401, message)
 
 
 class NoAccessException(WebConsoleApiException):
+
     def __init__(self, message):
-        WebConsoleApiException.__init__(self, HTTPStatus.FORBIDDEN,
-                                        403, message)
+        WebConsoleApiException.__init__(self, HTTPStatus.FORBIDDEN, 403, message)
+
+
+class MethodNotAllowedException(WebConsoleApiException):
+
+    def __init__(self, message):
+        WebConsoleApiException.__init__(self, HTTPStatus.METHOD_NOT_ALLOWED, 405, message)
 
 
 class ResourceConflictException(WebConsoleApiException):
+
     def __init__(self, message):
         WebConsoleApiException.__init__(self, HTTPStatus.CONFLICT, 409, message)
 
 
 class InternalException(WebConsoleApiException):
+
     def __init__(self, details=None):
-        WebConsoleApiException.__init__(
-            self, HTTPStatus.INTERNAL_SERVER_ERROR, 500,
-            'Internal Error met when handling the request', details)
+        WebConsoleApiException.__init__(self, HTTPStatus.INTERNAL_SERVER_ERROR, 500,
+                                        'Internal Error met when handling the request', details)
 
 
 def make_response(exception: WebConsoleApiException):

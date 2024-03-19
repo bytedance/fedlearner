@@ -2,73 +2,126 @@
 
 ## Prerequisites
 
-* GNU Make
-* Python3
+* Bazel
 * MySQL 8.0
+* Docker
 
 ## Get started
 
+Starting development by using fake k8s (no actual data).
+
+start all the processes
+
+```bash
+bazelisk run //web_console_v2/api/cmds:run_dev
 ```
-python3 -m venv <a folder for virtual env>
-source <a folder for virtual env>/bin/activate
-pip3 install -r requirements.txt
 
-# Generates python code for proto
-make protobuf
+optionally if you want to stop or restart one of the processes
 
-# Use MySQL, please create database in advance, then set 
-# SQLALCHEMY_DATABASE_URI, for example as follows
-export SQLALCHEMY_DATABASE_URI=mysql+pymysql://root:root@localhost:33600/fedlearner
+```bash
+bazelisk run //web_console_v2/api/cmds:supervisorctl_cli_bin -- -s unix:///tmp/supervisor.sock
+```
 
-# Creates schemas for DB
-FLASK_APP=command:app flask db upgrade
+## Develop with remote k8s cluster
 
-# Creates initial user
-FLASK_APP=command:app flask create-initial-data
-
-# Starts the server
-export FLASK_ENV=development
-flask run
+```bash
+# Changes configs in tools/local_runner/app_a.py or app_b.py
+bash tools/local_runner/run_a.sh
+bash tools/local_runner/run_b.sh
 ```
 
 ## Tests
 
 ### Unit tests
 
-```
-cd <root folder of API>
-make unit-test
+```bash
+bazelisk test //web_console_v2/api/... --config lint
 ```
 
 ## Helpers
 
 ### Gets all routes
-```
-FLASK_APP=command:app flask routes
+
+```bash
+FLASK_APP=web_console_v2/api/command:app \
+    APM_SERVER_ENDPOINT=/dev/null \
+    bazelisk run //web_console_v2/api/cmds:flask_cli_bin -- routes
 ```
 
 ### Add migration files
 
-```
-FLASK_APP=command:app flask db migrate -m "Whats' changed"
+```bash
+FLASK_APP=web_console_v2/api/command:app \
+    APM_SERVER_ENDPOINT=/dev/null \
+    bazelisk run //web_console_v2/api/cmds:flask_cli_bin -- db migrate -m "Whats' changed" -d web_console_v2/api/migrations
+
 # like dry-run mode, preview auto-generated SQL
-FLASK_APP=command:app flask db upgrade --sql
+FLASK_APP=web_console_v2/api/command:app \
+    APM_SERVER_ENDPOINT=/dev/null \
+    bazelisk run //web_console_v2/api/cmds:flask_cli_bin -- db upgrade --sql -d web_console_v2/api/migrations
+
 # update database actually
-FLASK_APP=command:app flask db upgrade
+FLASK_APP=web_console_v2/api/command:app \
+    APM_SERVER_ENDPOINT=/dev/null \
+    bazelisk run //web_console_v2/api/cmds:flask_cli_bin -- db upgrade -d web_console_v2/api/migrations
 ```
 
 ### Reset migration files
 
 Delete migrations folder first.
-```
-FLASK_APP=command:app flask db init
-FLASK_APP=command:app flask db migrate -m "Initial migration."
+
+```bash
+FLASK_APP=web_console_v2/api/command:app \
+    APM_SERVER_ENDPOINT=/dev/null \
+    bazelisk run //web_console_v2/api/cmds:flask_cli_bin -- db init -d web_console_v2/api/migrations
+
+FLASK_APP=web_console_v2/api/command:app \
+    APM_SERVER_ENDPOINT=/dev/null \
+    bazelisk run //web_console_v2/api/cmds:flask_cli_bin -- db migrate -m "Initial migration." -d web_console_v2/api/migrations
 ```
 
-## [Style guide](docs/style_guide.md)
-## [Best practices](docs/best_practices.md)
+### Cleanup project
+
+```bash
+FLASK_APP=web_console_v2/api/command:app \
+    APM_SERVER_ENDPOINT=/dev/null \
+    bazelisk run //web_console_v2/api/cmds:flask_cli_bin -- cleanup-project <project_id>
+```
+
+## 规范 & 风格
+
+### [Style guide](docs/style_guide.md)
+
+### Code formatter
+
+We use [yapf](https://github.com/google/yapf) to format our code, style is defined in `.style.yapf`.
+
+To check the format, please run:
+
+```bash
+bazelisk test <target> --config lint
+```
+
+To fix the errors, please run:
+
+```bash
+bazelisk test <target> --config fix
+```
+
+### [gRPC](docs/grpc.md)
+
+## 最佳实践
+
+### [数据库相关最佳实践](docs/best_practices/db.md)
+
+### [API层最佳实践](docs/best_practices.md)
+
+### [客户端-服务端模型最佳实践](docs/best_practices/client_server.md)
+
+### [多进程最佳实践](docs/best_practices/multiprocess.md)
 
 ## References
 
 ### Default date time in sqlalchemy
+
 https://stackoverflow.com/questions/13370317/sqlalchemy-default-datetime/33532154#33532154

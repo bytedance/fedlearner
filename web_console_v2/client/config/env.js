@@ -86,6 +86,9 @@ function getClientEnvironment(publicUrl) {
         // which is why it's disabled by default.
         // It is defined here so it is available in the webpackHotDevClient.
         FAST_REFRESH: process.env.FAST_REFRESH !== 'false',
+        // Theme env variable is used in src/styles/index.js.
+        // It is defined which theme we can use.
+        THEME: process.env.THEME || 'normal',
       },
     );
   // Stringify all values so we can feed into webpack DefinePlugin

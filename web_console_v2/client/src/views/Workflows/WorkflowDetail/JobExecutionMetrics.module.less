@@ -1,0 +1,43 @@
+@import '~styles/mixins.less';
+
+.container {
+  margin-top: 30px;
+}
+
+.chart_container {
+  height: 480px;
+  overflow: hidden;
+  text-align: center;
+  line-height: 200px;
+}
+
+.placeholder {
+  display: flex;
+  flex-direction: column;
+  width: 280px;
+  height: 400px;
+  margin: auto;
+
+  > img {
+    width: 230px;
+    margin-top: auto;
+  }
+}
+
+.metric_not_public {
+  .MixinFlexAlignCenter();
+  display: flex;
+  height: 160px;
+}
+
+.explaination {
+  margin-top: 10px;
+  font-size: 12px;
+  text-align: center;
+  color: var(--textColorSecondary);
+}
+
+.cta_button {
+  display: block;
+  margin: 0 auto auto;
+}

@@ -1,4 +1,6 @@
-import { Menu } from 'antd';
+/* istanbul ignore file */
+
+import { Menu } from '@arco-design/web-react';
 import styled from 'styled-components';
 
 const PrettyMenu = styled(Menu)`
@@ -6,11 +8,11 @@ const PrettyMenu = styled(Menu)`
   min-height: 50px;
   max-height: 500px;
   padding: 8px 5px;
-  background-color: rgba(237, 238, 238, 0.76);
+  background-color: rgba(237, 238, 238, 0.8);
   border-radius: 5px;
   overflow-x: hidden;
   overflow-y: auto;
-  backdrop-filter: blur(3px);
+  backdrop-filter: blur(16px) saturate(180%);
 `;
 
 export const PrettyMenuItem = styled(Menu.Item)`

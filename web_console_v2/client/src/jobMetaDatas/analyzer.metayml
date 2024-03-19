@@ -1,0 +1,63 @@
+{
+    "apiVersion": "sparkoperator.k8s.io/v1beta2",
+    "kind": "SparkApplication",
+    "metadata": {
+        "name": self.name,
+        "namespace": system.variables.namespace,
+        "labels": ${Slot_labels},
+        "annotations": {
+            "queue": "fedlearner-spark",
+            "schedulerName": "batch",
+        },
+    },
+    "spec": {
+        "type": "Python",
+        "pythonVersion": "3",
+        "mode": "cluster",
+        "image": ${Slot_image} or system.variables.image_repo + "/pp_data_inspection:" + system.version,
+        "imagePullPolicy": "IfNotPresent",
+        "volumes": ${Slot_volumes},
+        "mainApplicationFile": ${Slot_spark_main_file},
+        "arguments": [
+            "--data_path="+ (${Slot_dataset_path} or ${Slot_storage_root_path} + "/" + ${Slot_inner_folder_name} + "/" + ${Slot_input_job_name}),
+            "--file_wildcard=" + ${Slot_wildcard},
+            "--buckets_num=" + str(${Slot_buckets_num}),
+            "--thumbnail_path=" + ${Slot_thumbnail_path},
+        ],
+        "sparkVersion": "3.0.0",
+        "restartPolicy": {
+            "type": "OnFailure",
+            "onFailureRetries": 3,
+            "onFailureRetryInterval": 10,
+            "onSubmissionFailureRetries": 5,
+            "onSubmissionFailureRetryInterval": 20
+        },
+        "driver": {
+            "cores": ${Slot_driver_cores},
+            "coreLimit": ${Slot_driver_core_limit},
+            "memory": ${Slot_driver_memory},
+            "labels": {
+                "version": "3.0.0"
+            },
+            "serviceAccount": "spark",
+            "volumeMounts": ${Slot_volume_mounts},
+            "env": system.basic_envs_list + system.variables.envs_list + ${Slot_drvier_envs}
+        },
+        "executor": {
+            "cores": ${Slot_executor_cores},
+            "instances": ${Slot_executor_instances},
+            "memory": ${Slot_executor_memory},
+            "labels": {
+                "version": "3.0.0"
+            },
+            "volumeMounts": ${Slot_volume_mounts},
+            "env": system.basic_envs_list + system.variables.envs_list + ${Slot_executor_envs}
+        },
+        "dynamicAllocation": {
+            "enabled": True,
+            "initialExecutors": ${Slot_initial_executors},
+            "maxExecutors": ${Slot_max_executors},
+            "minExecutors": ${Slot_min_executors},
+        }
+    }
+}

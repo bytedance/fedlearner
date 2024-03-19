@@ -1,0 +1,274 @@
+{
+  "Slot_role": {
+    "reference": "",
+    "value_type": "STRING",
+    "default_value": "Leader",
+    "help": "Flapp 通讯时的角色 Leader 或 Follower",
+    "reference_type": "DEFAULT",
+    "label": "Flapp通讯时角色"
+  },
+  "Slot_storage_root_path": {
+    "reference": "project.variables.storage_root_path",
+    "value_type": "STRING",
+    "default_value": "/data",
+    "help": "联邦学习中任务存储根目录",
+    "reference_type": "PROJECT",
+    "label": "存储根目录"
+  },
+  "Slot_image_version": {
+    "reference": "",
+    "value_type": "STRING",
+    "default_value": "882310f",
+    "help": "建议不修改，指定Pod中运行的容器镜像版本，前缀为system.variables.image_repo + '/fedlearner:'",
+    "reference_type": "DEFAULT",
+    "label": "容器镜像版本"
+  },
+  "Slot_worker_cpu": {
+    "reference_type": "DEFAULT",
+    "reference": "",
+    "value_type": "STRING",
+    "default_value": "8000m",
+    "label": "所需CPU",
+    "help": "所需CPU"
+  },
+  "Slot_worker_mem": {
+    "reference_type": "DEFAULT",
+    "reference": "",
+    "value_type": "STRING",
+    "default_value": "16Gi",
+    "label": "所需内存",
+    "help": "所需内存"
+  },
+  "Slot_data_source": {
+    "reference_type": "DEFAULT",
+    "reference": "",
+    "value_type": "STRING",
+    "default_value": "",
+    "label": "求交数据集名称",
+    "help": "求交数据集名称"
+  },
+  "Slot_data_path": {
+    "reference_type": "DEFAULT",
+    "reference": "",
+    "value_type": "STRING",
+    "default_value": "",
+    "label": "数据存放位置",
+    "help": "数据存放位置"
+  },
+  "Slot_mode": {
+    "reference_type": "DEFAULT",
+    "reference": "",
+    "value_type": "STRING",
+    "default_value": "eval",
+    "label": "任务类型，train或eval",
+    "help": "任务类型，train或eval"
+  },
+  "Slot_loss_type": {
+      "reference_type": "DEFAULT",
+      "reference": "",
+      "value_type": "STRING",
+    "default_value": "logistic",
+      "label": "损失函数类型",
+      "help": "损失函数类型，logistic或mse，默认logistic"
+    },
+  "Slot_file_ext": {
+    "reference_type": "DEFAULT",
+    "reference": "",
+    "value_type": "STRING",
+    "default_value": ".data",
+    "label": "文件后缀",
+    "help": "文件后缀"
+  },
+  "Slot_file_type": {
+    "reference_type": "DEFAULT",
+    "reference": "",
+    "value_type": "STRING",
+    "default_value": "tfrecord",
+    "label": "文件类型，csv或tfrecord",
+    "help": "文件类型，csv或tfrecord"
+  },
+  "Slot_learning_rate": {
+    "reference_type": "DEFAULT",
+    "reference": "",
+    "value_type": "NUMBER",
+    "default_value": 0.3,
+    "label": "学习率",
+    "help": "学习率"
+  },
+  "Slot_max_iters": {
+    "reference_type": "DEFAULT",
+    "reference": "",
+    "value_type": "INT",
+    "default_value": 5,
+    "label": "迭代数",
+    "help": "树的数量"
+  },
+  "Slot_max_depth": {
+    "reference_type": "DEFAULT",
+    "reference": "",
+    "value_type": "INT",
+    "default_value": 3,
+    "label": "最大深度",
+    "help": "最大深度"
+  },
+  "Slot_max_bins": {
+    "reference_type": "DEFAULT",
+    "reference": "",
+    "value_type": "INT",
+    "default_value": 33,
+    "label": "最大分箱数",
+    "help": "最大分箱数"
+  },
+  "Slot_l2_regularization": {
+    "reference_type": "DEFAULT",
+    "reference": "",
+    "value_type": "NUMBER",
+    "default_value": 1,
+    "label": "L2惩罚系数",
+    "help": "L2惩罚系数"
+  },
+  "Slot_num_parallel": {
+    "reference_type": "DEFAULT",
+    "reference": "",
+    "value_type": "INT",
+    "default_value": 1,
+    "label": "进程数量",
+    "help": "进程数量"
+  },
+  "Slot_enable_packing": {
+    "reference_type": "DEFAULT",
+    "reference": "",
+    "value_type": "BOOL",
+    "default_value": true,
+    "label": "是否开启优化",
+    "help": "是否开启优化"
+  },
+  "Slot_ignore_fields": {
+    "reference_type": "DEFAULT",
+    "reference": "",
+    "value_type": "STRING",
+    "default_value": "",
+    "label": "不入模的特征",
+    "help": "以逗号分隔如：name,age,sex"
+  },
+  "Slot_cat_fields": {
+    "reference_type": "DEFAULT",
+    "reference": "",
+    "value_type": "STRING",
+    "default_value": "",
+    "label": "类别类型特征",
+    "help": "类别类型特征，特征的值需要是非负整数。以逗号分隔如：alive,country,sex"
+  },
+  "Slot_label_field": {
+      "reference_type": "DEFAULT",
+      "reference": "",
+      "value_type": "STRING",
+      "default_value": "label",
+      "label": "label特征名",
+      "help": "label特征名"
+  },
+  "Slot_load_model_name": {
+    "reference_type": "DEFAULT",
+    "reference": "",
+    "value_type": "STRING",
+    "default_value": "",
+    "label": "模型任务名称",
+    "help": "按任务名称加载模型，{STORAGE_ROOT_PATH}/job_output/{LOAD_MODEL_NAME}/exported_models"
+  },
+  "Slot_load_model_path": {
+    "reference_type": "DEFAULT",
+    "reference": "",
+    "value_type": "STRING",
+    "default_value": "",
+    "label": "模型文件地址",
+    "help": "模型文件地址"
+  },
+  "Slot_validation_data_path": {
+    "reference_type": "DEFAULT",
+    "reference": "",
+    "value_type": "STRING",
+    "default_value": "",
+    "label": "验证数据集地址",
+    "help": "验证数据集地址"
+  },
+  "Slot_send_scores_to_follower": {
+    "reference_type": "DEFAULT",
+    "reference": "",
+    "value_type": "BOOL",
+    "default_value": false,
+    "label": "是否发送结果到follower",
+    "help": "是否发送结果到follower"
+  },
+  "Slot_send_metrics_to_follower": {
+    "reference_type": "DEFAULT",
+    "reference": "",
+    "value_type": "BOOL",
+    "default_value": false,
+    "label": "是否发送指标到follower",
+    "help": "是否发送指标到follower"
+  },
+  "Slot_verbosity": {
+    "reference_type": "DEFAULT",
+    "reference": "",
+    "value_type": "INT",
+    "default_value": 1,
+    "label": "日志输出等级",
+    "help": "日志输出等级"
+  },
+  "Slot_no_data": {
+    "reference_type": "DEFAULT",
+    "reference": "",
+    "value_type": "BOOL",
+    "default_value": false,
+    "label": "Leader是否没数据",
+    "help": "Leader是否没数据"
+  },
+  "Slot_verify_example_ids": {
+    "reference_type": "DEFAULT",
+    "reference": "",
+    "value_type": "BOOL",
+    "default_value": false,
+    "label": "是否检查example_id对齐",
+    "help": "是否检查example_id对齐 If set to true, the first column of the data will be treated as example ids that must match between leader and follower"
+  },
+  "Slot_es_batch_size": {
+    "reference_type": "DEFAULT",
+    "reference": "",
+    "value_type": "INT",
+    "default_value": 10,
+    "label": "ES_BATCH_SIZE",
+    "help": "ES_BATCH_SIZE"
+  },
+  "Slot_worker_envs": {
+    "reference": "",
+    "value_type": "LIST",
+    "default_value": [],
+    "help": "数组类型，worker pod额外的环境变量",
+    "reference_type": "DEFAULT",
+    "label": "Worker额外环境变量"
+  },
+  "Slot_labels": {
+    "reference": "system.variables.labels",
+    "value_type": "OBJECT",
+    "default_value": {},
+    "help": "建议不修改，格式： {}",
+    "reference_type": "SYSTEM",
+    "label": "FLAPP额外元信息"
+  },
+  "Slot_volumes": {
+    "reference": "system.variables.volumes_list",
+    "value_type": "LIST",
+    "default_value": [{"persistentVolumeClaim": {"claimName": "pvc-fedlearner-default"},"name": "data"}],
+    "help": "建议不修改，数组类型，和volume_mounts一一对应",
+    "reference_type": "SYSTEM",
+    "label": "为Pod提供的卷"
+  },
+  "Slot_volume_mounts": {
+    "reference": "system.variables.volume_mounts_list",
+    "value_type": "LIST",
+    "default_value": [{"mountPath": "/data","name": "data"}],
+    "help": "建议不修改，容器中卷挂载的位置，数组类型",
+    "reference_type": "SYSTEM",
+    "label": "卷挂载位置"
+  }
+}

@@ -1,0 +1,19 @@
+load("@rules_python//python:defs.bzl", "py_library")
+
+package(default_visibility = ["//web_console_v2/api:console_api_package"])
+
+filegroup(
+    name = "test_data",
+    testonly = True,
+    srcs = glob(["**/*"]),
+    visibility = ["//visibility:public"],
+)
+
+py_library(
+    name = "test_data_lib",
+    testonly = True,
+    srcs = [
+        "es_query_result.py",
+    ],
+    imports = ["../.."],
+)

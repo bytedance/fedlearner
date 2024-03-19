@@ -3,7 +3,7 @@ const fs = require('fs');
 const { promisify } = require('util');
 const path = require('path');
 const lessToJs = require('./lessVarsToJs');
-const camelCase = require('lodash/camelCase');
+const { camelCase } = require('./utils');
 const readFileAsync = promisify(fs.readFile);
 const writeFileAsync = promisify(fs.writeFile);
 

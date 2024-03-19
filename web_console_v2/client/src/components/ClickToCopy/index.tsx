@@ -1,28 +1,43 @@
-import React, { FC } from 'react';
-import styled from 'styled-components';
-import { useTranslation } from 'react-i18next';
-import { copyToClipboard } from 'shared/helpers';
-import { message } from 'antd';
+/* istanbul ignore file */
 
-const Container = styled.div`
-  cursor: pointer;
-`;
+import React, { FC } from 'react';
+import i18n from 'i18n';
+
+import { newCopyToClipboard, to } from 'shared/helpers';
+import { Message } from '@arco-design/web-react';
 
 type Props = {
+  /** Text that will be copied  */
   text: string;
+  /** Tip that it will show when copied success */
+  successTip?: string;
+  /** Tip that it will show when copied fail */
+  failTip?: string;
 };
 
-const ClickToCopy: FC<Props> = ({ children, text }) => {
-  const { t } = useTranslation();
+const ClickToCopy: FC<Props> = ({
+  children,
+  text,
+  successTip = i18n.t('app.copy_success'),
+  failTip = i18n.t('app.copy_fail'),
+}) => {
+  return (
+    <div
+      style={{
+        cursor: 'pointer',
+      }}
+      onClick={onClick}
+    >
+      {children}
+    </div>
+  );
 
-  return <Container onClick={onClick}>{children}</Container>;
-
-  function onClick() {
-    const isOK = copyToClipboard(text);
-
-    if (isOK) {
-      message.success(t('app.copy_success'));
+  async function onClick() {
+    const [, error] = await to(newCopyToClipboard(text));
+    if (error) {
+      return Message.error(failTip!);
     }
+    return Message.success(successTip!);
   }
 };
 

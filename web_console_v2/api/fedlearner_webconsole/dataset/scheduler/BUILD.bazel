@@ -1,0 +1,250 @@
+load("@rules_python//python:defs.bzl", "py_library")
+
+package(default_visibility = ["//web_console_v2/api:console_api_package"])
+
+py_library(
+    name = "scheduler",
+    srcs = [
+        "dataset_long_period_scheduler.py",
+        "dataset_short_period_scheduler.py",
+    ],
+    imports = ["../../.."],
+    deps = [
+        ":consts_lib",
+        ":executors_lib",
+        "//web_console_v2/api/fedlearner_webconsole:db_lib",
+        "//web_console_v2/api/fedlearner_webconsole/composer:common_lib",
+        "//web_console_v2/api/fedlearner_webconsole/composer:composer_service_lib",
+        "//web_console_v2/api/fedlearner_webconsole/dataset:controllers_lib",
+        "//web_console_v2/api/fedlearner_webconsole/dataset:local_controllers_lib",
+        "//web_console_v2/api/fedlearner_webconsole/dataset:models_lib",
+        "//web_console_v2/api/fedlearner_webconsole/dataset:services_lib",
+        "//web_console_v2/api/fedlearner_webconsole/dataset/job_configer",
+        "//web_console_v2/api/fedlearner_webconsole/flag:models_lib",
+        "//web_console_v2/api/fedlearner_webconsole/rpc:client_lib",
+        "//web_console_v2/api/fedlearner_webconsole/utils:file_lib",
+        "//web_console_v2/api/fedlearner_webconsole/utils/base_model:base_model_lib",
+        "//web_console_v2/api/protocols/fedlearner_webconsole/proto:py_proto",
+    ],
+)
+
+py_test(
+    name = "dataset_long_period_scheduler_test",
+    size = "small",
+    srcs = [
+        "dataset_long_period_scheduler_test.py",
+    ],
+    imports = ["../../.."],
+    main = "dataset_long_period_scheduler_test.py",
+    deps = [
+        ":consts_lib",
+        ":executors_lib",
+        ":scheduler",
+        "//web_console_v2/api/fedlearner_webconsole/composer:common_lib",
+        "//web_console_v2/api/protocols/fedlearner_webconsole/proto:py_proto",
+        "//web_console_v2/api/testing:no_web_server_test_case_lib",
+    ],
+)
+
+py_test(
+    name = "dataset_short_period_scheduler_test",
+    size = "small",
+    srcs = [
+        "dataset_short_period_scheduler_test.py",
+    ],
+    imports = ["../../.."],
+    main = "dataset_short_period_scheduler_test.py",
+    deps = [
+        ":consts_lib",
+        ":executors_lib",
+        ":scheduler",
+        "//web_console_v2/api/fedlearner_webconsole/composer:common_lib",
+        "//web_console_v2/api/protocols/fedlearner_webconsole/proto:py_proto",
+        "//web_console_v2/api/testing:no_web_server_test_case_lib",
+    ],
+)
+
+py_library(
+    name = "base_executor_lib",
+    srcs = [
+        "base_executor.py",
+    ],
+    imports = ["../../.."],
+    deps = [
+        ":consts_lib",
+    ],
+)
+
+py_library(
+    name = "executors_lib",
+    srcs = [
+        "chained_executor.py",
+        "cron_dataset_job_executor.py",
+        "dataset_job_executor.py",
+        "pending_dataset_job_stage_executor.py",
+        "running_dataset_job_stage_executor.py",
+        "update_auth_status_executor.py",
+    ],
+    imports = ["../../.."],
+    deps = [
+        ":base_executor_lib",
+        ":consts_lib",
+        "//web_console_v2/api/fedlearner_webconsole:db_lib",
+        "//web_console_v2/api/fedlearner_webconsole:exceptions_lib",
+        "//web_console_v2/api/fedlearner_webconsole/cleanup:models_lib",
+        "//web_console_v2/api/fedlearner_webconsole/cleanup:services_lib",
+        "//web_console_v2/api/fedlearner_webconsole/composer:common_lib",
+        "//web_console_v2/api/fedlearner_webconsole/composer:composer_service_lib",
+        "//web_console_v2/api/fedlearner_webconsole/dataset:common_lib",
+        "//web_console_v2/api/fedlearner_webconsole/dataset:controllers_lib",
+        "//web_console_v2/api/fedlearner_webconsole/dataset:local_controllers_lib",
+        "//web_console_v2/api/fedlearner_webconsole/dataset:models_lib",
+        "//web_console_v2/api/fedlearner_webconsole/dataset:services_lib",
+        "//web_console_v2/api/fedlearner_webconsole/dataset/job_configer",
+        "//web_console_v2/api/fedlearner_webconsole/flag:models_lib",
+        "//web_console_v2/api/fedlearner_webconsole/rpc:client_lib",
+        "//web_console_v2/api/fedlearner_webconsole/rpc/v2:job_service_client_lib",
+        "//web_console_v2/api/fedlearner_webconsole/rpc/v2:resource_service_client_lib",
+        "//web_console_v2/api/fedlearner_webconsole/rpc/v2:system_service_client_lib",
+        "//web_console_v2/api/fedlearner_webconsole/utils:pp_datetime_lib",
+        "//web_console_v2/api/fedlearner_webconsole/utils:workflow_lib",
+        "//web_console_v2/api/fedlearner_webconsole/utils/base_model:base_model_lib",
+        "//web_console_v2/api/fedlearner_webconsole/workflow:models_lib",
+        "//web_console_v2/api/protocols/fedlearner_webconsole/proto:py_proto",
+        "@common_sqlalchemy//:pkg",
+    ],
+)
+
+py_test(
+    name = "chained_executor_test",
+    size = "small",
+    srcs = [
+        "chained_executor_test.py",
+    ],
+    imports = ["../../.."],
+    main = "chained_executor_test.py",
+    deps = [
+        ":consts_lib",
+        ":executors_lib",
+        "//web_console_v2/api/testing:fake_lib",
+    ],
+)
+
+py_test(
+    name = "cron_dataset_job_executor_test",
+    size = "small",
+    srcs = [
+        "cron_dataset_job_executor_test.py",
+    ],
+    imports = ["../../.."],
+    main = "cron_dataset_job_executor_test.py",
+    deps = [
+        ":consts_lib",
+        ":executors_lib",
+        "//web_console_v2/api/fedlearner_webconsole:db_lib",
+        "//web_console_v2/api/fedlearner_webconsole/dataset:models_lib",
+        "//web_console_v2/api/protocols/fedlearner_webconsole/proto:py_proto",
+        "//web_console_v2/api/testing:no_web_server_test_case_lib",
+    ],
+)
+
+py_test(
+    name = "update_auth_status_executor_test",
+    size = "small",
+    srcs = [
+        "update_auth_status_executor_test.py",
+    ],
+    imports = ["../../.."],
+    main = "update_auth_status_executor_test.py",
+    deps = [
+        ":consts_lib",
+        ":executors_lib",
+        "//web_console_v2/api/fedlearner_webconsole:db_lib",
+        "//web_console_v2/api/fedlearner_webconsole/dataset:models_lib",
+        "//web_console_v2/api/fedlearner_webconsole/utils/base_model:base_model_lib",
+        "//web_console_v2/api/protocols/fedlearner_webconsole/proto:py_proto",
+        "//web_console_v2/api/testing:no_web_server_test_case_lib",
+    ],
+)
+
+py_test(
+    name = "dataset_job_executor_test",
+    size = "medium",
+    srcs = [
+        "dataset_job_executor_test.py",
+    ],
+    imports = ["../../.."],
+    main = "dataset_job_executor_test.py",
+    deps = [
+        ":consts_lib",
+        ":executors_lib",
+        "//web_console_v2/api/fedlearner_webconsole:db_lib",
+        "//web_console_v2/api/fedlearner_webconsole:initial_db_lib",
+        "//web_console_v2/api/fedlearner_webconsole/dataset:models_lib",
+        "//web_console_v2/api/fedlearner_webconsole/dataset/job_configer",
+        "//web_console_v2/api/fedlearner_webconsole/flag:models_lib",
+        "//web_console_v2/api/fedlearner_webconsole/participant:models_lib",
+        "//web_console_v2/api/fedlearner_webconsole/project:models_lib",
+        "//web_console_v2/api/fedlearner_webconsole/utils/base_model:base_model_lib",
+        "//web_console_v2/api/protocols/fedlearner_webconsole/proto:py_proto",
+        "//web_console_v2/api/testing:no_web_server_test_case_lib",
+    ],
+)
+
+py_test(
+    name = "pending_dataset_job_stage_executor_test",
+    size = "small",
+    srcs = [
+        "pending_dataset_job_stage_executor_test.py",
+    ],
+    imports = ["../../.."],
+    main = "pending_dataset_job_stage_executor_test.py",
+    deps = [
+        ":consts_lib",
+        ":executors_lib",
+        "//web_console_v2/api/fedlearner_webconsole:db_lib",
+        "//web_console_v2/api/fedlearner_webconsole:initial_db_lib",
+        "//web_console_v2/api/fedlearner_webconsole/dataset:models_lib",
+        "//web_console_v2/api/fedlearner_webconsole/job:models_lib",
+        "//web_console_v2/api/fedlearner_webconsole/participant:models_lib",
+        "//web_console_v2/api/fedlearner_webconsole/project:models_lib",
+        "//web_console_v2/api/fedlearner_webconsole/workflow:models_lib",
+        "//web_console_v2/api/protocols/fedlearner_webconsole/proto:py_proto",
+        "//web_console_v2/api/testing:no_web_server_test_case_lib",
+    ],
+)
+
+py_test(
+    name = "running_dataset_job_stage_executor_test",
+    size = "medium",
+    srcs = [
+        "running_dataset_job_stage_executor_test.py",
+    ],
+    imports = ["../../.."],
+    main = "running_dataset_job_stage_executor_test.py",
+    deps = [
+        ":consts_lib",
+        ":executors_lib",
+        "//web_console_v2/api/fedlearner_webconsole:db_lib",
+        "//web_console_v2/api/fedlearner_webconsole:initial_db_lib",
+        "//web_console_v2/api/fedlearner_webconsole/composer:common_lib",
+        "//web_console_v2/api/fedlearner_webconsole/dataset:models_lib",
+        "//web_console_v2/api/fedlearner_webconsole/flag:models_lib",
+        "//web_console_v2/api/fedlearner_webconsole/job:models_lib",
+        "//web_console_v2/api/fedlearner_webconsole/participant:models_lib",
+        "//web_console_v2/api/fedlearner_webconsole/project:models_lib",
+        "//web_console_v2/api/fedlearner_webconsole/utils:pp_datetime_lib",
+        "//web_console_v2/api/fedlearner_webconsole/workflow:models_lib",
+        "//web_console_v2/api/protocols/fedlearner_webconsole/proto:py_proto",
+        "//web_console_v2/api/testing:no_web_server_test_case_lib",
+        "@common_sqlalchemy//:pkg",
+    ],
+)
+
+py_library(
+    name = "consts_lib",
+    srcs = [
+        "consts.py",
+    ],
+    imports = ["../../.."],
+)

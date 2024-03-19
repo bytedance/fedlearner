@@ -1,0 +1,107 @@
+@import '~styles/mixins.less';
+
+.anchor_icon {
+  transform: translateX(1px) scaleX(-1);
+  margin-left: 10px;
+}
+
+.details {
+  --highlightColor: var(--primaryColor);
+
+  margin-bottom: 20px;
+  border-radius: 2px;
+  .open_indicator {
+    transition: 0.4s var(--commonTiming);
+  }
+  &[data-open='true'] {
+    background-color: #fcfcfc;
+    padding-bottom: 10px;
+    box-shadow: -2px 0 0 0 var(--highlightColor);
+
+    &[data-has-error='true'] {
+      --highlightColor: var(--errorColor);
+    }
+
+    .open_indicator {
+      transform: rotate(180deg);
+    }
+  }
+}
+
+@keyframes HighlightedWave {
+  0% {
+    box-shadow: 0 0 0 2px var(--primaryColor);
+  }
+  33% {
+    box-shadow: 0 0 0 2px var(--primaryColor), 0 0 0 5px var(--blue2);
+  }
+  66% {
+    box-shadow: 0 0 0 2px var(--primaryColor), 0 0 0 10px transparent;
+  }
+  100% {
+    box-shadow: 0 0 0 2px var(--primaryColor);
+  }
+}
+
+.summary {
+  transition: 'box-shadow' 0.4s var(--commonTiming), 'background-color' 0.4s var(--commonTiming);
+
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 46px;
+  padding-left: 10px;
+  padding-right: 20px;
+  background-color: var(--backgroundColor);
+  border-radius: 2px;
+  cursor: pointer;
+  box-shadow: 0 0 0 2px transparent;
+  list-style: none;
+
+  // Hide safari marker
+  &::-webkit-details-marker {
+    display: none;
+  }
+
+  @supports (overflow: clip) {
+    overflow: clip;
+  }
+
+  &:hover {
+    background-color: #f0f0f0;
+  }
+
+  &[data-has-error='true'] {
+    &::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0;
+      border: 6px solid var(--errorColor);
+      border-radius: 0 0 50% 0;
+    }
+  }
+  &[data-highlighted='true'] {
+    background-color: var(--blue1);
+    animation: HighlightedWave 2s linear infinite;
+  }
+}
+
+.container {
+  padding-right: 60px;
+  padding-top: 20px;
+}
+
+.name {
+  .MixinEllipsis();
+  max-width: 550px;
+  flex: 1;
+  padding-left: 10px;
+  font-size: 13px;
+  user-select: none;
+}
+
+.search_box {
+  width: 400px;
+  margin-bottom: 20px;
+}

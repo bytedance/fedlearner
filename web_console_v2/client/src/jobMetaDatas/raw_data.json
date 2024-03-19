@@ -1,0 +1,220 @@
+{
+  "Slot_storage_root_path": {
+    "reference": "project.variables.storage_root_path",
+    "value_type": "STRING",
+    "default_value": "/data",
+    "help": "联邦学习中任务存储根目录",
+    "reference_type": "PROJECT",
+    "label": "存储根目录"
+  },
+  "Slot_image_version": {
+    "reference": "",
+    "value_type": "STRING",
+    "default_value": "882310f",
+    "help": "建议不修改，指定Pod中运行的容器镜像版本，前缀为system.variables.image_repo + '/fedlearner:'",
+    "reference_type": "DEFAULT",
+    "label": "容器镜像版本"
+  },
+  "Slot_master_cpu": {
+    "reference": "",
+    "value_type": "STRING",
+    "default_value": "2000m",
+    "help": "Master Pod 所分配的CPU资源（request和limit一致）",
+    "reference_type": "DEFAULT",
+    "label": "Master的CPU"
+  },
+  "Slot_master_memory": {
+    "reference": "",
+    "value_type": "STRING",
+    "default_value": "3Gi",
+    "help": "Master Pod 所分配的内存资源（request和limit一致）",
+    "reference_type": "DEFAULT",
+    "label": "Master的内存"
+  },
+  "Slot_worker_cpu": {
+    "reference": "",
+    "value_type": "STRING",
+    "default_value": "2000m",
+    "help": "Worker Pod 所分配的CPU资源（request和limit一致）",
+    "reference_type": "DEFAULT",
+    "label": "Worker的CPU"
+  },
+  "Slot_worker_memory": {
+    "reference": "",
+    "value_type": "STRING",
+    "default_value": "3Gi",
+    "help": "Worker Pod 所分配的内存资源（request和limit一致）",
+    "reference_type": "DEFAULT",
+    "label": "Worker的内存"
+  },
+  "Slot_data_portal_type": {
+    "reference": "",
+    "value_type": "STRING",
+    "default_value": "Streaming",
+    "help": "运行过一次后修改无效！！ the type of data portal type ,choices=['PSI', 'Streaming']",
+    "reference_type": "DEFAULT",
+    "label": "数据入口类型"
+  },
+  "Slot_output_partition_num": {
+    "reference": "",
+    "value_type": "INT",
+    "default_value": 4,
+    "help": "运行过一次后修改无效！！输出数据的文件数量，对应Worker数量",
+    "reference_type": "WORKFLOW",
+    "label": "数据分区的数量"
+  },
+  "Slot_input_base_dir": {
+    "reference": "",
+    "value_type": "STRING",
+    "default_value": "/app/deploy/integrated_test/tfrecord_raw_data",
+    "help": "必须修改，运行过一次后修改无效！！the base dir of input directory",
+    "reference_type": "WORKFLOW",
+    "label": "输入路径"
+  },
+  "Slot_long_running": {
+    "reference": "",
+    "value_type": "STRING",
+    "default_value": "",
+    "help": "choices: ['','--long_running']否，是。是否为常驻上传原始数据",
+    "reference_type": "DEFAULT",
+    "label": "是否常驻"
+  },
+  "Slot_check_success_tag": {
+    "reference": "",
+    "value_type": "STRING",
+    "default_value": "",
+    "help": "choices:['','--check_success_tag'] means false and true, Check that a _SUCCESS file exists before processing files in a subfolder",
+    "reference_type": "DEFAULT",
+    "label": "是否检查成功标志"
+  },
+  "Slot_files_per_job_limit": {
+    "reference": "",
+    "value_type": "INT",
+    "default_value": null,
+    "help": "空即不设限制，Max number of files in a job",
+    "reference_type": "DEFAULT",
+    "label": "每个任务最多文件数"
+  },
+  "Slot_single_subfolder": {
+    "reference": "",
+    "value_type": "STRING",
+    "default_value": "",
+    "help": "choices:['','--single_subfolder'] 否 是，Only process one subfolder at a time",
+    "reference_type": "DEFAULT",
+    "label": "是否单一子文件夹"
+  },
+  "Slot_file_wildcard": {
+    "reference": "",
+    "value_type": "STRING",
+    "default_value": "*.rd",
+    "help": "文件名称的通配符， 将会读取input_base_dir下所以满足条件的文件，如\n1. *.csv，意为读取所有csv格式文件\n2. *.tfrecord，意为读取所有tfrecord格式文件\n3. xxx.txt，意为读取文件名为xxx.txt的文件",
+    "reference_type": "DEFAULT",
+    "label": "文件名称的通配符"
+  },
+  "Slot_batch_size": {
+    "reference": "",
+    "value_type": "INT",
+    "default_value": 1024,
+    "help": "原始数据是一批一批的从文件系统中读出来，batch_size为batch的大小",
+    "reference_type": "DEFAULT",
+    "label": "Batch大小"
+  },
+  "Slot_input_data_format": {
+    "reference": "",
+    "value_type": "STRING",
+    "default_value": "TF_RECORD",
+    "help": "choices=['TF_RECORD', 'CSV_DICT']  the type for input data iterator",
+    "reference_type": "DEFAULT",
+    "label": "输入数据格式"
+  },
+  "Slot_compressed_type": {
+    "reference": "",
+    "value_type": "STRING",
+    "default_value": "",
+    "help": "choices=['', 'ZLIB', 'GZIP']  the compressed type of input data file",
+    "reference_type": "DEFAULT",
+    "label": "压缩方式"
+  },
+  "Slot_output_data_format": {
+    "reference": "",
+    "value_type": "STRING",
+    "default_value": "TF_RECORD",
+    "help": "choices=['TF_RECORD', 'CSV_DICT']  the format for output file",
+    "reference_type": "DEFAULT",
+    "label": "输出格式"
+  },
+  "Slot_builder_compressed_type": {
+    "reference": "",
+    "value_type": "STRING",
+    "default_value": "",
+    "help": "choices=['', 'ZLIB', 'GZIP']  the format for output file",
+    "reference_type": "DEFAULT",
+    "label": "输出压缩格式"
+  },
+  "Slot_memory_limit_ratio": {
+    "reference": "",
+    "value_type": "INT",
+    "default_value": 70,
+    "help": "预测是否会OOM的时候用到，如果预测继续执行下去时占用内存会超过这个比例，就阻塞，直到尚未处理的任务处理完成。 注意这是个40-81之间的整数。",
+    "reference_type": "DEFAULT",
+    "label": "内存限制比例"
+  },
+  "Slot_optional_fields": {
+    "reference": "",
+    "value_type": "STRING",
+    "default_value": "",
+    "help": "optional stat fields used in joiner, separated by comma between fields, e.g. \"label,rit\"Each field will be stripped",
+    "reference_type": "DEFAULT",
+    "label": "可选字段"
+  },
+
+  "Slot_master_envs": {
+    "reference": "",
+    "value_type": "LIST",
+    "default_value": [],
+    "help": "数组类型，master pod额外的环境变量",
+    "reference_type": "DEFAULT",
+    "label": "Master额外环境变量"
+  },
+
+  "Slot_worker_envs": {
+    "reference": "",
+    "value_type": "LIST",
+    "default_value": [],
+    "help": "数组类型，worker pod额外的环境变量",
+    "reference_type": "DEFAULT",
+    "label": "Worker额外环境变量"
+  },
+  "Slot_labels": {
+    "reference": "system.variables.labels",
+    "value_type": "OBJECT",
+    "default_value": {},
+    "help": "建议不修改，格式： {}",
+    "reference_type": "SYSTEM",
+    "label": "FLAPP额外元信息"
+  },
+  "Slot_volumes": {
+    "reference": "system.variables.volumes_list",
+    "value_type": "LIST",
+    "default_value": [{"persistentVolumeClaim": {"claimName": "pvc-fedlearner-default"},"name": "data" }],
+    "help": "建议不修改，数组类型，和volume_mounts一一对应",
+    "reference_type": "SYSTEM",
+    "label": "为Pod提供的卷"
+  },
+  "Slot_volume_mounts": {
+    "reference": "system.variables.volume_mounts_list",
+    "value_type": "LIST",
+    "default_value": [{  "mountPath": "/data", "name": "data"}],
+    "help": "建议不修改，容器中卷挂载的位置，数组类型",
+    "reference_type": "SYSTEM",
+    "label": "卷挂载位置"
+  },
+  "Slot_raw_data_metrics_sample_rate": {
+    "reference": "",
+    "value_type": "STRING",
+    "default_value": "1",
+    "help": "建议不修改，es metrics 取样比例",
+    "reference_type": "DEFAULT",
+    "label": "metrics_sample_rate"
+  }
+}

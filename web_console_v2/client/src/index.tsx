@@ -4,23 +4,26 @@ import { ReactQueryDevtools } from 'react-query/devtools';
 import { QueryClientProvider } from 'react-query';
 import queryClient from 'shared/queryClient';
 import { BrowserRouter } from 'react-router-dom';
-import MockDevtools from 'components/_base/MockDevtools/MockControlPanel';
+import MockDevtools from 'components/MockDevtools/MockControlPanel';
 import App from './App';
 import { ThemeProvider } from 'styled-components';
 import { RecoilRoot } from 'recoil';
-import defaultTheme from 'styles/_theme';
-import antdZhCN from 'antd/lib/locale/zh_CN';
-import antdEnUS from 'antd/lib/locale/en_US';
-import { ConfigProvider } from 'antd';
-import i18n from './i18n';
-import 'assets/fonts/ClarityMono/index.less';
-import './styles/_variables.css';
-import './styles/antd-overrides.less';
+import { setUseWhatChange } from '@simbathesailor/use-what-changed';
+import { ConfigProvider } from '@arco-design/web-react';
+import { defaultTheme } from 'styles';
+
+import NoResult from 'components/NoResult';
+
+setUseWhatChange(process.env.NODE_ENV === 'development');
 
 ReactDOM.render(
   <BrowserRouter basename="/v2">
     <RecoilRoot>
-      <ConfigProvider locale={i18n.language === 'zh' ? antdZhCN : antdEnUS}>
+      <ConfigProvider
+        renderEmpty={() => {
+          return <NoResult.NoData />;
+        }}
+      >
         <ThemeProvider theme={defaultTheme}>
           <QueryClientProvider client={queryClient}>
             <App />

@@ -1,0 +1,60 @@
+.workflow_pods_header{
+  display: flex;
+  flex-direction: row;
+  justify-content: flex-start;
+  align-items: center;
+  :global(.arco-radio-button) {
+    &:after {
+      background-color: unset;
+    }
+  }
+}
+
+.job_detail_more_title{
+  color: #4e5969;
+  font-size: 12px;
+
+}
+.job_detail_more_content{
+  color: #1d2129;
+  font-size: 12px;
+}
+
+.job_detail_more_link{
+  display: inline-block;
+  font-weight: 400;
+  font-size: 12px;
+  line-height: 20px;
+  margin-bottom: 12px;
+}
+
+.job_detail_more_button{
+  margin-left: auto;
+  font-size: 12px;
+}
+
+.job_detail_state_indicator{
+  padding-left: 16px;
+  position: relative;
+  .dot {
+    display: inline-block;
+    position: absolute;
+    top: 4px;
+    left: 2px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background-color: rgb(245, 63, 63);
+  }
+}
+
+.job_detail_error_wrapper{
+  max-height: 300px;
+  overflow: scroll;
+  .job_detail_error_title{
+    color: #fff;
+  }
+  .job_detail_error_item{
+    margin-bottom: 10px;
+  }
+}

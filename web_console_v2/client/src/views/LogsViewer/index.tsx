@@ -1,25 +1,27 @@
 import React, { FC } from 'react';
 import { Route } from 'react-router-dom';
-import styled from 'styled-components';
 import PodLogs from './PodLogs';
 import JobLogs from './JobLogs';
 import JobEvents from './JobEvents';
 import SystemLogs from './SystemLogs';
+import ModelServingInstanceLogs from './ModelServingInstanceLogs';
 
-const Container = styled.main`
-  padding-left: 10px;
-  height: 100vh;
-  background-color: #292238;
-`;
+import styles from './index.module.less';
+
 const LogsViewer: FC = () => {
   return (
-    <Container>
+    <main className={styles.container}>
       <Route path="/logs/job/:jobId" exact component={JobLogs} />
-      <Route path="/logs/pod/:jobId/:podname" exact component={PodLogs} />
+      <Route path="/logs/pod/:jobId/:podname/:startTime?" exact component={PodLogs} />
       <Route path="/logs/job/events/:jobIdOrK8sName" exact component={JobEvents} />
       <Route path="/logs/job/events/:side/:jobIdOrK8sName/:uuid" exact component={JobEvents} />
       <Route path="/logs/system" exact component={SystemLogs} />
-    </Container>
+      <Route
+        path="/logs/model-serving/:modelServingId/:instanceName"
+        exact
+        component={ModelServingInstanceLogs}
+      />
+    </main>
   );
 };
 

@@ -1,7 +1,9 @@
+/* istanbul ignore file */
+
 import React, { FC } from 'react';
 import styled from 'styled-components';
-import { Button } from 'antd';
-import { ButtonProps } from 'antd/lib/button/button';
+import { Button } from '@arco-design/web-react';
+import { ButtonProps } from '@arco-design/web-react/lib/Button';
 
 const ButtonContainer = styled(Button)`
   &:hover {

@@ -1,0 +1,6 @@
+filegroup(
+    name = "test_data",
+    testonly = True,
+    srcs = ["deploy_config.yaml"],
+    visibility = ["//pp_lite:pp_lite_package"],
+)

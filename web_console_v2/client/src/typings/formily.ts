@@ -1,7 +1,6 @@
 export type SchemaMessage = React.ReactNode;
 
 export type FormilyProperties = { [key: string]: FormilySchema };
-
 export interface FormilySchema {
   title?: SchemaMessage;
   description?: SchemaMessage;

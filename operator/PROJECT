@@ -1,0 +1,16 @@
+domain: k8s.io
+layout:
+- go.kubebuilder.io/v3
+projectName: flapp-operator
+repo: fedlearner.net
+resources:
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: k8s.io
+  group: fedlearner
+  kind: FedApp
+  path: fedlearner.net/operator/api/v1alpha1
+  version: v1alpha1
+version: "3"

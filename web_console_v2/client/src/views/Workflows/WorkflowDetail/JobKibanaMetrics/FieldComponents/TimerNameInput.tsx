@@ -1,6 +1,5 @@
 import React, { FC } from 'react';
-import { useTranslation } from 'react-i18next';
-import { Select } from 'antd';
+import { Select } from '@arco-design/web-react';
 
 type Props = {
   value?: string;
@@ -8,15 +7,14 @@ type Props = {
 };
 
 const TimerNameInput: FC<Props> = ({ value, onChange }) => {
-  const { t } = useTranslation();
-
   return (
     <Select
-      mode="tags"
+      mode="multiple"
+      allowCreate={true}
       defaultValue={value?.split(',')}
       onChange={onTimersChange}
-      placeholder={t('workflow.placeholder_timers')}
-      notFoundContent={t('workflow.placeholder_kibana_timer')}
+      placeholder="Timers"
+      notFoundContent={<span style={{ paddingLeft: '10px' }}>{'输入多个 timer 名称'}</span>}
     />
   );
 

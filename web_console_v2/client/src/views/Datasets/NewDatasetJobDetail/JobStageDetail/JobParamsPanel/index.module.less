@@ -1,0 +1,36 @@
+.params_panel_header{
+    display: flex;
+    flex-direction: row;
+    justify-content: flex-start;
+    margin: 20px 0;
+    .title{
+        font-size: 14px;
+        line-height: 22px;
+        margin-right: 8px;
+    }
+    :global(.arco-radio-button) {
+        &:after {
+          background-color: unset;
+        }
+    }
+}
+.params_panel_container{
+    display: flex;
+    flex-direction: row;
+    justify-content: flex-start;
+    .params_panel_item_wrapper{
+        flex: 1;
+        margin-right: 20px;
+        &:last-child{
+            margin-right: 0;
+        }
+    }
+}
+.params_panel_label{
+    font-weight: 400;
+    font-size: 12px;
+    line-height: 18px;
+    color: #4e5969;
+    display: inline-block;
+    height: 18px;
+}

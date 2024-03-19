@@ -1,0 +1,118 @@
+/* Copyright 2023 The FedLearner Authors. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+syntax = "proto3";
+
+package fedlearner_webconsole.proto;
+
+// Part1. Put in web restful API response
+message ServingService {
+  int64 id = 1;
+  int64 project_id = 2;
+  string name = 3;
+  string status = 4;
+  int64 created_at = 5;
+  int64 updated_at = 6;
+  string instance_num_status = 7;
+  // can serving locally. False means need participants involved
+  bool is_local = 8;
+  ServingServiceResource resource = 9;
+  bool support_inference = 10;
+  string comment = 11;
+}
+
+message ServingServiceInstance {
+  string name = 1;
+  string status = 2;
+  string cpu = 3;
+  string memory = 4;
+  int64 created_at = 5;
+}
+
+message ServingServiceResource {
+  string cpu = 1;
+  string memory = 2;
+  int32 replicas = 3;
+}
+
+message ServingServiceRemotePlatform {
+  string platform = 1;
+  string payload = 2;
+}
+
+message ServingServiceDetail {
+  int64 id = 1;
+  int64 project_id = 2;
+  string name = 3;
+  string status = 4;
+  int64 created_at = 5;
+  int64 updated_at = 6;
+  string instance_num_status = 7;
+  bool is_local = 8;
+  ServingServiceResource resource = 9;
+  bool support_inference = 10;
+  string comment = 11;
+  int64 model_id = 12;
+  string model_type = 13;
+  reserved 14;
+  string endpoint = 15;
+  string signature = 16;
+  repeated ServingServiceInstance instances = 17;
+  int64 model_group_id = 18;
+  ServingServiceRemotePlatform remote_platform = 19;
+}
+
+message ServingServiceSignatureInput {
+  string name = 1;
+  string type = 2;
+  // Reference: https://github.com/tensorflow/tensorflow/blob/5dcfc51118817f27fad5246812d83e5dccdc5f72/tensorflow/core/framework/tensor_shape.proto#L13
+  repeated int64 dim = 3;
+}
+
+message ServingServiceSignature {
+  repeated ServingServiceSignatureInput inputs = 1;
+}
+
+// Part2. Communicate with participants
+enum ServingServiceType {
+  SERVING_SERVICE_CREATE = 0;
+  SERVING_SERVICE_QUERY = 1;
+  SERVING_SERVICE_DESTROY = 2;
+  SERVING_SERVICE_UPDATE = 3;
+}
+
+enum ServingServiceResultCode {
+  SERVING_SERVICE_UNKNOWN = 0;
+  SERVING_SERVICE_SUCCESS = 1;
+  SERVING_SERVICE_MODEL_NOT_FOUND = 2;
+  SERVING_SERVICE_NAME_DUPLICATED = 3;
+  SERVING_SERVICE_PENDING_ACCEPT = 4;
+  SERVING_SERVICE_NOT_READY = 5;
+  SERVING_SERVICE_NEGOTIATOR_NOT_FOUND = 6;
+}
+
+// Part3. used internal
+enum RemoteDeployState {
+  REMOTE_DEPLOY_UNKNOWN = 0;
+  REMOTE_DEPLOY_READY = 1;
+  REMOTE_DEPLOY_NOT_READY = 2;
+}
+
+message RemoteDeployConfig {
+  string platform = 1;
+  string payload = 2;
+  int64 deploy_id = 3;
+  string deploy_name = 4;
+  string model_src_path = 5;
+}

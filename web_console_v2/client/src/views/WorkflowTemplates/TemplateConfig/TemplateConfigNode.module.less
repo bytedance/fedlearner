@@ -1,0 +1,64 @@
+@import '~styles/mixins.less';
+
+.add_job_button {
+  .MixinCircle(20px);
+  .MixinFlexAlignCenter();
+  position: absolute;
+  display: flex;
+  background-color: white;
+  color: var(--textColorDisabled);
+  font-size: 20px;
+  transition: 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+
+  &:hover {
+    color: var(--primaryColor);
+    border-color: currentColor;
+  }
+
+  &::before {
+    content: '';
+    position: absolute;
+    height: 21px;
+    padding: 10px 0;
+    width: 13px;
+    background-color: currentColor;
+    background-clip: content-box;
+  }
+
+  &.left {
+    left: -32px;
+    top: calc(50% - 12px);
+
+    &::before {
+      right: -11px;
+    }
+  }
+  &.right {
+    right: -32px;
+    top: calc(50% - 12px);
+
+    &::before {
+      left: -11px;
+    }
+  }
+  &.bottom {
+    bottom: -32px;
+    left: calc(50% - 12px);
+
+    &::before {
+      top: -15px;
+      transform: rotate(90deg);
+    }
+  }
+}
+
+.container {
+  &:hover {
+    z-index: 5;
+  }
+  &:not(:hover) {
+    .add_job_button {
+      opacity: 0;
+    }
+  }
+}

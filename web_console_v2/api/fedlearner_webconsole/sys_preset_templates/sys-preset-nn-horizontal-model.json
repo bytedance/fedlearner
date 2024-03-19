@@ -1,0 +1,460 @@
+{
+    "name": "sys-preset-nn-horizontal-model",
+    "group_alias": "sys_preset_nn_horizontal_model",
+    "config": {
+        "group_alias": "sys_preset_nn_horizontal_model",
+        "job_definitions": [
+            {
+                "name": "train-job",
+                "job_type": "NN_MODEL_TRANINING",
+                "variables": [
+                    {
+                        "name": "algorithm",
+                        "value": "{\"path\":[],\"config\":[]}",
+                        "access_mode": "PEER_READABLE",
+                        "widget_schema": "{\"component\":\"AlgorithmSelect\",\"required\":true,\"tag\":\"OPERATING_PARAM\"}",
+                        "value_type": "OBJECT",
+                        "typed_value": {
+                            "path": [],
+                            "config": []
+                        },
+                        "tag": "OPERATING_PARAM"
+                    },
+                    {
+                        "name": "image_version",
+                        "value": "50a6945",
+                        "access_mode": "PEER_WRITABLE",
+                        "widget_schema": "{\"component\":\"Input\",\"required\":true,\"tag\":\"INPUT_PARAM\"}",
+                        "typed_value": "50a6945",
+                        "tag": "INPUT_PARAM",
+                        "value_type": "STRING"
+                    },
+                    {
+                        "name": "role",
+                        "access_mode": "PEER_WRITABLE",
+                        "widget_schema": "{\"component\":\"Select\",\"required\":true,\"enum\":[\"Leader\",\"Follower\"],\"tag\":\"INPUT_PARAM\"}",
+                        "typed_value": "",
+                        "tag": "INPUT_PARAM",
+                        "value": "",
+                        "value_type": "STRING"
+                    },
+                    {
+                        "name": "data_path",
+                        "access_mode": "PEER_WRITABLE",
+                        "widget_schema": "{\"component\":\"Input\",\"required\":false,\"tag\":\"INPUT_PATH\"}",
+                        "typed_value": "",
+                        "tag": "INPUT_PATH",
+                        "value": "",
+                        "value_type": "STRING"
+                    },
+                    {
+                        "name": "steps_per_sync",
+                        "value": "10",
+                        "access_mode": "PEER_WRITABLE",
+                        "widget_schema": "{\"component\":\"Input\",\"required\":true,\"tag\":\"INPUT_PARAM\"}",
+                        "typed_value": "10",
+                        "tag": "INPUT_PARAM",
+                        "value_type": "STRING"
+                    },
+                    {
+                        "name": "worker_cpu",
+                        "value": "4000m",
+                        "access_mode": "PEER_WRITABLE",
+                        "widget_schema": "{\"component\":\"Input\",\"required\":true,\"tag\":\"RESOURCE_ALLOCATION\"}",
+                        "typed_value": "4000m",
+                        "tag": "RESOURCE_ALLOCATION",
+                        "value_type": "STRING"
+                    },
+                    {
+                        "name": "worker_mem",
+                        "value": "8Gi",
+                        "access_mode": "PEER_WRITABLE",
+                        "widget_schema": "{\"component\":\"Input\",\"required\":true,\"tag\":\"RESOURCE_ALLOCATION\"}",
+                        "typed_value": "8Gi",
+                        "tag": "RESOURCE_ALLOCATION",
+                        "value_type": "STRING"
+                    },
+                    {
+                        "name": "epoch_num",
+                        "value": "1",
+                        "access_mode": "PEER_WRITABLE",
+                        "widget_schema": "{\"component\":\"Input\",\"required\":true,\"tag\":\"INPUT_PARAM\"}",
+                        "typed_value": "1",
+                        "tag": "INPUT_PARAM",
+                        "value_type": "STRING"
+                    },
+                    {
+                        "name": "verbosity",
+                        "value": "0",
+                        "access_mode": "PEER_WRITABLE",
+                        "widget_schema": "{\"component\":\"Input\",\"required\":true,\"enum\":[],\"tooltip\":\"\",\"tag\":\"INPUT_PARAM\"}",
+                        "typed_value": "0",
+                        "tag": "INPUT_PARAM",
+                        "value_type": "STRING"
+                    }
+                ],
+                "yaml_template": "{\n  \"apiVersion\": \"fedlearner.k8s.io/v1alpha1\",\n  \"kind\": \"FLApp\",\n  \"metadata\": {\n    \"name\": self.name,\n    \"namespace\": system.variables.namespace,\n    \"labels\": dict(system.variables.labels),\n    \"annotations\":  {\n      \"queue\": \"fedlearner\",\n      \"schedulerName\": \"batch\",\n      \"min-member\": \"1\",\n      \"resource-cpu\": str(self.variables.worker_cpu),\n      \"resource-mem\": str(self.variables.worker_mem),\n    },\n  },\n  \"spec\": {\n    \"role\": self.variables.role,\n    \"cleanPodPolicy\": \"All\",\n    \"peerSpecs\": {\n      \"Leader\" if self.variables.role==\"Follower\" else \"Follower\": {\n        \"peerURL\": \"fedlearner-stack-ingress-nginx-controller.default.svc:80\",\n        \"authority\": project.participants[0].egress_host,\n        \"extraHeaders\": {\n          \"x-host\": \"fedlearner-operator.\" + project.participants[0].egress_domain\n        }\n      }\n    },\n    \"flReplicaSpecs\": {\n      \"Worker\": {\n        \"template\": {\n          \"spec\": {\n            \"restartPolicy\": \"Never\",\n            \"containers\": [\n              {\n                \"env\": system.basic_envs_list + [\n                  {\n                    \"name\": \"STORAGE_ROOT_PATH\",\n                    \"value\": project.variables.storage_root_path\n                  },\n                  {\n                    \"name\": \"ROLE\",\n                    \"value\": self.variables.role.lower()\n                  },\n                  {\n                    \"name\": \"MODE\",\n                    \"value\": \"train\"\n                  },\n                  {\n                    \"name\": \"APPLICATION_ID\",\n                    \"value\": self.name\n                  },\n                  {\n                    \"name\": \"OUTPUT_BASE_DIR\",\n                    \"value\": project.variables.storage_root_path + \"/job_output/\" + self.name\n                  },\n                  {\n                    \"name\": \"EGRESS_URL\",\n                    \"value\": \"fedlearner-stack-ingress-nginx-controller.default.svc:80\"\n                  },\n                  {\n                    \"name\": \"EGRESS_HOST\",\n                    \"value\": project.participants[0].egress_host\n                  },\n                  {\n                    \"name\": \"EGRESS_DOMAIN\",\n                    \"value\": project.participants[0].egress_domain\n                  },\n                  {\n                    \"name\": \"CODE_KEY\",\n                    \"value\": self.variables.algorithm.path\n                  },\n                  {\n                    \"name\": \"DATA_PATH\",\n                    \"value\":  self.variables.data_path\n                  },\n                  {\n                    \"name\": \"EXPORT_PATH\",\n                    \"value\": project.variables.storage_root_path + \"/job_output/\" + self.name + \"/exported_models\"\n                  },\n                  {\n                    \"name\": \"EPOCH_NUM\",\n                    \"value\": self.variables.epoch_num\n                  },\n                  {\n                    \"name\": \"FL_STEPS_PER_SYNC\",\n                    \"value\": self.variables.steps_per_sync\n                  }\n                ] + list(self.variables.algorithm.config),\n                \"imagePullPolicy\": \"IfNotPresent\",\n                \"name\": \"tensorflow\",\n                \"volumeMounts\": list(system.variables.volume_mounts_list),\n                \"image\": system.variables.image_repo + \"/fedlearner:\" + str(self.variables.image_version),\n                \"ports\": [\n                  {\n                    \"containerPort\": 50051,\n                    \"name\": \"flapp-port\",\n                    \"protocol\": \"TCP\"\n                  }\n                ],\n                \"resources\": {\n                  \"limits\": {\n                    \"cpu\": self.variables.worker_cpu,\n                    \"memory\": self.variables.worker_mem\n                  },\n                  \"requests\": {\n                    \"cpu\": self.variables.worker_cpu,\n                    \"memory\": self.variables.worker_mem\n                  }\n                },\n                \"command\": [\n                  \"/app/deploy/scripts/wait4pair_wrapper.sh\"\n                ],\n                \"args\": [\n                  \"/app/deploy/scripts/trainer/run_fedavg.sh\"\n                ]\n              }\n            ],\n            \"imagePullSecrets\": [\n              {\n                \"name\": \"regcred\"\n              }\n            ],\n            \"volumes\": list(system.variables.volumes_list)\n\n          }\n        },\n        \"pair\": True,\n        \"replicas\": int(1)\n      }\n    }\n  }\n}\n",
+                "is_federated": false,
+                "dependencies": [],
+                "easy_mode": false
+            }
+        ],
+        "variables": []
+    },
+    "editor_info": {
+        "yaml_editor_infos": {
+            "train-job": {
+                "slots": {
+                    "Slot_end_date": {
+                        "help": "training data end date",
+                        "label": "结束时间",
+                        "default_value": null,
+                        "value_type": "INT",
+                        "reference": "",
+                        "default": "",
+                        "reference_type": "DEFAULT"
+                    },
+                    "Slot_role": {
+                        "reference": "self.variables.role",
+                        "help": "Flapp 通讯时的角色 Leader 或 Follower",
+                        "reference_type": "SELF",
+                        "label": "Flapp通讯时角色",
+                        "default_value": "Leader",
+                        "default": "",
+                        "value_type": "STRING"
+                    },
+                    "Slot_labels": {
+                        "reference": "system.variables.labels",
+                        "help": "建议不修改，格式： {}",
+                        "reference_type": "SYSTEM",
+                        "label": "FLAPP额外元信息",
+                        "default_value": {},
+                        "value_type": "OBJECT",
+                        "default": ""
+                    },
+                    "Slot_save_checkpoint_steps": {
+                        "help": "int, Number of steps between checkpoints.",
+                        "label": "SAVE_CHECKPOINT_STEPS",
+                        "default_value": 1000.0,
+                        "value_type": "INT",
+                        "reference": "",
+                        "default": "",
+                        "reference_type": "DEFAULT"
+                    },
+                    "Slot_code_tar": {
+                        "help": "代码包，variable中请使用代码类型",
+                        "label": "代码",
+                        "default_value": "",
+                        "reference": "",
+                        "default": "",
+                        "reference_type": "DEFAULT",
+                        "value_type": "STRING"
+                    },
+                    "Slot_load_checkpoint_filename": {
+                        "help": "加载checkpoint_path下的相对路径的checkpoint, 默认会加载checkpoint_path下的latest checkpoint",
+                        "label": "LOAD_CHECKPOINT_FILENAME",
+                        "default_value": "",
+                        "reference": "",
+                        "default": "",
+                        "reference_type": "DEFAULT",
+                        "value_type": "STRING"
+                    },
+                    "Slot_master_envs": {
+                        "help": "数组类型，master pod额外的环境变量",
+                        "label": "Master额外环境变量",
+                        "default_value": [],
+                        "value_type": "LIST",
+                        "reference": "",
+                        "default": "",
+                        "reference_type": "DEFAULT"
+                    },
+                    "Slot_image": {
+                        "reference": "self.variables.image_version",
+                        "help": "建议不修改，指定Pod中运行的容器镜像地址，修改此项可能导致本基本模板不适用",
+                        "reference_type": "SELF",
+                        "label": "容器镜像",
+                        "default_value": "artifact.bytedance.com/fedlearner/fedlearner:50a6945",
+                        "default": "",
+                        "value_type": "STRING"
+                    },
+                    "Slot_data_source": {
+                        "help": "必须修改，求交任务的名字",
+                        "label": "数据源",
+                        "default_value": "",
+                        "reference": "",
+                        "default": "",
+                        "reference_type": "DEFAULT",
+                        "value_type": "STRING"
+                    },
+                    "Slot_load_checkpoint_filename_with_path": {
+                        "help": "加载绝对路径下的checkpoint，需要细致到文件名",
+                        "label": "从绝对路径加载checkpoint",
+                        "default_value": "",
+                        "reference": "",
+                        "default": "",
+                        "reference_type": "DEFAULT",
+                        "value_type": "STRING"
+                    },
+                    "Slot_mode": {
+                        "help": "choices:['train','eval']  训练还是验证",
+                        "label": "模式",
+                        "default_value": "train",
+                        "reference": "",
+                        "default": "",
+                        "reference_type": "DEFAULT",
+                        "value_type": "STRING"
+                    },
+                    "Slot_code_key": {
+                        "reference": "self.variables.algorithm.path",
+                        "help": "代码tar包地址，如果为空则使用code tar",
+                        "reference_type": "SELF",
+                        "label": "模型代码路径",
+                        "default_value": "",
+                        "default": "",
+                        "value_type": "STRING"
+                    },
+                    "Slot_master_replicas": {
+                        "help": "同时运行的完全相同的Master Pods数量",
+                        "label": "Master的Pod个数",
+                        "default_value": 1.0,
+                        "value_type": "INT",
+                        "reference": "",
+                        "default": "",
+                        "reference_type": "DEFAULT"
+                    },
+                    "Slot_worker_envs": {
+                        "reference": "self.variables.algorithm.config",
+                        "help": "数组类型，worker pod额外的环境变量",
+                        "reference_type": "SELF",
+                        "label": "Worker额外环境变量",
+                        "default_value": [],
+                        "value_type": "LIST",
+                        "default": ""
+                    },
+                    "Slot_storage_root_path": {
+                        "reference": "project.variables.storage_root_path",
+                        "help": "联邦学习中任务存储根目录",
+                        "reference_type": "PROJECT",
+                        "label": "存储根目录",
+                        "default_value": "/data",
+                        "default": "",
+                        "value_type": "STRING"
+                    },
+                    "Slot_master_cpu": {
+                        "help": "Master Pod 所分配的CPU资源（request和limit一致）",
+                        "label": "Master的CPU",
+                        "default_value": "2000m",
+                        "reference": "",
+                        "default": "",
+                        "reference_type": "DEFAULT",
+                        "value_type": "STRING"
+                    },
+                    "Slot_suffle_data_block": {
+                        "help": "['','--shuffle_data_block'] 否 是,shuffle the data block or not",
+                        "label": "是否shuffle数据块",
+                        "default_value": "",
+                        "reference": "",
+                        "default": "",
+                        "reference_type": "DEFAULT",
+                        "value_type": "STRING"
+                    },
+                    "Slot_worker_cpu": {
+                        "help": "Worker Pod 所分配的CPU资源（request和limit一致）",
+                        "label": "Worker的CPU",
+                        "default_value": "2000m",
+                        "reference": "",
+                        "default": "",
+                        "reference_type": "DEFAULT",
+                        "value_type": "STRING"
+                    },
+                    "Slot_worker_replicas": {
+                        "help": "同时运行的完全相同的Worker Pods数量",
+                        "label": "Worker的Pod个数",
+                        "default_value": 1.0,
+                        "value_type": "INT",
+                        "reference": "",
+                        "default": "",
+                        "reference_type": "DEFAULT"
+                    },
+                    "Slot_volume_mounts": {
+                        "reference": "system.variables.volume_mounts_list",
+                        "help": "建议不修改，容器中卷挂载的位置，数组类型",
+                        "reference_type": "SYSTEM",
+                        "label": "卷挂载位置",
+                        "default_value": [
+                            {
+                                "name": "data",
+                                "mountPath": "/data"
+                            }
+                        ],
+                        "value_type": "LIST",
+                        "default": ""
+                    },
+                    "Slot_ps_replicas": {
+                        "help": "同时运行的完全相同的PS Pods数量",
+                        "label": "PS的Pod个数",
+                        "default_value": 1.0,
+                        "value_type": "INT",
+                        "reference": "",
+                        "default": "",
+                        "reference_type": "DEFAULT"
+                    },
+                    "Slot_start_date": {
+                        "help": "training data start date",
+                        "label": "开始时间",
+                        "default_value": null,
+                        "value_type": "INT",
+                        "reference": "",
+                        "default": "",
+                        "reference_type": "DEFAULT"
+                    },
+                    "Slot_volumes": {
+                        "reference": "system.variables.volumes_list",
+                        "help": "建议不修改，数组类型，和volume_mounts一一对应",
+                        "reference_type": "SYSTEM",
+                        "label": "为Pod提供的卷",
+                        "default_value": [
+                            {
+                                "name": "data",
+                                "persistentVolumeClaim": {
+                                    "claimName": "pvc-fedlearner-default"
+                                }
+                            }
+                        ],
+                        "value_type": "LIST",
+                        "default": ""
+                    },
+                    "Slot_load_checkpoint_from_job": {
+                        "help": "指定任务名job_output下的latest checkpoint",
+                        "label": "以任务名加载checkpoint",
+                        "default_value": "",
+                        "reference": "",
+                        "default": "",
+                        "reference_type": "DEFAULT",
+                        "value_type": "STRING"
+                    },
+                    "Slot_sparse_estimator": {
+                        "help": "bool,default False  Whether using sparse estimator.",
+                        "label": "SPARSE_ESTIMATOR",
+                        "default_value": false,
+                        "value_type": "BOOL",
+                        "reference": "",
+                        "default": "",
+                        "reference_type": "DEFAULT"
+                    },
+                    "Slot_verbosity": {
+                        "help": "int, Logging level",
+                        "label": "日志等级",
+                        "default_value": 1.0,
+                        "value_type": "INT",
+                        "reference": "",
+                        "default": "",
+                        "reference_type": "DEFAULT"
+                    },
+                    "Slot_ps_envs": {
+                        "help": "数组类型，ps pod额外的环境变量",
+                        "label": "PS额外环境变量",
+                        "default_value": [],
+                        "value_type": "LIST",
+                        "reference": "",
+                        "default": "",
+                        "reference_type": "DEFAULT"
+                    },
+                    "Slot_export_path": {
+                        "help": "使用默认空值，将把models保存到$OUTPUT_BASE_DIR/exported_models 路径下。",
+                        "label": "EXPORT_PATH",
+                        "default_value": "",
+                        "reference": "",
+                        "default": "",
+                        "reference_type": "DEFAULT",
+                        "value_type": "STRING"
+                    },
+                    "Slot_ps_memory": {
+                        "help": "Master Pod 所分配的内存资源（request和limit一致）",
+                        "label": "PS的内存",
+                        "default_value": "3Gi",
+                        "reference": "",
+                        "default": "",
+                        "reference_type": "DEFAULT",
+                        "value_type": "STRING"
+                    },
+                    "Slot_master_memory": {
+                        "help": "Master Pod 所分配的内存资源（request和limit一致）",
+                        "label": "Master的内存",
+                        "default_value": "3Gi",
+                        "reference": "",
+                        "default": "",
+                        "reference_type": "DEFAULT",
+                        "value_type": "STRING"
+                    },
+                    "Slot_online_training": {
+                        "help": "['','--online_training'] 否 是,the train master run for online training",
+                        "label": "是否在线训练",
+                        "default_value": "",
+                        "reference": "",
+                        "default": "",
+                        "reference_type": "DEFAULT",
+                        "value_type": "STRING"
+                    },
+                    "Slot_ps_cpu": {
+                        "help": "Master Pod 所分配的CPU资源（request和limit一致）",
+                        "label": "PS的CPU",
+                        "default_value": "2000m",
+                        "reference": "",
+                        "default": "",
+                        "reference_type": "DEFAULT",
+                        "value_type": "STRING"
+                    },
+                    "Slot_summary_save_steps": {
+                        "help": "int, Number of steps to save summary files.",
+                        "label": "SUMMARY_SAVE_STEPS",
+                        "default_value": null,
+                        "value_type": "INT",
+                        "reference": "",
+                        "default": "",
+                        "reference_type": "DEFAULT"
+                    },
+                    "Slot_save_checkpoint_secs": {
+                        "help": "int,Number of secs between checkpoints.",
+                        "label": "SAVE_CHECKPOINT_SECS",
+                        "default_value": null,
+                        "value_type": "INT",
+                        "reference": "",
+                        "default": "",
+                        "reference_type": "DEFAULT"
+                    },
+                    "Slot_worker_memory": {
+                        "help": "Worker Pod 所分配的内存资源（request和limit一致）",
+                        "label": "Worker的内存",
+                        "default_value": "3Gi",
+                        "reference": "",
+                        "default": "",
+                        "reference_type": "DEFAULT",
+                        "value_type": "STRING"
+                    },
+                    "Slot_checkpoint_path": {
+                        "help": "不建议修改，checkpoint输出路径，建议为空，会默认使用{storage_root_path}/job_output/{job_name}/checkpoints，强烈建议保持空值",
+                        "label": "CHECKPOINT_PATH",
+                        "default_value": "",
+                        "reference": "",
+                        "default": "",
+                        "reference_type": "DEFAULT",
+                        "value_type": "STRING"
+                    },
+                    "Slot_epoch_num": {
+                        "help": "number of epoch for training, not support in online training",
+                        "label": "epoch数量",
+                        "default_value": 1.0,
+                        "value_type": "INT",
+                        "reference": "",
+                        "default": "",
+                        "reference_type": "DEFAULT"
+                    }
+                },
+                "meta_yaml": "{\n  \"apiVersion\": \"fedlearner.k8s.io/v1alpha1\",\n  \"kind\": \"FLApp\",\n  \"metadata\": {\n    \"name\": self.name,\n    \"namespace\": system.variables.namespace,\n    \"annotations\":{\n        \"queue\": \"fedlearner\",\n        \"schedulerName\": \"batch\"\n    },\n    \"labels\": ${Slot_labels}\n  },\n  \"spec\": {\n    \"role\": ${Slot_role},\n    \"cleanPodPolicy\": \"All\",\n    \"peerSpecs\": {\n      \"Leader\" if ${Slot_role}==\"Follower\" else \"Follower\": {\n        \"peerURL\": \"fedlearner-stack-ingress-nginx-controller.default.svc:80\",\n        \"authority\": project.participants[0].egress_host,\n        \"extraHeaders\": {\n          \"x-host\": \"fedlearner-operator.\" + project.participants[0].egress_domain\n        }\n      }\n    },\n    \"flReplicaSpecs\": {\n      \"Master\": {\n        \"template\": {\n          \"spec\": {\n            \"restartPolicy\": \"Never\",\n            \"containers\": [\n              {\n                \"env\": system.basic_envs_list + [\n                  {\n                    \"name\": \"STORAGE_ROOT_PATH\",\n                    \"value\": ${Slot_storage_root_path}\n                  },\n                  {\n                    \"name\": \"ROLE\",\n                    \"value\": ${Slot_role}.lower()\n                  },\n                  {\n                    \"name\": \"APPLICATION_ID\",\n                    \"value\": self.name\n                  },\n                  {\n                    \"name\": \"OUTPUT_BASE_DIR\",\n                    \"value\": ${Slot_storage_root_path} + \"/job_output/\" + self.name\n                  },\n                  {\n                    \"name\": \"EGRESS_URL\",\n                    \"value\": \"fedlearner-stack-ingress-nginx-controller.default.svc:80\"\n                  },\n                  {\n                    \"name\": \"EGRESS_HOST\",\n                    \"value\": project.participants[0].egress_host\n                  },\n                  {\n                    \"name\": \"EGRESS_DOMAIN\",\n                    \"value\": project.participants[0].egress_domain\n                  },\n                  {\n                    \"name\": \"EPOCH_NUM\",\n                    \"value\": str(${Slot_epoch_num})\n                  },\n                  {\n                    \"name\": \"START_DATE\",\n                    \"value\": str(${Slot_start_date})\n                  },\n                  {\n                    \"name\": \"END_DATE\",\n                    \"value\": str(${Slot_end_date})\n                  },\n                  {\n                    \"name\": \"DATA_SOURCE\",\n                    \"value\": ${Slot_data_source}\n                  },\n                  {\n                    \"name\": \"ONLINE_TRAINING\",\n                    \"value\": ${Slot_online_training}\n                  },\n                  {\n                    \"name\": \"SPARSE_ESTIMATOR\",\n                    \"value\": str(${Slot_sparse_estimator})\n                  },\n                  {\n                    \"name\": \"CODE_KEY\",\n                    \"value\": ${Slot_code_key}\n                  },\n                  {\n                    \"name\": \"CODE_TAR\",\n                    \"value\": ${Slot_code_tar}\n                  },\n                  {\n                    \"name\": \"CHECKPOINT_PATH\",\n                    \"value\": ${Slot_checkpoint_path}\n                  },\n                  {\n                    \"name\": \"LOAD_CHECKPOINT_FILENAME\",\n                    \"value\": ${Slot_load_checkpoint_filename}\n                  },\n                  {\n                    \"name\": \"LOAD_CHECKPOINT_FILENAME_WITH_PATH\",\n                    \"value\": ${Slot_load_checkpoint_filename_with_path}\n                  },\n                  {\n                    \"name\": \"LOAD_CHECKPOINT_PATH\",\n                    \"value\":  ${Slot_load_checkpoint_from_job} and ${Slot_storage_root_path} + \"/job_output/\" + ${Slot_load_checkpoint_from_job} + \"/checkpoints\"\n                  },\n                  {\n                    \"name\": \"EXPORT_PATH\",\n                    \"value\": ${Slot_export_path}\n                  }\n                ] + ${Slot_master_envs},\n                \"imagePullPolicy\": \"IfNotPresent\",\n                \"name\": \"tensorflow\",\n                \"volumeMounts\": ${Slot_volume_mounts},\n                \"image\": ${Slot_image},\n                \"ports\": [\n                  {\n                    \"containerPort\": 50051,\n                    \"name\": \"flapp-port\",\n                    \"protocol\": \"TCP\"\n                  }\n                ],\n                \"command\": [\n        \"/app/deploy/scripts/trainer/run_trainer_master.sh\"\n                ],\n                \"args\": [\n                ],\n                \"resources\": {\n                  \"limits\": {\n                    \"cpu\": ${Slot_master_cpu},\n                    \"memory\": ${Slot_master_memory}\n                  },\n                  \"requests\": {\n                    \"cpu\": ${Slot_master_cpu},\n                    \"memory\": ${Slot_master_memory}\n                  }\n                }\n              }\n            ],\n            \"imagePullSecrets\": [\n              {\n                \"name\": \"regcred\"\n              }\n            ],\n            \"volumes\": ${Slot_volumes}\n\n          }\n        },\n        \"pair\": False,\n        \"replicas\": int(${Slot_master_replicas})\n      },\n      \"PS\": {\n        \"template\": {\n          \"spec\": {\n            \"restartPolicy\": \"Never\",\n            \"containers\": [\n              {\n                \"env\": system.basic_envs_list + [\n                  {\n                    \"name\": \"STORAGE_ROOT_PATH\",\n                    \"value\": ${Slot_storage_root_path}\n                  },\n                  {\n                    \"name\": \"EGRESS_URL\",\n                    \"value\": \"fedlearner-stack-ingress-nginx-controller.default.svc:80\"\n                  },\n                  {\n                    \"name\": \"EGRESS_HOST\",\n                    \"value\": project.participants[0].egress_host\n                  },\n                  {\n                    \"name\": \"EGRESS_DOMAIN\",\n                    \"value\": project.participants[0].egress_domain\n                  }\n\n                ] + ${Slot_ps_envs},\n                \"imagePullPolicy\": \"IfNotPresent\",\n                \"name\": \"tensorflow\",\n                \"volumeMounts\": ${Slot_volume_mounts},\n                \"image\": ${Slot_image},\n                \"ports\": [\n                  {\n                    \"containerPort\": 50051,\n                    \"name\": \"flapp-port\",\n                    \"protocol\": \"TCP\"\n                  }\n                ],\n                \"command\": [\n        \"/app/deploy/scripts/trainer/run_trainer_ps.sh\"\n                ],\n                \"args\": [\n                ],\n                \"resources\": {\n                  \"limits\": {\n                    \"cpu\": ${Slot_ps_cpu},\n                    \"memory\": ${Slot_ps_memory}\n                  },\n                  \"requests\": {\n                    \"cpu\": ${Slot_ps_cpu},\n                    \"memory\": ${Slot_ps_memory}\n                  }\n                }\n              }\n            ],\n            \"imagePullSecrets\": [\n              {\n                \"name\": \"regcred\"\n              }\n            ],\n            \"volumes\": ${Slot_volumes}\n          }\n        },\n        \"pair\": False,\n        \"replicas\": int(${Slot_ps_replicas})\n      },\n      \"Worker\": {\n        \"template\": {\n          \"spec\": {\n            \"restartPolicy\": \"Never\",\n            \"containers\": [\n              {\n                \"env\": system.basic_envs_list + [\n                  {\n                    \"name\": \"STORAGE_ROOT_PATH\",\n                    \"value\": ${Slot_storage_root_path}\n                  },\n                  {\n                    \"name\": \"ROLE\",\n                    \"value\": ${Slot_role}.lower()\n                  },\n                  {\n                    \"name\": \"APPLICATION_ID\",\n                    \"value\": self.name\n                  },\n                  {\n                    \"name\": \"OUTPUT_BASE_DIR\",\n                    \"value\": ${Slot_storage_root_path} + \"/job_output/\" + self.name\n                  },\n                  {\n                    \"name\": \"EGRESS_URL\",\n                    \"value\": \"fedlearner-stack-ingress-nginx-controller.default.svc:80\"\n                  },\n                  {\n                    \"name\": \"EGRESS_HOST\",\n                    \"value\": project.participants[0].egress_host\n                  },\n                  {\n                    \"name\": \"EGRESS_DOMAIN\",\n                    \"value\": project.participants[0].egress_domain\n                  },\n                  {\n                    \"name\": \"MODE\",\n                    \"value\": ${Slot_mode}\n                  },\n                  {\n                    \"name\": \"VERBOSITY\",\n                    \"value\": str(${Slot_verbosity})\n                  },\n                  {\n                    \"name\": \"CODE_KEY\",\n                    \"value\": ${Slot_code_key}\n                  },\n                  {\n                    \"name\": \"CODE_TAR\",\n                    \"value\": ${Slot_code_tar}\n                  },\n                  {\n                    \"name\": \"SAVE_CHECKPOINT_STEPS\",\n                    \"value\": str(${Slot_save_checkpoint_steps})\n                  },\n                  {\n                    \"name\": \"SAVE_CHECKPOINT_SECS\",\n                    \"value\": str(${Slot_save_checkpoint_secs})\n                  },\n                  {\n                    \"name\": \"SPARSE_ESTIMATOR\",\n                    \"value\": str(${Slot_sparse_estimator})\n                  },\n                  {\n                    \"name\": \"SUMMARY_SAVE_STEPS\",\n                    \"value\": str(${Slot_summary_save_steps})\n                  }\n                ] + ${Slot_worker_envs},\n                \"imagePullPolicy\": \"IfNotPresent\",\n                \"name\": \"tensorflow\",\n                \"volumeMounts\": ${Slot_volume_mounts},\n                \"image\": ${Slot_image},\n                \"ports\": [\n                  {\n                    \"containerPort\": 50051,\n                    \"name\": \"flapp-port\",\n                    \"protocol\": \"TCP\"\n                  }\n                ],\n                \"command\": [\n                  \"/app/deploy/scripts/wait4pair_wrapper.sh\"\n                ],\n                \"args\": [\n                  \"/app/deploy/scripts/trainer/run_trainer_worker.sh\"\n                ],\n                \"resources\": {\n                  \"limits\": {\n                    \"cpu\": ${Slot_worker_cpu},\n                    \"memory\": ${Slot_worker_memory}\n                  },\n                  \"requests\": {\n                    \"cpu\": ${Slot_worker_cpu},\n                    \"memory\": ${Slot_worker_memory}\n                  }\n                }\n              }\n            ],\n            \"imagePullSecrets\": [\n              {\n                \"name\": \"regcred\"\n              }\n            ],\n            \"volumes\": ${Slot_volumes}\n          }\n        },\n        \"pair\": True,\n        \"replicas\": int(${Slot_worker_replicas})\n      }\n    }\n  }\n}\n",
+                "variables": []
+            }
+        }
+    },
+    "comment": ""
+}

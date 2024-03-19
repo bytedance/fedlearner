@@ -40,6 +40,11 @@ export interface SwitchWidgetSchema {
   unCheckedChildren?: string;
 }
 
+/**
+ * ! @IMPORTANT:
+ * If you want to add new componet,
+ * remember to add a worker in formSchema.tsx > componentToWorkersMap
+ */
 export enum VariableComponent {
   Input = 'Input',
   Select = 'Select',
@@ -47,21 +52,25 @@ export enum VariableComponent {
   Checkbox = 'Checkbox',
   TextArea = 'TextArea',
   NumberPicker = 'NumberPicker',
+  CPU = 'CPU',
+  MEM = 'MEM',
   Switch = 'Switch',
   // -------- Custom components ----------
   Code = 'Code',
+  JSON = 'JSON',
   Dataset = 'Dataset',
+  DatasetPath = 'DatasetPath',
+  FeatureSelect = 'FeatureSelect',
+  EnvsInput = 'EnvsInput',
+  AlgorithmSelect = 'AlgorithmSelect',
   // ------- Custom components ----------
   // Uncomment it after we have usecase
   // TimePicker = 'TimePicker',
   // Upload = 'Upload',
 }
 
-export type VariableRule = { validator: RegExp | string; message: string };
-
 export interface VariableWidgetSchema
-  extends SelectWidgetSchema,
-    NumberPickerWidgetSchema,
+  extends NumberPickerWidgetSchema,
     TextAreaWidgetSchema,
     SwitchWidgetSchema,
     SelectWidgetSchema,
@@ -78,14 +87,16 @@ export interface VariableWidgetSchema
   index?: number;
   // will render a question icon beside the label, hover it to show the tooltip
   tooltip?: string;
+  // control variables' visibility, will not affect value
+  hidden?: boolean;
   // will render some text below the form item
   description?: string;
   placeholder?: string;
 
   /** ------ Validations ------ */
   // RegExp string '\d'
-  pattern?: string;
-  rules?: VariableRule[];
+  pattern?: any;
+  rules?: any[];
   required?: boolean;
 
   /** ------ Miscs ------ */
@@ -102,6 +113,10 @@ export enum VariableAccessMode {
 export enum VariableValueType {
   STRING = 'STRING',
   CODE = 'CODE',
+  BOOLEAN = 'BOOLEAN',
+  NUMBER = 'NUMBER',
+  LIST = 'LIST',
+  OBJECT = 'OBJECT',
 }
 
 export interface Variable {
@@ -109,6 +124,8 @@ export interface Variable {
   // Due to proto doesn't has more optional types, we fixed to use string as value type,
   // for boolean/number value, should convert to 'true', '2' directly (but so far, we don't need values like boolean)
   value: any;
+  tag?: string;
+  typed_value?: any;
   value_type?: VariableValueType;
   access_mode: VariableAccessMode;
   widget_schema: VariableWidgetSchema;

@@ -1,0 +1,131 @@
+.file-export-wrapper {
+  height: 100%;
+  display: block;
+  .arco-spin-children {
+    height: 100%;
+    overflow: auto;
+  }
+}
+.file-node-content-container {
+  display: flex;
+  .arco-form-item{
+    flex: 1;
+  }
+  .arco-form-item-control {
+    min-height: 26px;
+  }
+}
+
+.folder-selected{
+  background-color: var(--color-fill-2);
+}
+.file-export-node-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  //todo: checker auto is valid or not;
+  //max-width: auto;
+  flex: 1;
+  display: inline-block;
+  font-size: 14px;
+  color: var(--font-color);
+  font-weight: var(--font-weight-normal);
+  height: 28px;
+  line-height: 28px;
+}
+.file-action-list-container {
+  visibility: hidden;
+
+  .anticon {
+    color: var(--action-button-color);
+  }
+  .anticon:hover {
+    color: var(--action-button-color-hover);
+  }
+  /* transition: background-color 0s !important; */
+  .arco-btn {
+    transition-duration: 0s !important;
+  }
+}
+.file-icon-container {
+  display: inline-block;
+  margin-right: 5px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 28px;
+  .anticon{
+    height: 16px;
+    line-height: 16px;
+  }
+}
+.file-directory-tree {
+  // TODO: theme
+  --bg-hover: #f6f7fb;
+  --bg-selected: #f2f3f8;
+  --font-weight-normal: 400;
+  --font-weight-selected: 500;
+  --font-color: #1d2129;
+  --switcher-color: #86909c;
+  --action-button-color: #86909c;
+  --action-button-color-hover: #4e5969;
+
+  height: 100%;
+  overflow: scroll;
+  .arco-tree-node-switcher {
+    display: none;
+    color: var(--switcher-color) !important;
+  }
+
+  .arco-tree-node:hover {
+    background-color: var(--color-fill-2);
+    ::before {
+      bottom: 0px;
+      background-color: var(--bg-hover);
+    }
+    .file-action-list-container {
+      visibility: visible;
+    }
+  }
+  .arco-tree-node{
+    padding-left: 16px;
+  }
+  .arco-tree-node-title{
+    padding: 0 !important;
+    overflow: hidden;
+  }
+  .arco-tree-node-title:hover{
+    background-color: transparent;
+  }
+  .arco-tree-node-selected {
+    ::before {
+      background-color: var(--bg-selected) !important;
+    }
+
+    .file-export-node-name {
+      font-weight: var(--font-weight-selected);
+    }
+  }
+  .arco-tree-node-indent-block{
+    margin: 0;
+  }
+
+  .arco-form-item {
+    width: auto;
+    .arco-col-19{
+      width: 100%;
+      flex: 1;
+    }
+  }
+
+  .arco-tree-node.is-focus-mode:not(.is-focus-node) {
+    opacity: 0.3;
+    pointer-events: none;
+  }
+  &-isFocusMode {
+    .is-not-focus-node {
+      opacity: 0.3;
+      pointer-events: none;
+    }
+  }
+}

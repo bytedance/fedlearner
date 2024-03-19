@@ -1,0 +1,46 @@
+load("@rules_python//python:defs.bzl", "py_library")
+
+package(default_visibility = ["//web_console_v2/api:console_api_package"])
+
+py_library(
+    name = "apis_lib",
+    srcs = ["apis.py"],
+    imports = ["../.."],
+    deps = [
+        ":models_lib",
+        "@common_flask_restful//:pkg",
+    ],
+)
+
+py_test(
+    name = "apis_lib_test",
+    srcs = [
+        "apis_test.py",
+    ],
+    imports = ["../.."],
+    main = "apis_test.py",
+    deps = [
+        ":apis_lib",
+        "//web_console_v2/api/testing:common_lib",
+    ],
+)
+
+py_library(
+    name = "models_lib",
+    srcs = ["models.py"],
+    imports = ["../.."],
+    deps = ["//web_console_v2/api:envs_lib"],
+)
+
+py_test(
+    name = "models_lib_test",
+    srcs = [
+        "models_test.py",
+    ],
+    imports = ["../.."],
+    main = "models_test.py",
+    deps = [
+        ":models_lib",
+        "//web_console_v2/api/testing:common_lib",
+    ],
+)

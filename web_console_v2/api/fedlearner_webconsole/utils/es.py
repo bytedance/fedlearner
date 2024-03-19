@@ -1,4 +1,4 @@
-# Copyright 2021 The FedLearner Authors. All Rights Reserved.
+# Copyright 2023 The FedLearner Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the 'License');
 # you may not use this file except in compliance with the License.
@@ -15,6 +15,8 @@
 # coding: utf-8
 # pylint: disable=invalid-string-quote
 import json
+import time
+from typing import Dict, List, Optional
 
 from elasticsearch import Elasticsearch
 
@@ -26,26 +28,45 @@ class ElasticSearchClient(object):
     def __init__(self):
         self._es_client = None
         self._es_client = Elasticsearch([{
-            'host': Envs.ES_READ_HOST or Envs.ES_HOST,
+            'host': Envs.ES_HOST,
             'port': Envs.ES_PORT
         }],
-                                        http_auth=(Envs.ES_USERNAME,
-                                                   Envs.ES_PASSWORD))
+                                        http_auth=(Envs.ES_USERNAME, Envs.ES_PASSWORD),
+                                        timeout=10000)
 
     def search(self, *args, **kwargs):
         return self._es_client.search(*args, **kwargs)
 
     def query_log(self,
-                  index,
-                  keyword,
-                  pod_name,
-                  start_time,
-                  end_time,
-                  match_phrase=None):
+                  index: str,
+                  keyword: str,
+                  pod_name: str,
+                  start_time: int = 0,
+                  end_time: Optional[int] = None,
+                  match_phrase: Optional[Dict[str, str]] = None) -> List[str]:
+        """query log from es
+
+        Args:
+            index (str): the es index you that you want to search from
+            keyword (str): some keyword you may want to filter
+            pod_name (str): the pod that you want to query
+            start_time (int, optional): start time for search range in microsecond
+            end_time (int, optional): end time for search range in microsecond. Defaults to None.
+            match_phrase (Dict[str, str], optional): match phrase. Defaults to None.
+
+        Returns:
+            List[str]: List for logs per line
+        """
+        end_time = end_time or int(time.time() * 1000)
         query_body = {
             'version': True,
             'size': 8000,
             'sort': [{
+                'log.nanostimestamp': {
+                    'order': 'desc',
+                    'unmapped_type': 'long'
+                }
+            }, {
                 '@timestamp': 'desc'
             }, {
                 'log.offset': {
@@ -66,7 +87,7 @@ class ElasticSearchClient(object):
                 'query': keyword,
                 'analyze_wildcard': True,
                 'default_operator': 'AND',
-                'default_field': '*'
+                'default_field': 'message'
             }
         }] if keyword else []
         match_phrase_list = [
@@ -88,17 +109,16 @@ class ElasticSearchClient(object):
         response = self._es_client.search(index=index, body=query_body)
         return [item['_source']['message'] for item in response['hits']['hits']]
 
-    def query_events(self,
-                     index,
-                     keyword,
-                     pod_name,
-                     start_time,
-                     end_time,
-                     match_phrase=None):
+    def query_events(self, index, keyword, pod_name, start_time, end_time, match_phrase=None):
         query_body = {
             'version': True,
             'size': 8000,
             'sort': [{
+                'log.nanostimestamp': {
+                    'order': 'desc',
+                    'unmapped_type': 'long'
+                }
+            }, {
                 '@timestamp': 'desc'
             }, {
                 'log.offset': {
@@ -119,7 +139,7 @@ class ElasticSearchClient(object):
                 'query': f'{keyword} AND Event',
                 'analyze_wildcard': True,
                 'default_operator': 'AND',
-                'default_field': '*'
+                'default_field': 'message'
             }
         }] if keyword else []
         match_phrase_list = [
@@ -141,11 +161,7 @@ class ElasticSearchClient(object):
         response = self._es_client.search(index=index, body=query_body)
         return [item['_source']['message'] for item in response['hits']['hits']]
 
-    def put_ilm(self,
-                ilm_name,
-                hot_size='50gb',
-                hot_age='10d',
-                delete_age='30d'):
+    def put_ilm(self, ilm_name, hot_size='50gb', hot_age='10d', delete_age='30d'):
         if self._es_client is None:
             raise RuntimeError('ES client not yet initialized.')
         ilm_body = {
@@ -264,43 +280,50 @@ class ElasticSearchClient(object):
                 }
             }
         }
-
         return es.search(index='data_join*', body=query)
 
-    def query_nn_metrics(self, job_name, num_buckets):
+    def query_nn_metrics(self, job_name: str, metric_list: List[str], num_buckets: int = 30):
         query = {
-            "size": 0,
-            "query": {
-                "bool": {
-                    "must": [{
-                        "term": {
-                            "tags.application_id": job_name
+            'size': 0,
+            'query': {
+                'bool': {
+                    'must': [{
+                        'term': {
+                            'tags.application_id': job_name
                         }
                     }, {
-                        "term": {
-                            "name": "auc"
+                        'terms': {
+                            'name': metric_list
                         }
                     }]
                 }
             },
-            "aggs": {
-                "PROCESS_TIME": {
-                    "auto_date_histogram": {
-                        "field": "tags.process_time",
-                        "format": "strict_date_optional_time",
-                        "buckets": num_buckets
+            'aggs': {
+                metric: {
+                    'filter': {
+                        'term': {
+                            'name': metric
+                        }
                     },
-                    "aggs": {
-                        "AUC": {
-                            "avg": {
-                                "field": "value"
+                    'aggs': {
+                        'PROCESS_TIME': {
+                            'auto_date_histogram': {
+                                'field': 'tags.process_time',
+                                'format': 'strict_date_optional_time',
+                                'buckets': num_buckets
+                            },
+                            'aggs': {
+                                'VALUE': {
+                                    'avg': {
+                                        'field': 'value'
+                                    }
+                                }
                             }
                         }
                     }
-                }
+                } for metric in metric_list
             }
         }
-
         return es.search(index='metrics*', body=query)
 
     def query_tree_metrics(self, job_name, metric_list):
@@ -340,7 +363,9 @@ class ElasticSearchClient(object):
                                 "TOP": {
                                     "top_hits": {
                                         "size": 100,
-                                        "sort": [{"tags.process_time": "asc"}],
+                                        "sort": [{
+                                            "tags.process_time": "asc"
+                                        }],
                                         "_source": ["value", "tags.iteration"]
                                     }
                                 }
@@ -350,8 +375,7 @@ class ElasticSearchClient(object):
                 } for metric in metric_list
             }
         }
-        response = es.search(index='metrics*', body=query)
-        return response['aggregations']
+        return es.search(index='metrics*', body=query)
 
     def query_time_metrics(self, job_name, num_buckets, index='raw_data*'):
         query = {

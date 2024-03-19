@@ -1,0 +1,1107 @@
+{
+    "comment": "",
+    "config": {
+        "group_alias": "light-psi",
+        "job_definitions": [
+            {
+                "dependencies": [],
+                "easy_mode": false,
+                "is_federated": false,
+                "job_type": "TRANSFORMER",
+                "name": "lc-sign-raw-data",
+                "variables": [],
+                "yaml_template": "{\n    \"apiVersion\": \"sparkoperator.k8s.io/v1beta2\",\n    \"kind\": \"SparkApplication\",\n    \"metadata\": {\n        \"name\": self.name,\n        \"namespace\": system.variables.namespace,\n        \"labels\": dict(system.variables.labels),\n        \"annotations\": {\n            \"queue\": \"fedlearner-spark\",\n            \"schedulerName\": \"batch\",\n        },\n    },\n    \"spec\": {\n        \"type\": \"Python\",\n        \"pythonVersion\": \"3\",\n        \"mode\": \"cluster\",\n        \"image\": (system.variables.get(\"spark_image_repo\") or str(system.variables.image_repo + \"/pp_data_inspection\")) + \":\" + system.version,\n        \"imagePullPolicy\": \"Always\",\n        \"volumes\": list(system.variables.volumes_list),\n        \"arguments\": ['/opt/spark/work-dir/psi.py'],\n        \"sparkVersion\": \"3.0.0\",\n        \"sparkConf\":{\n            \"spark.shuffle.service.enabled\": \"false\"\n        },\n        \"restartPolicy\": {\n            \"type\": \"Never\"\n        },\n        \"driver\": {\n            \"cores\": 1,\n            \"memory\": \"4g\",\n            \"labels\": {\n                \"version\": \"3.0.0\"\n            },\n            \"serviceAccount\": \"spark\",\n            \"volumeMounts\": list(system.variables.volume_mounts_list),\n            \"env\": system.variables.envs_list + [\n                { \n                    \"name\": \"INPUT_DIR\",\n                    \"value\": workflow.variables.input_batch_path\n                },\n                { \n                    \"name\": \"OUTPUT_DIR\",\n                    \"value\": workflow.variables.output_dataset_path + '/side_output/' + workflow.variables.output_batch_path.split('/')[-1]\n                },\n                { \n                    \"name\": \"RSA_KEY_PATH\",\n                    \"value\": workflow.variables.output_dataset_path + '/side_output/' + workflow.variables.output_batch_path.split('/')[-1] + '/rsa_private.key'\n                },\n                { \n                    \"name\": \"PART_NUM\",\n                    \"value\": workflow.variables.part_num\n                },\n                {\n                    \"name\": \"PART_KEY\",\n                    \"value\": workflow.variables.part_key\n                },\n                { \n                    \"name\": \"FILE_FORMAT\",\n                    \"value\": \"tfrecords\"\n                },\n                { \n                    \"name\": \"RSA_KEY_BITS\",\n                    \"value\": workflow.variables.rsa_key_bits\n                },\n                { \n                    \"name\": \"WILDCARD\",\n                    \"value\": \"part*\"\n                }\n            ]\n        },\n        \"executor\": {\n            \"cores\": int(workflow.variables.executor_cores),\n            \"instances\": 1,\n            \"memory\": workflow.variables.executor_mem,\n            \"labels\": {\n                \"version\": \"3.0.0\"\n            },\n            \"volumeMounts\": list(system.variables.volume_mounts_list),\n            \"env\": system.variables.envs_list + []\n        },\n        \"dynamicAllocation\": {\n            \"enabled\": True,\n            \"initialExecutors\": int(workflow.variables.initial_executor_num),\n            \"minExecutors\": int(workflow.variables.min_executor_num),\n            \"maxExecutors\": int(workflow.variables.max_executor_num)\n        }\n    }\n}\n"
+            },
+            {
+                "dependencies": [
+                    {
+                        "source": "lc-sign-raw-data"
+                    }
+                ],
+                "easy_mode": false,
+                "is_federated": false,
+                "job_type": "RAW_DATA",
+                "name": "lc-start-server",
+                "variables": [],
+                "yaml_template": "{\n    \"apiVersion\": \"fedlearner.k8s.io/v1alpha1\",\n    \"kind\": \"FedApp\",\n    \"metadata\": {\n        \"name\": self.name,\n        \"namespace\": system.variables.namespace,\n        \"labels\": system.variables.labels,\n        \"annotations\":  {\n            \"queue\": \"fedlearner\",\n            \"schedulerName\": \"batch\",\n            \"min-member\": \"1\",\n            \"resource-cpu\": str(workflow.variables.server_cpu),\n            \"resource-mem\": str(workflow.variables.server_mem),\n        },\n    },\n    \"spec\": {\n        \"activeDeadlineSeconds\": int(workflow.variables.active_deadline_seconds),\n        \"cleanPodPolicy\": \"All\",\n        \"fedReplicaSpecs\": {\n            \"Worker\": {\n                \"replicas\": 1,\n                \"template\": {\n                    \"spec\": {\n                        \"containers\": [\n                            {\n                                \"image\": system.variables.image_repo + \"/pp_lite:\" + system.version,\n                                \"ports\": [\n                                    {\n                                        \"containerPort\": 32443,\n                                        \"name\": \"flapp-port\"\n                                    },\n                                    {\n                                        \"containerPort\": 50051,\n                                        \"name\": \"server-port\"\n                                    },\n                                ],\n                                \"env\": system.basic_envs_list + [\n                                    {\n                                        \"name\": \"JOB_TYPE\",\n                                        \"value\": \"psi-rsa\"\n                                    },\n                                    {\n                                        \"name\": \"ROLE\",\n                                        \"value\": \"server\"\n                                    },\n                                    {\n                                        \"name\": \"PRIVATE_KEY_PATH\",\n                                        \"value\": workflow.variables.output_dataset_path + '/side_output/' + workflow.variables.output_batch_path.split('/')[-1] + '/rsa_private.key'\n                                    },\n                                    {\n                                        \"name\": \"INPUT_DIR\",\n                                        \"value\": workflow.variables.output_dataset_path + '/side_output/' + workflow.variables.output_batch_path.split('/')[-1] + '/signed'\n                                    },\n                                    {\n                                        \"name\": \"OUTPUT_DIR\",\n                                        \"value\": workflow.variables.output_dataset_path + '/side_output/' + workflow.variables.output_batch_path.split('/')[-1]\n                                    },\n                                    {\n                                        \"name\": \"KEY_COLUMN\",\n                                        \"value\": workflow.variables.part_key\n                                    },\n                                    {\n                                        \"name\": \"SIGNED_COLUMN\",\n                                        \"value\": \"signed\"\n                                    },\n                                    {\n                                        \"name\": \"NUM_SIGN_PARALLEL\",\n                                        \"value\": workflow.variables.sign_number_workers\n                                    },\n                                    {\n                                        \"name\": \"BATCH_SIZE\",\n                                        \"value\": \"4096\"\n                                    },\n                                    {\n                                        \"name\": \"APPLICATION_ID\",\n                                        \"value\": self.name\n                                    },\n                                    {\n                                        \"name\": \"METRIC_COLLECTOR_SERVICE_NAME\",\n                                        \"value\": \"pplite_psi\"\n                                    },\n                                ],\n                                \"volumeMounts\": system.variables.volume_mounts_list,\n                                \"imagePullPolicy\": \"IfNotPresent\",\n                                \"name\": \"tensorflow\"\n                            }\n                        ],\n                        \"imagePullSecrets\": [\n                            {\n                                \"name\": \"regcred\"\n                            }\n                        ],\n                        \"volumes\": system.variables.volumes_list,\n                        \"restartPolicy\": \"Never\"\n                    }\n                }\n            }\n        },\n        \"imagePullSecrets\": [\n            {\n                \"name\": \"regcred\"\n            }\n        ]\n    }\n}\n                "
+            },
+            {
+                "dependencies": [
+                    {
+                        "source": "lc-start-server"
+                    }
+                ],
+                "easy_mode": false,
+                "is_federated": false,
+                "job_type": "DATA_JOIN",
+                "name": "lc-feature-extraction",
+                "variables": [],
+                "yaml_template": "{\n    \"apiVersion\": \"sparkoperator.k8s.io/v1beta2\",\n    \"kind\": \"SparkApplication\",\n    \"metadata\": {\n        \"name\": self.name,\n        \"namespace\": system.variables.namespace,\n        \"labels\": dict(system.variables.labels),\n        \"annotations\": {\n            \"queue\": \"fedlearner-spark\",\n            \"schedulerName\": \"batch\",\n        },\n    },\n    \"spec\": {\n        \"type\": \"Python\",\n        \"pythonVersion\": \"3\",\n        \"mode\": \"cluster\",\n        \"image\": (system.variables.get(\"spark_image_repo\") or str(system.variables.image_repo + \"/pp_data_inspection\")) + \":\" + system.version,\n        \"imagePullPolicy\": \"IfNotPresent\",\n        \"volumes\": list(system.variables.volumes_list),\n        \"mainApplicationFile\": \"/opt/spark/work-dir/feature_extraction_v2.py\",\n        \"arguments\": [\n            \"--original_data_path=\" + workflow.variables.output_dataset_path + '/side_output/' + workflow.variables.output_batch_path.split('/')[-1] + '/raw',\n            \"--joined_data_path=\" + workflow.variables.output_dataset_path + '/side_output/' + workflow.variables.output_batch_path.split('/')[-1] + '/joined',\n            \"--part_key=\" + workflow.variables.part_key,\n            \"--part_num=\" + workflow.variables.part_num,\n            \"--file_format=\" + 'csv',\n            \"--output_file_format=\" + 'tfrecords',\n            \"--output_batch_name=\" + workflow.variables.output_batch_path.split('/')[-1],\n            \"--output_dataset_path=\" + workflow.variables.output_dataset_path\n        ],\n        \"sparkVersion\": \"3.0.0\",\n        \"restartPolicy\": {\n            \"type\": \"OnFailure\",\n            \"onFailureRetries\": 3,\n            \"onFailureRetryInterval\": 10,\n            \"onSubmissionFailureRetries\": 5,\n            \"onSubmissionFailureRetryInterval\": 20\n        },\n        \"driver\": {\n            \"cores\": 1,\n            \"memory\": '4g',\n            \"labels\": {\n                \"version\": \"3.0.0\"\n            },\n            \"serviceAccount\": \"spark\",\n            \"volumeMounts\": list(system.variables.volume_mounts_list),\n            \"env\": system.variables.envs_list + [\n                { \n                    \"name\": \"ORIGINAL_DATA_PATH\",\n                    \"value\": workflow.variables.input_dataset_path\n                },\n                { \n                    \"name\": \"ORIGINAL_FILE_WILDCARD\",\n                    \"value\": \"batch/*/part*\"\n                },\n                { \n                    \"name\": \"JOINED_DATA_PATH\",\n                    \"value\": workflow.variables.output_dataset_path + '/side_output/' + workflow.variables.output_batch_path.split('/')[-1] + '/joined'\n                },\n                { \n                    \"name\": \"DATABLOCK_PATH\",\n                    \"value\": workflow.variables.output_batch_path\n                },\n                { \n                    \"name\": \"PART_KEY\",\n                    \"value\": workflow.variables.part_key\n                },\n                {\n                    \"name\": \"FILE_FORMAT\",\n                    \"value\": 'tfrecords'\n                }\n            ]\n        },\n        \"executor\": {\n            \"cores\": int(workflow.variables.executor_cores),\n            \"instances\": 1,\n            \"memory\": workflow.variables.executor_mem,\n            \"labels\": {\n                \"version\": \"3.0.0\"\n            },\n            \"volumeMounts\": list(system.variables.volume_mounts_list),\n            \"env\": system.variables.envs_list + []\n        },\n        \"dynamicAllocation\": {\n            \"enabled\": True,\n            \"initialExecutors\": int(workflow.variables.initial_executor_num),\n            \"minExecutors\": int(workflow.variables.min_executor_num),\n            \"maxExecutors\": int(workflow.variables.max_executor_num)\n        }\n    }\n}\n"
+            },
+            {
+                "dependencies": [
+                    {
+                        "source": "lc-feature-extraction"
+                    }
+                ],
+                "easy_mode": false,
+                "is_federated": false,
+                "job_type": "ANALYZER",
+                "name": "analyzer",
+                "variables": [],
+                "yaml_template": "{\n    \"apiVersion\": \"sparkoperator.k8s.io/v1beta2\",\n    \"kind\": \"SparkApplication\",\n    \"metadata\": {\n        \"name\": self.name,\n        \"namespace\": system.variables.namespace,\n        \"labels\": dict(system.variables.labels),\n        \"annotations\": {\n            \"queue\": \"fedlearner-spark\",\n            \"schedulerName\": \"batch\",\n        },\n    },\n    \"spec\": {\n        \"type\": \"Python\",\n        \"pythonVersion\": \"3\",\n        \"mode\": \"cluster\",\n        \"image\": (system.variables.get(\"spark_image_repo\") or str(system.variables.image_repo + \"/pp_data_inspection\")) + \":\" + system.version,\n        \"imagePullPolicy\": \"IfNotPresent\",\n        \"volumes\": list(system.variables.volumes_list),\n        \"mainApplicationFile\": \"/opt/spark/work-dir/analyzer_v2.py\",\n        \"arguments\": [\n            \"tabular\",\n            \"--data_path=\"+ workflow.variables.output_dataset_path,\n            \"--file_wildcard=\" + \"batch/**/**\",\n            \"--buckets_num=\" + str(10),\n            \"--thumbnail_path=\" + \"\",\n            \"--batch_name=\" + str(workflow.variables.output_batch_name),\n        ],\n        \"sparkVersion\": \"3.0.0\",\n        \"restartPolicy\": {\n            \"type\": \"OnFailure\",\n            \"onFailureRetries\": 3,\n            \"onFailureRetryInterval\": 10,\n            \"onSubmissionFailureRetries\": 5,\n            \"onSubmissionFailureRetryInterval\": 20\n        },\n        \"driver\": {\n            \"cores\": 1,\n            \"coreLimit\": \"1200m\",\n            \"memory\": \"4g\",\n            \"labels\": {\n                \"version\": \"3.0.0\"\n            },\n            \"serviceAccount\": \"spark\",\n            \"volumeMounts\": list(system.variables.volume_mounts_list),\n            \"env\": system.basic_envs_list + system.variables.envs_list + []\n        },\n        \"executor\": {\n            \"cores\": int(workflow.variables.executor_cores),\n            \"instances\": 2,\n            \"memory\": workflow.variables.executor_mem,\n            \"labels\": {\n                \"version\": \"3.0.0\"\n            },\n            \"volumeMounts\": list(system.variables.volume_mounts_list),\n            \"env\": system.basic_envs_list + system.variables.envs_list + []\n        },\n        \"dynamicAllocation\": {\n            \"enabled\": True,\n            \"initialExecutors\": int(workflow.variables.initial_executor_num),\n            \"minExecutors\": int(workflow.variables.min_executor_num),\n            \"maxExecutors\": int(workflow.variables.max_executor_num)\n        }\n    }\n}\n"
+            }
+        ],
+        "variables": [
+            {
+                "access_mode": "PEER_READABLE",
+                "name": "input_dataset_path",
+                "tag": "INPUT_PATH",
+                "typed_value": "undefined",
+                "value": "undefined",
+                "value_type": "STRING",
+                "widget_schema": "{\"component\":\"DatasetPath\",\"required\":true,\"tooltip\":\"输入数据\",\"hidden\":false,\"tag\":\"INPUT_PATH\"}"
+            },
+            {
+                "access_mode": "PEER_WRITABLE",
+                "name": "part_num",
+                "tag": "INPUT_PARAM",
+                "typed_value": "4",
+                "value": "4",
+                "value_type": "STRING",
+                "widget_schema": "{\"component\":\"Input\",\"required\":true,\"tooltip\":\"分区数量\",\"tag\":\"INPUT_PARAM\"}"
+            },
+            {
+                "access_mode": "PEER_WRITABLE",
+                "name": "part_key",
+                "tag": "INPUT_PARAM",
+                "typed_value": "raw_id",
+                "value": "raw_id",
+                "value_type": "STRING",
+                "widget_schema": "{\"component\":\"Input\",\"required\":true,\"tooltip\":\"分区以及求交的key\",\"tag\":\"INPUT_PARAM\"}"
+            },
+            {
+                "access_mode": "PEER_WRITABLE",
+                "name": "rsa_key_bits",
+                "tag": "INPUT_PARAM",
+                "typed_value": "1024",
+                "value": "1024",
+                "value_type": "STRING",
+                "widget_schema": "{\"component\":\"Input\",\"required\":true,\"tooltip\":\"RSA密钥长度\",\"tag\":\"INPUT_PARAM\"}"
+            },
+            {
+                "access_mode": "PEER_WRITABLE",
+                "name": "min_executor_num",
+                "tag": "RESOURCE_ALLOCATION",
+                "typed_value": "2",
+                "value": "2",
+                "value_type": "STRING",
+                "widget_schema": "{\"component\":\"Input\",\"required\":true,\"tooltip\":\"spark任务最小executor数量\",\"hidden\":false,\"tag\":\"RESOURCE_ALLOCATION\"}"
+            },
+            {
+                "access_mode": "PEER_WRITABLE",
+                "name": "max_executor_num",
+                "tag": "RESOURCE_ALLOCATION",
+                "typed_value": "64",
+                "value": "64",
+                "value_type": "STRING",
+                "widget_schema": "{\"component\":\"Input\",\"required\":true,\"tooltip\":\"spark任务最大executor数量\",\"hidden\":false,\"tag\":\"RESOURCE_ALLOCATION\"}"
+            },
+            {
+                "access_mode": "PEER_WRITABLE",
+                "name": "initial_executor_num",
+                "tag": "RESOURCE_ALLOCATION",
+                "typed_value": "2",
+                "value": "2",
+                "value_type": "STRING",
+                "widget_schema": "{\"component\":\"Input\",\"required\":true,\"tooltip\":\"spark任务初始化executor数量\",\"hidden\":false,\"tag\":\"RESOURCE_ALLOCATION\"}"
+            },
+            {
+                "access_mode": "PEER_WRITABLE",
+                "name": "executor_cores",
+                "tag": "RESOURCE_ALLOCATION",
+                "typed_value": "2",
+                "value": "2",
+                "value_type": "STRING",
+                "widget_schema": "{\"component\":\"Input\",\"required\":true,\"tooltip\":\"executor核数\",\"tag\":\"RESOURCE_ALLOCATION\"}"
+            },
+            {
+                "access_mode": "PEER_WRITABLE",
+                "name": "executor_mem",
+                "tag": "RESOURCE_ALLOCATION",
+                "typed_value": "4g",
+                "value": "4g",
+                "value_type": "STRING",
+                "widget_schema": "{\"component\":\"Input\",\"required\":true,\"tooltip\":\"executor内存\",\"tag\":\"RESOURCE_ALLOCATION\"}"
+            },
+            {
+                "access_mode": "PEER_WRITABLE",
+                "name": "server_cpu",
+                "tag": "RESOURCE_ALLOCATION",
+                "typed_value": "16000m",
+                "value": "16000m",
+                "value_type": "STRING",
+                "widget_schema": "{\"component\":\"Input\",\"required\":true,\"tooltip\":\"求交服务端cpu数量\",\"tag\":\"RESOURCE_ALLOCATION\"}"
+            },
+            {
+                "access_mode": "PEER_WRITABLE",
+                "name": "server_mem",
+                "tag": "RESOURCE_ALLOCATION",
+                "typed_value": "20Gi",
+                "value": "20Gi",
+                "value_type": "STRING",
+                "widget_schema": "{\"component\":\"Input\",\"required\":true,\"tooltip\":\"求交服务端内存容量\",\"tag\":\"RESOURCE_ALLOCATION\"}"
+            },
+            {
+                "access_mode": "PEER_WRITABLE",
+                "name": "sign_number_workers",
+                "tag": "RESOURCE_ALLOCATION",
+                "typed_value": "30",
+                "value": "30",
+                "value_type": "STRING",
+                "widget_schema": "{\"component\":\"Input\",\"required\":true,\"tooltip\":\"求交服务端进程数量\",\"hidden\":false,\"tag\":\"RESOURCE_ALLOCATION\"}"
+            },
+            {
+                "access_mode": "PEER_WRITABLE",
+                "name": "active_deadline_seconds",
+                "tag": "INPUT_PARAM",
+                "typed_value": "86400",
+                "value": "86400",
+                "value_type": "STRING",
+                "widget_schema": "{\"component\":\"Input\",\"required\":true,\"tooltip\":\"求交任务最长运行时间，超过该运行时间求交任务会自动停止。\",\"tag\":\"INPUT_PARAM\"}"
+            },
+            {
+                "access_mode": "PEER_READABLE",
+                "name": "output_dataset_path",
+                "tag": "OUTPUT_PATH",
+                "typed_value": "",
+                "value": "",
+                "value_type": "STRING",
+                "widget_schema": "{\"component\":\"Input\",\"required\":true,\"hidden\":true,\"tag\":\"OUTPUT_PATH\"}"
+            },
+            {
+                "access_mode": "PEER_READABLE",
+                "name": "output_batch_path",
+                "tag": "OUTPUT_PATH",
+                "typed_value": "",
+                "value": "",
+                "value_type": "STRING",
+                "widget_schema": "{\"component\":\"Input\",\"required\":true,\"hidden\":true,\"tag\":\"OUTPUT_PATH\"}"
+            },
+            {
+                "access_mode": "PEER_READABLE",
+                "name": "input_batch_path",
+                "tag": "INPUT_PATH",
+                "typed_value": "",
+                "value": "",
+                "value_type": "STRING",
+                "widget_schema": "{\"component\":\"Input\",\"required\":true,\"tooltip\":\"输入batch路径\",\"hidden\":true,\"tag\":\"INPUT_PATH\"}"
+            },
+            {
+                "access_mode": "PEER_WRITABLE",
+                "name": "output_batch_name",
+                "tag": "OUTPUT_PATH",
+                "typed_value": "",
+                "value": "",
+                "value_type": "STRING",
+                "widget_schema": "{\"component\":\"Input\",\"required\":true,\"tag\":\"OUTPUT_PATH\",\"hidden\":true}"
+            }
+        ]
+    },
+    "editor_info": {
+        "yaml_editor_infos": {
+            "analyzer": {
+                "meta_yaml": "{\n    \"apiVersion\": \"sparkoperator.k8s.io/v1beta2\",\n    \"kind\": \"SparkApplication\",\n    \"metadata\": {\n        \"name\": self.name,\n        \"namespace\": system.variables.namespace,\n        \"labels\": ${Slot_labels},\n        \"annotations\": {\n            \"queue\": \"fedlearner-spark\",\n            \"schedulerName\": \"batch\",\n        },\n    },\n    \"spec\": {\n        \"type\": \"Python\",\n        \"pythonVersion\": \"3\",\n        \"mode\": \"cluster\",\n        \"image\": ${Slot_image} or system.variables.image_repo + \"/pp_data_inspection:\" + system.version,\n        \"imagePullPolicy\": \"IfNotPresent\",\n        \"volumes\": ${Slot_volumes},\n        \"mainApplicationFile\": ${Slot_spark_main_file},\n        \"arguments\": [\n            \"--data_path=\"+ (${Slot_dataset_path} or ${Slot_storage_root_path} + \"/\" + ${Slot_inner_folder_name} + \"/\" + ${Slot_input_job_name}),\n            \"--file_wildcard=\" + ${Slot_wildcard},\n            \"--buckets_num=\" + str(${Slot_buckets_num}),\n            \"--thumbnail_path=\" + ${Slot_thumbnail_path},\n        ],\n        \"sparkVersion\": \"3.0.0\",\n        \"restartPolicy\": {\n            \"type\": \"OnFailure\",\n            \"onFailureRetries\": 3,\n            \"onFailureRetryInterval\": 10,\n            \"onSubmissionFailureRetries\": 5,\n            \"onSubmissionFailureRetryInterval\": 20\n        },\n        \"driver\": {\n            \"cores\": ${Slot_driver_cores},\n            \"coreLimit\": ${Slot_driver_core_limit},\n            \"memory\": ${Slot_driver_memory},\n            \"labels\": {\n                \"version\": \"3.0.0\"\n            },\n            \"serviceAccount\": \"spark\",\n            \"volumeMounts\": ${Slot_volume_mounts},\n            \"env\": system.basic_envs_list + system.variables.envs_list + ${Slot_drvier_envs}\n        },\n        \"executor\": {\n            \"cores\": ${Slot_executor_cores},\n            \"instances\": ${Slot_executor_instances},\n            \"memory\": ${Slot_executor_memory},\n            \"labels\": {\n                \"version\": \"3.0.0\"\n            },\n            \"volumeMounts\": ${Slot_volume_mounts},\n            \"env\": system.basic_envs_list + system.variables.envs_list + ${Slot_executor_envs}\n        },\n        \"dynamicAllocation\": {\n            \"enabled\": True,\n            \"initialExecutors\": ${Slot_initial_executors},\n            \"maxExecutors\": ${Slot_max_executors},\n            \"minExecutors\": ${Slot_min_executors},\n        }\n    }\n}\n",
+                "slots": {
+                    "Slot_buckets_num": {
+                        "default": "",
+                        "default_value": 10.0,
+                        "help": "用于数据探查时统计直方图的分通数",
+                        "label": "直方图分桶数",
+                        "reference": "",
+                        "reference_type": "WORKFLOW",
+                        "value_type": "INT"
+                    },
+                    "Slot_dataset_path": {
+                        "default": "",
+                        "default_value": "",
+                        "help": "用于数据集存储的路径",
+                        "label": "数据集存储路径",
+                        "reference": "",
+                        "reference_type": "WORKFLOW",
+                        "value_type": "STRING"
+                    },
+                    "Slot_driver_core_limit": {
+                        "default": "",
+                        "default_value": "1200m",
+                        "help": "driver核心数限制",
+                        "label": "driver核心数限制",
+                        "reference": "",
+                        "reference_type": "DEFAULT",
+                        "value_type": "STRING"
+                    },
+                    "Slot_driver_cores": {
+                        "default": "",
+                        "default_value": 1.0,
+                        "help": "driver核心数",
+                        "label": "driver核心数",
+                        "reference": "",
+                        "reference_type": "DEFAULT",
+                        "value_type": "INT"
+                    },
+                    "Slot_driver_memory": {
+                        "default": "",
+                        "default_value": "4g",
+                        "help": "driver内存",
+                        "label": "driver内存",
+                        "reference": "",
+                        "reference_type": "DEFAULT",
+                        "value_type": "STRING"
+                    },
+                    "Slot_drvier_envs": {
+                        "default": "",
+                        "default_value": [],
+                        "help": "driver环境变量",
+                        "label": "driver环境变量",
+                        "reference": "",
+                        "reference_type": "DEFAULT",
+                        "value_type": "LIST"
+                    },
+                    "Slot_executor_cores": {
+                        "default": "",
+                        "default_value": 2.0,
+                        "help": "executor核心数",
+                        "label": "executor核心数",
+                        "reference": "",
+                        "reference_type": "DEFAULT",
+                        "value_type": "INT"
+                    },
+                    "Slot_executor_envs": {
+                        "default": "",
+                        "default_value": [],
+                        "help": "executor环境变量",
+                        "label": "executor环境变量",
+                        "reference": "",
+                        "reference_type": "DEFAULT",
+                        "value_type": "LIST"
+                    },
+                    "Slot_executor_instances": {
+                        "default": "",
+                        "default_value": 2.0,
+                        "help": "executor实例数",
+                        "label": "executor实例数",
+                        "reference": "",
+                        "reference_type": "DEFAULT",
+                        "value_type": "INT"
+                    },
+                    "Slot_executor_memory": {
+                        "default": "",
+                        "default_value": "4g",
+                        "help": "executor内存",
+                        "label": "executor内存",
+                        "reference": "",
+                        "reference_type": "DEFAULT",
+                        "value_type": "STRING"
+                    },
+                    "Slot_image": {
+                        "default": "",
+                        "default_value": "",
+                        "help": "镜像地址,建议不填写,默认会使用system.variables.image_repo + '/pp_data_inspection:' + system.version",
+                        "label": "镜像",
+                        "reference": "",
+                        "reference_type": "DEFAULT",
+                        "value_type": "STRING"
+                    },
+                    "Slot_initial_executors": {
+                        "default": "",
+                        "default_value": 2.0,
+                        "help": "初始化executor数量",
+                        "label": "初始化executor数量",
+                        "reference": "",
+                        "reference_type": "DEFAULT",
+                        "value_type": "INT"
+                    },
+                    "Slot_inner_folder_name": {
+                        "default": "",
+                        "default_value": "dataset",
+                        "help": "为了兼容老的路径的临时Slot，['dataset', 'datasource']",
+                        "label": "中间文件夹名",
+                        "reference": "",
+                        "reference_type": "DEFAULT",
+                        "value_type": "STRING"
+                    },
+                    "Slot_input_job_name": {
+                        "default": "",
+                        "default_value": "",
+                        "help": "必须修改，求交任务名或数据集名称",
+                        "label": "数据集名",
+                        "reference": "",
+                        "reference_type": "WORKFLOW",
+                        "value_type": "STRING"
+                    },
+                    "Slot_labels": {
+                        "default": "",
+                        "default_value": {},
+                        "help": "建议不修改，格式： {}",
+                        "label": "额外元信息",
+                        "reference": "system.variables.labels",
+                        "reference_type": "SYSTEM",
+                        "value_type": "OBJECT"
+                    },
+                    "Slot_max_executors": {
+                        "default": "",
+                        "default_value": 64.0,
+                        "help": "初始化executor数量",
+                        "label": "最大executor数量",
+                        "reference": "",
+                        "reference_type": "DEFAULT",
+                        "value_type": "INT"
+                    },
+                    "Slot_min_executors": {
+                        "default": "",
+                        "default_value": 2.0,
+                        "help": "初始化executor数量",
+                        "label": "最小executor数量",
+                        "reference": "",
+                        "reference_type": "DEFAULT",
+                        "value_type": "INT"
+                    },
+                    "Slot_spark_main_file": {
+                        "default": "",
+                        "default_value": "/opt/spark/work-dir/analyzer_v2.py",
+                        "help": "spark入口脚本",
+                        "label": "入口脚本文件",
+                        "reference": "",
+                        "reference_type": "DEFAULT",
+                        "value_type": "STRING"
+                    },
+                    "Slot_storage_root_path": {
+                        "default": "",
+                        "default_value": "/data",
+                        "help": "联邦学习中任务存储根目录",
+                        "label": "存储根目录",
+                        "reference": "project.variables.storage_root_path",
+                        "reference_type": "PROJECT",
+                        "value_type": "STRING"
+                    },
+                    "Slot_thumbnail_path": {
+                        "default": "",
+                        "default_value": "",
+                        "help": "用于存放预览图像的位置",
+                        "label": "预览图像位置",
+                        "reference": "",
+                        "reference_type": "WORKFLOW",
+                        "value_type": "STRING"
+                    },
+                    "Slot_volume_mounts": {
+                        "default": "",
+                        "default_value": [
+                            {
+                                "mountPath": "/data",
+                                "name": "data"
+                            }
+                        ],
+                        "help": "建议不修改，容器中卷挂载的位置，数组类型",
+                        "label": "卷挂载位置",
+                        "reference": "system.variables.volume_mounts_list",
+                        "reference_type": "SYSTEM",
+                        "value_type": "LIST"
+                    },
+                    "Slot_volumes": {
+                        "default": "",
+                        "default_value": [
+                            {
+                                "name": "data",
+                                "persistentVolumeClaim": {
+                                    "claimName": "pvc-fedlearner-default"
+                                }
+                            }
+                        ],
+                        "help": "建议不修改，数组类型，和volume_mounts一一对应",
+                        "label": "为Pod提供的卷",
+                        "reference": "system.variables.volumes_list",
+                        "reference_type": "SYSTEM",
+                        "value_type": "LIST"
+                    },
+                    "Slot_wildcard": {
+                        "default": "",
+                        "default_value": "batch/**/*.data",
+                        "help": "文件通配符",
+                        "label": "文件通配符",
+                        "reference": "",
+                        "reference_type": "DEFAULT",
+                        "value_type": "STRING"
+                    }
+                },
+                "variables": []
+            },
+            "lc-feature-extraction": {
+                "meta_yaml": "{\n  \"apiVersion\": \"fedlearner.k8s.io/v1alpha1\",\n  \"kind\": \"FLApp\",\n  \"metadata\": {\n    \"name\": self.name,\n    \"namespace\": system.variables.namespace,\n    \"annotations\":{\n        \"queue\": \"fedlearner\",\n        \"schedulerName\": \"batch\"\n    },\n    \"labels\": ${Slot_labels}\n  },\n  \"spec\": {\n    \"role\": ${Slot_role},\n    \"cleanPodPolicy\": \"All\",\n    \"peerSpecs\": {\n      \"Leader\" if ${Slot_role}==\"Follower\" else \"Follower\": {\n        \"peerURL\": \"fedlearner-stack-ingress-nginx-controller.default.svc:80\",\n        \"authority\": project.participants[0].egress_host,\n        \"extraHeaders\": {\n          \"x-host\": \"fedlearner-operator.\" + project.participants[0].egress_domain\n        }\n      }\n    },\n    \"flReplicaSpecs\": {\n      \"Master\": {\n        \"template\": {\n          \"spec\": {\n            \"restartPolicy\": \"Never\",\n            \"containers\": [\n              {\n                \"env\": system.basic_envs_list + [\n                  {\n                    \"name\": \"STORAGE_ROOT_PATH\",\n                    \"value\": ${Slot_storage_root_path}\n                  },\n                  {\n                    \"name\": \"ROLE\",\n                    \"value\": ${Slot_role}.lower()\n                  },\n                  {\n                    \"name\": \"APPLICATION_ID\",\n                    \"value\": self.name\n                  },\n                  {\n                    \"name\": \"OUTPUT_BASE_DIR\",\n                    \"value\": ${Slot_storage_root_path} + \"/data_source/\" + self.name\n                  },\n                  {\n                    \"name\": \"EGRESS_URL\",\n                    \"value\": \"fedlearner-stack-ingress-nginx-controller.default.svc:80\"\n                  },\n                  {\n                    \"name\": \"EGRESS_HOST\",\n                    \"value\": project.participants[0].egress_host\n                  },\n                  {\n                    \"name\": \"EGRESS_DOMAIN\",\n                    \"value\": project.participants[0].egress_domain\n                  },\n                  {\n                    \"name\": \"BATCH_MODE\",\n                    \"value\": ${Slot_batch_mode}\n                  },\n                  {\n                    \"name\": \"PARTITION_NUM\",\n                    \"value\": str(${Slot_partition_num})\n                  },\n                  {\n                    \"name\": \"START_TIME\",\n                    \"value\": str(${Slot_start_time})\n                  },\n                  {\n                    \"name\": \"END_TIME\",\n                    \"value\": str(${Slot_end_time})\n                  },\n                  {\n                    \"name\": \"RAW_DATA_SUB_DIR\",\n                    \"value\": \"portal_publish_dir/\" + ${Slot_raw_data_name}\n                  },\n                  {\n                    # not work, remove it after prepare_launch_data_join_cli been removed\n                    \"name\": \"NEGATIVE_SAMPLING_RATE\",\n                    \"value\": str(${Slot_negative_sampling_rate})\n                  }\n                ]  + ${Slot_master_envs},\n                \"imagePullPolicy\": \"IfNotPresent\",\n                \"name\": \"tensorflow\",\n                \"volumeMounts\":\n                  ${Slot_volume_mounts}\n                ,\n                \"image\": system.variables.image_repo + \"/fedlearner:\" + ${Slot_image_version},\n                \"ports\": [\n                  {\n                    \"containerPort\": 50051,\n                    \"name\": \"flapp-port\",\n                    \"protocol\": \"TCP\"\n                  }\n                ],\n                \"command\": [\n                  \"/app/deploy/scripts/wait4pair_wrapper.sh\"\n                ],\n                \"args\": [\n                  \"/app/deploy/scripts/data_join/run_data_join_master.sh\"\n                ],\n                \"resources\": {\n                  \"limits\": {\n                    \"cpu\": ${Slot_master_cpu},\n                    \"memory\": ${Slot_master_memory}\n                  },\n                  \"requests\": {\n                    \"cpu\": ${Slot_master_cpu},\n                    \"memory\": ${Slot_master_memory}\n                  }\n                }\n              }\n            ],\n            \"imagePullSecrets\": [\n              {\n                \"name\": \"regcred\"\n              }\n            ],\n            \"volumes\":\n        ${Slot_volumes}\n\n          }\n        },\n        \"pair\": true,\n        \"replicas\": ${Slot_master_replicas}\n      },\n      \"Worker\": {\n        \"template\": {\n          \"spec\": {\n            \"restartPolicy\": \"Never\",\n            \"containers\": [\n              {\n                \"env\": system.basic_envs_list + [\n                  {\n                    \"name\": \"STORAGE_ROOT_PATH\",\n                    \"value\": ${Slot_storage_root_path}\n                  },\n                  {\n                    \"name\": \"ROLE\",\n                    \"value\": ${Slot_role}.lower()\n                  },\n                  {\n                    \"name\": \"APPLICATION_ID\",\n                    \"value\": self.name\n                  },\n                  {\n                    \"name\": \"OUTPUT_BASE_DIR\",\n                    \"value\": ${Slot_storage_root_path} + \"/data_source/\" + self.name\n                  },\n                  {\n                    \"name\": \"EGRESS_URL\",\n                    \"value\": \"fedlearner-stack-ingress-nginx-controller.default.svc:80\"\n                  },\n                  {\n                    \"name\": \"EGRESS_HOST\",\n                    \"value\": project.participants[0].egress_host\n                  },\n                  {\n                    \"name\": \"EGRESS_DOMAIN\",\n                    \"value\": project.participants[0].egress_domain\n                  },\n                  {\n                    \"name\": \"PARTITION_NUM\",\n                    \"value\": str(${Slot_partition_num})\n                  },\n                  {\n                    \"name\": \"RAW_DATA_SUB_DIR\",\n                    \"value\": \"portal_publish_dir/\" + ${Slot_raw_data_name}\n                  },\n                  {\n                    \"name\": \"DATA_BLOCK_DUMP_INTERVAL\",\n                    \"value\": str(${Slot_data_block_dump_interval})\n                  },\n                  {\n                    \"name\": \"DATA_BLOCK_DUMP_THRESHOLD\",\n                    \"value\": str(${Slot_data_block_dump_threshold})\n                  },\n                  {\n                    \"name\": \"EXAMPLE_ID_DUMP_INTERVAL\",\n                    \"value\": str(${Slot_example_id_dump_interval})\n                  },\n                  {\n                    \"name\": \"EXAMPLE_ID_DUMP_THRESHOLD\",\n                    \"value\": str(${Slot_example_id_dump_threshold})\n                  },\n                  {\n                    \"name\": \"MIN_MATCHING_WINDOW\",\n                    \"value\": str(${Slot_min_matching_window})\n                  },\n                  {\n                    \"name\": \"MAX_MATCHING_WINDOW\",\n                    \"value\": str(${Slot_max_matching_window})\n                  },\n                  {\n                    \"name\": \"RAW_DATA_ITER\",\n                    \"value\": ${Slot_raw_data_iter}\n                  },\n                  {\n                    \"name\": \"DATA_BLOCK_BUILDER\",\n                    \"value\": ${Slot_data_block_builder}\n                  },\n                  {\n                    \"name\": \"ENABLE_NEGATIVE_EXAMPLE_GENERATOR\",\n                    \"value\": str(${Slot_enable_negative_example_generator})\n                  },\n                  {\n                    \"name\": \"NEGATIVE_SAMPLING_RATE\",\n                    \"value\": str(${Slot_negative_sampling_rate})\n                  },\n                ] + ${Slot_worker_envs},\n                \"imagePullPolicy\": \"IfNotPresent\",\n                \"name\": \"tensorflow\",\n                \"volumeMounts\":\n                  ${Slot_volume_mounts}\n                ,\n                \"image\": system.variables.image_repo + \"/fedlearner:\" + ${Slot_image_version},\n                \"ports\": [\n                  {\n                    \"containerPort\": 50051,\n                    \"name\": \"flapp-port\",\n                    \"protocol\": \"TCP\"\n                  }\n                ],\n                \"command\": [\n                  \"/app/deploy/scripts/wait4pair_wrapper.sh\"\n                ],\n                \"args\": [\n                  \"/app/deploy/scripts/data_join/run_data_join_worker.sh\"\n                ],\n                \"resources\": {\n                  \"limits\": {\n                    \"cpu\": ${Slot_worker_cpu},\n                    \"memory\": ${Slot_worker_memory}\n                  },\n                  \"requests\": {\n                    \"cpu\": ${Slot_worker_cpu},\n                    \"memory\": ${Slot_worker_memory}\n                  }\n                }\n              }\n            ],\n            \"imagePullSecrets\": [\n              {\n                \"name\": \"regcred\"\n              }\n            ],\n            \"volumes\":\n        ${Slot_volumes}\n\n          }\n        },\n        \"pair\": true,\n        \"replicas\": ${Slot_partition_num}\n      }\n    }\n  }\n}\n",
+                "slots": {
+                    "Slot_batch_mode": {
+                        "default": "",
+                        "default_value": "--batch_mode",
+                        "help": "如果为空则为常驻求交",
+                        "label": "是否为批处理模式",
+                        "reference": "",
+                        "reference_type": "DEFAULT",
+                        "value_type": "STRING"
+                    },
+                    "Slot_data_block_builder": {
+                        "default": "",
+                        "default_value": "TF_RECORD",
+                        "help": "建议不修改，choices=['TF_RECORD', 'CSV_DICT']",
+                        "label": "data block output数据类型",
+                        "reference": "",
+                        "reference_type": "DEFAULT",
+                        "value_type": "STRING"
+                    },
+                    "Slot_data_block_dump_interval": {
+                        "default": "",
+                        "default_value": -1.0,
+                        "help": "建议不修改，最多每隔多少时间（实际时间，非样本时间）就dump一次data block，小于0则无此限制",
+                        "label": "数据dump时间间隔",
+                        "reference": "",
+                        "reference_type": "DEFAULT",
+                        "value_type": "INT"
+                    },
+                    "Slot_data_block_dump_threshold": {
+                        "default": "",
+                        "default_value": 4096.0,
+                        "help": "建议不修改，最多多少个样本就dump为一个data block，小于等于0则无此限制",
+                        "label": "数据dump临界点",
+                        "reference": "",
+                        "reference_type": "DEFAULT",
+                        "value_type": "INT"
+                    },
+                    "Slot_enable_negative_example_generator": {
+                        "default": "",
+                        "default_value": false,
+                        "help": "建议不修改，是否开启负采样，当follower求交时遇到无法匹配上的leader的example id，会以negative_sampling_rate为概率生成一个新的样本。",
+                        "label": "负采样比例",
+                        "reference": "",
+                        "reference_type": "DEFAULT",
+                        "value_type": "BOOL"
+                    },
+                    "Slot_end_time": {
+                        "default": "",
+                        "default_value": 999999999999.0,
+                        "help": "建议不修改，使用自这个时间以前的数据，仅从文件名筛选所以格式依据文件名（yyyymmdd或timestamp）",
+                        "label": "数据末尾时间",
+                        "reference": "",
+                        "reference_type": "DEFAULT",
+                        "value_type": "INT"
+                    },
+                    "Slot_example_id_dump_interval": {
+                        "default": "",
+                        "default_value": -1.0,
+                        "help": "建议不修改，最多每隔多少时间（实际时间，非样本时间）就dump一次example id，小于0则无此限制",
+                        "label": "数据id dump时间间隔",
+                        "reference": "",
+                        "reference_type": "DEFAULT",
+                        "value_type": "INT"
+                    },
+                    "Slot_example_id_dump_threshold": {
+                        "default": "",
+                        "default_value": 4096.0,
+                        "help": "建议不修改，最多每隔多少时间（实际时间，非样本时间）就dump一次example id，小于0则无此限制",
+                        "label": "数据id dump临界点",
+                        "reference": "",
+                        "reference_type": "DEFAULT",
+                        "value_type": "INT"
+                    },
+                    "Slot_image_version": {
+                        "default": "",
+                        "default_value": "882310f",
+                        "help": "建议不修改，指定Pod中运行的容器镜像版本，前缀为system.variables.image_repo + '/fedlearner:'",
+                        "label": "容器镜像版本",
+                        "reference": "",
+                        "reference_type": "DEFAULT",
+                        "value_type": "STRING"
+                    },
+                    "Slot_labels": {
+                        "default": "",
+                        "default_value": {},
+                        "help": "建议不修改，格式： {}",
+                        "label": "FLAPP额外元信息",
+                        "reference": "system.variables.labels",
+                        "reference_type": "SYSTEM",
+                        "value_type": "OBJECT"
+                    },
+                    "Slot_master_cpu": {
+                        "default": "",
+                        "default_value": "2000m",
+                        "help": "Master Pod 所分配的CPU资源（request和limit一致）",
+                        "label": "Master的CPU",
+                        "reference": "",
+                        "reference_type": "DEFAULT",
+                        "value_type": "STRING"
+                    },
+                    "Slot_master_envs": {
+                        "default": "",
+                        "default_value": [],
+                        "help": "数组类型，master pod额外的环境变量",
+                        "label": "Master额外环境变量",
+                        "reference": "",
+                        "reference_type": "DEFAULT",
+                        "value_type": "LIST"
+                    },
+                    "Slot_master_memory": {
+                        "default": "",
+                        "default_value": "3Gi",
+                        "help": "Master Pod 所分配的内存资源（request和limit一致）",
+                        "label": "Master的内存",
+                        "reference": "",
+                        "reference_type": "DEFAULT",
+                        "value_type": "STRING"
+                    },
+                    "Slot_master_replicas": {
+                        "default": "",
+                        "default_value": 1.0,
+                        "help": "同时运行的完全相同的Master Pods数量",
+                        "label": "Master的Pod个数",
+                        "reference": "",
+                        "reference_type": "DEFAULT",
+                        "value_type": "INT"
+                    },
+                    "Slot_max_matching_window": {
+                        "default": "",
+                        "default_value": 4096.0,
+                        "help": "建议不修改，the max matching window for example join. <=0 means window size is infinite",
+                        "label": "最大匹配滑窗",
+                        "reference": "",
+                        "reference_type": "DEFAULT",
+                        "value_type": "INT"
+                    },
+                    "Slot_min_matching_window": {
+                        "default": "",
+                        "default_value": 1024.0,
+                        "help": "建议不修改，the min matching window for example join ,<=0 means window size is infinite",
+                        "label": "最小匹配滑窗",
+                        "reference": "",
+                        "reference_type": "DEFAULT",
+                        "value_type": "INT"
+                    },
+                    "Slot_negative_sampling_rate": {
+                        "default": "",
+                        "default_value": 0.0,
+                        "help": "建议不修改，负采样比例，当follower求交时遇到无法匹配上的leader的example id，会以此概率生成一个新的样本。",
+                        "label": "负采样比例",
+                        "reference": "",
+                        "reference_type": "DEFAULT",
+                        "value_type": "NUMBER"
+                    },
+                    "Slot_partition_num": {
+                        "default": "",
+                        "default_value": 4.0,
+                        "help": "建议修改，求交后数据分区的数量，建议和raw_data一致",
+                        "label": "数据分区的数量",
+                        "reference": "",
+                        "reference_type": "DEFAULT",
+                        "value_type": "INT"
+                    },
+                    "Slot_raw_data_iter": {
+                        "default": "",
+                        "default_value": "TF_RECORD",
+                        "help": "建议不修改，choices=['TF_RECORD', 'CSV_DICT']",
+                        "label": "raw_data文件类型",
+                        "reference": "",
+                        "reference_type": "DEFAULT",
+                        "value_type": "STRING"
+                    },
+                    "Slot_raw_data_name": {
+                        "default": "",
+                        "default_value": "",
+                        "help": "必须修改，原始数据的发布地址，根据参数内容在portal_publish_dir地址下寻找",
+                        "label": "raw_data名字",
+                        "reference": "",
+                        "reference_type": "JOB_PROPERTY",
+                        "value_type": "STRING"
+                    },
+                    "Slot_role": {
+                        "default": "",
+                        "default_value": "Leader",
+                        "help": "Flapp 通讯时的角色 Leader 或 Follower",
+                        "label": "Flapp通讯时角色",
+                        "reference": "",
+                        "reference_type": "DEFAULT",
+                        "value_type": "STRING"
+                    },
+                    "Slot_start_time": {
+                        "default": "",
+                        "default_value": 0.0,
+                        "help": "建议不修改，使用自这个时间起的数据，仅从文件名筛选所以格式依据文件名（yyyymmdd或timestamp）",
+                        "label": "数据起始时间",
+                        "reference": "",
+                        "reference_type": "DEFAULT",
+                        "value_type": "INT"
+                    },
+                    "Slot_storage_root_path": {
+                        "default": "",
+                        "default_value": "/data",
+                        "help": "联邦学习中任务存储根目录",
+                        "label": "存储根目录",
+                        "reference": "project.variables.storage_root_path",
+                        "reference_type": "PROJECT",
+                        "value_type": "STRING"
+                    },
+                    "Slot_volume_mounts": {
+                        "default": "",
+                        "default_value": [
+                            {
+                                "mountPath": "/data",
+                                "name": "data"
+                            }
+                        ],
+                        "help": "建议不修改，容器中卷挂载的位置，数组类型",
+                        "label": "卷挂载位置",
+                        "reference": "system.variables.volume_mounts_list",
+                        "reference_type": "SYSTEM",
+                        "value_type": "LIST"
+                    },
+                    "Slot_volumes": {
+                        "default": "",
+                        "default_value": [
+                            {
+                                "name": "data",
+                                "persistentVolumeClaim": {
+                                    "claimName": "pvc-fedlearner-default"
+                                }
+                            }
+                        ],
+                        "help": "建议不修改，数组类型，和volume_mounts一一对应",
+                        "label": "为Pod提供的卷",
+                        "reference": "system.variables.volumes_list",
+                        "reference_type": "SYSTEM",
+                        "value_type": "LIST"
+                    },
+                    "Slot_worker_cpu": {
+                        "default": "",
+                        "default_value": "2000m",
+                        "help": "Worker Pod 所分配的CPU资源（request和limit一致）",
+                        "label": "Worker的CPU",
+                        "reference": "",
+                        "reference_type": "DEFAULT",
+                        "value_type": "STRING"
+                    },
+                    "Slot_worker_envs": {
+                        "default": "",
+                        "default_value": [],
+                        "help": "数组类型，worker pod额外的环境变量",
+                        "label": "Worker额外环境变量",
+                        "reference": "",
+                        "reference_type": "DEFAULT",
+                        "value_type": "LIST"
+                    },
+                    "Slot_worker_memory": {
+                        "default": "",
+                        "default_value": "3Gi",
+                        "help": "Worker Pod 所分配的内存资源（request和limit一致）",
+                        "label": "Worker的内存",
+                        "reference": "",
+                        "reference_type": "DEFAULT",
+                        "value_type": "STRING"
+                    }
+                },
+                "variables": []
+            },
+            "lc-sign-raw-data": {
+                "meta_yaml": "{\n    \"apiVersion\": \"sparkoperator.k8s.io/v1beta2\",\n    \"kind\": \"SparkApplication\",\n    \"metadata\": {\n        \"name\": self.name,\n        \"namespace\": system.variables.namespace,\n        \"labels\": ${Slot_labels},\n        \"annotations\": {\n            \"queue\": \"fedlearner-spark\",\n            \"schedulerName\": \"batch\",\n        },\n    },\n    \"spec\": {\n        \"type\": \"Python\",\n        \"pythonVersion\": \"3\",\n        \"mode\": \"cluster\",\n        \"image\": ${Slot_image} or system.variables.image_repo + \"/pp_data_inspection:\" + system.version,\n        \"imagePullPolicy\": \"IfNotPresent\",\n        \"volumes\": ${Slot_volumes},\n        \"mainApplicationFile\": ${Slot_spark_transformer_file},\n        \"arguments\": [\n            ${Slot_dataset},\n            \"rds/**\",\n            str(${Slot_configs})\n        ],\n        \"sparkVersion\": \"3.0.0\",\n        \"restartPolicy\": {\n            \"type\": \"OnFailure\",\n            \"onFailureRetries\": 3,\n            \"onFailureRetryInterval\": 10,\n            \"onSubmissionFailureRetries\": 5,\n            \"onSubmissionFailureRetryInterval\": 20\n        },\n        \"driver\": {\n            \"cores\": ${Slot_driver_cores},\n            \"coreLimit\": ${Slot_driver_core_limit},\n            \"memory\": ${Slot_driver_memory},\n            \"labels\": {\n                \"version\": \"3.0.0\"\n            },\n            \"serviceAccount\": \"spark\",\n            \"volumeMounts\": ${Slot_volume_mounts}\n        },\n        \"executor\": {\n            \"cores\": ${Slot_executor_cores},\n            \"instances\": ${Slot_executor_instances},\n            \"memory\": ${Slot_executor_memory},\n            \"labels\": {\n                \"version\": \"3.0.0\"\n            },\n            \"volumeMounts\": ${Slot_volume_mounts}\n        }\n    }\n}\n",
+                "slots": {
+                    "Slot_configs": {
+                        "default": "",
+                        "default_value": {},
+                        "help": "使用特征选择组件",
+                        "label": "配置",
+                        "reference": "",
+                        "reference_type": "DEFAULT",
+                        "value_type": "OBJECT"
+                    },
+                    "Slot_dataset": {
+                        "default": "",
+                        "default_value": "",
+                        "help": "",
+                        "label": "输入数据集",
+                        "reference": "",
+                        "reference_type": "DEFAULT",
+                        "value_type": "STRING"
+                    },
+                    "Slot_driver_core_limit": {
+                        "default": "",
+                        "default_value": "1200m",
+                        "help": "driver核心数限制",
+                        "label": "driver核心数限制",
+                        "reference": "",
+                        "reference_type": "DEFAULT",
+                        "value_type": "STRING"
+                    },
+                    "Slot_driver_cores": {
+                        "default": "",
+                        "default_value": "1000m",
+                        "help": "driver核心数",
+                        "label": "driver核心数",
+                        "reference": "",
+                        "reference_type": "DEFAULT",
+                        "value_type": "STRING"
+                    },
+                    "Slot_driver_memory": {
+                        "default": "",
+                        "default_value": "1024m",
+                        "help": "driver内存",
+                        "label": "driver内存",
+                        "reference": "",
+                        "reference_type": "DEFAULT",
+                        "value_type": "STRING"
+                    },
+                    "Slot_executor_cores": {
+                        "default": "",
+                        "default_value": "1000m",
+                        "help": "excutor核心数",
+                        "label": "excutor核心数",
+                        "reference": "",
+                        "reference_type": "DEFAULT",
+                        "value_type": "STRING"
+                    },
+                    "Slot_executor_instances": {
+                        "default": "",
+                        "default_value": 1.0,
+                        "help": "excutor实例数",
+                        "label": "excutor实例数",
+                        "reference": "",
+                        "reference_type": "DEFAULT",
+                        "value_type": "INT"
+                    },
+                    "Slot_executor_memory": {
+                        "default": "",
+                        "default_value": "512m",
+                        "help": "excutor内存",
+                        "label": "excutor内存",
+                        "reference": "",
+                        "reference_type": "DEFAULT",
+                        "value_type": "STRING"
+                    },
+                    "Slot_image": {
+                        "default": "",
+                        "default_value": "",
+                        "help": "镜像地址,建议不填写,默认会使用system.variables.image_repo + '/pp_data_inspection:' + system.version",
+                        "label": "镜像",
+                        "reference": "system.variables.spark_image",
+                        "reference_type": "DEFAULT",
+                        "value_type": "STRING"
+                    },
+                    "Slot_labels": {
+                        "default": "",
+                        "default_value": {},
+                        "help": "建议不修改，格式： {}",
+                        "label": "FLAPP额外元信息",
+                        "reference": "system.variables.labels",
+                        "reference_type": "SYSTEM",
+                        "value_type": "OBJECT"
+                    },
+                    "Slot_spark_transformer_file": {
+                        "default": "",
+                        "default_value": "transformer.py",
+                        "help": "特征工程的脚本",
+                        "label": "特征工程脚本文件",
+                        "reference": "",
+                        "reference_type": "DEFAULT",
+                        "value_type": "STRING"
+                    },
+                    "Slot_volume_mounts": {
+                        "default": "",
+                        "default_value": [
+                            {
+                                "mountPath": "/data",
+                                "name": "data"
+                            }
+                        ],
+                        "help": "建议不修改，容器中卷挂载的位置，数组类型",
+                        "label": "卷挂载位置",
+                        "reference": "system.variables.volume_mounts_list",
+                        "reference_type": "SYSTEM",
+                        "value_type": "LIST"
+                    },
+                    "Slot_volumes": {
+                        "default": "",
+                        "default_value": [
+                            {
+                                "name": "data",
+                                "persistentVolumeClaim": {
+                                    "claimName": "pvc-fedlearner-default"
+                                }
+                            }
+                        ],
+                        "help": "建议不修改，数组类型，和volume_mounts一一对应",
+                        "label": "为Pod提供的卷",
+                        "reference": "system.variables.volumes_list",
+                        "reference_type": "SYSTEM",
+                        "value_type": "LIST"
+                    }
+                },
+                "variables": []
+            },
+            "lc-start-server": {
+                "meta_yaml": "{\n  \"apiVersion\": \"fedlearner.k8s.io/v1alpha1\",\n  \"kind\": \"FLApp\",\n  \"metadata\": {\n    \"name\": self.name,\n    \"namespace\": system.variables.namespace,\n    \"annotations\":{\n        \"queue\": \"fedlearner\",\n        \"schedulerName\": \"batch\"\n    },\n    \"labels\": ${Slot_labels}\n  },\n  \"spec\": {\n    \"role\": \"Follower\",\n    \"peerSpecs\": {\n      \"Leader\": {\n        \"peerURL\": \"\",\n        \"authority\": \"\"\n      }\n    },\n    \"flReplicaSpecs\": {\n      \"Master\": {\n        \"template\": {\n          \"spec\": {\n            \"restartPolicy\": \"Never\",\n            \"containers\": [\n              {\n                \"env\": system.basic_envs_list + [\n                  {\n                    \"name\": \"STORAGE_ROOT_PATH\",\n                    \"value\": ${Slot_storage_root_path}\n                  },\n                    {\n                    \"name\": \"EGRESS_URL\",\n                    \"value\": \"fedlearner-stack-ingress-nginx-controller.default.svc:80\"\n                  },\n                  {\n                    \"name\": \"EGRESS_HOST\",\n                    \"value\": project.participants[0].egress_host\n                  },\n                  {\n                    \"name\": \"EGRESS_DOMAIN\",\n                    \"value\": project.participants[0].egress_domain\n                  },\n                  {\n                    \"name\": \"APPLICATION_ID\",\n                    \"value\": self.name\n                  },\n                  {\n                    \"name\": \"DATA_PORTAL_NAME\",\n                    \"value\": self.name\n                  },\n                    {\n                    \"name\": \"DATA_PORTAL_TYPE\",\n                    \"value\": ${Slot_data_portal_type}\n                  },\n                  {\n                    \"name\": \"OUTPUT_PARTITION_NUM\",\n                    \"value\": str(${Slot_output_partition_num})\n                  },\n                  {\n                    \"name\": \"INPUT_BASE_DIR\",\n                    \"value\": ${Slot_input_base_dir}\n                  },\n                  {\n                    \"name\": \"OUTPUT_BASE_DIR\",\n                    \"value\": ${Slot_storage_root_path} + \"/raw_data/\" + self.name\n                  },\n                  {\n                    \"name\": \"RAW_DATA_PUBLISH_DIR\",\n                    \"value\": \"portal_publish_dir/\" + self.name\n                  },\n                  {\n                    \"name\": \"FILE_WILDCARD\",\n                    \"value\": ${Slot_file_wildcard}\n                  },\n                  {\n                    \"name\": \"LONG_RUNNING\",\n                    \"value\": ${Slot_long_running}\n                  },\n                  {\n                    \"name\": \"CHECK_SUCCESS_TAG\",\n                    \"value\": ${Slot_check_success_tag}\n                  },\n                  {\n                    \"name\": \"FILES_PER_JOB_LIMIT\",\n                    \"value\": str(${Slot_files_per_job_limit})\n                  },\n                  {\n                    \"name\": \"SINGLE_SUBFOLDER\",\n                    \"value\": ${Slot_single_subfolder}\n                  },\n                  {\n                    \"name\": \"RAW_DATA_METRICS_SAMPLE_RATE\",\n                    \"value\": str(${Slot_raw_data_metrics_sample_rate})\n                  }\n\n                ] + ${Slot_master_envs},\n                \"imagePullPolicy\": \"IfNotPresent\",\n                \"name\": \"tensorflow\",\n                \"volumeMounts\": ${Slot_volume_mounts},\n                \"image\": system.variables.image_repo + \"/fedlearner:\" + ${Slot_image_version},\n                \"ports\": [\n                  {\n                    \"containerPort\": 50051,\n                    \"name\": \"flapp-port\",\n                    \"protocol\": \"TCP\"\n                  }\n                ],\n                \"command\": [\n                  \"/app/deploy/scripts/data_portal/run_data_portal_master.sh\"\n                ],\n                \"args\": [\n                ],\n                \"resources\": {\n                  \"limits\": {\n                    \"cpu\": ${Slot_master_cpu},\n                    \"memory\": ${Slot_master_memory}\n                  },\n                  \"requests\": {\n                    \"cpu\": ${Slot_master_cpu},\n                    \"memory\": ${Slot_master_memory}\n                  }\n                }\n              }\n            ],\n            \"imagePullSecrets\": [\n              {\n                \"name\": \"regcred\"\n              }\n            ],\n            \"volumes\": ${Slot_volumes}\n          }\n        },\n        \"pair\": False,\n        \"replicas\": 1\n      },\n      \"Worker\": {\n        \"template\": {\n          \"spec\": {\n            \"restartPolicy\": \"Never\",\n            \"containers\": [\n              {\n                \"env\": system.basic_envs_list + [\n                  {\n                    \"name\": \"STORAGE_ROOT_PATH\",\n                    \"value\": ${Slot_storage_root_path}\n                  },\n                  {\n                    \"name\": \"APPLICATION_ID\",\n                    \"value\": self.name\n                  },\n                  {\n                    \"name\": \"OUTPUT_BASE_DIR\",\n                    \"value\": ${Slot_storage_root_path} + \"/data_source/\" + self.name\n                  },\n                  {\n                    \"name\": \"EGRESS_URL\",\n                    \"value\": \"fedlearner-stack-ingress-nginx-controller.default.svc:80\"\n                  },\n                  {\n                    \"name\": \"EGRESS_HOST\",\n                    \"value\": project.participants[0].egress_host\n                  },\n                  {\n                    \"name\": \"EGRESS_DOMAIN\",\n                    \"value\": project.participants[0].egress_domain\n                  },\n\n                  {\n                    \"name\": \"BATCH_SIZE\",\n                    \"value\": str(${Slot_batch_size})\n                  },\n                  {\n                    \"name\": \"INPUT_DATA_FORMAT\",\n                    \"value\": ${Slot_input_data_format}\n                  },\n                  {\n                    \"name\": \"COMPRESSED_TYPE\",\n                    \"value\": ${Slot_compressed_type}\n                  },\n                  {\n                    \"name\": \"OUTPUT_DATA_FORMAT\",\n                    \"value\": ${Slot_output_data_format}\n                  },\n                  {\n                    \"name\": \"BUILDER_COMPRESSED_TYPE\",\n                    \"value\": ${Slot_builder_compressed_type}\n                  },\n                  {\n                    \"name\": \"MEMORY_LIMIT_RATIO\",\n                    \"value\": str(${Slot_memory_limit_ratio})\n                  },\n                  {\n                    \"name\": \"OPTIONAL_FIELDS\",\n                    \"value\": ${Slot_optional_fields}\n                  },\n                  {\n                    \"name\": \"RAW_DATA_METRICS_SAMPLE_RATE\",\n                    \"value\": str(${Slot_raw_data_metrics_sample_rate})\n                  }\n\n\n                ] + ${Slot_worker_envs},\n                \"imagePullPolicy\": \"IfNotPresent\",\n                \"name\": \"tensorflow\",\n                \"volumeMounts\": ${Slot_volume_mounts},\n                \"image\": system.variables.image_repo + \"/fedlearner:\" + ${Slot_image_version},\n                \"ports\": [\n                  {\n                    \"containerPort\": 50051,\n                    \"name\": \"flapp-port\",\n                    \"protocol\": \"TCP\"\n                  }\n                ],\n                \"command\": [\n                  \"/app/deploy/scripts/data_portal/run_data_portal_worker.sh\"\n                ],\n                \"args\": [\n                ],\n                \"resources\": {\n                  \"limits\": {\n                    \"cpu\": ${Slot_worker_cpu},\n                    \"memory\": ${Slot_worker_memory}\n                  },\n                  \"requests\": {\n                    \"cpu\": ${Slot_worker_cpu},\n                    \"memory\": ${Slot_worker_memory}\n                  }\n                }\n              }\n            ],\n            \"imagePullSecrets\": [\n              {\n                \"name\": \"regcred\"\n              }\n            ],\n            \"volumes\": ${Slot_volumes}\n          }\n        },\n        \"pair\": False,\n        \"replicas\": ${Slot_output_partition_num}\n      }\n    }\n  }\n}\n",
+                "slots": {
+                    "Slot_batch_size": {
+                        "default": "",
+                        "default_value": 1024.0,
+                        "help": "原始数据是一批一批的从文件系统中读出来，batch_size为batch的大小",
+                        "label": "Batch大小",
+                        "reference": "",
+                        "reference_type": "DEFAULT",
+                        "value_type": "INT"
+                    },
+                    "Slot_builder_compressed_type": {
+                        "default": "",
+                        "default_value": "",
+                        "help": "choices=['', 'ZLIB', 'GZIP']  the format for output file",
+                        "label": "输出压缩格式",
+                        "reference": "",
+                        "reference_type": "DEFAULT",
+                        "value_type": "STRING"
+                    },
+                    "Slot_check_success_tag": {
+                        "default": "",
+                        "default_value": "",
+                        "help": "choices:['','--check_success_tag'] means false and true, Check that a _SUCCESS file exists before processing files in a subfolder",
+                        "label": "是否检查成功标志",
+                        "reference": "",
+                        "reference_type": "DEFAULT",
+                        "value_type": "STRING"
+                    },
+                    "Slot_compressed_type": {
+                        "default": "",
+                        "default_value": "",
+                        "help": "choices=['', 'ZLIB', 'GZIP']  the compressed type of input data file",
+                        "label": "压缩方式",
+                        "reference": "",
+                        "reference_type": "DEFAULT",
+                        "value_type": "STRING"
+                    },
+                    "Slot_data_portal_type": {
+                        "default": "",
+                        "default_value": "Streaming",
+                        "help": "运行过一次后修改无效！！ the type of data portal type ,choices=['PSI', 'Streaming']",
+                        "label": "数据入口类型",
+                        "reference": "",
+                        "reference_type": "DEFAULT",
+                        "value_type": "STRING"
+                    },
+                    "Slot_file_wildcard": {
+                        "default": "",
+                        "default_value": "*.rd",
+                        "help": "文件名称的通配符， 将会读取input_base_dir下所以满足条件的文件，如\n1. *.csv，意为读取所有csv格式文件\n2. *.tfrecord，意为读取所有tfrecord格式文件\n3. xxx.txt，意为读取文件名为xxx.txt的文件",
+                        "label": "文件名称的通配符",
+                        "reference": "",
+                        "reference_type": "DEFAULT",
+                        "value_type": "STRING"
+                    },
+                    "Slot_files_per_job_limit": {
+                        "default": "",
+                        "default_value": null,
+                        "help": "空即不设限制，Max number of files in a job",
+                        "label": "每个任务最多文件数",
+                        "reference": "",
+                        "reference_type": "DEFAULT",
+                        "value_type": "INT"
+                    },
+                    "Slot_image_version": {
+                        "default": "",
+                        "default_value": "882310f",
+                        "help": "建议不修改，指定Pod中运行的容器镜像版本，前缀为system.variables.image_repo + '/fedlearner:'",
+                        "label": "容器镜像版本",
+                        "reference": "",
+                        "reference_type": "DEFAULT",
+                        "value_type": "STRING"
+                    },
+                    "Slot_input_base_dir": {
+                        "default": "",
+                        "default_value": "/app/deploy/integrated_test/tfrecord_raw_data",
+                        "help": "必须修改，运行过一次后修改无效！！the base dir of input directory",
+                        "label": "输入路径",
+                        "reference": "",
+                        "reference_type": "WORKFLOW",
+                        "value_type": "STRING"
+                    },
+                    "Slot_input_data_format": {
+                        "default": "",
+                        "default_value": "TF_RECORD",
+                        "help": "choices=['TF_RECORD', 'CSV_DICT']  the type for input data iterator",
+                        "label": "输入数据格式",
+                        "reference": "",
+                        "reference_type": "DEFAULT",
+                        "value_type": "STRING"
+                    },
+                    "Slot_labels": {
+                        "default": "",
+                        "default_value": {},
+                        "help": "建议不修改，格式： {}",
+                        "label": "FLAPP额外元信息",
+                        "reference": "system.variables.labels",
+                        "reference_type": "SYSTEM",
+                        "value_type": "OBJECT"
+                    },
+                    "Slot_long_running": {
+                        "default": "",
+                        "default_value": "",
+                        "help": "choices: ['','--long_running']否，是。是否为常驻上传原始数据",
+                        "label": "是否常驻",
+                        "reference": "",
+                        "reference_type": "DEFAULT",
+                        "value_type": "STRING"
+                    },
+                    "Slot_master_cpu": {
+                        "default": "",
+                        "default_value": "2000m",
+                        "help": "Master Pod 所分配的CPU资源（request和limit一致）",
+                        "label": "Master的CPU",
+                        "reference": "",
+                        "reference_type": "DEFAULT",
+                        "value_type": "STRING"
+                    },
+                    "Slot_master_envs": {
+                        "default": "",
+                        "default_value": [],
+                        "help": "数组类型，master pod额外的环境变量",
+                        "label": "Master额外环境变量",
+                        "reference": "",
+                        "reference_type": "DEFAULT",
+                        "value_type": "LIST"
+                    },
+                    "Slot_master_memory": {
+                        "default": "",
+                        "default_value": "3Gi",
+                        "help": "Master Pod 所分配的内存资源（request和limit一致）",
+                        "label": "Master的内存",
+                        "reference": "",
+                        "reference_type": "DEFAULT",
+                        "value_type": "STRING"
+                    },
+                    "Slot_memory_limit_ratio": {
+                        "default": "",
+                        "default_value": 70.0,
+                        "help": "预测是否会OOM的时候用到，如果预测继续执行下去时占用内存会超过这个比例，就阻塞，直到尚未处理的任务处理完成。 注意这是个40-81之间的整数。",
+                        "label": "内存限制比例",
+                        "reference": "",
+                        "reference_type": "DEFAULT",
+                        "value_type": "INT"
+                    },
+                    "Slot_optional_fields": {
+                        "default": "",
+                        "default_value": "",
+                        "help": "optional stat fields used in joiner, separated by comma between fields, e.g. \"label,rit\"Each field will be stripped",
+                        "label": "可选字段",
+                        "reference": "",
+                        "reference_type": "DEFAULT",
+                        "value_type": "STRING"
+                    },
+                    "Slot_output_data_format": {
+                        "default": "",
+                        "default_value": "TF_RECORD",
+                        "help": "choices=['TF_RECORD', 'CSV_DICT']  the format for output file",
+                        "label": "输出格式",
+                        "reference": "",
+                        "reference_type": "DEFAULT",
+                        "value_type": "STRING"
+                    },
+                    "Slot_output_partition_num": {
+                        "default": "",
+                        "default_value": 4.0,
+                        "help": "运行过一次后修改无效！！输出数据的文件数量，对应Worker数量",
+                        "label": "数据分区的数量",
+                        "reference": "",
+                        "reference_type": "WORKFLOW",
+                        "value_type": "INT"
+                    },
+                    "Slot_raw_data_metrics_sample_rate": {
+                        "default": "",
+                        "default_value": "1",
+                        "help": "建议不修改，es metrics 取样比例",
+                        "label": "metrics_sample_rate",
+                        "reference": "",
+                        "reference_type": "DEFAULT",
+                        "value_type": "STRING"
+                    },
+                    "Slot_single_subfolder": {
+                        "default": "",
+                        "default_value": "",
+                        "help": "choices:['','--single_subfolder'] 否 是，Only process one subfolder at a time",
+                        "label": "是否单一子文件夹",
+                        "reference": "",
+                        "reference_type": "DEFAULT",
+                        "value_type": "STRING"
+                    },
+                    "Slot_storage_root_path": {
+                        "default": "",
+                        "default_value": "/data",
+                        "help": "联邦学习中任务存储根目录",
+                        "label": "存储根目录",
+                        "reference": "project.variables.storage_root_path",
+                        "reference_type": "PROJECT",
+                        "value_type": "STRING"
+                    },
+                    "Slot_volume_mounts": {
+                        "default": "",
+                        "default_value": [
+                            {
+                                "mountPath": "/data",
+                                "name": "data"
+                            }
+                        ],
+                        "help": "建议不修改，容器中卷挂载的位置，数组类型",
+                        "label": "卷挂载位置",
+                        "reference": "system.variables.volume_mounts_list",
+                        "reference_type": "SYSTEM",
+                        "value_type": "LIST"
+                    },
+                    "Slot_volumes": {
+                        "default": "",
+                        "default_value": [
+                            {
+                                "name": "data",
+                                "persistentVolumeClaim": {
+                                    "claimName": "pvc-fedlearner-default"
+                                }
+                            }
+                        ],
+                        "help": "建议不修改，数组类型，和volume_mounts一一对应",
+                        "label": "为Pod提供的卷",
+                        "reference": "system.variables.volumes_list",
+                        "reference_type": "SYSTEM",
+                        "value_type": "LIST"
+                    },
+                    "Slot_worker_cpu": {
+                        "default": "",
+                        "default_value": "2000m",
+                        "help": "Worker Pod 所分配的CPU资源（request和limit一致）",
+                        "label": "Worker的CPU",
+                        "reference": "",
+                        "reference_type": "DEFAULT",
+                        "value_type": "STRING"
+                    },
+                    "Slot_worker_envs": {
+                        "default": "",
+                        "default_value": [],
+                        "help": "数组类型，worker pod额外的环境变量",
+                        "label": "Worker额外环境变量",
+                        "reference": "",
+                        "reference_type": "DEFAULT",
+                        "value_type": "LIST"
+                    },
+                    "Slot_worker_memory": {
+                        "default": "",
+                        "default_value": "3Gi",
+                        "help": "Worker Pod 所分配的内存资源（request和limit一致）",
+                        "label": "Worker的内存",
+                        "reference": "",
+                        "reference_type": "DEFAULT",
+                        "value_type": "STRING"
+                    }
+                },
+                "variables": []
+            }
+        }
+    },
+    "name": "sys-preset-light-psi-data-join"
+}

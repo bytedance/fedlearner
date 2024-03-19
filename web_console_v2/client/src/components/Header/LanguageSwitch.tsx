@@ -1,11 +1,13 @@
+/* istanbul ignore file */
+
 import { FALLBACK_LNG, setLocale } from 'i18n';
 import React, { FC, useState } from 'react';
 import styled from 'styled-components';
 import { FedLanguages } from 'typings/app';
 import classNames from 'classnames';
-import store from 'store2';
-import LOCAL_STORAGE_KEYS from 'shared/localStorageKeys';
 import { MixinCommonTransition } from 'styles/mixins';
+import { useRecoilState } from 'recoil';
+import { appPreference } from 'stores/app';
 
 const Container = styled.div`
   position: relative;
@@ -39,7 +41,7 @@ const Slider = styled.div`
   height: 20px;
   left: 3px;
   border-radius: 100px;
-  background-color: var(--darkGray3);
+  background-color: rgb(var(--dark-gray-3));
 `;
 
 const Langs = [
@@ -54,7 +56,8 @@ const Langs = [
 ];
 
 const LanguageSwitch: FC = () => {
-  const [current, setLng] = useState(store.get(LOCAL_STORAGE_KEYS.language) || FALLBACK_LNG);
+  const [preference, setPreference] = useRecoilState(appPreference);
+  const [current, setLng] = useState(preference.language || FALLBACK_LNG);
   const idx = Langs.findIndex((item) => item.val === current);
   const sliderOffset = (idx === -1 ? 0 : idx) * 32;
 
@@ -78,6 +81,10 @@ const LanguageSwitch: FC = () => {
   function onLngClick(val: FedLanguages) {
     setLocale(val);
     setLng(val);
+    setPreference({
+      ...preference,
+      language: val,
+    });
   }
 };
 

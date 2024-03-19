@@ -25,7 +25,8 @@ const ModuleNotFoundPlugin = require('react-dev-utils/ModuleNotFoundPlugin');
 const ForkTsCheckerWebpackPlugin = require('react-dev-utils/ForkTsCheckerWebpackPlugin');
 const typescriptFormatter = require('react-dev-utils/typescriptFormatter');
 const ReactRefreshWebpackPlugin = require('@pmmmwh/react-refresh-webpack-plugin');
-const AntdDayjsWebpackPlugin = require('antd-dayjs-webpack-plugin');
+const ArcoWebpackPlugin = require('@arco-design/webpack-plugin');
+const MonacoWebpackPlugin = require('monaco-editor-webpack-plugin');
 
 const postcssNormalize = require('postcss-normalize');
 
@@ -69,6 +70,11 @@ const hasJsxRuntime = (() => {
     return false;
   }
 })();
+
+const themeEnvToArcoThemeLibNameMap = {
+  normal: '@arco-themes/react-privacy-computing',
+  bioland: '@arco-themes/react-privacy-computing-bioland',
+};
 
 // This is the production and development configuration.
 // It is focused on developer experience, fast rebuilds, and a minimal bundle.
@@ -178,7 +184,7 @@ module.exports = function (webpackEnv) {
     );
   };
 
-  return {
+  const config = {
     mode: isEnvProduction ? 'production' : isEnvDevelopment && 'development',
     // Stop compilation early in production
     bail: isEnvProduction,
@@ -230,6 +236,7 @@ module.exports = function (webpackEnv) {
       minimizer: [
         // This is only used in production mode
         new TerserPlugin({
+          extractComments: false,
           terserOptions: {
             parse: {
               // We want terser to parse ecma 8 code. However, we don't want it
@@ -252,6 +259,8 @@ module.exports = function (webpackEnv) {
               // Pending further investigation:
               // https://github.com/terser-js/terser/issues/120
               inline: 2,
+              drop_console: true,
+              drop_debugger: true,
             },
             mangle: {
               safari10: true,
@@ -295,6 +304,24 @@ module.exports = function (webpackEnv) {
       splitChunks: {
         chunks: 'all',
         name: false,
+        cacheGroups: {
+          monacoEditor: {
+            chunks: 'async',
+            name: () => 'monaco.editor',
+            priority: 4,
+            test: /[\\/]node_modules[\\/]monaco-editor/,
+            enforce: true,
+            reuseExistingChunk: true,
+          },
+          mpld3: {
+            chunks: 'async',
+            name: 'mpld3',
+            priority: 4,
+            test: /[\\/]node_modules[\\/]mpld3/,
+            enforce: true,
+            reuseExistingChunk: true,
+          },
+        }
       },
       // Keep the runtime chunk separated to enable long term caching
       // https://twitter.com/wSokra/status/969679223278505985
@@ -319,9 +346,6 @@ module.exports = function (webpackEnv) {
         .map((ext) => `.${ext}`)
         .filter((ext) => useTypeScript || !ext.includes('ts')),
       alias: {
-        // Support React Native Web
-        // https://www.smashingmagazine.com/2016/08/a-glimpse-into-the-future-with-react-native-for-web/
-        'react-native': 'react-native-web',
         // Allows for better profiling with ReactDevTools
         ...(isEnvProductionProfile && {
           'react-dom$': 'react-dom/profiling',
@@ -360,6 +384,10 @@ module.exports = function (webpackEnv) {
           // match the requirements. When no loader matches it will fall
           // back to the "file" loader at the end of the loader list.
           oneOf: [
+            {
+              test: /\.metayml$/i,
+              loader: require.resolve('raw-loader'),
+            },
             // TODO: Merge this config once `image/avif` is in the mime-db
             // https://github.com/jshttp/mime-db
             {
@@ -427,6 +455,9 @@ module.exports = function (webpackEnv) {
                 compact: false,
                 presets: [
                   [require.resolve('babel-preset-react-app/dependencies'), { helpers: true }],
+                ],
+                plugins: [
+                  '@babel/plugin-proposal-class-properties'
                 ],
                 cacheDirectory: true,
                 // See #6846 for context on why cacheCompression is disabled
@@ -508,6 +539,19 @@ module.exports = function (webpackEnv) {
               ),
               sideEffects: true,
             },
+            {
+              test: lessModuleRegex,
+              use: getStyleLoaders(
+                {
+                  importLoaders: 3,
+                  sourceMap: isEnvProduction ? shouldUseSourceMap : isEnvDevelopment,
+                  modules: {
+                    getLocalIdent: getCSSModuleLocalIdent,
+                  },
+                },
+                'less-loader',
+              ),
+            },
             // Adds support for CSS Modules, but using SASS
             // using the extension .module.scss or .module.sass
             {
@@ -546,7 +590,13 @@ module.exports = function (webpackEnv) {
       ],
     },
     plugins: [
-      new AntdDayjsWebpackPlugin(),
+      new ArcoWebpackPlugin({
+        theme: themeEnvToArcoThemeLibNameMap[process.env.THEME || 'normal'],
+      }),
+      new MonacoWebpackPlugin({
+        languages: ['json', 'python', 'shell', 'javascript', 'go', 'yaml'],
+        publicPath: isEnvProduction ? '/v2/static/js/' : '/',
+      }),
       getHtmlPluginConfig('index'),
       // getHtmlPluginConfig('login'),
       // Inlines the webpack runtime script. This script is too small to warrant
@@ -654,10 +704,6 @@ module.exports = function (webpackEnv) {
             : undefined,
           tsconfig: paths.appTsConfig,
           reportFiles: [
-            // This one is specifically to match during CI tests,
-            // as micromatch doesn't match
-            // '../cra-template-typescript/template/src/App.tsx'
-            // otherwise.
             '../**/src/**/*.{ts,tsx}',
             '**/src/**/*.{ts,tsx}',
             '!**/src/**/__tests__/**',
@@ -704,4 +750,6 @@ module.exports = function (webpackEnv) {
     // our own hints via the FileSizeReporter
     performance: false,
   };
+
+  return config;
 };

@@ -1,0 +1,28 @@
+load("@rules_proto//proto:defs.bzl", "proto_library")
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+load("@io_bazel_rules_go//proto:def.bzl", "go_proto_library")
+
+# gazelle:go_generate_proto true
+
+proto_library(
+    name = "proto_proto",
+    srcs = ["tunnel.proto"],
+    visibility = ["//tools:tools_package"],
+)
+
+# keep
+go_proto_library(
+    name = "proto_go_proto",
+    compilers = ["@io_bazel_rules_go//proto:go_grpc"],
+    importpath = "fedlearner.net/tools/tcp_grpc_proxy/pkg/proto",
+    proto = ":proto_proto",
+    visibility = ["//tools:tools_package"],
+)
+
+go_library(
+    name = "proto",
+    srcs = ["proto.go"],
+    embed = [":proto_go_proto"],  # keep
+    importpath = "fedlearner.net/tools/tcp_grpc_proxy/pkg/proto",
+    visibility = ["//tools:tools_package"],
+)

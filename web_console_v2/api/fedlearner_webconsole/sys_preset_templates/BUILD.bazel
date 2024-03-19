@@ -1,0 +1,5 @@
+filegroup(
+    name = "sys_preset_templates",
+    srcs = glob(["**/*.json"]),
+    visibility = ["//visibility:public"],
+)

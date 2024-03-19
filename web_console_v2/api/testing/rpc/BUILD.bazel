@@ -1,0 +1,27 @@
+load("@rules_python//python:defs.bzl", "py_library")
+
+package(default_visibility = ["//web_console_v2/api:console_api_package"])
+
+py_library(
+    name = "client_lib",
+    testonly = True,
+    srcs = ["client.py"],
+    imports = ["../.."],
+    deps = [
+        "//web_console_v2/api/testing:no_web_server_test_case_lib",
+        "@com_github_grpc_grpc//src/python/grpcio/grpc:grpcio",
+        "@common_grpcio_testing//:pkg",
+    ],
+)
+
+py_library(
+    name = "service_lib",
+    testonly = True,
+    srcs = ["service.py"],
+    imports = ["../.."],
+    deps = [
+        "//web_console_v2/api/protocols/fedlearner_webconsole/proto:py_proto",
+        "//web_console_v2/api/protocols/fedlearner_webconsole/proto/testing:py_proto",
+        "@com_github_grpc_grpc//src/python/grpcio/grpc:grpcio",
+    ],
+)

@@ -1,25 +1,17 @@
 import React, { FC, useEffect, useState } from 'react';
-import { useTranslation } from 'react-i18next';
-import { Steps, Row, Card } from 'antd';
-import styled from 'styled-components';
+import { Steps, Grid, Card } from '@arco-design/web-react';
+import styled from './index.module.less';
 import { useParams, useHistory } from 'react-router-dom';
 import { useUnmount } from 'react-use';
 import { useResetCreateForm } from 'hooks/template';
 import StepOneBasic from './StepOneBasic';
-import StepTwoJobs from './StepTwoJobs';
-import { clearMap } from './store';
 import SharedPageLayout from 'components/SharedPageLayout';
 import BackButton from 'components/BackButton';
+import { definitionsStore, editorInfosStore } from './stores';
+import TemplateConifg from '../TemplateConfig';
 
 const { Step } = Steps;
-
-const StepContainer = styled.div`
-  width: 350px;
-`;
-const FormArea = styled.section`
-  flex: 1;
-  margin-top: 12px;
-`;
+const Row = Grid.Row;
 
 enum CreateSteps {
   basic,
@@ -30,45 +22,64 @@ const TemplateForm: FC<{ isEdit?: boolean; isHydrated?: React.MutableRefObject<b
   isEdit,
   isHydrated,
 }) => {
-  const { t } = useTranslation();
   const history = useHistory();
   const params = useParams<{ step: keyof typeof CreateSteps }>();
-  const [currentStep, setStep] = useState(CreateSteps[params.step || 'basic']);
+  const [currentStep, setStep] = useState(1);
+  const [isFormValueChanged, setIsFormValueChanged] = useState(false);
+
   const reset = useResetCreateForm();
 
   useEffect(() => {
-    setStep(CreateSteps[params.step || 'basic']);
+    setStep(params.step === 'basic' ? 1 : 2);
   }, [params.step]);
 
   useUnmount(() => {
     reset();
-    clearMap();
+    definitionsStore.clearMap();
+    editorInfosStore.clearMap();
   });
 
   return (
     <SharedPageLayout
       title={
-        <BackButton onClick={() => history.goBack()}>{t('menu.label_workflow_tpl')}</BackButton>
+        <BackButton
+          onClick={() => history.replace(`/workflow-center/workflow-templates`)}
+          isShowConfirmModal={isFormValueChanged}
+        >
+          模板管理
+        </BackButton>
       }
       contentWrapByCard={false}
     >
       <Card>
         <Row justify="center">
-          <StepContainer>
+          <div className={styled.step_container}>
             <Steps current={currentStep}>
-              <Step title={t('workflow.step_tpl_basic')} />
-              <Step title={t('workflow.step_tpl_config')} />
+              <Step title="基础信息" />
+              <Step title="任务配置" />
             </Steps>
-          </StepContainer>
+          </div>
         </Row>
       </Card>
 
-      <FormArea>
-        {params.step === 'basic' && <StepOneBasic isEdit={isEdit} isHydrated={isHydrated} />}
-        {params.step === 'jobs' && <StepTwoJobs isEdit={isEdit} />}
-      </FormArea>
+      <div className={styled.form_area}>
+        {params.step === 'basic' && (
+          <StepOneBasic
+            isEdit={isEdit}
+            isHydrated={isHydrated}
+            onFormValueChange={onFormValueChange}
+          />
+        )}
+        {params.step === 'jobs' && <TemplateConifg isEdit={isEdit} />}
+      </div>
     </SharedPageLayout>
   );
+
+  function onFormValueChange() {
+    if (!isFormValueChanged) {
+      setIsFormValueChanged(true);
+    }
+  }
 };
 
 export default TemplateForm;

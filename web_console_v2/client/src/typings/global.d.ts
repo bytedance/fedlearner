@@ -1,6 +1,9 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 
 declare type ID = number | string;
+declare type TimeoutID = ReturnType<typeof setTimeout> | undefined;
+
+declare type Position = 'left' | 'right' | 'top' | 'bottom';
 
 declare type DateTime = number;
 declare namespace JSX {
@@ -8,6 +11,7 @@ declare namespace JSX {
     key?: string | number;
     style?: React.CSSProperties;
     role?: string;
+    id?: any;
   }
 }
 
@@ -23,6 +27,9 @@ declare namespace NodeJS {
     readonly PUBLIC_URL: string;
   }
 }
+
+declare module 'mpld3';
+declare module 'mpld3/d3.v5.min.js';
 
 declare module 'ip-port-regex' {
   declare const ip: {
@@ -89,6 +96,11 @@ declare module '*.module.scss' {
 }
 
 declare module '*.module.sass' {
+  const classes: { readonly [key: string]: string };
+  export default classes;
+}
+
+declare module '*.module.less' {
   const classes: { readonly [key: string]: string };
   export default classes;
 }

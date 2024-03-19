@@ -12,11 +12,30 @@ const Container = styled.div`
   grid-auto-flow: column;
 `;
 
-type Props = {
+export type Props = {
+  /**
+   * margin-top
+   * @default 0
+   */
   top?: number | string;
+  /**
+   * margin-left
+   * @default 0
+   */
   left?: number | string;
+  /**
+   * @description 每个 item 之间的 gap 距离
+   * @description.en-US gap between items
+   * @default 0
+   */
   gap?: number | string;
+  /**
+   * @default center
+   */
   align?: 'center' | 'start' | 'end';
+  /**
+   * @default start
+   */
   justify?:
     | 'start'
     | 'end'
@@ -25,8 +44,8 @@ type Props = {
     | 'space-between'
     | 'space-around'
     | 'space-evenly';
-
   onClick?: any;
+  className?: string;
 };
 
 /**
@@ -38,8 +57,8 @@ const GridRow: FC<Props> = ({ top, left, ...props }) => {
       role="grid"
       {...props}
       style={{
-        marginTop: convertToUnit(top),
-        marginLeft: convertToUnit(left),
+        marginTop: top ? convertToUnit(top) : undefined,
+        marginLeft: left ? convertToUnit(left) : undefined,
         ...((props as any).style || {}),
       }}
     >

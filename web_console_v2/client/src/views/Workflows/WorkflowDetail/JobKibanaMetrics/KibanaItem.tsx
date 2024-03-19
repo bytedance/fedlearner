@@ -1,8 +1,8 @@
 import React, { FC, memo, useContext, useEffect, useState } from 'react';
-import styled from 'styled-components';
+import styled from './KibanaItem.module.less';
 import KibanaParamsForm from './KibanaParamsForm';
 import KibanaEmbeddedChart from './KibanaChart/EmbeddedChart';
-import { Col, message, Row, Spin } from 'antd';
+import { Grid, Message, Spin } from '@arco-design/web-react';
 import { JobType } from 'typings/job';
 import { fetchJobEmbedKibanaSrc, fetchPeerKibanaMetrics } from 'services/workflow';
 import { JobExecutionDetailsContext } from '../JobExecutionDetailsDrawer';
@@ -11,24 +11,15 @@ import { KiabanaMetrics, KibanaChartType, KibanaQueryParams } from 'typings/kiba
 import { useToggle } from 'react-use';
 import { useTranslation } from 'react-i18next';
 import KibanaLineChart from './KibanaChart/LineChart';
-import { NotLoadedPlaceholder, ChartContainer } from './elements';
+
+const Row = Grid.Row;
+const Col = Grid.Col;
 
 const { Rate, Ratio, Numeric, Time, Timer } = KibanaChartType;
 
 const typesForPeerSideJob = [Ratio, Numeric];
 const typesForDataJoinJob = [Rate, Ratio, Numeric, Time, Timer];
 const typesForNonDataJoinJob = [Ratio, Numeric, Time, Timer];
-
-const Container = styled.div`
-  position: relative;
-  padding: 20px 20px 10px;
-  border: 1px solid var(--lineColor);
-  border-radius: 4px;
-
-  & + & {
-    margin-top: 20px;
-  }
-`;
 
 const KibanaItem: FC = memo(() => {
   /** Need a empty string as placeholder on left side */
@@ -38,7 +29,7 @@ const KibanaItem: FC = memo(() => {
   const [configuring, toggleConfiguring] = useToggle(true);
   const [fetching, toggleFetching] = useToggle(false);
 
-  const { isPeerSide, job, workflow } = useContext(JobExecutionDetailsContext);
+  const { isPeerSide, job, workflow, participantId } = useContext(JobExecutionDetailsContext);
 
   useEffect(() => {
     setEmbedSrcs([]);
@@ -49,15 +40,15 @@ const KibanaItem: FC = memo(() => {
   const isEmpty = isPeerSide ? metrics.length === 0 : embedSrcs.length === 0;
 
   return (
-    <Container>
+    <div className={styled.container}>
       <Row gutter={20}>
         <Col span={configuring ? 12 : 24}>
-          <Spin spinning={fetching}>
-            <ChartContainer data-is-fill={!configuring}>
+          <Spin loading={fetching} style={{ width: '100%' }}>
+            <div className={styled.chart_container} data-is-fill={!configuring}>
               {isEmpty ? (
-                <NotLoadedPlaceholder>
+                <div className={styled.not_loaded_placeholder}>
                   {t('workflow.placeholder_fill_kibana_form')}
-                </NotLoadedPlaceholder>
+                </div>
               ) : isPeerSide ? (
                 <KibanaLineChart
                   isFill={!configuring}
@@ -77,7 +68,7 @@ const KibanaItem: FC = memo(() => {
                   ))}
                 </>
               )}
-            </ChartContainer>
+            </div>
           </Spin>
         </Col>
 
@@ -98,7 +89,7 @@ const KibanaItem: FC = memo(() => {
           </Col>
         )}
       </Row>
-    </Container>
+    </div>
   );
 
   async function fetchEmbedSrcList(values: KibanaQueryParams): Promise<string[]> {
@@ -106,7 +97,7 @@ const KibanaItem: FC = memo(() => {
     const [res, err] = await to(fetchJobEmbedKibanaSrc(job.id, values));
     toggleFetching(false);
     if (err) {
-      message.error(err.message);
+      Message.error(err.message);
       return [];
     }
 
@@ -114,7 +105,7 @@ const KibanaItem: FC = memo(() => {
       return res.data;
     }
 
-    message.warn(t('workflow.msg_no_available_kibana'));
+    Message.warning(t('workflow.msg_no_available_kibana'));
 
     return [];
   }
@@ -123,11 +114,11 @@ const KibanaItem: FC = memo(() => {
   async function fetchMetrics(values: KibanaQueryParams) {
     toggleFetching(true);
     const [res, err] = await to(
-      fetchPeerKibanaMetrics(workflow?.uuid!, job.k8sName || job.name, values),
+      fetchPeerKibanaMetrics(workflow?.uuid!, job.k8sName || job.name, participantId ?? 0, values),
     );
     toggleFetching(false);
     if (err) {
-      message.error(err.message);
+      Message.error(err.message);
       return;
     }
 

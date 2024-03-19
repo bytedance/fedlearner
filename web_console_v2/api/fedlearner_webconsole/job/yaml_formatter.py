@@ -1,4 +1,4 @@
-# Copyright 2021 The FedLearner Authors. All Rights Reserved.
+# Copyright 2023 The FedLearner Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,100 +13,88 @@
 # limitations under the License.
 
 # coding: utf-8
+import base64
 import json
 import tarfile
 from io import BytesIO
-import base64
-from string import Template
-from flatten_dict import flatten
-from fedlearner_webconsole.utils.system_envs import get_system_envs
+
+from fedlearner_webconsole.k8s.models import CrdKind
+from fedlearner_webconsole.rpc.client import gen_egress_authority
 from fedlearner_webconsole.proto import common_pb2
+from fedlearner_webconsole.utils.const import DEFAULT_OWNER_FOR_JOB_WITHOUT_WORKFLOW
+from fedlearner_webconsole.utils.proto import to_dict
+from fedlearner_webconsole.utils.pp_yaml import compile_yaml_template, \
+    add_username_in_label, GenerateDictService
 
-
-class _YamlTemplate(Template):
-    delimiter = '$'
-    # Which placeholders in the template should be interpreted
-    idpattern = r'[a-zA-Z_\-\[0-9\]]+(\.[a-zA-Z_\-\[0-9\]]+)*'
-
-
-def format_yaml(yaml, **kwargs):
-    """Formats a yaml template.
-
-    Example usage:
-        format_yaml('{"abc": ${x.y}}', x={'y': 123})
-    output should be  '{"abc": 123}'
-    """
-    template = _YamlTemplate(yaml)
-    try:
-        return template.substitute(flatten(kwargs or {},
-                                           reducer='dot'))
-    except KeyError as e:
-        raise RuntimeError(
-            'Unknown placeholder: {}'.format(e.args[0])) from e
+CODE_TAR_FOLDER = 'code_tar'
+CODE_TAR_FILE_NAME = 'code_tar.tar.gz'
 
 
 def make_variables_dict(variables):
-    var_dict = {
-        var.name: (
-            code_dict_encode(json.loads(var.value))
-            if var.value_type == common_pb2.Variable.ValueType.CODE \
-                else var.value)
-        for var in variables
-    }
+    var_dict = {}
+    for var in variables:
+        typed_value = to_dict(var.typed_value)
+        if var.value_type == common_pb2.Variable.CODE:
+            # if use or, then {} will be ignored.
+            var_dict[var.name] = code_dict_encode(typed_value if typed_value is not None else json.loads(var.value))
+        else:
+            var_dict[var.name] = typed_value if typed_value is not None else var.value
+
     return var_dict
 
 
-def generate_system_dict():
-    return {'basic_envs': get_system_envs()}
+class YamlFormatterService:
 
+    def __init__(self, session):
+        self._session = session
 
-def generate_project_dict(proj):
-    project = proj.to_dict()
-    project['variables'] = make_variables_dict(
-        proj.get_config().variables)
-    participants = project['config']['participants']
-    for index, participant in enumerate(participants):
-        project[f'participants[{index}]'] = {}
-        project[f'participants[{index}]']['egress_domain'] = \
-            participant['domain_name']
-        project[f'participants[{index}]']['egress_host'] = \
-            participant['grpc_spec']['authority']
-    return project
+    @staticmethod
+    def generate_project_dict(proj):
+        project = to_dict(proj.to_proto())
+        variables = proj.get_variables()
+        project['variables'] = make_variables_dict(variables)
+        project['participants'] = []
+        for index, participant in enumerate(proj.participants):
+            # TODO(xiangyuxuan.prs): remove keys such as participants[0] in future.
+            project[f'participants[{index}]'] = {}
+            project[f'participants[{index}]']['egress_domain'] = \
+                participant.domain_name
+            project[f'participants[{index}]']['egress_host'] = gen_egress_authority(participant.domain_name)
+            project['participants'].append(project[f'participants[{index}]'])
+        return project
 
+    def generate_workflow_dict(self, wf: 'Workflow'):
+        workflow = wf.to_dict()
+        workflow['variables'] = make_variables_dict(wf.get_config().variables)
+        workflow['jobs'] = {}
+        jobs = wf.get_jobs(self._session)
+        for j in jobs:
+            variables = make_variables_dict(j.get_config().variables)
+            j_dic = j.to_dict()
+            j_dic['variables'] = variables
+            workflow['jobs'][j.get_config().name] = j_dic
+        return workflow
 
-def generate_workflow_dict(wf):
-    workflow = wf.to_dict()
-    workflow['variables'] = make_variables_dict(
-        wf.get_config().variables)
-    workflow['jobs'] = {}
-    for j in wf.get_jobs():
-        variables = make_variables_dict(j.get_config().variables)
-        j_dic = j.to_dict()
-        j_dic['variables'] = variables
-        workflow['jobs'][j.get_config().name] = j_dic
-    return workflow
+    @staticmethod
+    def generate_self_dict(j: 'Job'):
+        job = j.to_dict()
+        job['variables'] = make_variables_dict(j.get_config().variables)
+        return job
 
-
-def generate_self_dict(j):
-    job = j.to_dict()
-    job['variables'] = make_variables_dict(
-        j.get_config().variables
-    )
-    return job
-
-
-def generate_job_run_yaml(job):
-    yaml = format_yaml(job.get_config().yaml_template,
-                       workflow=generate_workflow_dict(job.workflow),
-                       project=generate_project_dict(job.project),
-                       system=generate_system_dict(),
-                       self=generate_self_dict(job))
-
-    try:
-        loaded = json.loads(yaml)
-    except Exception as e:  # pylint: disable=broad-except
-        raise ValueError(f'Invalid json {repr(e)}: {yaml}')
-    return loaded
+    def generate_job_run_yaml(self, job: 'Job') -> dict:
+        result_dict = compile_yaml_template(job.get_config().yaml_template,
+                                            use_old_formater=job.crd_kind is None or
+                                            job.crd_kind == CrdKind.FLAPP.value,
+                                            post_processors=[
+                                                lambda loaded_json: add_username_in_label(
+                                                    loaded_json, job.workflow.creator
+                                                    if job.workflow else DEFAULT_OWNER_FOR_JOB_WITHOUT_WORKFLOW)
+                                            ],
+                                            workflow=job.workflow and self.generate_workflow_dict(job.workflow),
+                                            project=self.generate_project_dict(job.project),
+                                            system=GenerateDictService(self._session).generate_system_dict(),
+                                            self=self.generate_self_dict(job))
+        return result_dict
 
 
 def code_dict_encode(data_dict):

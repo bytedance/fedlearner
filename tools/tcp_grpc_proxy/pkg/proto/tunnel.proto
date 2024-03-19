@@ -1,0 +1,12 @@
+syntax = "proto3";
+
+package proto;
+option go_package = "fedlearner.net/tools/tcp_grpc_proxy/pkg/proto";
+
+service TunnelService {
+    rpc Tunnel (stream Chunk) returns (stream Chunk);
+}
+
+message Chunk {
+    bytes data = 1;
+}

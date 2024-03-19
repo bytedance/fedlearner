@@ -1,82 +1,95 @@
-import React, { FC, useCallback } from 'react';
-import { Form, Input, message, Modal } from 'antd';
+import React, { FC, useCallback, useState } from 'react';
+import { Message, Button, Input, Modal, Form } from '@arco-design/web-react';
 import ReadFile from 'components/ReadFile';
-import { useTranslation } from 'react-i18next';
 import { CreateTemplateForm } from 'stores/workflow';
 import { createWorkflowTemplate } from 'services/workflow';
 import { to } from 'shared/helpers';
 import { removePrivate } from 'shared/object';
 import { readAsJSONFromFile } from 'shared/file';
-import { WorkflowTemplatePayload, WorkflowTemplate } from 'typings/workflow';
+import {
+  WorkflowTemplatePayload,
+  WorkflowTemplate,
+  WorkflowTemplateEditInfo,
+} from 'typings/workflow';
 import { stringifyComplexDictField } from 'shared/formSchema';
-import { Z_INDEX_GREATER_THAN_HEADER } from 'components/Header';
-import i18n from 'i18n';
 import { useToggle } from 'react-use';
 import { useHistory } from 'react-router';
 import { forceToRefreshQuery } from 'shared/queryClient';
 import { TPL_LIST_QUERY_KEY } from '.';
+import i18n from 'i18n';
+import ButtonWithPopconfirm from 'components/ButtonWithPopconfirm';
 
 const CreateTemplate: FC = () => {
-  const { t } = useTranslation();
   const history = useHistory();
   const [formInstance] = Form.useForm<CreateTemplateForm>();
   const [visible, toggleVisible] = useToggle(true);
-
+  const [editorInfo, setEditorInfo] = useState<WorkflowTemplateEditInfo>();
   const createNewTpl = useCallback(async () => {
-    const [values, validError] = await to(formInstance.validateFields());
+    const [values, validError] = await to(formInstance.validate());
 
     if (validError) {
       return;
     }
+
+    // Get editor_info from uploaded template.
+    values.editor_info = editorInfo;
 
     const payload = stringifyComplexDictField(removePrivate(values) as WorkflowTemplatePayload);
 
     const [, error] = await to(createWorkflowTemplate(payload));
 
     if (error) {
-      return message.error(error.message);
+      return Message.error(error.message);
     }
 
     forceToRefreshQuery(TPL_LIST_QUERY_KEY);
 
     toggleVisible(false);
-  }, [formInstance, toggleVisible]);
+  }, [formInstance, toggleVisible, editorInfo]);
 
   return (
     <Modal
-      title={t('workflow.btn_upload_tpl')}
+      title="上传模板"
       visible={visible}
-      style={{ top: '20%' }}
+      style={{ width: '600px' }}
       maskStyle={{ backdropFilter: 'blur(4px)' }}
-      width="600px"
-      closable={false}
+      closable={true}
       maskClosable={false}
-      keyboard={false}
       afterClose={afterClose}
-      getContainer="body"
-      zIndex={Z_INDEX_GREATER_THAN_HEADER}
-      onCancel={() => toggleVisible(false)}
+      onCancel={onCancel}
       onOk={onSubmit}
+      footer={[
+        <ButtonWithPopconfirm key="back" buttonText={i18n.t('cancel')} onConfirm={onCancel} />,
+        <Button key="submit" type="primary" onClick={onSubmit}>
+          {i18n.t('submit')}
+        </Button>,
+      ]}
     >
-      <Form labelCol={{ span: 6 }} wrapperCol={{ span: 16 }} form={formInstance} labelAlign="left">
+      <Form
+        labelCol={{ span: 6 }}
+        wrapperCol={{ span: 16 }}
+        colon={true}
+        form={formInstance}
+        labelAlign="left"
+      >
         <Form.Item
-          name="name"
-          label={t('workflow.label_new_template_name')}
-          rules={[{ required: true, message: t('workflow.msg_tpl_name_required') }]}
+          field="name"
+          label="模板名称"
+          rules={[{ required: true, message: '请输入模板名！' }]}
         >
-          <Input placeholder={t('workflow.placeholder_template_name')} />
+          <Input placeholder="请输入模板名称" />
         </Form.Item>
 
         <Form.Item
-          name="config"
-          label={t('workflow.label_upload_template')}
-          rules={[{ required: true, message: t('workflow.msg_tpl_file_required') }]}
+          field="config"
+          label="上传模板文件"
+          rules={[{ required: true, message: '请选择一个合适的模板文件！' }]}
         >
           <ReadFile accept=".json" reader={readConfig} maxSize={20} />
         </Form.Item>
 
-        <Form.Item name="comment" label={t('workflow.label_template_comment')}>
-          <Input.TextArea rows={4} placeholder={t('workflow.placeholder_comment')} />
+        <Form.Item field="comment" label="工作流模板描述">
+          <Input.TextArea rows={4} placeholder="请输入工作流模板描述" />
         </Form.Item>
       </Form>
     </Modal>
@@ -85,31 +98,31 @@ const CreateTemplate: FC = () => {
   async function onSubmit() {
     createNewTpl();
   }
+  function onCancel() {
+    toggleVisible(false);
+  }
 
   function afterClose() {
-    history.push('/workflow-templates');
+    history.push(`/workflow-center/workflow-templates`);
   }
 
   async function readConfig(file: File) {
     try {
       const template = await readAsJSONFromFile<WorkflowTemplate>(file);
       if (!template.config) {
-        message.error(i18n.t('workflow.msg_tpl_config_missing'));
+        Message.error('模板格式错误，缺少 config 字段！');
         return;
       }
-      const { config } = template;
+      const { config, editor_info } = template;
       if (!config.group_alias) {
-        message.error(i18n.t('workflow.msg_tpl_alias_missing'));
+        Message.error('模板格式错误，缺少 config.group_alias 字段！');
         return;
       }
-      if (config.is_left === undefined) {
-        message.error(i18n.t('workflow.msg_tpl_is_left_missing'));
-        return;
-      }
+      setEditorInfo(editor_info);
 
       return config;
     } catch (error) {
-      message.error(error.message);
+      Message.error(error.message);
     }
   }
 };

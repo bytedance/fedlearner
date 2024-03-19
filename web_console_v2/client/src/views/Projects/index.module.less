@@ -1,0 +1,33 @@
+
+@import '~styles/mixins.less';
+.create_time_container{
+  flex-shrink: 0;
+  padding-right: 16px;
+  color: rgb(var(--gray-7));
+  font-size: 12px;
+  line-height: 40px;
+}
+.project_name_container{
+  .MixinEllipsis();
+  margin-right: 16px;
+  color: rgb(var(--gray-10));
+  font-weight: 500;
+  font-size: 20px;
+  font-family: 'PingFang SC';
+  font-style: normal;
+  line-height: 40px;
+}
+.progress_container{
+  font-size: 12px;
+  line-height: 22px;
+  color: rgb(var(--gray-7));
+  .progress_name{
+    display: block;
+    margin-bottom: -10px;
+    font-weight: 400;
+    font-size: 12px;
+    line-height: 20px;
+    color: #1D2129;
+  }
+}
+

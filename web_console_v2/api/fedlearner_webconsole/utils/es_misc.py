@@ -1,4 +1,4 @@
-# Copyright 2021 The FedLearner Authors. All Rights Reserved.
+# Copyright 2023 The FedLearner Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the 'License');
 # you may not use this file except in compliance with the License.
@@ -19,16 +19,14 @@
 _es_datetime_format = 'strict_date_optional_time'
 RAW_DATA_MAPPINGS = {
     'dynamic': True,
-    'dynamic_templates': [
-        {
-            'strings': {
-                'match_mapping_type': 'string',
-                'mapping': {
-                    'type': 'keyword'
-                }
+    'dynamic_templates': [{
+        'strings': {
+            'match_mapping_type': 'string',
+            'mapping': {
+                'type': 'keyword'
             }
         }
-    ],
+    }],
     'properties': {
         'tags': {
             'properties': {
@@ -54,16 +52,14 @@ RAW_DATA_MAPPINGS = {
 DATA_JOIN_MAPPINGS = {
     'dynamic': True,
     # for dynamically adding string fields, use keyword to reduce space
-    'dynamic_templates': [
-        {
-            'strings': {
-                'match_mapping_type': 'string',
-                'mapping': {
-                    'type': 'keyword'
-                }
+    'dynamic_templates': [{
+        'strings': {
+            'match_mapping_type': 'string',
+            'mapping': {
+                'type': 'keyword'
             }
         }
-    ],
+    }],
     'properties': {
         'tags': {
             'properties': {
@@ -105,16 +101,14 @@ DATA_JOIN_MAPPINGS = {
 }
 METRICS_MAPPINGS = {
     'dynamic': True,
-    'dynamic_templates': [
-        {
-            'strings': {
-                'match_mapping_type': 'string',
-                'mapping': {
-                    'type': 'keyword'
-                }
+    'dynamic_templates': [{
+        'strings': {
+            'match_mapping_type': 'string',
+            'mapping': {
+                'type': 'keyword'
             }
         }
-    ],
+    }],
     'properties': {
         'name': {
             'type': 'keyword'
@@ -155,33 +149,33 @@ METRICS_MAPPINGS = {
         }
     }
 }
-ALIAS_NAME = {'metrics': 'metrics_v2',
-              'raw_data': 'raw_data',
-              'data_join': 'data_join'}
-INDEX_MAP = {'metrics': METRICS_MAPPINGS,
-             'raw_data': RAW_DATA_MAPPINGS,
-             'data_join': DATA_JOIN_MAPPINGS}
+ALIAS_NAME = {'metrics': 'metrics_v2', 'raw_data': 'raw_data', 'data_join': 'data_join'}
+INDEX_MAP = {'metrics': METRICS_MAPPINGS, 'raw_data': RAW_DATA_MAPPINGS, 'data_join': DATA_JOIN_MAPPINGS}
 
 
 def get_es_template(index_type, shards):
     assert index_type in ALIAS_NAME
     alias_name = ALIAS_NAME[index_type]
-    template = {'index_patterns': ['{}-*'.format(alias_name)],
-                'settings': {
-                    'index': {
-                        'lifecycle': {
-                            'name': 'fedlearner_{}_ilm'.format(index_type),
-                            'rollover_alias': alias_name
-                        },
-                        'codec': 'best_compression',
-                        'routing': {
-                            'allocation': {
-                                'total_shards_per_node': '1'
-                            }
-                        },
-                        'number_of_shards': str(shards),
-                        'number_of_replicas': '1',
+    # pylint: disable=consider-using-f-string
+    template = {
+        'index_patterns': ['{}-*'.format(alias_name)],
+        'settings': {
+            'index': {
+                'lifecycle': {
+                    'name': 'fedlearner_{}_ilm'.format(index_type),
+                    'rollover_alias': alias_name
+                },
+                'codec': 'best_compression',
+                'routing': {
+                    'allocation': {
+                        'total_shards_per_node': '1'
                     }
                 },
-                'mappings': INDEX_MAP[index_type]}
+                'number_of_shards': str(shards),
+                'number_of_replicas': '1',
+            }
+        },
+        'mappings': INDEX_MAP[index_type]
+    }
+    # pylint: enable=consider-using-f-string
     return template

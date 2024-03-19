@@ -1,0 +1,30 @@
+# gazelle:exclude spark/
+load("@rules_python//python:defs.bzl", "py_binary", "py_library")
+
+package_group(
+    name = "pp_lite_package",
+    packages = ["//pp_lite/..."],
+)
+
+py_library(
+    name = "pp_lite",
+    srcs = [
+        "cli.py",
+    ],
+    visibility = ["//pp_lite:pp_lite_package"],
+    deps = [
+        "//pp_lite/data_join/psi_ot",
+        "//pp_lite/data_join/psi_rsa",
+        "//pp_lite/proto:py_proto",
+        "//web_console_v2/inspection:error_code_lib",
+        "@common_click//:pkg",
+    ],
+)
+
+py_binary(
+    name = "cli_bin",
+    srcs = ["cli.py"],
+    main = "cli.py",
+    visibility = ["//pp_lite:pp_lite_package"],
+    deps = [":pp_lite"],
+)

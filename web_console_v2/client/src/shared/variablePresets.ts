@@ -1,3 +1,5 @@
+/* istanbul ignore file */
+
 /**
  * Variable additional schema dictionary for Workflow
  * NOTE: each variable schema here should only maintain UI related stuffs

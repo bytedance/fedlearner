@@ -1,6 +1,8 @@
 import React, { FC } from 'react';
-import ErrorBoundary from 'antd/lib/alert/ErrorBoundary';
 import { Route } from 'react-router-dom';
+
+import ErrorBoundary from 'components/ErrorBoundary';
+
 import UserList from './UserList';
 import UserCreate from './UserCreate';
 import UserEdit from './UserEdit';

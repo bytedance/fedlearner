@@ -1,0 +1,28 @@
+load("@rules_python//python:defs.bzl", "py_binary", "py_library")
+
+py_binary(
+    name = "archiver",
+    srcs = ["archiver.py"],
+    data = ["//pp_lite/deploy/static"],
+    main = "archiver.py",
+    visibility = ["//pp_lite:pp_lite_package"],
+    deps = [":deploy"],
+)
+
+py_library(
+    name = "deploy",
+    srcs = [
+        "archiver.py",
+        "certificate.py",
+    ],
+    visibility = ["//pp_lite:pp_lite_package"],
+    deps = [
+        "//deploy/auto_cert",
+        "//deploy/auto_cert:authenticator_lib",
+        "//deploy/auto_cert:auto_cert_py_proto",
+        "//deploy/container:containers",
+        "//pp_lite/deploy/configs:deploy_config",
+        "//pp_lite/deploy/configs:logging_config",
+        "@common_click//:pkg",
+    ],
+)

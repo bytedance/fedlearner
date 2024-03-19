@@ -1,8 +1,10 @@
+/* istanbul ignore file */
+
 import { convertToUnit } from 'shared/helpers';
 import styled from 'styled-components';
 import { NODE_WIDTH, NODE_HEIGHT, GLOBAL_CONFIG_NODE_SIZE } from '../helpers';
 import { Down } from 'components/IconPark';
-import { Tag, Menu } from 'antd';
+import { Tag, Menu } from '@arco-design/web-react';
 import { MixinEllipsis } from 'styles/mixins';
 
 export const Container = styled.div`

@@ -1,3 +1,5 @@
+/* istanbul ignore file */
+
 import { ChartNodeStatus, GlobalNodeRawData, NodeData } from '../types';
 import pendingIcon from 'assets/icons/workflow-pending.svg';
 import completetdIcon from 'assets/icons/workflow-completed.svg';
@@ -9,6 +11,7 @@ import { NodeComponentProps } from 'react-flow-renderer';
 export const statusIcons: Record<ChartNodeStatus, string> = {
   [ChartNodeStatus.Pending]: '',
   [ChartNodeStatus.Processing]: pendingIcon,
+  [ChartNodeStatus.Validating]: pendingIcon,
   [ChartNodeStatus.Success]: completetdIcon,
   [ChartNodeStatus.Warning]: warningIcon,
   [ChartNodeStatus.Error]: errorIcon,
@@ -16,13 +19,14 @@ export const statusIcons: Record<ChartNodeStatus, string> = {
 
 export const configStatusText: Record<ChartNodeStatus, string> = {
   [ChartNodeStatus.Pending]: i18n.t('workflow.job_node_pending'),
+  [ChartNodeStatus.Validating]: i18n.t('workflow.job_node_validating'),
   [ChartNodeStatus.Processing]: i18n.t('workflow.job_node_configuring'),
   [ChartNodeStatus.Success]: i18n.t('workflow.job_node_config_completed'),
   [ChartNodeStatus.Warning]: i18n.t('workflow.job_node_unfinished'),
   [ChartNodeStatus.Error]: i18n.t('workflow.job_node_invalid'),
 };
 
-export const executionStatusText: Record<ChartNodeStatus, string> = {
+export const executionStatusText: Partial<Record<ChartNodeStatus, string>> = {
   [ChartNodeStatus.Pending]: i18n.t('workflow.job_node_waiting'),
   [ChartNodeStatus.Processing]: i18n.t('workflow.job_node_running'),
   [ChartNodeStatus.Success]: i18n.t('workflow.job_node_success'),

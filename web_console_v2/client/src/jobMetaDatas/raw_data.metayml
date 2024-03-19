@@ -1,0 +1,246 @@
+{
+  "apiVersion": "fedlearner.k8s.io/v1alpha1",
+  "kind": "FLApp",
+  "metadata": {
+    "name": self.name,
+    "namespace": system.variables.namespace,
+    "annotations":{
+        "queue": "fedlearner",
+        "schedulerName": "batch"
+    },
+    "labels": ${Slot_labels}
+  },
+  "spec": {
+    "role": "Follower",
+    "peerSpecs": {
+      "Leader": {
+        "peerURL": "",
+        "authority": ""
+      }
+    },
+    "flReplicaSpecs": {
+      "Master": {
+        "template": {
+          "spec": {
+            "restartPolicy": "Never",
+            "containers": [
+              {
+                "env": system.basic_envs_list + [
+                  {
+                    "name": "STORAGE_ROOT_PATH",
+                    "value": ${Slot_storage_root_path}
+                  },
+                    {
+                    "name": "EGRESS_URL",
+                    "value": "fedlearner-stack-ingress-nginx-controller.default.svc:80"
+                  },
+                  {
+                    "name": "EGRESS_HOST",
+                    "value": project.participants[0].egress_host
+                  },
+                  {
+                    "name": "EGRESS_DOMAIN",
+                    "value": project.participants[0].egress_domain
+                  },
+                  {
+                    "name": "APPLICATION_ID",
+                    "value": self.name
+                  },
+                  {
+                    "name": "DATA_PORTAL_NAME",
+                    "value": self.name
+                  },
+                    {
+                    "name": "DATA_PORTAL_TYPE",
+                    "value": ${Slot_data_portal_type}
+                  },
+                  {
+                    "name": "OUTPUT_PARTITION_NUM",
+                    "value": str(${Slot_output_partition_num})
+                  },
+                  {
+                    "name": "INPUT_BASE_DIR",
+                    "value": ${Slot_input_base_dir}
+                  },
+                  {
+                    "name": "OUTPUT_BASE_DIR",
+                    "value": ${Slot_storage_root_path} + "/raw_data/" + self.name
+                  },
+                  {
+                    "name": "RAW_DATA_PUBLISH_DIR",
+                    "value": "portal_publish_dir/" + self.name
+                  },
+                  {
+                    "name": "FILE_WILDCARD",
+                    "value": ${Slot_file_wildcard}
+                  },
+                  {
+                    "name": "LONG_RUNNING",
+                    "value": ${Slot_long_running}
+                  },
+                  {
+                    "name": "CHECK_SUCCESS_TAG",
+                    "value": ${Slot_check_success_tag}
+                  },
+                  {
+                    "name": "FILES_PER_JOB_LIMIT",
+                    "value": str(${Slot_files_per_job_limit})
+                  },
+                  {
+                    "name": "SINGLE_SUBFOLDER",
+                    "value": ${Slot_single_subfolder}
+                  },
+                  {
+                    "name": "RAW_DATA_METRICS_SAMPLE_RATE",
+                    "value": str(${Slot_raw_data_metrics_sample_rate})
+                  }
+
+                ] + ${Slot_master_envs},
+                "imagePullPolicy": "IfNotPresent",
+                "name": "tensorflow",
+                "volumeMounts": ${Slot_volume_mounts},
+                "image": system.variables.image_repo + "/fedlearner:" + ${Slot_image_version},
+                "ports": [
+                  {
+                    "containerPort": 50051,
+                    "name": "flapp-port",
+                    "protocol": "TCP"
+                  }
+                ],
+                "command": [
+                  "/app/deploy/scripts/data_portal/run_data_portal_master.sh"
+                ],
+                "args": [
+                ],
+                "resources": {
+                  "limits": {
+                    "cpu": ${Slot_master_cpu},
+                    "memory": ${Slot_master_memory}
+                  },
+                  "requests": {
+                    "cpu": ${Slot_master_cpu},
+                    "memory": ${Slot_master_memory}
+                  }
+                }
+              }
+            ],
+            "imagePullSecrets": [
+              {
+                "name": "regcred"
+              }
+            ],
+            "volumes": ${Slot_volumes}
+          }
+        },
+        "pair": False,
+        "replicas": 1
+      },
+      "Worker": {
+        "template": {
+          "spec": {
+            "restartPolicy": "Never",
+            "containers": [
+              {
+                "env": system.basic_envs_list + [
+                  {
+                    "name": "STORAGE_ROOT_PATH",
+                    "value": ${Slot_storage_root_path}
+                  },
+                  {
+                    "name": "APPLICATION_ID",
+                    "value": self.name
+                  },
+                  {
+                    "name": "OUTPUT_BASE_DIR",
+                    "value": ${Slot_storage_root_path} + "/data_source/" + self.name
+                  },
+                  {
+                    "name": "EGRESS_URL",
+                    "value": "fedlearner-stack-ingress-nginx-controller.default.svc:80"
+                  },
+                  {
+                    "name": "EGRESS_HOST",
+                    "value": project.participants[0].egress_host
+                  },
+                  {
+                    "name": "EGRESS_DOMAIN",
+                    "value": project.participants[0].egress_domain
+                  },
+
+                  {
+                    "name": "BATCH_SIZE",
+                    "value": str(${Slot_batch_size})
+                  },
+                  {
+                    "name": "INPUT_DATA_FORMAT",
+                    "value": ${Slot_input_data_format}
+                  },
+                  {
+                    "name": "COMPRESSED_TYPE",
+                    "value": ${Slot_compressed_type}
+                  },
+                  {
+                    "name": "OUTPUT_DATA_FORMAT",
+                    "value": ${Slot_output_data_format}
+                  },
+                  {
+                    "name": "BUILDER_COMPRESSED_TYPE",
+                    "value": ${Slot_builder_compressed_type}
+                  },
+                  {
+                    "name": "MEMORY_LIMIT_RATIO",
+                    "value": str(${Slot_memory_limit_ratio})
+                  },
+                  {
+                    "name": "OPTIONAL_FIELDS",
+                    "value": ${Slot_optional_fields}
+                  },
+                  {
+                    "name": "RAW_DATA_METRICS_SAMPLE_RATE",
+                    "value": str(${Slot_raw_data_metrics_sample_rate})
+                  }
+
+
+                ] + ${Slot_worker_envs},
+                "imagePullPolicy": "IfNotPresent",
+                "name": "tensorflow",
+                "volumeMounts": ${Slot_volume_mounts},
+                "image": system.variables.image_repo + "/fedlearner:" + ${Slot_image_version},
+                "ports": [
+                  {
+                    "containerPort": 50051,
+                    "name": "flapp-port",
+                    "protocol": "TCP"
+                  }
+                ],
+                "command": [
+                  "/app/deploy/scripts/data_portal/run_data_portal_worker.sh"
+                ],
+                "args": [
+                ],
+                "resources": {
+                  "limits": {
+                    "cpu": ${Slot_worker_cpu},
+                    "memory": ${Slot_worker_memory}
+                  },
+                  "requests": {
+                    "cpu": ${Slot_worker_cpu},
+                    "memory": ${Slot_worker_memory}
+                  }
+                }
+              }
+            ],
+            "imagePullSecrets": [
+              {
+                "name": "regcred"
+              }
+            ],
+            "volumes": ${Slot_volumes}
+          }
+        },
+        "pair": False,
+        "replicas": ${Slot_output_partition_num}
+      }
+    }
+  }
+}

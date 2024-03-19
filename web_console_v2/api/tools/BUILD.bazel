@@ -1,0 +1,28 @@
+load("@rules_python//python:defs.bzl", "py_library")
+
+package(default_visibility = ["//web_console_v2/api:console_api_package"])
+
+# TODO(wangsen.0914): splits this lib into subpackages
+py_library(
+    name = "lib",
+    srcs = glob(
+        ["**/*.py"],
+    ),
+    imports = [".."],
+    deps = [
+        "//web_console_v2/api:envs_lib",
+        "//web_console_v2/api/fedlearner_webconsole:app_lib",
+        "//web_console_v2/api/fedlearner_webconsole:db_lib",
+        "//web_console_v2/api/fedlearner_webconsole:initial_db_lib",
+        "//web_console_v2/api/fedlearner_webconsole/dataset:models_lib",
+        "//web_console_v2/api/fedlearner_webconsole/job:models_lib",
+        "//web_console_v2/api/fedlearner_webconsole/mmgr:models_lib",
+        "//web_console_v2/api/fedlearner_webconsole/participant:models_lib",
+        "//web_console_v2/api/fedlearner_webconsole/project:models_lib",
+        "//web_console_v2/api/fedlearner_webconsole/serving:models_lib",
+        "//web_console_v2/api/fedlearner_webconsole/workflow:models_lib",
+        "//web_console_v2/api/fedlearner_webconsole/workflow_template:models_lib",
+        "//web_console_v2/api/protocols/fedlearner_webconsole/proto:py_proto",
+        "@common_sqlalchemy//:pkg",
+    ],
+)

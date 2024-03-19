@@ -1,0 +1,261 @@
+{
+  "apiVersion": "fedlearner.k8s.io/v1alpha1",
+  "kind": "FLApp",
+  "metadata": {
+    "name": self.name,
+    "namespace": system.variables.namespace,
+    "annotations":{
+        "queue": "fedlearner",
+        "schedulerName": "batch"
+    },
+    "labels": ${Slot_labels}
+  },
+  "spec": {
+    "role": ${Slot_role},
+    "cleanPodPolicy": "All",
+    "peerSpecs": {
+      "Leader" if ${Slot_role}=="Follower" else "Follower": {
+        "peerURL": "fedlearner-stack-ingress-nginx-controller.default.svc:80",
+        "authority": project.participants[0].egress_host,
+        "extraHeaders": {
+          "x-host": "fedlearner-operator." + project.participants[0].egress_domain
+        }
+      }
+    },
+    "flReplicaSpecs": {
+      "Master": {
+        "template": {
+          "spec": {
+            "restartPolicy": "Never",
+            "containers": [
+              {
+                "env": system.basic_envs_list + [
+                  {
+                    "name": "STORAGE_ROOT_PATH",
+                    "value": ${Slot_storage_root_path}
+                  },
+                  {
+                    "name": "ROLE",
+                    "value": ${Slot_role}.lower()
+                  },
+                  {
+                    "name": "APPLICATION_ID",
+                    "value": self.name
+                  },
+                  {
+                    "name": "OUTPUT_BASE_DIR",
+                    "value": ${Slot_storage_root_path} + "/data_source/" + self.name
+                  },
+                  {
+                    "name": "EGRESS_URL",
+                    "value": "fedlearner-stack-ingress-nginx-controller.default.svc:80"
+                  },
+                  {
+                    "name": "EGRESS_HOST",
+                    "value": project.participants[0].egress_host
+                  },
+                  {
+                    "name": "EGRESS_DOMAIN",
+                    "value": project.participants[0].egress_domain
+                  },
+                  {
+                    "name": "BATCH_MODE",
+                    "value": ${Slot_batch_mode}
+                  },
+                  {
+                    "name": "PARTITION_NUM",
+                    "value": str(${Slot_partition_num})
+                  },
+                  {
+                    "name": "START_TIME",
+                    "value": str(${Slot_start_time})
+                  },
+                  {
+                    "name": "END_TIME",
+                    "value": str(${Slot_end_time})
+                  },
+                  {
+                    "name": "RAW_DATA_SUB_DIR",
+                    "value": "portal_publish_dir/" + ${Slot_raw_data_name}
+                  },
+                  {
+                    # not work, remove it after prepare_launch_data_join_cli been removed
+                    "name": "NEGATIVE_SAMPLING_RATE",
+                    "value": str(${Slot_negative_sampling_rate})
+                  }
+                ]  + ${Slot_master_envs},
+                "imagePullPolicy": "IfNotPresent",
+                "name": "tensorflow",
+                "volumeMounts":
+                  ${Slot_volume_mounts}
+                ,
+                "image": system.variables.image_repo + "/fedlearner:" + ${Slot_image_version},
+                "ports": [
+                  {
+                    "containerPort": 50051,
+                    "name": "flapp-port",
+                    "protocol": "TCP"
+                  }
+                ],
+                "command": [
+                  "/app/deploy/scripts/wait4pair_wrapper.sh"
+                ],
+                "args": [
+                  "/app/deploy/scripts/data_join/run_data_join_master.sh"
+                ],
+                "resources": {
+                  "limits": {
+                    "cpu": ${Slot_master_cpu},
+                    "memory": ${Slot_master_memory}
+                  },
+                  "requests": {
+                    "cpu": ${Slot_master_cpu},
+                    "memory": ${Slot_master_memory}
+                  }
+                }
+              }
+            ],
+            "imagePullSecrets": [
+              {
+                "name": "regcred"
+              }
+            ],
+            "volumes":
+        ${Slot_volumes}
+
+          }
+        },
+        "pair": true,
+        "replicas": ${Slot_master_replicas}
+      },
+      "Worker": {
+        "template": {
+          "spec": {
+            "restartPolicy": "Never",
+            "containers": [
+              {
+                "env": system.basic_envs_list + [
+                  {
+                    "name": "STORAGE_ROOT_PATH",
+                    "value": ${Slot_storage_root_path}
+                  },
+                  {
+                    "name": "ROLE",
+                    "value": ${Slot_role}.lower()
+                  },
+                  {
+                    "name": "APPLICATION_ID",
+                    "value": self.name
+                  },
+                  {
+                    "name": "OUTPUT_BASE_DIR",
+                    "value": ${Slot_storage_root_path} + "/data_source/" + self.name
+                  },
+                  {
+                    "name": "EGRESS_URL",
+                    "value": "fedlearner-stack-ingress-nginx-controller.default.svc:80"
+                  },
+                  {
+                    "name": "EGRESS_HOST",
+                    "value": project.participants[0].egress_host
+                  },
+                  {
+                    "name": "EGRESS_DOMAIN",
+                    "value": project.participants[0].egress_domain
+                  },
+                  {
+                    "name": "PARTITION_NUM",
+                    "value": str(${Slot_partition_num})
+                  },
+                  {
+                    "name": "RAW_DATA_SUB_DIR",
+                    "value": "portal_publish_dir/" + ${Slot_raw_data_name}
+                  },
+                  {
+                    "name": "DATA_BLOCK_DUMP_INTERVAL",
+                    "value": str(${Slot_data_block_dump_interval})
+                  },
+                  {
+                    "name": "DATA_BLOCK_DUMP_THRESHOLD",
+                    "value": str(${Slot_data_block_dump_threshold})
+                  },
+                  {
+                    "name": "EXAMPLE_ID_DUMP_INTERVAL",
+                    "value": str(${Slot_example_id_dump_interval})
+                  },
+                  {
+                    "name": "EXAMPLE_ID_DUMP_THRESHOLD",
+                    "value": str(${Slot_example_id_dump_threshold})
+                  },
+                  {
+                    "name": "MIN_MATCHING_WINDOW",
+                    "value": str(${Slot_min_matching_window})
+                  },
+                  {
+                    "name": "MAX_MATCHING_WINDOW",
+                    "value": str(${Slot_max_matching_window})
+                  },
+                  {
+                    "name": "RAW_DATA_ITER",
+                    "value": ${Slot_raw_data_iter}
+                  },
+                  {
+                    "name": "DATA_BLOCK_BUILDER",
+                    "value": ${Slot_data_block_builder}
+                  },
+                  {
+                    "name": "ENABLE_NEGATIVE_EXAMPLE_GENERATOR",
+                    "value": str(${Slot_enable_negative_example_generator})
+                  },
+                  {
+                    "name": "NEGATIVE_SAMPLING_RATE",
+                    "value": str(${Slot_negative_sampling_rate})
+                  },
+                ] + ${Slot_worker_envs},
+                "imagePullPolicy": "IfNotPresent",
+                "name": "tensorflow",
+                "volumeMounts":
+                  ${Slot_volume_mounts}
+                ,
+                "image": system.variables.image_repo + "/fedlearner:" + ${Slot_image_version},
+                "ports": [
+                  {
+                    "containerPort": 50051,
+                    "name": "flapp-port",
+                    "protocol": "TCP"
+                  }
+                ],
+                "command": [
+                  "/app/deploy/scripts/wait4pair_wrapper.sh"
+                ],
+                "args": [
+                  "/app/deploy/scripts/data_join/run_data_join_worker.sh"
+                ],
+                "resources": {
+                  "limits": {
+                    "cpu": ${Slot_worker_cpu},
+                    "memory": ${Slot_worker_memory}
+                  },
+                  "requests": {
+                    "cpu": ${Slot_worker_cpu},
+                    "memory": ${Slot_worker_memory}
+                  }
+                }
+              }
+            ],
+            "imagePullSecrets": [
+              {
+                "name": "regcred"
+              }
+            ],
+            "volumes":
+        ${Slot_volumes}
+
+          }
+        },
+        "pair": true,
+        "replicas": ${Slot_partition_num}
+      }
+    }
+  }
+}

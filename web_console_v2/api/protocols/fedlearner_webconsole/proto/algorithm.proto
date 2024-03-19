@@ -1,0 +1,127 @@
+/* Copyright 2023 The FedLearner Authors. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+syntax = "proto3";
+
+import "fedlearner_webconsole/proto/common/extension.proto";
+package fedlearner_webconsole.proto;
+
+
+message AlgorithmVariable {
+
+  enum ValueType {
+    STRING = 0;
+    INTEGER = 1;
+    FLOAT = 2;
+  }
+
+  string name = 1;
+  string value = 2;
+  bool required = 3;
+  string display_name = 4;
+  string comment = 5;
+  ValueType value_type = 6;
+}
+
+message AlgorithmParameter {
+  repeated AlgorithmVariable variables = 1;
+}
+
+message FileTreeNode {
+  string filename = 1;
+  string path = 2;
+  // size in bytes
+  int64 size = 3;
+  int64 mtime = 4;
+  bool is_directory = 5;
+  repeated FileTreeNode files = 6;
+}
+
+message AlgorithmData {
+  string name = 1;
+  string algorithm_type = 2;
+  int64 version = 3;
+  AlgorithmParameter parameter = 4;
+  // chunk of tar from algorithm file
+  bytes chunk = 5;
+  string comment = 6;
+  string algorithm_uuid = 7;
+  string algorithm_project_uuid = 8;
+}
+
+message PendingAlgorithmPb {
+  int64 id = 1;
+  string algorithm_uuid = 2;
+  string algorithm_project_uuid = 3;
+  string name = 4;
+  int64 project_id = 5;
+  int64 version = 6;
+  string type = 7;
+  int64 participant_id = 8;
+  string participant_name = 9;
+  string path = 10;
+  AlgorithmParameter parameter = 11;
+  string comment = 12;
+  int64 created_at = 13;
+  int64 updated_at = 14;
+  int64 deleted_at = 15;
+  int64 algorithm_project_id = 16;
+}
+
+message AlgorithmPb {
+  int64 id = 1 [(fedlearner_webconsole.proto.secret) = true];
+  string uuid = 2;
+  string name = 3;
+  int64 project_id = 4;
+  int64 version = 5;
+  string type = 6;
+  string source = 7;
+  int64 algorithm_project_id = 8 [(fedlearner_webconsole.proto.secret) = true];
+  string username = 9 [(fedlearner_webconsole.proto.secret) = true];
+  int64 participant_id = 10 [(fedlearner_webconsole.proto.secret) = true];
+  string participant_name = 11 [(fedlearner_webconsole.proto.secret) = true];
+  string path = 12 [(fedlearner_webconsole.proto.secret) = true];
+  AlgorithmParameter parameter = 13;
+  bool favorite = 14;
+  string comment = 15;
+  int64 created_at = 16;
+  int64 updated_at = 17;
+  int64 deleted_at = 18;
+  // ref: AlgorithmStatus
+  string status = 19;
+  string algorithm_project_uuid = 20;
+}
+
+message AlgorithmProjectPb {
+  int64 id = 1 [(fedlearner_webconsole.proto.secret) = true];
+  string uuid = 2;
+  string name = 3;
+  int64 project_id = 4;
+  int64 latest_version = 5;
+  string type = 6;
+  string source = 7;
+  string publish_status = 8 [deprecated=true];
+  string username = 9 [(fedlearner_webconsole.proto.secret) = true];
+  int64 participant_id = 10 [(fedlearner_webconsole.proto.secret) = true];
+  string participant_name = 11 [(fedlearner_webconsole.proto.secret) = true];
+  string path = 12 [(fedlearner_webconsole.proto.secret) = true];
+  AlgorithmParameter parameter = 13;
+  string comment = 14;
+  int64 created_at = 15;
+  int64 updated_at = 16;
+  int64 deleted_at = 17;
+  repeated AlgorithmPb algorithms = 18;
+  string release_status = 19;
+}

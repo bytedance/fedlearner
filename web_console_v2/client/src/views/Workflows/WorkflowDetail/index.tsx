@@ -1,9 +1,14 @@
-import React, { FC, useState } from 'react';
-import styled from 'styled-components';
-import { Card, Spin, Row, Button, Col } from 'antd';
-import { useParams, Link } from 'react-router-dom';
+import React, { FC, useState, useMemo } from 'react';
+import styled from './index.module.less';
+import { Card, Spin, Grid, Button, Message } from '@arco-design/web-react';
+import { useParams, Link, useHistory } from 'react-router-dom';
 import { useQuery } from 'react-query';
-import { getPeerWorkflowsConfig, getWorkflowDetailById } from 'services/workflow';
+import {
+  getPeerWorkflow,
+  getWorkflowDetailById,
+  getWorkflowDownloadHref,
+  PEER_WORKFLOW_DETAIL_QUERY_KEY,
+} from 'services/workflow';
 import WorkflowJobsCanvas from 'components/WorkflowJobsCanvas';
 import { useTranslation } from 'react-i18next';
 import WhichProject from 'components/WhichProject';
@@ -17,103 +22,78 @@ import { useToggle } from 'react-use';
 import { JobNode, NodeData, JobNodeRawData } from 'components/WorkflowJobsCanvas/types';
 import { useMarkFederatedJobs } from 'components/WorkflowJobsCanvas/hooks';
 import PropertyList from 'components/PropertyList';
-import { Eye, EyeInvisible, Branch } from 'components/IconPark';
-import { WorkflowExecutionDetails } from 'typings/workflow';
+import { IconEye, IconEyeInvisible, IconBranch } from '@arco-design/web-react/icon';
+import { Workflow, WorkflowExecutionDetails, WorkflowState } from 'typings/workflow';
 import { ReactFlowProvider } from 'react-flow-renderer';
-import { findJobExeInfoByJobDef, isRunning, isStopped } from 'shared/workflow';
+import { findJobExeInfoByJobDef } from 'shared/workflow';
 import dayjs from 'dayjs';
 import NoResult from 'components/NoResult';
 import { CreateJobFlag } from 'typings/job';
 import SharedPageLayout from 'components/SharedPageLayout';
+import GlobalConfigDrawer from './GlobalConfigDrawer';
+import LocalWorkflowNote from '../LocalWorkflowNote';
+import request from 'libs/request';
+import { saveBlob } from 'shared/helpers';
+import { formatExtra } from 'shared/modelCenter';
+import { VariablePermissionLegend } from 'components/VariblePermission';
+import { parseCron } from 'components/CronTimePicker';
+import { projectListQuery } from 'stores/project';
+import { useRecoilQuery } from 'hooks/recoil';
+import { TIME_INTERVAL, CONSTANTS } from 'shared/constants';
+import ClickToCopy from 'components/ClickToCopy';
+import { Tooltip } from '@arco-design/web-react';
 
-const Container = styled.div`
-  display: flex;
-  flex-direction: column;
-  height: var(--contentMinHeight);
-`;
-const ChartSection = styled.section`
-  display: flex;
-  margin-top: 12px;
-  flex: 1;
-`;
-const ChartContainer = styled.div`
-  height: 100%;
-  flex: 1;
-
-  & + & {
-    margin-left: 16px;
-  }
-`;
-const HeaderRow = styled(Row)`
-  margin-bottom: 15px;
-
-  &[data-forked='true'] {
-    margin-bottom: 25px;
-  }
-`;
-const Name = styled.h3`
-  margin-bottom: 0;
-  font-size: 20px;
-  line-height: 1;
-`;
-const ForkedFrom = styled.div`
-  margin-top: -20px;
-  font-size: 12px;
-`;
-const OriginWorkflowLink = styled(Link)`
-  margin-left: 5px;
-`;
-// TODO: find a better way to define no-result's container
-const NoJobs = styled.div`
-  display: flex;
-  height: calc(100% - 48px);
-  background-color: var(--gray1);
-`;
-const ChartHeader = styled(Row)`
-  height: 48px;
-  padding: 0 20px;
-  font-size: 14px;
-  line-height: 22px;
-  background-color: white;
-`;
-const ChartTitle = styled.h3`
-  margin-bottom: 0;
-
-  &::after {
-    margin-left: 25px;
-    content: attr(data-note);
-    font-size: 12px;
-    color: var(--darkGray6);
-  }
-`;
+const Row = Grid.Row;
+const Col = Grid.Col;
 
 const WorkflowDetail: FC = () => {
   const { t } = useTranslation();
-  const params = useParams<{ id: string }>();
+  const history = useHistory();
+  const params = useParams<{
+    id: string;
+    type?: 'model-management' | 'model-evaluation' | 'offline-prediction';
+    /** dataset kind */
+    kind_label?: 'raw' | 'processed';
+  }>();
   const [peerJobsVisible, togglePeerJobsVisible] = useToggle(false);
-  const [drawerVisible, toggleDrawerVisible] = useToggle(false);
+  const [jobExecutionDetailsDrawerVisible, toggleJobExecutionDetailsDrawerVisible] = useToggle(
+    false,
+  );
+  const [globalConfigDrawerVisible, toggleGlobalConfigDrawerVisible] = useToggle(false);
+
   const [isPeerSide, setIsPeerSide] = useState(false);
   const [data, setData] = useState<NodeData>();
 
   const detailQuery = useQuery(
     ['getWorkflowDetailById', params.id],
     () => getWorkflowDetailById(params.id),
-    { cacheTime: 1 },
+    { cacheTime: 1, refetchInterval: TIME_INTERVAL.CONNECTION_CHECK },
   );
-  const peerWorkflowQuery = useQuery(['getPeerWorkflow', params.id], getPeerWorkflow, {
-    retry: false,
-  });
+
+  const { data: projectList } = useRecoilQuery(projectListQuery);
 
   const workflow = detailQuery.data?.data;
-  const peerWorkflow = peerWorkflowQuery.data;
 
   const isForked = Boolean(workflow?.forked_from);
+  const isLocalRun = Boolean(workflow?.is_local);
+
+  const peerWorkflowQuery = useQuery(
+    [PEER_WORKFLOW_DETAIL_QUERY_KEY, params.id],
+    () => getPeerWorkflow(params.id),
+    {
+      retry: false,
+      enabled: Boolean(workflow) && !isLocalRun, // Wait for workflow response
+    },
+  );
+  const peerWorkflow = peerWorkflowQuery.data;
 
   const originWorkflowQuery = useQuery(
-    ['getPeerWorkflow', workflow?.forked_from],
+    ['getWorkflowDetailById', workflow?.forked_from],
     () => getWorkflowDetailById(workflow?.forked_from!),
     { enabled: isForked },
   );
+
+  const { RUNNING, STOPPED, COMPLETED, FAILED } = WorkflowState;
 
   let isRunning_ = false;
   let isStopped_ = false;
@@ -121,38 +101,91 @@ const WorkflowDetail: FC = () => {
   let runningTime: number = 0;
 
   if (workflow) {
-    isRunning_ = isRunning(workflow);
-    isStopped_ = isStopped(workflow);
+    const { state } = workflow;
+    isRunning_ = state === RUNNING;
+    isStopped_ = [STOPPED, COMPLETED, FAILED].includes(state);
 
     if (isRunning_ || isStopped_) {
       const { stop_at, start_at } = workflow;
       runningTime = isStopped_ ? stop_at! - start_at! : dayjs().unix() - start_at!;
     }
   }
-
+  async function onDownloadTemplate() {
+    try {
+      const blob = await request(
+        getWorkflowDownloadHref(workflow?.id || '', workflow?.project_id),
+        {
+          responseType: 'blob',
+        },
+      );
+      saveBlob(blob, `${workflow?.name}使用模板.json`);
+    } catch (error: any) {
+      Message.error(error.message);
+    }
+  }
   const workflowProps = [
     {
-      label: t('workflow.label_template_name'),
+      label: t('workflow.label_uuid'),
+      value: workflow?.uuid ?? CONSTANTS.EMPTY_PLACEHOLDER,
+    },
+    {
+      label: t('workflow.label_template_group'),
       value: workflow?.config?.group_alias || (
-        <Link to={`/workflows/accept/basic/${workflow?.id}`}>{t('workflow.job_node_pending')}</Link>
+        <Link to={`/workflow-center/workflows/accept/basic/${workflow?.id}`}>
+          {t('workflow.job_node_pending')}
+        </Link>
+      ),
+    },
+    {
+      label: t('workflow.label_new_template_name'),
+      value: (
+        <>
+          {(Boolean(workflow?.template_info?.name) && (
+            <Link
+              to={`/workflow-center/workflow-templates/detail/${workflow?.template_info?.id}/config`}
+            >
+              {workflow?.template_info?.name}
+            </Link>
+          )) ||
+            (workflow?.config && t('workflow.tpl_deleted')) ||
+            t('workflow.tpl_config_pending')}
+          {workflow?.template_info?.is_modified && workflow?.config && (
+            <Button type="text" size="mini" onClick={onDownloadTemplate}>
+              {t('workflow.tpl_modified')}
+            </Button>
+          )}
+        </>
       ),
     },
     {
       label: t('workflow.label_project'),
-      value: <WhichProject id={workflow?.project_id || 0} />,
+      value: <WhichProject id={workflow?.project_id} />,
     },
     {
       label: t('workflow.label_running_time'),
-
       value: Boolean(workflow) && <CountTime time={runningTime} isStatic={!isRunning_} />,
     },
     {
+      label: t('workflow.label_revision'),
+      value: workflow?.template_info?.revision_index
+        ? `V${workflow?.template_info?.revision_index}`
+        : '-',
+    },
+    {
+      label: t('workflow.label_creator'),
+      value: workflow?.creator || '-',
+    },
+    {
       label: t('workflow.label_batch_update_interval'),
-      value: `${workflow?.batch_update_interval} min`,
-      hidden: !workflow?.batch_update_interval || workflow?.batch_update_interval === -1,
+      value: `${workflow?.cron_config && stringifyCron(workflow.cron_config)}`,
+      hidden: !workflow?.cron_config,
     },
     // Display workflow global variables
-    ...(workflow?.config?.variables || []).map((item) => ({ label: item.name, value: item.value })),
+    ...(workflow?.config?.variables || []).map((item) => ({
+      label: item.name,
+      value: item.value,
+      accessMode: item.access_mode,
+    })),
   ];
 
   const { markThem } = useMarkFederatedJobs();
@@ -164,76 +197,163 @@ const WorkflowDetail: FC = () => {
 
   markThem(jobsWithExeDetails, peerJobsWithExeDetails);
 
+  const BreadcrumbLinkPaths = useMemo(() => {
+    if (params.type === 'model-management') {
+      const formattedExtraWorkflow = workflow ? formatExtra(workflow) : ({} as Workflow);
+      return [
+        {
+          label: 'menu.label_model_center_model_training',
+          to: '/model-center/model-management',
+        },
+        {
+          label: formattedExtraWorkflow['model_group.name'] || CONSTANTS.EMPTY_PLACEHOLDER,
+          to: `/model-center/model-management/model-set/${formattedExtraWorkflow['model.group_id']}`,
+        },
+        { label: formattedExtraWorkflow.name || CONSTANTS.EMPTY_PLACEHOLDER },
+      ];
+    }
+    if (params.kind_label === 'processed') {
+      return [
+        {
+          label: 'menu.label_datasets',
+          to: '/datasets/processed/my',
+        },
+        {
+          label: 'menu.label_datasets_job',
+          to: '/datasets/processed/my',
+        },
+      ];
+    }
+
+    return [
+      { label: 'menu.label_workflow', to: '/workflow-center/workflows' },
+      { label: 'workflow.execution_detail' },
+    ];
+  }, [params, workflow]);
+
+  const participantIdList = useMemo(() => {
+    if (workflow?.project_id && projectList && projectList.length > 0) {
+      const currentWorkflowProject = projectList.find((item) => item.id === workflow.project_id);
+      if (currentWorkflowProject && currentWorkflowProject.participants) {
+        return currentWorkflowProject.participants.map((item) => item.id);
+      }
+    }
+    return [];
+  }, [workflow, projectList]);
+
+  const isModelCenterMode =
+    params.type === 'model-management' ||
+    params.type === 'model-evaluation' ||
+    params.type === 'offline-prediction';
+
+  function onEditClick() {
+    if (!workflow) {
+      return;
+    }
+    const formattedExtraWorkflow = workflow ? formatExtra(workflow) : ({} as Workflow);
+
+    history.push(
+      `/model-center/${params.type}/${
+        formattedExtraWorkflow.isReceiver ? 'receiver' : 'sender'
+      }/edit/global/${formattedExtraWorkflow.id}/${formattedExtraWorkflow['model.group_id'] || ''}`,
+    );
+  }
+  function onAcceptClick() {
+    if (!workflow) {
+      return;
+    }
+
+    history.push(`/model-center/${params.type}/receiver/edit/global/${workflow.id}`);
+  }
+
   return (
     <SharedPageLayout
-      title={
-        <BreadcrumbLink
-          paths={[
-            { label: 'menu.label_workflow', to: '/workflows' },
-            { label: 'workflow.execution_detail' },
-          ]}
-        />
-      }
+      title={<BreadcrumbLink paths={BreadcrumbLinkPaths} />}
       contentWrapByCard={false}
     >
-      <Spin spinning={detailQuery.isLoading}>
-        <Container>
-          <Card>
-            <HeaderRow justify="space-between" align="middle" data-forked={isForked}>
-              <GridRow gap="8">
-                <Name>{workflow?.name}</Name>
+      <Spin loading={detailQuery.isLoading}>
+        <>
+          <section className={styled.chart_section}>
+            <Card className={styled.header_card}>
+              <Row
+                className={styled.header_row}
+                justify="space-between"
+                align="center"
+                data-forked={isForked}
+              >
+                <GridRow gap="8">
+                  <ClickToCopy text={workflow?.name || ''}>
+                    <Tooltip position="top" content={workflow?.name}>
+                      <h3 className={styled.name}>{workflow?.name}</h3>
+                    </Tooltip>
+                  </ClickToCopy>
+                  {workflow && <WorkflowStage workflow={workflow} tag />}
+                </GridRow>
+                {workflow && (
+                  <Col flex="200px">
+                    <WorkflowActions
+                      size="small"
+                      workflow={workflow}
+                      onSuccess={detailQuery.refetch}
+                      onEditClick={isModelCenterMode ? onEditClick : undefined}
+                      onAcceptClick={isModelCenterMode ? onAcceptClick : undefined}
+                    />
+                  </Col>
+                )}
+              </Row>
 
-                {workflow && <WorkflowStage workflow={workflow} tag />}
-              </GridRow>
-              {workflow && (
-                <Col>
-                  <WorkflowActions workflow={workflow} onSuccess={detailQuery.refetch} />
-                </Col>
+              {isForked && originWorkflowQuery.isSuccess && (
+                <div className={styled.forked_form}>
+                  <IconBranch />
+                  {t('workflow.forked_from')}
+                  <Link
+                    className={styled.origin_workflow_link}
+                    to={`/workflow-center/workflows/${originWorkflowQuery.data?.data.id}`}
+                  >
+                    {originWorkflowQuery.data?.data.name}
+                  </Link>
+                </div>
               )}
-            </HeaderRow>
+              <VariablePermissionLegend desc={true} prefix="对侧" />
 
-            {isForked && originWorkflowQuery.isSuccess && (
-              <ForkedFrom>
-                <Branch />
-                {t('workflow.forked_from')}
-                <OriginWorkflowLink to={`/workflows/${originWorkflowQuery.data?.data.id}`}>
-                  {originWorkflowQuery.data?.data.name}
-                </OriginWorkflowLink>
-              </ForkedFrom>
-            )}
-
-            <PropertyList
-              labelWidth={100}
-              initialVisibleRows={3}
-              cols={3}
-              properties={workflowProps}
-              style={{ marginBottom: '0' }}
-            />
-          </Card>
-
-          <ChartSection>
+              <PropertyList
+                labelWidth={100}
+                initialVisibleRows={3}
+                cols={3}
+                colProportions={[1, 2, 1]}
+                properties={workflowProps}
+                style={{ marginBottom: '0' }}
+              />
+            </Card>
+          </section>
+          <section className={styled.chart_section}>
             {/* Our config */}
-            <ChartContainer>
-              <ChartHeader justify="space-between" align="middle">
-                <ChartTitle data-note={peerJobsVisible ? t('workflow.federated_note') : ''}>
+            <div className={styled.chart_container}>
+              <Row className={styled.chart_header} justify="space-between" align="center">
+                <h3
+                  className={styled.chart_title}
+                  data-note={peerJobsVisible ? t('workflow.federated_note') : ''}
+                >
                   {t('workflow.our_config')}
-                </ChartTitle>
+                </h3>
 
-                {!peerJobsVisible && (
-                  <Button icon={<Eye />} onClick={() => togglePeerJobsVisible(true)}>
+                {isLocalRun && <LocalWorkflowNote />}
+
+                {!peerJobsVisible && !isLocalRun && (
+                  <Button icon={<IconEye />} onClick={() => togglePeerJobsVisible(true)}>
                     {t('workflow.btn_see_peer_config')}
                   </Button>
                 )}
-              </ChartHeader>
+              </Row>
 
               {jobsWithExeDetails.length === 0 ? (
-                <NoJobs>
+                <div className={styled.no_jobs}>
                   <NoResult
                     text={t('workflow.msg_not_config')}
                     CTAText={t('workflow.action_configure')}
-                    to={`/workflows/accept/basic/${params.id}`}
+                    to={`/workflow-center/workflows/accept/basic/${params.id}`}
                   />
-                </NoJobs>
+                </div>
               ) : (
                 <ReactFlowProvider>
                   <WorkflowJobsCanvas
@@ -241,36 +361,46 @@ const WorkflowDetail: FC = () => {
                     workflowConfig={{
                       ...workflow?.config!,
                       job_definitions: jobsWithExeDetails,
-                      variables: [],
+                      variables: workflow?.config?.variables || [],
                     }}
                     onJobClick={viewJobDetail}
-                    onCanvasClick={() => toggleDrawerVisible(false)}
+                    onCanvasClick={hideAllDrawer}
+                  />
+                  <GlobalConfigDrawer
+                    key="self"
+                    visible={globalConfigDrawerVisible && !isPeerSide}
+                    toggleVisible={toggleGlobalConfigDrawerVisible}
+                    jobData={data}
+                    workflow={workflow}
                   />
                 </ReactFlowProvider>
               )}
-            </ChartContainer>
+            </div>
 
             {/* Peer config */}
             {peerJobsVisible && (
-              <ChartContainer>
-                <ChartHeader justify="space-between" align="middle">
-                  <ChartTitle data-note={peerJobsVisible ? t('workflow.federated_note') : ''}>
+              <div className={styled.chart_container}>
+                <Row className={styled.chart_header} justify="space-between" align="center">
+                  <h3
+                    className={styled.chart_title}
+                    data-note={peerJobsVisible ? t('workflow.federated_note') : ''}
+                  >
                     {t('workflow.peer_config')}
-                  </ChartTitle>
+                  </h3>
 
-                  <Button icon={<EyeInvisible />} onClick={() => togglePeerJobsVisible(false)}>
+                  <Button icon={<IconEyeInvisible />} onClick={() => togglePeerJobsVisible(false)}>
                     {t('workflow.btn_hide_peer_config')}
                   </Button>
-                </ChartHeader>
+                </Row>
 
                 {peerJobsWithExeDetails.length === 0 ? (
-                  <NoJobs>
+                  <div className={styled.no_jobs}>
                     {peerWorkflowQuery.isFetching ? (
                       <Spin style={{ margin: 'auto' }} />
                     ) : (
                       <NoResult text={t('workflow.msg_peer_not_ready')} />
                     )}
-                  </NoJobs>
+                  </div>
                 ) : (
                   <ReactFlowProvider>
                     <WorkflowJobsCanvas
@@ -278,56 +408,121 @@ const WorkflowDetail: FC = () => {
                       workflowConfig={{
                         ...peerWorkflowQuery.data?.config!,
                         job_definitions: peerJobsWithExeDetails,
-                        variables: [],
+                        variables: peerWorkflow?.config?.variables || [],
                       }}
                       onJobClick={viewPeerJobDetail}
-                      onCanvasClick={() => toggleDrawerVisible(false)}
+                      onCanvasClick={hideAllDrawer}
+                    />
+                    <GlobalConfigDrawer
+                      key="peer"
+                      visible={globalConfigDrawerVisible && isPeerSide}
+                      toggleVisible={toggleGlobalConfigDrawerVisible}
+                      jobData={data}
+                      placement="left"
+                      workflow={peerWorkflow}
+                      isPeerSide
                     />
                   </ReactFlowProvider>
                 )}
-              </ChartContainer>
+              </div>
             )}
-          </ChartSection>
-
+          </section>
           <JobExecutionDetailsDrawer
             key="self"
-            visible={drawerVisible && !isPeerSide}
-            toggleVisible={toggleDrawerVisible}
+            visible={jobExecutionDetailsDrawerVisible && !isPeerSide}
+            toggleVisible={toggleJobExecutionDetailsDrawerVisible}
             jobData={data}
             workflow={workflow}
           />
-
+          {/* Note: Only support one participant now, it will support 2+ participant soon */}
           <JobExecutionDetailsDrawer
             key="peer"
-            visible={drawerVisible && isPeerSide}
-            toggleVisible={toggleDrawerVisible}
+            visible={jobExecutionDetailsDrawerVisible && isPeerSide}
+            toggleVisible={toggleJobExecutionDetailsDrawerVisible}
             jobData={data}
             placement="left"
             workflow={peerWorkflow}
+            participantId={participantIdList?.[0] ?? 0}
             isPeerSide
           />
-        </Container>
+        </>
       </Spin>
     </SharedPageLayout>
   );
 
   function viewJobDetail(jobNode: JobNode) {
+    if (jobNode?.type === 'global') {
+      setIsPeerSide(false);
+      showGlobalConfigDrawer(jobNode);
+      return;
+    }
     setIsPeerSide(false);
-    showJobDetailesDrawer(jobNode);
+    showJobDetaileDrawer(jobNode);
   }
   function viewPeerJobDetail(jobNode: JobNode) {
+    if (jobNode?.type === 'global') {
+      setIsPeerSide(true);
+      showGlobalConfigDrawer(jobNode);
+      return;
+    }
     setIsPeerSide(true);
-    showJobDetailesDrawer(jobNode);
+    showJobDetaileDrawer(jobNode);
   }
-  function showJobDetailesDrawer(jobNode: JobNode) {
+  function showJobDetaileDrawer(jobNode: JobNode) {
     setData(jobNode.data);
-    toggleDrawerVisible(true);
+    toggleJobExecutionDetailsDrawerVisible(true);
   }
-  async function getPeerWorkflow() {
-    const res = await getPeerWorkflowsConfig(params.id);
-    const anyPeerWorkflow = Object.values(res.data).find((item) => !!item.config)!;
+  function showGlobalConfigDrawer(jobNode: JobNode) {
+    setData(jobNode.data);
+    toggleGlobalConfigDrawerVisible(true);
+  }
+  function hideAllDrawer() {
+    toggleGlobalConfigDrawerVisible(false);
+    toggleJobExecutionDetailsDrawerVisible(false);
+  }
+  function stringifyCron(cron: string) {
+    const { method, weekday, time } = parseCron(cron);
+    if (method === 'week') {
+      let weekdayString;
+      switch (weekday) {
+        case 0:
+          weekdayString = '星期天';
+          break;
+        case 1:
+          weekdayString = '星期一';
+          break;
 
-    return anyPeerWorkflow;
+        case 2:
+          weekdayString = '星期二';
+          break;
+
+        case 3:
+          weekdayString = '星期三';
+          break;
+
+        case 4:
+          weekdayString = '星期四';
+          break;
+
+        case 5:
+          weekdayString = '星期五';
+          break;
+
+        case 6:
+          weekdayString = '星期六';
+          break;
+
+        default:
+          weekdayString = '未知时间';
+      }
+      const timeString = time!.format('HH:mm');
+      return `${weekdayString} ${timeString}`;
+    } else if (method === 'hour') {
+      const timeString = time!.format('mm:ss');
+      return `每时 ${timeString}`;
+    }
+    const timeString = time!.format('HH:mm');
+    return `每天 ${timeString}`;
   }
 };
 

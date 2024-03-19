@@ -1,5 +1,5 @@
 import axios, { AxiosRequestConfig } from 'axios';
-import { isThisRequestMockEnabled } from 'components/_base/MockDevtools/utils';
+import { isThisRequestMockEnabled } from 'components/MockDevtools/utils';
 import { sleep } from 'shared/helpers';
 
 async function axiosMockAdapter(config: AxiosRequestConfig) {
@@ -15,10 +15,10 @@ async function axiosMockAdapter(config: AxiosRequestConfig) {
         exportKey = method;
       }
 
-      const path = config.url?.replace(/\/([\d])+/i, (_, id) => {
+      const path = config.url?.replace(/\/([\d]+)/gi, (_, id) => {
         config._id = id;
 
-        return '/:id';
+        return '/__id__';
       });
 
       let data =
@@ -41,12 +41,13 @@ async function axiosMockAdapter(config: AxiosRequestConfig) {
         return data;
       }
 
-      return Promise.reject(data.data);
+      return Promise.reject({
+        response: data,
+      });
     } catch (error) {
       console.error('[⚠️ Mock Adapter]: ', error);
     }
   }
-
   return axios.defaults.adapter!(config);
 }
 

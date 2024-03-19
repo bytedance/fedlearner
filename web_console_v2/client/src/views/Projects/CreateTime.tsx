@@ -1,23 +1,22 @@
-import React, { ReactElement } from 'react';
-import styled, { CSSProperties } from 'styled-components';
+import React, { ReactElement, CSSProperties } from 'react';
 import { formatTimestamp } from 'shared/date';
 
-const Container = styled.div`
-  flex-shrink: 0;
-  padding-right: 16px;
-  color: var(--gray7);
-  font-size: 12px;
-  line-height: 40px;
-`;
+import styles from './index.module.less';
+import classNames from 'classnames';
 
 interface CreateTimeProps {
   time: number;
   style?: CSSProperties;
+  className?: string;
 }
 
 function CreateTime({ time, style }: CreateTimeProps): ReactElement {
   const _time = formatTimestamp(time);
-  return <Container style={style}>{_time}</Container>;
+  return (
+    <div className={`${styles.create_time_container} ${classNames}`} style={style}>
+      {_time}
+    </div>
+  );
 }
 
 export default CreateTime;

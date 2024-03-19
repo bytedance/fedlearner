@@ -1,0 +1,105 @@
+load("@rules_python//python:defs.bzl", "py_library")
+
+package(default_visibility = ["//web_console_v2/api:console_api_package"])
+
+py_library(
+    name = "models_lib",
+    srcs = ["models.py"],
+    imports = ["../.."],
+    deps = [
+        "//web_console_v2/api/fedlearner_webconsole:db_lib",
+        "//web_console_v2/api/protocols/fedlearner_webconsole/proto:py_proto",
+        "@common_sqlalchemy//:pkg",
+    ],
+)
+
+py_test(
+    name = "models_test",
+    srcs = [
+        "models_test.py",
+    ],
+    imports = ["../.."],
+    main = "models_test.py",
+    deps = [
+        ":models_lib",
+        "//web_console_v2/api/fedlearner_webconsole:db_lib",
+        "//web_console_v2/api/protocols/fedlearner_webconsole/proto:py_proto",
+        "//web_console_v2/api/testing:no_web_server_test_case_lib",
+    ],
+)
+
+py_library(
+    name = "service_lib",
+    srcs = ["service.py"],
+    imports = ["../.."],
+    deps = [
+        ":models_lib",
+        "//web_console_v2/api:envs_lib",
+        "//web_console_v2/api/fedlearner_webconsole:exceptions_lib",
+        "//web_console_v2/api/fedlearner_webconsole/utils:app_version_lib",
+        "//web_console_v2/api/fedlearner_webconsole/utils:domain_name_lib",
+        "//web_console_v2/api/protocols/fedlearner_webconsole/proto:py_proto",
+        "@com_google_protobuf//:protobuf_python",
+        "@common_sqlalchemy//:pkg",
+    ],
+)
+
+py_test(
+    name = "service_test",
+    srcs = [
+        "service_test.py",
+    ],
+    imports = ["../.."],
+    main = "service_test.py",
+    deps = [
+        ":models_lib",
+        ":service_lib",
+        "//web_console_v2/api/fedlearner_webconsole:db_lib",
+        "//web_console_v2/api/fedlearner_webconsole:exceptions_lib",
+        "//web_console_v2/api/fedlearner_webconsole:initial_db_lib",
+        "//web_console_v2/api/fedlearner_webconsole/utils:app_version_lib",
+        "//web_console_v2/api/protocols/fedlearner_webconsole/proto:py_proto",
+        "//web_console_v2/api/testing:no_web_server_test_case_lib",
+        "@com_google_protobuf//:protobuf_python",
+    ],
+)
+
+py_library(
+    name = "apis_lib",
+    srcs = ["apis.py"],
+    imports = ["../.."],
+    deps = [
+        ":service_lib",
+        "//web_console_v2/api/fedlearner_webconsole:db_lib",
+        "//web_console_v2/api/fedlearner_webconsole:exceptions_lib",
+        "//web_console_v2/api/fedlearner_webconsole/auth:third_party_sso_lib",
+        "//web_console_v2/api/fedlearner_webconsole/flag:models_lib",
+        "//web_console_v2/api/fedlearner_webconsole/k8s:k8s_client_lib",
+        "//web_console_v2/api/fedlearner_webconsole/utils:flask_utils_lib",
+        "//web_console_v2/api/fedlearner_webconsole/utils/decorators:decorators_lib",
+        "//web_console_v2/api/protocols/fedlearner_webconsole/proto:py_proto",
+        "@com_google_protobuf//:protobuf_python",
+        "@common_flask_restful//:pkg",
+        "@common_marshmallow//:pkg",
+    ],
+)
+
+py_test(
+    name = "apis_test",
+    size = "medium",
+    srcs = [
+        "apis_test.py",
+    ],
+    imports = ["../.."],
+    main = "apis_test.py",
+    deps = [
+        ":apis_lib",
+        ":models_lib",
+        ":service_lib",
+        "//web_console_v2/api:envs_lib",
+        "//web_console_v2/api/fedlearner_webconsole:db_lib",
+        "//web_console_v2/api/fedlearner_webconsole:exceptions_lib",
+        "//web_console_v2/api/protocols/fedlearner_webconsole/proto:py_proto",
+        "//web_console_v2/api/testing:common_lib",
+    ],
+)

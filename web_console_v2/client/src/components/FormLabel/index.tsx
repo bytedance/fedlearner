@@ -1,5 +1,7 @@
+/* istanbul ignore file */
+
 import React, { FC } from 'react';
-import { Tooltip } from 'antd';
+import { Tooltip } from '@arco-design/web-react';
 import { QuestionCircle } from 'components/IconPark';
 import GridRow from 'components/_base/GridRow';
 import styled from 'styled-components';
@@ -12,16 +14,17 @@ const LabelText = styled.span`
 type Props = {
   label: string;
   tooltip?: string;
+  className?: string;
 };
 
-const FormLabel: FC<Props> = ({ label, tooltip }) => {
+const FormLabel: FC<Props> = ({ label, tooltip, className }) => {
   if (!tooltip) {
     return <LabelText>{label}</LabelText>;
   }
 
   return (
-    <GridRow gap="8" role="label">
-      <Tooltip title={tooltip}>
+    <GridRow gap="8" role="label" className={className}>
+      <Tooltip content={tooltip}>
         <LabelText>
           {label}
           <QuestionCircle style={{ marginLeft: '5px' }} />

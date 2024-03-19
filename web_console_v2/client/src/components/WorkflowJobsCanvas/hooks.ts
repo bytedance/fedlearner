@@ -1,4 +1,4 @@
-import { isEmpty, clone } from 'lodash';
+import { isEmpty, clone } from 'lodash-es';
 import { useMemo } from 'react';
 import { JobColorsMark, JobNodeRawData } from './types';
 

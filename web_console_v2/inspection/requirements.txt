@@ -1,0 +1,10 @@
+pandas==1.1.5
+fsspec==2022.1.0
+pyarrow==6.0.0
+jsonschema==3.2.0
+rsa==4.7.2
+cityhash==0.2.3
+gmpy2==2.0.8
+gmssl==3.2.1
+# opencv-python cannot use in docker, use this Pre-built CPU-only OpenCV package
+opencv-python-headless==4.5.5.62
