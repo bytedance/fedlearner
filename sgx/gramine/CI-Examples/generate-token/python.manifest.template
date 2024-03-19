@@ -60,9 +60,7 @@ sgx.trusted_files = [
   "file:/usr/{{ arch_libdir }}/",
   "file:/etc/ssl/certs/ca-certificates.crt",
   "file:/etc/default/apport",
-  "file:/etc/mime.types",
-  "file:/gramine/leader/",
-  "file:/gramine/follower/"
+  "file:/etc/mime.types"
 ]
 
 sgx.allowed_files = [
@@ -94,6 +92,8 @@ sgx.allowed_files = [
   "file:/usr/local/lib",
   "file:/lib/",
   "file:/bin/",
-  "file:/data/"
+  "file:/data/",
+  "file:/gramine/leader/",
+  "file:/gramine/follower/"
 ]
 
