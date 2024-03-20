@@ -17,7 +17,7 @@ loader.env.SECRET_PROVISION_SET_PF_KEY = "1"
 
 sys.enable_sigterm_injection = true
 sys.enable_extra_runtime_domain_names_conf = true
-sys.stack.size = "2M"
+sys.stack.size = "1M"
 
 fs.mounts = [
   { path = "/lib", uri = "file:{{ gramine.runtimedir() }}" },
@@ -26,6 +26,8 @@ fs.mounts = [
   { path = "{{ python.stdlib }}", uri = "file:{{ python.stdlib }}" },
   { path = "{{ python.distlib }}", uri = "file:{{ python.distlib }}" },
   { path = "/opt", uri = "file:/opt" },
+  { path = "/gramine/leader", uri = "file:/gramine/leader"},
+  { path = "/gramine/follower", uri = "file:/gramine/follower"},
   { path = "/etc", uri = "file:/etc" },
   { path = "/tmp", uri = "file:/tmp" },
   { path = "/bin", uri = "file:/bin" },
@@ -47,7 +49,7 @@ sgx.preheat_enclave = false
 sgx.nonpie_binary = true
 sgx.enable_stats = false
 sgx.enclave_size = "16G"
-sgx.thread_num = 512
+sgx.thread_num = 256
 sgx.rpc_thread_num = 0
 sgx.protected_files_key = "ffeeddccbbaa99887766554433221100"
 
@@ -58,13 +60,11 @@ sgx.trusted_files = [
   "file:/usr/{{ arch_libdir }}/",
   "file:/etc/ssl/certs/ca-certificates.crt",
   "file:/etc/default/apport",
-  "file:/etc/mime.types",
+  "file:/etc/mime.types"
 ]
 
 sgx.allowed_files = [
   "file:tensorflow_io.py",
-  "file:main.py",
-  "file:config.py",
   "file:/opt/tiger/",
   "file:/opt/meituan/",
   "file:{{ python.stdlib }}/",
@@ -93,6 +93,8 @@ sgx.allowed_files = [
   "file:/usr/local/lib",
   "file:/lib/",
   "file:/bin/",
-  "file:/data/"
+  "file:/data/",
+  "file:/gramine/leader/",
+  "file:/gramine/follower/"
 ]
 

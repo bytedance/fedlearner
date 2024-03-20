@@ -89,10 +89,12 @@ if [[ -n "${CODE_KEY}" ]]; then
 else
   pull_code ${CODE_TAR} $PWD
 fi
-cd ${ROLE}
-cp /app/sgx/gramine/CI-Examples/tensorflow_io.py ./
+
+cp /app/sgx/gramine/CI-Examples/tensorflow_io.py /gramine/follower/
+cp /app/sgx/gramine/CI-Examples/tensorflow_io.py /gramine/leader/
 source /app/deploy/scripts/sgx/enclave_env.sh
-cp /app/sgx/token/* ./
+
+unset HTTPS_PROXY https_proxy http_proxy ftp_proxy
 
 make_custom_env 4
 source /root/start_aesm_service.sh
@@ -104,6 +106,7 @@ fi
 
 server_port=$(normalize_env_to_args "--server-port" "$PORT1")
 
+cd $EXEC_DIR
 if [[ -z "${START_CPU_SN}" ]]; then
     START_CPU_SN=0
 fi
@@ -111,7 +114,7 @@ if [[ -z "${END_CPU_SN}" ]]; then
     END_CPU_SN=3
 fi
 
-taskset -c $START_CPU_SN-$END_CPU_SN stdbuf -o0 gramine-sgx python main.py --master \
+taskset -c $START_CPU_SN-$END_CPU_SN stdbuf -o0 gramine-sgx python /gramine/$ROLE/main.py --master \
     --application-id=$APPLICATION_ID \
     --data-source=$DATA_SOURCE \
     --data-path=$DATA_PATH \
