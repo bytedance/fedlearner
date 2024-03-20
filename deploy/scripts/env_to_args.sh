@@ -13,7 +13,7 @@ normalize_env_to_args() {
 pull_code() {
   cwd=$PWD
   cd $2
-  if [[ $1 == "hdfs://"* ]]; then
+  if [[ $1 == "hdfs://"* || $1 == "viewfs://"* ]]; then
       ${HADOOP_HOME}/bin/hadoop fs -copyToLocal $1 pulled_file
   elif [[ $1 == "http://"* || $1 == "https://"* ]]; then
       wget $1 -O pulled_file

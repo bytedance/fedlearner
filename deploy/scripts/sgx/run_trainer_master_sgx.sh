@@ -17,6 +17,7 @@
 set -ex
 source ~/.env
 export CUDA_VISIBLE_DEVICES=
+unset HTTPS_PROXY https_proxy http_proxy ftp_proxy
 cp /app/sgx/gramine/CI-Examples/tensorflow_io.py ./
 source /app/deploy/scripts/hdfs_common.sh || true
 source /app/deploy/scripts/pre_start_hook.sh || true
@@ -39,6 +40,7 @@ local_data_source=$(normalize_env_to_args "--local-data-source" $LOCAL_DATA_SOUR
 local_data_path=$(normalize_env_to_args "--local-data-path" $LOCAL_DATA_PATH)
 local_start_date=$(normalize_env_to_args "--local-start-date" $LOCAL_START_DATE)
 local_end_date=$(normalize_env_to_args "--local-end-date" $LOCAL_END_DATE)
+using_mt_hadoop=$(normalize_env_to_args "--using_mt_hadoop" $USING_MT_HADOOP)
 
 if [ -n "$CHECKPOINT_PATH" ]; then
     checkpoint_path="--checkpoint-path=$CHECKPOINT_PATH"
@@ -128,4 +130,5 @@ taskset -c $START_CPU_SN-$END_CPU_SN stdbuf -o0 gramine-sgx python /gramine/$ROL
     $summary_save_steps $summary_save_secs \
     $local_data_source $local_data_path $local_start_date \
     $local_end_date $epoch_num $start_date $end_date \
-    $shuffle $shuffle_in_day $extra_params $export_model
+    $shuffle $shuffle_in_day $extra_params $export_model \
+    $using_mt_hadoop

@@ -10,7 +10,7 @@ loader.pal_internal_mem_size = "200M"
 loader.insecure__use_cmdline_argv = true
 loader.insecure__use_host_env = true
 
-loader.env.LD_LIBRARY_PATH = "/opt/tiger/yarn_deploy/hadoop_current/lib/native:/opt/tiger/jdk/openjdk-1.8.0_265/jre/lib/amd64/server:/opt/tiger/jdk/openjdk-1.8.0_265/jre/lib/amd64/jli/:/opt/tiger/jdk/openjdk-1.8.0_265/jre/lib/amd64:{{ python.stdlib }}/lib:/lib:{{ arch_libdir }}:/usr/local/lib:/usr/local/{{ arch_libdir }}:/usr/lib:/usr/{{ arch_libdir }}"
+loader.env.LD_LIBRARY_PATH = "/opt/meituan/hadoop/lib/native:/opt/tiger/jdk/openjdk-1.8.0_265/jre/lib/amd64/server:/opt/meituan/hadoop/lib/native:/opt/meituan/hadoop/lib/native/nfs:/usr/lib/jvm/java-8-openjdk-amd64/jre/lib/amd64/server:/usr/local/lib/x86_64-linux-gnu:/opt/tiger/yarn_deploy/hadoop_current/lib/native:/opt/tiger/jdk/openjdk-1.8.0_265/jre/lib/amd64/server:/opt/tiger/jdk/openjdk-1.8.0_265/jre/lib/amd64/jli/:/opt/tiger/jdk/openjdk-1.8.0_265/jre/lib/amd64:{{ python.stdlib }}/lib:/lib:{{ arch_libdir }}:/usr/local/lib:/usr/local/{{ arch_libdir }}:/usr/lib:/usr/{{ arch_libdir }}"
 
 loader.env.SECRET_PROVISION_CONSTRUCTOR = "1"
 loader.env.SECRET_PROVISION_SET_PF_KEY = "1"
@@ -66,6 +66,7 @@ sgx.trusted_files = [
 sgx.allowed_files = [
   "file:tensorflow_io.py",
   "file:/opt/tiger/",
+  "file:/opt/meituan/",
   "file:{{ python.stdlib }}/",
   "file:{{ python.distlib }}/",
   "file:/usr/lib/ssl/openssl.cnf",

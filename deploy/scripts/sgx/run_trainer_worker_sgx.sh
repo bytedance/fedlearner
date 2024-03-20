@@ -56,6 +56,15 @@ batch_size=$(normalize_env_to_args "--batch-size" "$BATCH_SIZE")
 learning_rate=$(normalize_env_to_args "--learning-rate" "$LEARNING_RATE")
 extra_params=$(normalize_env_to_args "--extra-params" "$EXTRA_PARAMS")
 
+using_embedding_protection=$(normalize_env_to_args "--using_embedding_protection" $USING_EMBEDDING_PROTECTION)
+using_marvell_protection=$(normalize_env_to_args "--using_marvell_protection" $USING_MARVELL_PROTECTION)
+discorloss_weight=$(normalize_env_to_args "--discorloss_weight" $DISCORLOSS_WEIGHT)
+sumkl_threshold=$(normalize_env_to_args "--sumkl_threshold" $SUMKL_THRESHOLD)
+using_emb_attack=$(normalize_env_to_args "--using_emb_attack" $USING_EMB_ATTACK)
+using_norm_attack=$(normalize_env_to_args "--using_norm_attack" $USING_NORM_ATTACK)
+using_mt_hadoop=$(normalize_env_to_args "--using_mt_hadoop" $USING_MT_HADOOP)
+
+
 if [ -n "$CLUSTER_SPEC" ]; then
   # get master address from clusteSpec["master"]
   MASTER_HOST=`python -c "
@@ -112,4 +121,6 @@ taskset -c $START_CPU_SN-$END_CPU_SN stdbuf -o0 gramine-sgx python /gramine/$ROL
     --peer-addr="$PEER_ADDR" \
     --worker-rank="$INDEX" \
     $server_port $mode $batch_size \
-    $sparse_estimator $learning_rate
+    $sparse_estimator $learning_rate \
+    $using_embedding_protection $using_marvell_protection $discorloss_weight $sumkl_threshold $using_emb_attack $using_norm_attack \
+    $using_mt_hadoop
