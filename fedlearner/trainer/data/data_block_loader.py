@@ -33,6 +33,11 @@ class DataBlockLoader(object):
             self._bridge.register_data_block_handler(self._data_block_handler)
 
     def _data_block_handler(self, msg):
+        if self._count > msg.count:
+            fl_logging.warn('DataBlock: ignore repeated datablock "%s" at %d',
+                msg.block_id, msg.count)
+            return True
+
         fl_logging.info('DataBlock: recv "%s" at %d', msg.block_id, msg.count)
         assert self._count == msg.count
         if not msg.block_id:
@@ -61,7 +66,7 @@ class DataBlockLoader(object):
             block = self._block_queue.get()
         return block
 
-    def make_dataset(self):
+    def make_dataset(self, compression_type=None):
         def gen():
             while True:
                 block = self.get_next_block()
@@ -70,7 +75,8 @@ class DataBlockLoader(object):
                 yield block.data_path
 
         dataset = tf.data.Dataset.from_generator(gen, tf.string)
-        dataset = tf.data.TFRecordDataset(dataset)
+        dataset = tf.data.TFRecordDataset(dataset,
+                                          compression_type=compression_type)
         dataset = dataset.batch(self._batch_size, drop_remainder=True)
         dataset = dataset.prefetch(1)
         return dataset

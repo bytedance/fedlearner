@@ -104,7 +104,7 @@ class YamlFormatterTest(BaseTestCase):
                 }
             ]
         }
-        job = Job(name='aa', project_id=1, workflow_id=1, state=JobState.STOPPED)
+        job = Job(name='aa', project_id=1, workflow_id=1, state=JobState.NEW)
         job.set_config(ParseDict(config, JobDefinition()))
         self.assertEqual(generate_self_dict(job),
                          {'id': None, 'name': 'aa',

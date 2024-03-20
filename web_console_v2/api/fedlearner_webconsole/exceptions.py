@@ -26,8 +26,8 @@ class WebConsoleApiException(Exception):
         self.details = details
 
     def __repr__(self):
-        return '%s(%d %s: %s)'%(
-            type(self).__name__, self.error_code, self.message, self.details)
+        return f'{type(self).__name__}({self.error_code} ' \
+               f'{self.message}: {self.details})'
 
     def to_dict(self):
         dic = {
@@ -38,15 +38,18 @@ class WebConsoleApiException(Exception):
             dic['details'] = self.details
         return dic
 
+
 class InvalidArgumentException(WebConsoleApiException):
     def __init__(self, details):
         WebConsoleApiException.__init__(self, HTTPStatus.BAD_REQUEST, 400,
                                         'Invalid argument or payload.', details)
 
+
 class NotFoundException(WebConsoleApiException):
-    def __init__(self):
+    def __init__(self, message=None):
         WebConsoleApiException.__init__(
-            self, HTTPStatus.NOT_FOUND, 404, 'Resource not existing')
+            self, HTTPStatus.NOT_FOUND, 404,
+            message if message else 'Resource not found.')
 
 
 class UnauthorizedException(WebConsoleApiException):

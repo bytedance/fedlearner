@@ -15,9 +15,10 @@
 # coding: utf-8
 
 import unittest
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
+
 from testing.common import BaseTestCase
-from fedlearner_webconsole.db import db, get_session, make_session_context
+from fedlearner_webconsole.db import db, get_session
 from fedlearner_webconsole.mmgr.models import Model
 from fedlearner_webconsole.mmgr.models import ModelState
 from fedlearner_webconsole.mmgr.service import ModelService
@@ -26,48 +27,80 @@ from fedlearner_webconsole.utils.k8s_cache import Event, EventType, ObjectType
 
 
 class ModelTest(BaseTestCase):
-
     @patch(
-        'fedlearner_webconsole.mmgr.service.ModelService.get_checkpoint_path'
-    )
+        'fedlearner_webconsole.mmgr.service.ModelService.get_checkpoint_path')
     def setUp(self, mock_get_checkpoint_path):
         super().setUp()
         self.model_service = ModelService(db.session)
         self.train_job = Job(name='train-job',
-                             job_type=JobType.NN_MODEL_TRANINING)
+                             job_type=JobType.NN_MODEL_TRANINING,
+                             workflow_id=1,
+                             project_id=1)
         self.eval_job = Job(name='eval-job',
-                            job_type=JobType.NN_MODEL_EVALUATION)
+                            job_type=JobType.NN_MODEL_EVALUATION,
+                            workflow_id=1,
+                            project_id=1)
         mock_get_checkpoint_path.return_value = 'output'
         self.model_service.create(job=self.train_job, parent_job_name=None)
-        model = db.session.query(Model).filter_by(job_name=self.train_job.name).one()
-        self.model_service.create(job=self.eval_job, parent_job_name=model.job_name)
+        model = db.session.query(Model).filter_by(
+            job_name=self.train_job.name).one()
+        self.model_service.create(job=self.eval_job,
+                                  parent_job_name=model.job_name)
+        db.session.add(self.train_job)
+        db.session.add(self.eval_job)
         db.session.commit()
 
-    @patch('fedlearner_webconsole.job.models.Job.is_complete')
-    @patch('fedlearner_webconsole.job.models.Job.is_failed')
-    def test_on_job_update(self, mock_is_failed, mock_is_complete):
-        model = Model.query.filter_by(job_name=self.train_job.name).one()
-        self.assertEqual(model.state, ModelState.COMMITTED.value)
-        self.train_job.state = JobState.STARTED
+    @patch('fedlearner_webconsole.mmgr.service.ModelService.plot_metrics')
+    def test_on_job_update(self, mock_plot_metrics: MagicMock):
+        mock_plot_metrics.return_value = 'plot metrics return'
 
-        mock_is_failed.return_value = False
-        mock_is_complete.return_value = False
-        self.model_service.on_job_update(self.train_job)
-        self.assertEqual(model.state, ModelState.RUNNING.value)
+        # TODO: change get_session to db.session_scope
+        with get_session(db.engine) as session:
+            model = session.query(Model).filter_by(
+                job_name=self.train_job.name).one()
+            self.assertEqual(model.state, ModelState.COMMITTED.value)
 
-        mock_is_failed.return_value = False
-        mock_is_complete.return_value = True
-        self.model_service.on_job_update(self.train_job)
-        self.assertEqual(model.state, ModelState.SUCCEEDED.value)
+            train_job = session.query(Job).filter_by(name='train-job').one()
+            train_job.state = JobState.STARTED
+            session.commit()
 
-        mock_is_failed.return_value = True
-        mock_is_complete.return_value = False
-        self.model_service.on_job_update(self.train_job)
-        self.assertEqual(model.state, ModelState.FAILED.value)
+        # TODO: change get_session to db.session_scope
+        with get_session(db.engine) as session:
+            train_job = session.query(Job).filter_by(name='train-job').one()
+            train_job.state = JobState.STARTED
+            model = session.query(Model).filter_by(
+                job_name=self.train_job.name).one()
+            model_service = ModelService(session)
 
-    @patch('fedlearner_webconsole.job.models.Job.is_complete')
-    @patch('fedlearner_webconsole.job.models.Job.is_failed')
-    def test_hook(self, mock_is_failed, mock_is_complete):
+            model_service.on_job_update(train_job)
+            self.assertEqual(model.state, ModelState.RUNNING.value)
+            session.commit()
+
+        # TODO: change get_session to db.session_scope
+        with get_session(db.engine) as session:
+            train_job = session.query(Job).filter_by(name='train-job').one()
+            train_job.state = JobState.COMPLETED
+            model = session.query(Model).filter_by(
+                job_name=self.train_job.name).one()
+            model_service = ModelService(session)
+
+            model_service.on_job_update(train_job)
+            self.assertEqual(model.state, ModelState.SUCCEEDED.value)
+            session.commit()
+
+        # TODO: change get_session to db.session_scope
+        with get_session(db.engine) as session:
+            train_job = session.query(Job).filter_by(name='train-job').one()
+            train_job.state = JobState.FAILED
+            model = session.query(Model).filter_by(
+                job_name=self.train_job.name).one()
+            model_service = ModelService(session)
+
+            model_service.on_job_update(train_job)
+            self.assertEqual(model.state, ModelState.FAILED.value)
+            session.commit()
+
+    def test_hook(self):
         train_job = Job(id=0,
                         state=JobState.STARTED,
                         name='nn-train',
@@ -85,27 +118,23 @@ class ModelTest(BaseTestCase):
         self.assertEqual(model.state, ModelState.COMMITTED.value)
 
         event.event_type = EventType.MODIFIED
-        mock_is_failed.return_value = False
-        mock_is_complete.return_value = False
+        train_job.state = JobState.STARTED
         self.model_service.k8s_watcher_hook(event)
         self.assertEqual(model.state, ModelState.RUNNING.value)
 
-        mock_is_failed.return_value = False
-        mock_is_complete.return_value = True
+        train_job.state = JobState.COMPLETED
         self.model_service.k8s_watcher_hook(event)
         self.assertEqual(model.state, ModelState.SUCCEEDED.value)
 
-        mock_is_failed.return_value = False
-        mock_is_complete.return_value = False
+        train_job.state = JobState.STARTED
         self.model_service.k8s_watcher_hook(event)
         self.assertEqual(model.state, ModelState.RUNNING.value)
         self.assertEqual(model.version, 2)
 
         train_job.state = JobState.STOPPED
-        db.session.add(train_job)
-        db.session.commit()
         self.model_service.k8s_watcher_hook(event)
         self.assertEqual(model.state, ModelState.PAUSED.value)
+        db.session.rollback()
 
     def test_api(self):
         resp = self.get_helper('/api/v2/models/1')

@@ -155,14 +155,18 @@ class ProjectApiTest(BaseTestCase):
             self.assertEqual(project, result)
 
     def test_update_project(self):
+        updated_name = 'updated name'
         updated_comment = 'updated comment'
         update_response = self.patch_helper(
             '/api/v2/projects/{}'.format(1),
             data={
+                'participant_name': updated_name,
                 'comment': updated_comment
             })
         self.assertEqual(update_response.status_code, HTTPStatus.OK)
         queried_project = Project.query.filter_by(id=1).first()
+        participant = queried_project.get_config().participants[0]
+        self.assertEqual(participant.name, updated_name)
         self.assertEqual(queried_project.comment, updated_comment)
 
     def test_update_not_found_project(self):

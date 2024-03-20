@@ -1,5 +1,5 @@
 import React, { FC, useState, useMemo } from 'react';
-import ListPageLayout from 'components/ListPageLayout';
+import SharedPageLayout from 'components/SharedPageLayout';
 import { useTranslation } from 'react-i18next';
 import { Row, Button, Col, Form, Input, Table, message, Tag, Popconfirm } from 'antd';
 import { useHistory, Link } from 'react-router-dom';
@@ -108,7 +108,7 @@ const UsersList: FC = () => {
   const isEmpty = !query.isFetching && query.data?.data.length === 0;
 
   return (
-    <ListPageLayout title={t('menu.label_users')}>
+    <SharedPageLayout title={t('menu.label_users')}>
       <Row gutter={16} justify="space-between" align="middle">
         <Col>
           <Button size="large" type="primary" onClick={goCreate}>
@@ -139,7 +139,7 @@ const UsersList: FC = () => {
           />
         )}
       </ListContainer>
-    </ListPageLayout>
+    </SharedPageLayout>
   );
 
   function goCreate() {

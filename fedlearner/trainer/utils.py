@@ -19,6 +19,9 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+from datetime import datetime
+from typing import Optional
+
 import sys
 import numpy as np
 
@@ -122,3 +125,12 @@ def _compute_slot_config(unsorted_slot_config, groups=None, use_fid_v2=False):
         'slot_weight_offset': slot_weight_offset,
         'output_size': offset
     }
+
+
+def match_date(cur_date: datetime, start_date: Optional[datetime],
+             end_date: Optional[datetime]) -> bool:
+    if start_date and cur_date < start_date:
+        return False
+    if end_date and cur_date > end_date:
+        return False
+    return True

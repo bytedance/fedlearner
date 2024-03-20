@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import styled from 'styled-components';
 import { Link, useLocation } from 'react-router-dom';
-import { Menu } from 'antd';
+import { Dropdown, Menu } from 'antd';
 import { Tooltip } from 'antd';
 import { useTranslation } from 'react-i18next';
 import { useToggle } from 'react-use';
@@ -31,6 +31,7 @@ const Container = styled.aside`
   width: 200px;
   padding: 16px 8px 8px;
   background-color: white;
+  box-shadow: 1px 0px 0px var(--lineColor);
 
   &.isFolded {
     width: 48px;
@@ -51,6 +52,11 @@ const Container = styled.aside`
 const StyledMenu = styled(Menu)`
   flex: 1;
 `;
+const DropdownLink = styled(Link)`
+  &[data-is-active='true'] {
+    color: var(--primaryColor);
+  }
+`;
 
 const FoldButton = styled.div`
   ${MixinSquare(24)}
@@ -67,7 +73,15 @@ const FoldButton = styled.div`
   }
 `;
 
-const SIDEBAR_MENU_ITEMS = [
+type MenuRoute = {
+  to: string;
+  label: string;
+  icon: any;
+  only?: FedRoles[];
+  subRoutes?: Omit<MenuRoute, 'icon'>[];
+};
+
+const SIDEBAR_MENU_ROUTES: MenuRoute[] = [
   {
     to: '/projects',
     label: 'menu.label_project',
@@ -107,35 +121,27 @@ function Sidebar({ className }: StyledComponetProps) {
   const [isFolded, toggleFold] = useToggle(store.get(LOCAL_STORAGE_KEYS.sidebar_folded));
   const location = useLocation();
   const userQuery = useRecoilQuery<FedUserInfo>(userInfoQuery);
-  const [sidebarMenuItems, setSidebarItems] = useState(SIDEBAR_MENU_ITEMS);
+  const [sidebarMenuItems, setSidebarItems] = useState(SIDEBAR_MENU_ROUTES);
 
-  const activeMenuItemKey =
-    sidebarMenuItems.find((item) => location.pathname.startsWith(item.to))?.to || '';
+  const activeKeys = _calcActiveKeys(sidebarMenuItems, (location as unknown) as Location);
 
   useEffect(() => {
-    setSidebarItems(getMenuItemsForThisUser());
+    const nextItems = getMenuItemsForThisUser();
+    setSidebarItems(nextItems);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userQuery.data]);
 
   return (
     <Container className={classNames(className, { isFolded })}>
-      <StyledMenu mode="inline" selectedKeys={[activeMenuItemKey]}>
-        {sidebarMenuItems.map((menu) => (
-          <Menu.Item key={menu.to}>
-            {isFolded ? (
-              <Tooltip title={t(menu.label)} placement="right">
-                <Link to={menu.to}>
-                  <menu.icon />
-                </Link>
-              </Tooltip>
-            ) : (
-              <>
-                <menu.icon />
-                <Link to={menu.to}>{t(menu.label)}</Link>
-              </>
-            )}
-          </Menu.Item>
-        ))}
+      <StyledMenu mode="inline" selectedKeys={activeKeys} defaultOpenKeys={activeKeys}>
+        {sidebarMenuItems.map((menu) => {
+          /** Has subroutes */
+          if (menu.subRoutes) {
+            return renderWithSubRoutes(menu);
+          }
+          /** Doesn't have subroutes */
+          return renderPlainRoute(menu);
+        })}
       </StyledMenu>
       <FoldButton onClick={onFoldClick}>{isFolded ? <MenuUnfold /> : <MenuFold />}</FoldButton>
     </Container>
@@ -147,7 +153,7 @@ function Sidebar({ className }: StyledComponetProps) {
   }
 
   function getMenuItemsForThisUser() {
-    return SIDEBAR_MENU_ITEMS.filter((item) => {
+    return SIDEBAR_MENU_ROUTES.filter((item) => {
       if (!item.only) return true;
 
       if (!userQuery.data) return false;
@@ -155,6 +161,79 @@ function Sidebar({ className }: StyledComponetProps) {
       return item.only.includes(userQuery.data.role);
     });
   }
+
+  function renderPlainRoute(menu: MenuRoute) {
+    return (
+      <Menu.Item key={menu.to}>
+        {isFolded ? (
+          <Tooltip title={t(menu.label)} placement="right">
+            <Link to={menu.to}>
+              <menu.icon />
+            </Link>
+          </Tooltip>
+        ) : (
+          <>
+            <menu.icon />
+            <Link to={menu.to}>{t(menu.label)}</Link>
+          </>
+        )}
+      </Menu.Item>
+    );
+  }
+
+  function renderWithSubRoutes(menu: MenuRoute) {
+    if (isFolded) {
+      return (
+        <Menu.Item key={menu.to}>
+          <Dropdown
+            placement="bottomRight"
+            overlay={
+              <Menu>
+                {menu.subRoutes?.map((subRoute) => (
+                  <Menu.Item key={subRoute.to}>
+                    <DropdownLink
+                      to={subRoute.to}
+                      data-is-active={activeKeys.includes(subRoute.to)}
+                    >
+                      {t(subRoute.label)}
+                    </DropdownLink>
+                  </Menu.Item>
+                ))}
+              </Menu>
+            }
+          >
+            <menu.icon />
+          </Dropdown>
+        </Menu.Item>
+      );
+    }
+
+    return (
+      <Menu.SubMenu key={menu.to} icon={<menu.icon />} title={t(menu.label)}>
+        {menu.subRoutes?.map((subRoute) => (
+          <Menu.Item key={subRoute.to}>
+            <Link to={subRoute.to}>{t(subRoute.label)}</Link>
+          </Menu.Item>
+        ))}
+      </Menu.SubMenu>
+    );
+  }
+}
+
+function _calcActiveKeys(menuItems: MenuRoute[], location: Location) {
+  return menuItems.reduce((ret, item) => {
+    if (location.pathname.startsWith(item.to)) {
+      ret.push(item.to);
+    }
+    if (item.subRoutes) {
+      item.subRoutes.forEach((subItem) => {
+        if (location.pathname.startsWith(subItem.to)) {
+          ret.push(subItem.to);
+        }
+      });
+    }
+    return ret;
+  }, [] as string[]);
 }
 
 export default Sidebar;

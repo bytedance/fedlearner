@@ -2,13 +2,14 @@ import React, { FC, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Steps, Row, Card } from 'antd';
 import styled from 'styled-components';
-import BreadcrumbLink from 'components/BreadcrumbLink';
-import { useParams } from 'react-router-dom';
+import { useParams, useHistory } from 'react-router-dom';
 import { useUnmount } from 'react-use';
 import { useResetCreateForm } from 'hooks/template';
 import StepOneBasic from './StepOneBasic';
 import StepTwoJobs from './StepTwoJobs';
 import { clearMap } from './store';
+import SharedPageLayout from 'components/SharedPageLayout';
+import BackButton from 'components/BackButton';
 
 const { Step } = Steps;
 
@@ -30,6 +31,7 @@ const TemplateForm: FC<{ isEdit?: boolean; isHydrated?: React.MutableRefObject<b
   isHydrated,
 }) => {
   const { t } = useTranslation();
+  const history = useHistory();
   const params = useParams<{ step: keyof typeof CreateSteps }>();
   const [currentStep, setStep] = useState(CreateSteps[params.step || 'basic']);
   const reset = useResetCreateForm();
@@ -44,14 +46,12 @@ const TemplateForm: FC<{ isEdit?: boolean; isHydrated?: React.MutableRefObject<b
   });
 
   return (
-    <>
-      <BreadcrumbLink
-        paths={[
-          { label: 'menu.label_workflow_tpl', to: '/workflow-templates' },
-          { label: isEdit ? 'workflow.edit_tpl' : 'workflow.create_tpl' },
-        ]}
-      />
-
+    <SharedPageLayout
+      title={
+        <BackButton onClick={() => history.goBack()}>{t('menu.label_workflow_tpl')}</BackButton>
+      }
+      contentWrapByCard={false}
+    >
       <Card>
         <Row justify="center">
           <StepContainer>
@@ -67,7 +67,7 @@ const TemplateForm: FC<{ isEdit?: boolean; isHydrated?: React.MutableRefObject<b
         {params.step === 'basic' && <StepOneBasic isEdit={isEdit} isHydrated={isHydrated} />}
         {params.step === 'jobs' && <StepTwoJobs isEdit={isEdit} />}
       </FormArea>
-    </>
+    </SharedPageLayout>
   );
 };
 

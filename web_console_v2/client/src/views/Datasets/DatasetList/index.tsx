@@ -1,5 +1,5 @@
 import React, { FC, useState } from 'react';
-import ListPageLayout from 'components/ListPageLayout';
+import ListPageLayout from 'components/SharedPageLayout';
 import { useTranslation } from 'react-i18next';
 import { Row, Button, Col, Form, Input, Table, message } from 'antd';
 import { useHistory } from 'react-router-dom';
@@ -19,6 +19,8 @@ import { useToggle } from 'react-use';
 import AddBatchModal from './AddBatchModal';
 import { copyToClipboard } from 'shared/helpers';
 import WhichProject from 'components/WhichProject';
+import { useRecoilValue } from 'recoil';
+import { projectState } from 'stores/project';
 
 const ListContainer = styled.div`
   display: flex;
@@ -117,10 +119,11 @@ const DatasetList: FC = () => {
   const [recordsVisible, toggleRecordsVisible] = useToggle(false);
   const [addBatchVisible, toggleAddBatchVisible] = useToggle(false);
   const [curDataset, setCurDataset] = useState<Dataset>();
+  const project = useRecoilValue(projectState);
 
   const listQuery = useQuery(
-    [DATASET_LIST_QUERY_KEY, params.keyword],
-    () => fetchDatasetList(params),
+    [DATASET_LIST_QUERY_KEY, params.keyword, project.current?.id],
+    () => fetchDatasetList({ ...params, project: project.current?.id }),
     {
       retry: 2,
       refetchInterval: 90 * 1000, // auto refresh every 1.5 min

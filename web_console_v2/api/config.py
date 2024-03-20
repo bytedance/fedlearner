@@ -20,8 +20,6 @@ import secrets
 from fedlearner_webconsole.db import get_database_uri
 from envs import Envs
 
-BASE_DIR = os.path.abspath(os.path.dirname(__file__))
-
 
 class Config(object):
     SQLALCHEMY_DATABASE_URI = get_database_uri()

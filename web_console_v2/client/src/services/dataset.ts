@@ -6,7 +6,10 @@ import {
   FileToImport,
 } from 'typings/dataset';
 
-export function fetchDatasetList(params?: { keyword?: string }): Promise<{ data: Dataset[] }> {
+export function fetchDatasetList(params?: {
+  keyword?: string;
+  project?: number;
+}): Promise<{ data: Dataset[] }> {
   return request('/v2/datasets', { params, removeFalsy: true, snake_case: true });
 }
 

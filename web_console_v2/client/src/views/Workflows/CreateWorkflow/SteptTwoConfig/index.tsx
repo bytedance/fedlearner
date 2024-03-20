@@ -33,7 +33,7 @@ import { to } from 'shared/helpers';
 import { WorkflowCreateProps } from '..';
 import { WorkflowAcceptPayload, WorkflowInitiatePayload } from 'typings/workflow';
 import { Variable } from 'typings/variable';
-import InspectPeerConfigs from './InspectPeerConfig';
+import InspectPeerConfigs from '../../InspectPeerConfig';
 import { ExclamationCircle } from 'components/IconPark';
 import { Z_INDEX_GREATER_THAN_HEADER } from 'components/Header';
 import { stringifyComplexDictField } from 'shared/formSchema';
@@ -135,7 +135,7 @@ const CanvasAndForm: FC<WorkflowCreateProps> = ({ isInitiate, isAccept }) => {
           ref={drawerRef as any}
           visible={drawerVisible}
           toggleVisible={toggleDrawerVisible}
-          showPeerConfigButton={isAccept}
+          showPeerConfigButton={isAccept && Boolean(peerConfig)}
           currentIdx={currNode?.data.index}
           nodesCount={jobNodes.length}
           jobDefinition={currNode?.data.raw}

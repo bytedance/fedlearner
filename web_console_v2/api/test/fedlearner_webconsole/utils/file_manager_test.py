@@ -15,20 +15,20 @@
 # coding: utf-8
 import os
 import shutil
-import stat
 import tempfile
 import unittest
 
+from collections import namedtuple
 from pathlib import Path
-from unittest.mock import patch, MagicMock
-from pyarrow import fs
+from tensorflow.io import gfile
 
-from fedlearner_webconsole.utils.file_manager import (DefaultFileManager,
-                                                      HdfsFileManager,
-                                                      FileManager, File)
+from fedlearner_webconsole.utils.file_manager import GFileFileManager, FileManager, File
+
+FakeFileStatistics = namedtuple('FakeFileStatistics', ['length', 'mtime_nsec'])
 
 
-class DefaultFileManagerTest(unittest.TestCase):
+class GFileFileManagerTest(unittest.TestCase):
+
     _F1_SIZE = 3
     _F2_SIZE = 4
     _S1_SIZE = 55
@@ -37,21 +37,21 @@ class DefaultFileManagerTest(unittest.TestCase):
     _S1_MTIME = 1613982392
 
     def _get_file_stat(self, orig_os_stat, path):
-        faked = list(orig_os_stat(path))
+        gfile_stat = FakeFileStatistics(2, 1613982390 * 1e9)
         if path == self._get_temp_path('f1.txt') or \
                 path == self._get_temp_path('subdir/f1.txt'):
-            faked[stat.ST_SIZE] = self._F1_SIZE
-            faked[stat.ST_MTIME] = self._F1_MTIME
-            return os.stat_result(faked)
+            gfile_stat = FakeFileStatistics(self._F1_SIZE,
+                                            self._F1_MTIME * 1e9)
+            return gfile_stat
         elif path == self._get_temp_path('f2.txt') or \
                 path == self._get_temp_path('f3.txt'):
-            faked[stat.ST_SIZE] = self._F2_SIZE
-            faked[stat.ST_MTIME] = self._F2_MTIME
-            return os.stat_result(faked)
+            gfile_stat = FakeFileStatistics(self._F2_SIZE,
+                                            self._F2_MTIME * 1e9)
+            return gfile_stat
         elif path == self._get_temp_path('subdir/s1.txt'):
-            faked[stat.ST_SIZE] = self._S1_SIZE
-            faked[stat.ST_MTIME] = self._S1_MTIME
-            return os.stat_result(faked)
+            gfile_stat = FakeFileStatistics(self._S1_SIZE,
+                                            self._S1_MTIME * 1e9)
+            return gfile_stat
         else:
             return orig_os_stat(path)
 
@@ -70,9 +70,9 @@ class DefaultFileManagerTest(unittest.TestCase):
         def fake_stat(path, *arg, **kwargs):
             return self._get_file_stat(self._orig_os_stat, path)
 
-        os.stat = fake_stat
+        gfile.stat = fake_stat
 
-        self._fm = DefaultFileManager()
+        self._fm = GFileFileManager()
 
     def tearDown(self):
         os.stat = self._orig_os_stat
@@ -177,119 +177,16 @@ class DefaultFileManagerTest(unittest.TestCase):
         self._fm.mkdir(os.path.join(self._get_temp_path(), 'subdir2'))
         self.assertTrue(os.path.isdir(self._get_temp_path('subdir2')))
 
-
-class HdfsFileManagerTest(unittest.TestCase):
-    def setUp(self):
-        self._envs_patcher = patch('envs.Envs.HDFS_SERVER', 'hdfs://haruna/')
-        self._envs_patcher.start()
-
-        self._mock_client = MagicMock()
-        self._mock_client_generator = MagicMock()
-        self._mock_client_generator.from_uri.return_value = (self._mock_client,
-                                                             '/')
-        self._client_patcher = patch(
-            'fedlearner_webconsole.utils.file_manager.FileSystem',
-            self._mock_client_generator)
-        self._client_patcher.start()
-
-        self._fm = HdfsFileManager()
-
-    def tearDown(self):
-        self._envs_patcher.stop()
-        self._client_patcher.stop()
-
-    def test_can_handle(self):
-        self.assertFalse(self._fm.can_handle('/data/abc'))
-        self.assertTrue(self._fm.can_handle('hdfs://abc'))
-
-    def test_ls(self):
-        mock_ls = MagicMock()
-        self._mock_client.get_file_info = mock_ls
-        mock_ls.side_effect = [
-            fs.FileInfo(type=fs.FileType.Directory,
-                        path='/data',
-                        size=1024,
-                        mtime_ns=1367317325346000000),
-            [
-                fs.FileInfo(type=fs.FileType.File,
-                            path='/data/abc',
-                            size=1024,
-                            mtime_ns=1367317325346000000),
-                fs.FileInfo(type=fs.FileType.Directory,
-                            path='/data',
-                            size=1024,
-                            mtime_ns=1367317325346000000),
-            ]
-        ]
-        self.assertEqual(
-            self._fm.ls('hdfs:///data', recursive=True),
-            [File(path='hdfs:///data/abc', size=1024, mtime=1367317325)])
-        mock_ls.assert_called()
-
-        mock_ls = MagicMock()
-        self._mock_client.get_file_info = mock_ls
-        mock_ls.return_value = fs.FileInfo(type=fs.FileType.File,
-                                           path='/data/abc',
-                                           size=1024,
-                                           mtime_ns=1367317325346000000)
-        self.assertEqual(
-            self._fm.ls('hdfs:///data/abc', recursive=True),
-            [File(path='hdfs:///data/abc', size=1024, mtime=1367317325)])
-        mock_ls.assert_called_once()
-
-    @staticmethod
-    def _yield_files(files):
-        for file in files:
-            yield file
-
-    def test_move(self):
-        mock_rename = MagicMock()
-        self._mock_client.move = mock_rename
-        mock_rename.return_value = self._yield_files(['/data/123'])
-        self.assertTrue(self._fm.move('hdfs:///data/abc', 'hdfs:///data/123'))
-        mock_rename.assert_called_once_with('/data/abc', '/data/123')
-
-        mock_rename.return_value = self._yield_files([])
-        self.assertFalse(self._fm.move('hdfs:///data/abc', 'hdfs:///data/123'))
-
-    def test_remove_dir(self):
-        mock_get_file_info = MagicMock()
-        self._mock_client.get_file_info = mock_get_file_info
-        mock_get_file_info.return_value = fs.FileInfo(type=fs.FileType.File,
-                                                      path='/data/123',
-                                                      size=1024)
-
-        self.assertTrue(self._fm.remove('hdfs:///data/123'))
-        self._mock_client.delete_file.assert_called_once_with('/data/123')
-        self._mock_client.delete_dir.assert_not_called()
-
-    def test_remove_file(self):
-        mock_get_file_info = MagicMock()
-        self._mock_client.get_file_info = mock_get_file_info
-        mock_get_file_info.return_value = fs.FileInfo(
-            type=fs.FileType.Directory, path='/data/123', size=1024)
-
-        self.assertTrue(self._fm.remove('hdfs:///data/123'))
-        self._mock_client.delete_file.assert_not_called()
-        self._mock_client.delete_dir.assert_called_once_with('/data/123')
-
-    @patch('tensorflow.io.gfile.copy')
-    def test_copy(self, mock_copy):
-        self.assertTrue(self._fm.copy('hdfs:///source', 'hdfs:///dest'))
-        mock_copy.assert_called_once_with('hdfs:///source', 'hdfs:///dest')
-
-    def test_mkdir(self):
-        mock_mkdir = MagicMock()
-        self._mock_client.create_dir = mock_mkdir
-        self.assertTrue(self._fm.mkdir('hdfs:///data'))
-        mock_mkdir.assert_called_once_with('/data')
+    def test_read(self):
+        content = self._fm.read(self._get_temp_path('f1.txt'))
+        self.assertEqual('xxx', content)
 
 
 class FileManagerTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        os.environ[
-            'CUSTOMIZED_FILE_MANAGER'] = 'testing.fake_file_manager:FakeFileManager'
+        fake_fm = 'testing.fake_file_manager:FakeFileManager'
+        os.environ['CUSTOMIZED_FILE_MANAGER'] = fake_fm
 
     @classmethod
     def tearDownClass(cls):
@@ -302,7 +199,7 @@ class FileManagerTest(unittest.TestCase):
         self.assertTrue(self._fm.can_handle('fake://123'))
         # Falls back to default manager
         self.assertTrue(self._fm.can_handle('/data/123'))
-        self.assertFalse(self._fm.can_handle('hdfs:///123'))
+        self.assertFalse(self._fm.can_handle('unsupported:///123'))
 
     def test_ls(self):
         self.assertEqual(self._fm.ls('fake://data'), [{
@@ -322,7 +219,8 @@ class FileManagerTest(unittest.TestCase):
         self.assertTrue(self._fm.remove('fake://remove/123'))
         self.assertFalse(self._fm.remove('fake://do_not_remove/123'))
         # No file manager can handle this
-        self.assertRaises(RuntimeError, lambda: self._fm.remove('hdfs://123'))
+        self.assertRaises(RuntimeError,
+                          lambda: self._fm.remove('unsupported://123'))
 
     def test_copy(self):
         self.assertTrue(self._fm.copy('fake://copy/123', 'fake://copy/234'))
@@ -336,7 +234,8 @@ class FileManagerTest(unittest.TestCase):
         self.assertTrue(self._fm.mkdir('fake://mkdir/123'))
         self.assertFalse(self._fm.mkdir('fake://do_not_mkdir/123'))
         # No file manager can handle this
-        self.assertRaises(RuntimeError, lambda: self._fm.mkdir('hdfs:///123'))
+        self.assertRaises(RuntimeError,
+                          lambda: self._fm.mkdir('unsupported:///123'))
 
 
 if __name__ == '__main__':

@@ -14,7 +14,9 @@
 
 import re
 import tensorflow.compat.v1 as tf
-from tensorflow.python.training import training_util #pylint: disable=no-name-in-module
+from tensorflow.python.training import training_util # pylint: disable=no-name-in-module
+from fedlearner.common import metrics
+from fedlearner.common.metric_collector import metric_collector
 from fedlearner.trainer._global_context import global_context as _gctx
 
 class GlobalStepMetricTensorHook(tf.train.SessionRunHook):
@@ -85,12 +87,23 @@ class GlobalStepMetricTensorHook(tf.train.SessionRunHook):
 
     def _stats_metric(self, global_step, results):
         with self._stats_client.pipeline() as pipe:
-            pipe.gauge("trainer.metric_global_step", global_step)
+            name_prefix = 'model.train.nn_vertical'
+            metric_collector.emit_store(
+                f'{name_prefix}.global_step', global_step)
             for key in self._metric_names:
                 value = results[key]
                 pipe.gauge("trainer.metric_value",
                            value.sum(),
                            tags={"metric": key})
+
+                # for compatibility, also write to metrics(es)
+                metrics.emit_store(name=key, value=value)
+
+                metric_collector.emit_store(
+                    f'{name_prefix}.{key}', value.sum())
+                # for compatibility, also emit one with metric name in tags
+                metric_collector.emit_store(f'{name_prefix}.metric_value',
+                                            value.sum(), tags={'metric': key})
 
 
 class StepMetricsHook(GlobalStepMetricTensorHook):
@@ -114,6 +127,7 @@ class StepLossAucMetricsHook(GlobalStepMetricTensorHook):
                                                      every_steps=every_n_iter)
 
 
+# NOTE(whisylan): maybe lead to memory leak
 class TraceStatsHook(tf.train.SessionRunHook):
     def __init__(self,
                  timing_topn=20,
@@ -182,15 +196,24 @@ class TraceStatsHook(tf.train.SessionRunHook):
                 events.append(ev)
 
         with self._stats_client.pipeline() as pipe:
+            # TODO(lixiaoguang.01) old version, to be deleted
             # emit op
             pipe.gauge("trainer.trace.op_count", len(events))
             events.sort(key=lambda ev: ev["duration"], reverse=True)
+            # new version
+            name_prefix = 'model.trace.nn_vertical'
+            metric_collector.emit_store(f'{name_prefix}.op_count', len(events))
             for ev in events[0:self._timing_topn]:
                 if ev["duration"] < self._timing_min_ms:
                     break
                 pipe.timing("trainer.trace.op_timing",
                             ev["duration"],
                             tags={"op_name": ev["op_name"], "op": ev["op"]})
+                metric_collector.emit_store(
+                    f'{name_prefix}.op_timing',
+                    ev["duration"],
+                    {"op_name": ev["op_name"], "op": ev["op"]}
+                )
 
             # emit memory
             events.sort(key=lambda ev: ev["output_bytes"], reverse=True)
@@ -200,6 +223,11 @@ class TraceStatsHook(tf.train.SessionRunHook):
                 pipe.gauge("trainer.trace.op_output_bytes",
                            ev["output_bytes"],
                            tags={"op_name": ev["op_name"], "op": ev["op"]})
+                metric_collector.emit_store(
+                    f'{name_prefix}.op_output_bytes',
+                    ev["output_bytes"],
+                    {"op_name": ev["op_name"], "op": ev["op"]}
+                )
 
     def _parse_op_label(self, label):
         """

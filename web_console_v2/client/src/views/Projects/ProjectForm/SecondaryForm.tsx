@@ -3,12 +3,8 @@ import styled from 'styled-components';
 
 const Container = styled.div`
   background-color: white;
-  padding: 24px;
+  margin-bottom: 20px;
   border-radius: 4px;
-
-  &:not(:first-of-type) {
-    margin-top: 14px;
-  }
 `;
 const Heading = styled.h3`
   margin-bottom: 0;

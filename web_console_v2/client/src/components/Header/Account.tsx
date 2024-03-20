@@ -1,13 +1,12 @@
 import React, { FC } from 'react';
 import styled from 'styled-components';
 import { userInfoQuery } from 'stores/user';
-import avatar from 'assets/images/avatar.svg';
+import avatar from 'assets/images/avatar.jpg';
 import { useRecoilQuery } from 'hooks/recoil';
 import { MixinCommonTransition, MixinSquare } from 'styles/mixins';
 import { message, Popover, Button } from 'antd';
 import GridRow from 'components/_base/GridRow';
 import { Settings } from 'components/IconPark';
-// import LanguageSwitch from './LanguageSwitch';
 import { Redirect, useHistory } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import store from 'store2';
@@ -15,16 +14,14 @@ import LOCAL_STORAGE_KEYS from 'shared/localStorageKeys';
 import { useResetRecoilState } from 'recoil';
 import { ErrorCodes } from 'typings/app';
 import i18n from 'i18n';
-import { FedUserInfo, FedRoles } from 'typings/auth';
+import { FedUserInfo } from 'typings/auth';
 import UserRoleBadge from 'components/UserRoleBadge';
-import Log from 'components/IconPark/icons/Log';
-import { logout } from 'services/user';
 
 const Container = styled.div`
   ${MixinCommonTransition()}
   display: flex;
   align-items: center;
-  padding: 4px;
+  padding: 2px;
   cursor: pointer;
   border-radius: 50%;
 
@@ -55,10 +52,6 @@ const UsernameRow = styled(GridRow)`
     margin-bottom: 0;
   }
 `;
-// const LanguageRow = styled(Row)`
-//   height: 40px;
-//   margin-bottom: 10px;
-// `;
 const ButtonRow = styled(GridRow)`
   height: 40px;
   margin-bottom: 10px;
@@ -78,38 +71,17 @@ export const ACCOUNT_CHANNELS = {
   click_settings: 'click_settings',
 };
 
-const AccountPopover: FC<{ userInfo: FedUserInfo }> = ({ userInfo }) => {
+const AccountPopover: FC = () => {
   const history = useHistory();
   const { t } = useTranslation();
   const resetUserInfo = useResetRecoilState(userInfoQuery);
 
-  let systemLogs = undefined;
-
-  if (userInfo.role === FedRoles.Admin) {
-    systemLogs = (
-      <ButtonRow gap="5" onClick={onSystemLogClick}>
-        <Log />
-        {t('settings.system_log')}
-      </ButtonRow>
-    );
-  }
   return (
     <div>
-      {/*
-    <LanguageRow justify="space-between" align="middle">
-      <GridRow gap="5">
-        <Public />
-        {t('app.switch_lng')}
-      </GridRow>
-      <LanguageSwitch />
-    </LanguageRow>
-   */}
-
       <ButtonRow gap="5" onClick={onSettingClick}>
         <Settings />
-        {t('settings.system_setting')}
+        {t('app.system_settings')}
       </ButtonRow>
-      {systemLogs}
       <LogoutButton size="large" onClick={onLogoutClick}>
         {t('app.logout')}
       </LogoutButton>
@@ -118,7 +90,8 @@ const AccountPopover: FC<{ userInfo: FedUserInfo }> = ({ userInfo }) => {
 
   async function onLogoutClick() {
     try {
-      await logout();
+      // logout api is now unavailable, only fe remove the user storage.
+      // await logout();
       store.remove(LOCAL_STORAGE_KEYS.current_user);
       resetUserInfo();
       history.push('/login');
@@ -129,10 +102,6 @@ const AccountPopover: FC<{ userInfo: FedUserInfo }> = ({ userInfo }) => {
 
   function onSettingClick() {
     history.push('/settings');
-  }
-
-  function onSystemLogClick() {
-    window.open('/v2/logs/system', '_blank noopener');
   }
 };
 const Username: FC<{ userInfo: FedUserInfo }> = ({ userInfo }) => {
@@ -162,7 +131,7 @@ function HeaderAccount() {
 
   return (
     <Popover
-      content={<AccountPopover userInfo={userInfo} />}
+      content={<AccountPopover />}
       title={<Username userInfo={userInfo} />}
       placement="bottomLeft"
     >

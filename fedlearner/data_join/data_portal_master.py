@@ -40,7 +40,9 @@ class DataPortalMaster(dp_grpc.DataPortalMasterServiceServicer):
                 self._portal_options.long_running,
                 self._portal_options.check_success_tag,
                 self._portal_options.single_subfolder,
-                self._portal_options.files_per_job_limit
+                self._portal_options.files_per_job_limit,
+                start_date=self._portal_options.start_date,
+                end_date=self._portal_options.end_date
             )
         self._bg_worker = None
 

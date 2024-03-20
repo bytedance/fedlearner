@@ -22,6 +22,7 @@ import secrets
 import logging
 from http import HTTPStatus
 
+from envs import Envs
 from testing.common import BaseTestCase
 from fedlearner_webconsole.proto.common_pb2 import CreateJobFlag
 from fedlearner_webconsole.job.models import Job
@@ -32,7 +33,7 @@ ROLE = os.environ.get('TEST_ROLE', 'leader')
 
 
 class LeaderConfig(object):
-    SQLALCHEMY_DATABASE_URI = 'sqlite://'
+    SQLALCHEMY_DATABASE_URI = f'sqlite:///{Envs.BASE_DIR}/leader.db'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     JWT_SECRET_KEY = secrets.token_urlsafe(64)
     PROPAGATE_EXCEPTIONS = True
@@ -42,7 +43,7 @@ class LeaderConfig(object):
 
 
 class FollowerConfig(object):
-    SQLALCHEMY_DATABASE_URI = 'sqlite://'
+    SQLALCHEMY_DATABASE_URI = f'sqlite:///{Envs.BASE_DIR}/follower.db'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     JWT_SECRET_KEY = secrets.token_urlsafe(64)
     PROPAGATE_EXCEPTIONS = True
@@ -65,6 +66,7 @@ class WorkflowTest(BaseTestCase):
             'group_alias':
             'test-template',
             'job_definitions': [{
+                'is_federated': True,
                 'name':
                 'job1',
                 'variables': [{
@@ -73,6 +75,7 @@ class WorkflowTest(BaseTestCase):
                     'access_mode': 3
                 }]
             }, {
+                'is_federated': True,
                 'name':
                 'job2',
                 'variables': [{

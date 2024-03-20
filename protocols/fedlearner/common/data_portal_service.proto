@@ -109,6 +109,8 @@ message DataPotraMasterlOptions {
   bool check_success_tag = 3;
   bool single_subfolder = 4;
   int64 files_per_job_limit = 5;
+  string start_date = 6;
+  string end_date = 7;
 }
 
 message DataPortalWorkerOptions {

@@ -4,6 +4,7 @@ const LOCAL_STORAGE_KEYS = {
   mock_configs: 'mock_configs',
   sidebar_folded: 'sidebar_folded',
   projects_display: 'projects_display',
+  current_project: 'current_project',
 };
 
 export default LOCAL_STORAGE_KEYS;

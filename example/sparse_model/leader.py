@@ -15,6 +15,8 @@
 # coding: utf-8
 # pylint: disable=no-else-return, inconsistent-return-statements
 
+import logging
+
 import tensorflow.compat.v1 as tf
 import fedlearner.trainer as flt
 
@@ -25,6 +27,8 @@ parser.add_argument('--batch-size', type=int, default=8,
                     help='Training batch size.')
 parser.add_argument('--fid_version', type=int, default=1,
                     help="the version of fid")
+parser.add_argument('--local-worker', action='store_true',
+                    help="is local worker")
 args = parser.parse_args()
 
 def input_fn(bridge, trainer_master=None):
@@ -35,6 +39,7 @@ def input_fn(bridge, trainer_master=None):
         feature_map = dict()
         feature_map['fids'] = tf.VarLenFeature(tf.int64)
         feature_map['example_id'] = tf.FixedLenFeature([], tf.string)
+        feature_map["act1_f"] = tf.FixedLenFeature([64], tf.float32)
         feature_map["y"] = tf.FixedLenFeature([], tf.int64)
         features = tf.parse_example(example, features=feature_map)
         return features, dict(y=features.pop('y'))
@@ -72,16 +77,21 @@ def model_fn(model, features, labels, mode):
     flt.feature.FeatureSlot.set_default_vec_optimizer(
         tf.train.AdagradOptimizer(learning_rate=0.01))
 
-    slots = [0, 1, 2, 511]
     hash_size = 101
     embed_size = 16
 
-    if args.fid_version == 2:
+    if args.fid_version == 1:
+        slots = [0, 1, 2, 511]
+    else:
         model.set_use_fid_v2(True)
+        slots = [0, 1, 2, 511, 1025]
 
     for slot_id in slots:
         fs = model.add_feature_slot(slot_id, hash_size)
-        fc = model.add_feature_column(fs)
+        if slot_id < 1024:
+            fc = model.add_feature_column(fs)
+        else:
+            fc = model.add_feature_column_v2("fc_v2_%d"%slot_id, fs)
         fc.add_vector(embed_size)
 
     model.freeze_slots(features)
@@ -109,12 +119,14 @@ def model_fn(model, features, labels, mode):
     act1_l = tf.nn.relu(tf.nn.bias_add(tf.matmul(embed_output, w1l), b1l))
     act2_l = tf.nn.bias_add(tf.matmul(act1_l, w2), b2)
 
-    if mode == tf.estimator.ModeKeys.TRAIN:
+    if mode == tf.estimator.ModeKeys.TRAIN and not args.local_worker:
         act1_f = model.recv('act1_f', tf.float32, require_grad=True)
     else:
         act1_f = features['act1_f']
     output = tf.concat([act2_l, act1_f], axis=1)
     logits = tf.matmul(output, w3)
+    if mode == tf.estimator.ModeKeys.PREDICT:
+        return model.make_spec(mode, predictions=logits)
 
     if mode == tf.estimator.ModeKeys.TRAIN:
         y = labels['y']
@@ -129,10 +141,10 @@ def model_fn(model, features, labels, mode):
         train_op = model.minimize(optimizer, loss, global_step=global_step)
         return model.make_spec(mode, loss=loss, train_op=train_op,
                                training_hooks=[logging_hook])
-    if mode == tf.estimator.ModeKeys.PREDICT:
-        return model.make_spec(mode, predictions=logits)
+
 
 if __name__ == '__main__':
+    logging.getLogger().setLevel(logging.DEBUG)
     flt.trainer_worker.train(
         ROLE, args, input_fn,
         model_fn, serving_input_receiver_fn)

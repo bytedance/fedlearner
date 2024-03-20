@@ -19,7 +19,8 @@ import os
 import argparse
 
 import tensorflow.compat.v1 as tf
-from fedlearner.common import stats
+
+from fedlearner.common.metric_collector import metric_collector
 from fedlearner.trainer.cluster_server import ClusterServer
 from fedlearner.trainer._global_context import global_context as _gctx
 
@@ -32,8 +33,15 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     _gctx.task = "ps"
-    stats.enable_cpu_stats(_gctx.stats_client)
-    stats.enable_mem_stats(_gctx.stats_client)
+    global_tags = {
+        'task': _gctx.task,
+        'task_index': str(_gctx.task_index),
+        'node_name': os.environ.get('HOSTNAME', 'default_node_name'),
+        'pod_name': os.environ.get('POD_NAME', 'default_pod_name'),
+    }
+    metric_collector.add_global_tags(global_tags)
+    name_prefix = 'model.common.nn_vertical'
+    metric_collector.emit_counter(f'{name_prefix}.start_count', 1)
 
     cluster_spec = tf.train.ClusterSpec({'ps': {0: args.address}})
     cluster_server = ClusterServer(cluster_spec, "ps")

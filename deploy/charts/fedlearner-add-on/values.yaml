@@ -2,26 +2,14 @@
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
-imageCredentials:
-  enabled: true
-  registry: ""
-  username: ""
-  password: ""
-
-service:
-  enabled: true
-  type: ExternalName
-  externalName: ""
-
 ingress:
   enabled: true
   annotations:
     "nginx.ingress.kubernetes.io/proxy-body-size": 10g
-    "nginx.ingress.kubernetes.io/backend-protocol": GRPCS
+    "nginx.ingress.kubernetes.io/backend-protocol": GRPC
     "nginx.ingress.kubernetes.io/http2-insecure-port": "true"
     "kubernetes.io/ingress.class": nginx
-  host: external.name
-  port: 443
+  host: test.fedlearner.net
 
 tls:
   enabled: true

@@ -1,21 +1,21 @@
 import React, { FC, useEffect, useState } from 'react';
 import styled from 'styled-components';
-import { Row, Col, Button, Form, Input, Select, Table, message, Spin } from 'antd';
+import { Row, Col, Button, Form, Input, Table, message, Spin } from 'antd';
 import { Link, useHistory } from 'react-router-dom';
 import { useQuery } from 'react-query';
 import { fetchWorkflowList } from 'services/workflow';
 import i18n from 'i18n';
 import { formatTimestamp } from 'shared/date';
 import { useTranslation } from 'react-i18next';
-import ListPageLayout from 'components/ListPageLayout';
+import SharedPageLayout from 'components/SharedPageLayout';
 import { Workflow } from 'typings/workflow';
 import WorkflowStage from './WorkflowStage';
 import WorkflowActions from '../WorkflowActions';
 import WhichProject from 'components/WhichProject';
 import NoResult from 'components/NoResult';
-import { useRecoilQuery } from 'hooks/recoil';
-import { projectListQuery } from 'stores/project';
+import { projectState } from 'stores/project';
 import { isInvalid } from 'shared/workflow';
+import { useRecoilValue } from 'recoil';
 
 const FilterItem = styled(Form.Item)`
   > .ant-form-item-control {
@@ -121,11 +121,11 @@ const WorkflowList: FC = () => {
   const [listData, setList] = useState<Workflow[]>([]);
   const [params, setParams] = useState<QueryParams>({ keyword: '', uuid: '' });
 
-  const projectsQuery = useRecoilQuery(projectListQuery);
+  const project = useRecoilValue(projectState);
 
   const { isLoading, isError, data: res, error, refetch } = useQuery(
-    ['fetchWorkflowList', params.project, params.keyword, params.uuid],
-    () => fetchWorkflowList(params),
+    ['fetchWorkflowList', params.keyword, params.uuid, project.current?.id],
+    () => fetchWorkflowList({ ...params, project: project.current?.id }),
   );
 
   if (isError && error) {
@@ -140,7 +140,7 @@ const WorkflowList: FC = () => {
 
   return (
     <Spin spinning={isLoading}>
-      <ListPageLayout title={t('menu.label_workflow')}>
+      <SharedPageLayout title={t('menu.label_workflow')}>
         <Row gutter={16} justify="space-between" align="middle">
           <Col>
             <Button size="large" type="primary" onClick={goCreate}>
@@ -154,22 +154,6 @@ const WorkflowList: FC = () => {
               form={form}
               onFinish={onParamsChange}
             >
-              <FilterItem name="project" label={t('term.project')}>
-                <Select
-                  onChange={form.submit}
-                  onClear={form.submit}
-                  loading={projectsQuery.isLoading}
-                  disabled={!!projectsQuery.error}
-                  allowClear
-                  placeholder={t('all')}
-                >
-                  {projectsQuery.data?.map((item) => (
-                    <Select.Option key={item.id} value={item.id}>
-                      {item.name}
-                    </Select.Option>
-                  ))}
-                </Select>
-              </FilterItem>
               <FilterItem name="uuid">
                 <Input.Search
                   placeholder={t('workflow.placeholder_uuid_searchbox')}
@@ -198,7 +182,7 @@ const WorkflowList: FC = () => {
             />
           )}
         </ListContainer>
-      </ListPageLayout>
+      </SharedPageLayout>
     </Spin>
   );
 

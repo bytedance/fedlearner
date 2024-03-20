@@ -28,7 +28,6 @@ EGRESS_URL = os.environ.get('EGRESS_URL', None)
 EGRESS_HOST = os.environ.get('EGRESS_HOST', None)
 EGRESS_DOMAIN = os.environ.get('EGRESS_DOMAIN', None)
 
-
 class ChannelType(Enum):
     UNKNOWN = 0
     INTERNAL = 1
@@ -148,9 +147,10 @@ def make_secure_channel(address,
                         mode=ChannelType.INTERNAL,
                         options=None,
                         compression=None):
-    use_tls, creds = common.use_tls()
-    assert use_tls, "In-consistant TLS enabling"
-    tls_creds = grpc.ssl_channel_credentials(creds[0], creds[1], creds[2])
+    assert common.use_tls(), "In-consistant TLS enabling"
+
+    tls_creds = grpc.sgxratls_channel_credentials("dynamic_config.json")
+
     if check_address_valid(address):
         return grpc.secure_channel(address, tls_creds, options, compression)
 

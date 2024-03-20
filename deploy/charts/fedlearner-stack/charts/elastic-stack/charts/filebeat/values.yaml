@@ -1,6 +1,6 @@
 image:
-  repository: registry.cn-beijing.aliyuncs.com/fedlearner/filebeat-oss
-  tag: 7.0.1
+  repository: registry.cn-beijing.aliyuncs.com/fedlearner/filebeat
+  tag: 7.10.0
   pullPolicy: IfNotPresent
 
 config:
@@ -64,6 +64,29 @@ config:
     json.keys_under_root: true
     json.overwrite_keys: true
     json.ignore_decoding_error: true
+    # for containerd log
+  - type: log
+    enabled: true
+    paths:
+      - /var/log/pods/*/*/*.log
+    processors:
+      - script:
+          lang: javascript
+          source: >
+            function process(event){
+                var path = event.Get('log.file.path');
+                path = path.split('/');
+                var compath = path[4];
+                compath = compath.split('_')
+                event.Put('kubernetes.namespace', compath[0]);
+                event.Put('kubernetes.pod.name', compath[1]);
+                event.Put('kubernetes.container.name', path[5]);
+                var message = event.Get('message');
+                var parts = message.split(' ');
+                if (parts.length > 1 && (parts[1] == 'stdout' || parts[1] == 'stderr')) {
+                  event.Put('stream', parts[1])
+                }
+            }
 
   output.elasticsearch:
     hosts: [ "http://fedlearner-stack-elasticsearch-client:9200" ]
@@ -79,7 +102,7 @@ config:
     - index: "metrics_v2"
       when.equals:
         index_type__: "metrics"
-    - index: "filebeat-7.0.1"
+    - index: "filebeat-7.10.0"
 
   # When a key contains a period, use this format for setting values on the command line:
   # --set config."http\.enabled"=true

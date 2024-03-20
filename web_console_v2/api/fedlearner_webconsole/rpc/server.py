@@ -23,6 +23,7 @@ import threading
 import traceback
 from concurrent import futures
 import grpc
+from grpc_reflection.v1alpha import reflection
 from fedlearner_webconsole.proto import (
     service_pb2, service_pb2_grpc,
     common_pb2, workflow_definition_pb2
@@ -75,6 +76,11 @@ class RPCServerServicer(service_pb2_grpc.WebConsoleV2ServiceServicer):
         return self._try_handle_request(
             self._server.check_connection, request, context,
             service_pb2.CheckConnectionResponse)
+
+    def Ping(self, request, context):
+        return self._try_handle_request(
+            self._server.ping, request, context,
+            service_pb2.PingResponse)
 
     def UpdateWorkflowState(self, request, context):
         return self._try_handle_request(
@@ -129,6 +135,10 @@ class RpcServer(object):
                 futures.ThreadPoolExecutor(max_workers=20))
             service_pb2_grpc.add_WebConsoleV2ServiceServicer_to_server(
                 RPCServerServicer(self), self._server)
+            # reflection support server find the proto file path automatically
+            # when using grpcurl
+            reflection.enable_server_reflection(
+                service_pb2.DESCRIPTOR.services_by_name, self._server)
             self._server.add_insecure_port('[::]:%d' % listen_port)
             self._server.start()
             self._started = True
@@ -177,6 +187,12 @@ class RpcServer(object):
                 status=common_pb2.Status(
                     code=common_pb2.STATUS_SUCCESS))
 
+    def ping(self, request, context):
+        return service_pb2.PingResponse(
+            status=common_pb2.Status(
+                code=common_pb2.STATUS_SUCCESS),
+                msg='Pong!')
+
     def update_workflow_state(self, request, context):
         with self._app.app_context():
             project, party = self.check_auth_info(request.auth_info, context)
@@ -203,7 +219,8 @@ class RpcServer(object):
                     state=state, target_state=target_state,
                     transaction_state=transaction_state,
                     uuid=uuid,
-                    forked_from=forked_from
+                    forked_from=forked_from,
+                    extra=request.extra
                 )
                 db.session.add(workflow)
                 db.session.commit()

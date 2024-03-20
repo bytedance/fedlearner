@@ -13,6 +13,7 @@
 # limitations under the License.
 
 # coding: utf-8
+import logging
 import threading
 
 from fedlearner_webconsole.composer.interface import IRunner
@@ -37,6 +38,11 @@ class RunnerCache(object):
             if obj:
                 return obj
             item_type, item_id = runner_name.rsplit('_', 1)
+            if item_type not in self.runner_fn:
+                logging.error(
+                    f'failed to find item_type {item_type} in runner_fn, '
+                    f'please register it in global_runner_fn')
+                raise ValueError(f'unknown item_type {item_type} in runner')
             obj = self.runner_fn[item_type](int(item_id))
             self._cache[key] = obj
             return obj

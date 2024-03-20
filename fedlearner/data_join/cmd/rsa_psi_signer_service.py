@@ -48,7 +48,8 @@ if __name__ == "__main__":
     rsa_private_key = rsa.PrivateKey.load_pkcs1(rsa_private_key_pem)
     offload_processor_number = args.signer_offload_processor_number
     if offload_processor_number < 0:
-        offload_processor_number = int(os.environ.get('CPU_LIMIT', '1')) - 1
+        offload_processor_number = max(
+            1, int(os.environ.get('CPU_LIMIT', '1')) - 1)
     rsa_psi_signer = RsaPsiSigner(rsa_private_key,
                                   offload_processor_number,
                                   args.slow_sign_threshold)

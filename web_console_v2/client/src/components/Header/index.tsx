@@ -1,11 +1,12 @@
 import React from 'react';
 import styled from 'styled-components';
 import HeaderAccount from './Account';
-import { Button, Tooltip } from 'antd';
+import { Tooltip } from 'antd';
 import logo from 'assets/images/logo-colorful.svg';
 import { StyledComponetProps } from 'typings/component';
 import { QuestionCircle } from 'components/IconPark';
 import { useTranslation } from 'react-i18next';
+import ProjectSelect from './ProjectSelect';
 
 export const Z_INDEX_HEADER = 1001;
 export const Z_INDEX_GREATER_THAN_HEADER = 1002;
@@ -16,8 +17,8 @@ const Container = styled.header`
   top: 0;
   display: grid;
   align-items: center;
-  grid-template-areas: 'logo . language account-info';
-  grid-template-columns: auto 1fr auto auto;
+  grid-template-areas: 'logo project-select . help account-info';
+  grid-template-columns: auto auto 1fr auto auto;
   gap: 12px;
   height: var(--headerHeight);
   padding: 0 30px;
@@ -27,10 +28,14 @@ const Container = styled.header`
 `;
 const LogoLink = styled.a`
   grid-area: logo;
-
-  > img {
-    height: 32px;
-  }
+`;
+const Logo = styled.img`
+  height: 32px;
+`;
+const HelpIcon = styled(QuestionCircle)`
+  font-size: 14px;
+  margin-right: 10px;
+  cursor: pointer;
 `;
 
 function Header({ className }: StyledComponetProps) {
@@ -39,12 +44,16 @@ function Header({ className }: StyledComponetProps) {
   return (
     <Container className={className} id="page-header">
       <LogoLink href="/">
-        <img src={logo} alt="Federation Learner logo" />
+        <Logo src={logo} alt="Federation Learner logo" />
       </LogoLink>
-      {/* This empty element is used to fill the space blank */}
+
+      <ProjectSelect />
+
+      {/* This empty element is used to fill the blank sapce */}
       <div className="empty" />
+
       <Tooltip title={t('app.help')} placement="bottom">
-        <Button icon={<QuestionCircle />} shape="circle" type="text" />
+        <HelpIcon />
       </Tooltip>
 
       <HeaderAccount />

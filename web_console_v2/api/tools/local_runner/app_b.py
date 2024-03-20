@@ -15,10 +15,13 @@
 # coding: utf-8
 import os
 import logging
+
+from envs import Envs
 from fedlearner_webconsole.app import create_app
 from tools.local_runner.initial_db import init_db
 
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+
 
 class Config(object):
     SQLALCHEMY_DATABASE_URI = 'sqlite:///' + os.path.join(BASE_DIR, 'app_b.db')
@@ -30,10 +33,13 @@ class Config(object):
     LOGGING_LEVEL = logging.INFO
     GRPC_LISTEN_PORT = 1991
     JWT_ACCESS_TOKEN_EXPIRES = 86400
+    STORAGE_ROOT = Envs.STORAGE_ROOT
 
     START_GRPC_SERVER = True
     START_SCHEDULER = True
     START_COMPOSER = False
+
+
 app = create_app(Config)
 
 

@@ -8,7 +8,7 @@ export interface FedUserInfo {
 
 export interface FedLoginFormData {
   username: string;
-  passowrd: string;
+  password: string;
 }
 
 export enum FedRoles {

@@ -16,6 +16,8 @@
 
 set -ex
 
+source /app/deploy/scripts/pre_start_hook.sh || true
+
 echo "Reset the ROLE=$ROLE as leader"
 export ROLE=leader
 data_join_master_cmd=/app/deploy/scripts/data_join/run_data_join_master.sh

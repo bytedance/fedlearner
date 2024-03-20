@@ -302,11 +302,12 @@
   --backgroundColorGray: #e5e6eb;
   --backgroundColorError: #ffece8;
   --backgroundColorErrorHover: #fdcdc5;
-  --lineColor: #dfdfdf;
-  --headerBackground: white;
+  --lineColor: #e5e8ef;
+  --headerBackground: #1d2129;
   --commonTiming: cubic-bezier(0.4, 0, 0.2, 1);
   --fontFamily: 'nunito_for_arco', 'Helvetica Neue', Helvetica, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', '微软雅黑', Arial, sans-serif;
   --headerHeight: 60px;
+  --pageHeaderHeight: 44px;
   --contentOuterPadding: 16px;
-  --contentHeight: calc(100vh - 60px - 16px * 2);
+  --contentMinHeight: calc(100vh - 60px - 16px * 2);
 }

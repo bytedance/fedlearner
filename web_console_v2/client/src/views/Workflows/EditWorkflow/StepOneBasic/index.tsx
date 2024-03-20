@@ -93,6 +93,7 @@ const WorkflowsCreateStepOne: FC<{ onSuccess?: any }> = ({ onSuccess }) => {
   );
 
   const peerErrorMsg = (peerWorkflowQuery.error as Error)?.message;
+
   useEffect(() => {
     if (peerErrorMsg) {
       notification.error({
@@ -256,7 +257,9 @@ const WorkflowsCreateStepOne: FC<{ onSuccess?: any }> = ({ onSuccess }) => {
     setWorkflowConfigForm(parsedTpl.config as WorkflowConfig<JobNodeRawData>);
   }
   async function getWorkflowDetail() {
-    const { data } = await getWorkflowDetailById(params.id);
+    let { data } = await getWorkflowDetailById(params.id);
+    data = parseComplexDictField(data);
+
     setWorkflow(data);
     setWorkflowConfigForm(data.config as WorkflowConfig<JobNodeRawData>);
     formInstance.setFieldsValue((data as any) as CreateWorkflowBasicForm);
@@ -264,9 +267,11 @@ const WorkflowsCreateStepOne: FC<{ onSuccess?: any }> = ({ onSuccess }) => {
   async function getPeerWorkflow() {
     const res = await getPeerWorkflowsConfig(params.id);
 
-    const anyPeerWorkflow = Object.values(res.data).find((item) => !!item.config)!;
+    const anyPeerWorkflow = parseComplexDictField(
+      Object.values(res.data).find((item) => Boolean(item.uuid))!,
+    )!;
 
-    setPeerConfig(anyPeerWorkflow.config!);
+    setPeerConfig(anyPeerWorkflow.config ?? (undefined as never));
     setGroupAlias(anyPeerWorkflow.config?.group_alias || '');
 
     return anyPeerWorkflow;

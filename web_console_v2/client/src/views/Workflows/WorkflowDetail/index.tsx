@@ -24,11 +24,12 @@ import { findJobExeInfoByJobDef, isRunning, isStopped } from 'shared/workflow';
 import dayjs from 'dayjs';
 import NoResult from 'components/NoResult';
 import { CreateJobFlag } from 'typings/job';
+import SharedPageLayout from 'components/SharedPageLayout';
 
 const Container = styled.div`
   display: flex;
   flex-direction: column;
-  height: var(--contentHeight);
+  height: var(--contentMinHeight);
 `;
 const ChartSection = styled.section`
   display: flex;
@@ -164,144 +165,150 @@ const WorkflowDetail: FC = () => {
   markThem(jobsWithExeDetails, peerJobsWithExeDetails);
 
   return (
-    <Spin spinning={detailQuery.isLoading}>
-      <Container>
+    <SharedPageLayout
+      title={
         <BreadcrumbLink
           paths={[
             { label: 'menu.label_workflow', to: '/workflows' },
             { label: 'workflow.execution_detail' },
           ]}
         />
-        <Card>
-          <HeaderRow justify="space-between" align="middle" data-forked={isForked}>
-            <GridRow gap="8">
-              <Name>{workflow?.name}</Name>
+      }
+      contentWrapByCard={false}
+    >
+      <Spin spinning={detailQuery.isLoading}>
+        <Container>
+          <Card>
+            <HeaderRow justify="space-between" align="middle" data-forked={isForked}>
+              <GridRow gap="8">
+                <Name>{workflow?.name}</Name>
 
-              {workflow && <WorkflowStage workflow={workflow} tag />}
-            </GridRow>
-            {workflow && (
-              <Col>
-                <WorkflowActions workflow={workflow} onSuccess={detailQuery.refetch} />
-              </Col>
-            )}
-          </HeaderRow>
-
-          {isForked && originWorkflowQuery.isSuccess && (
-            <ForkedFrom>
-              <Branch />
-              {t('workflow.forked_from')}
-              <OriginWorkflowLink to={`/workflows/${originWorkflowQuery.data?.data.id}`}>
-                {originWorkflowQuery.data?.data.name}
-              </OriginWorkflowLink>
-            </ForkedFrom>
-          )}
-
-          <PropertyList
-            labelWidth={100}
-            initialVisibleRows={3}
-            cols={3}
-            properties={workflowProps}
-            style={{ marginBottom: '0' }}
-          />
-        </Card>
-
-        <ChartSection>
-          {/* Our config */}
-          <ChartContainer>
-            <ChartHeader justify="space-between" align="middle">
-              <ChartTitle data-note={peerJobsVisible ? t('workflow.federated_note') : ''}>
-                {t('workflow.our_config')}
-              </ChartTitle>
-
-              {!peerJobsVisible && (
-                <Button icon={<Eye />} onClick={() => togglePeerJobsVisible(true)}>
-                  {t('workflow.btn_see_peer_config')}
-                </Button>
+                {workflow && <WorkflowStage workflow={workflow} tag />}
+              </GridRow>
+              {workflow && (
+                <Col>
+                  <WorkflowActions workflow={workflow} onSuccess={detailQuery.refetch} />
+                </Col>
               )}
-            </ChartHeader>
+            </HeaderRow>
 
-            {jobsWithExeDetails.length === 0 ? (
-              <NoJobs>
-                <NoResult
-                  text={t('workflow.msg_not_config')}
-                  CTAText={t('workflow.action_configure')}
-                  to={`/workflows/accept/basic/${params.id}`}
-                />
-              </NoJobs>
-            ) : (
-              <ReactFlowProvider>
-                <WorkflowJobsCanvas
-                  nodeType="execution"
-                  workflowConfig={{
-                    ...workflow?.config!,
-                    job_definitions: jobsWithExeDetails,
-                    variables: [],
-                  }}
-                  onJobClick={viewJobDetail}
-                  onCanvasClick={() => toggleDrawerVisible(false)}
-                />
-              </ReactFlowProvider>
+            {isForked && originWorkflowQuery.isSuccess && (
+              <ForkedFrom>
+                <Branch />
+                {t('workflow.forked_from')}
+                <OriginWorkflowLink to={`/workflows/${originWorkflowQuery.data?.data.id}`}>
+                  {originWorkflowQuery.data?.data.name}
+                </OriginWorkflowLink>
+              </ForkedFrom>
             )}
-          </ChartContainer>
 
-          {/* Peer config */}
-          {peerJobsVisible && (
+            <PropertyList
+              labelWidth={100}
+              initialVisibleRows={3}
+              cols={3}
+              properties={workflowProps}
+              style={{ marginBottom: '0' }}
+            />
+          </Card>
+
+          <ChartSection>
+            {/* Our config */}
             <ChartContainer>
               <ChartHeader justify="space-between" align="middle">
                 <ChartTitle data-note={peerJobsVisible ? t('workflow.federated_note') : ''}>
-                  {t('workflow.peer_config')}
+                  {t('workflow.our_config')}
                 </ChartTitle>
 
-                <Button icon={<EyeInvisible />} onClick={() => togglePeerJobsVisible(false)}>
-                  {t('workflow.btn_hide_peer_config')}
-                </Button>
+                {!peerJobsVisible && (
+                  <Button icon={<Eye />} onClick={() => togglePeerJobsVisible(true)}>
+                    {t('workflow.btn_see_peer_config')}
+                  </Button>
+                )}
               </ChartHeader>
 
-              {peerJobsWithExeDetails.length === 0 ? (
+              {jobsWithExeDetails.length === 0 ? (
                 <NoJobs>
-                  {peerWorkflowQuery.isFetching ? (
-                    <Spin style={{ margin: 'auto' }} />
-                  ) : (
-                    <NoResult text={t('workflow.msg_peer_not_ready')} />
-                  )}
+                  <NoResult
+                    text={t('workflow.msg_not_config')}
+                    CTAText={t('workflow.action_configure')}
+                    to={`/workflows/accept/basic/${params.id}`}
+                  />
                 </NoJobs>
               ) : (
                 <ReactFlowProvider>
                   <WorkflowJobsCanvas
                     nodeType="execution"
                     workflowConfig={{
-                      ...peerWorkflowQuery.data?.config!,
-                      job_definitions: peerJobsWithExeDetails,
+                      ...workflow?.config!,
+                      job_definitions: jobsWithExeDetails,
                       variables: [],
                     }}
-                    onJobClick={viewPeerJobDetail}
+                    onJobClick={viewJobDetail}
                     onCanvasClick={() => toggleDrawerVisible(false)}
                   />
                 </ReactFlowProvider>
               )}
             </ChartContainer>
-          )}
-        </ChartSection>
 
-        <JobExecutionDetailsDrawer
-          key="self"
-          visible={drawerVisible && !isPeerSide}
-          toggleVisible={toggleDrawerVisible}
-          jobData={data}
-          workflow={workflow}
-        />
+            {/* Peer config */}
+            {peerJobsVisible && (
+              <ChartContainer>
+                <ChartHeader justify="space-between" align="middle">
+                  <ChartTitle data-note={peerJobsVisible ? t('workflow.federated_note') : ''}>
+                    {t('workflow.peer_config')}
+                  </ChartTitle>
 
-        <JobExecutionDetailsDrawer
-          key="peer"
-          visible={drawerVisible && isPeerSide}
-          toggleVisible={toggleDrawerVisible}
-          jobData={data}
-          placement="left"
-          workflow={peerWorkflow}
-          isPeerSide
-        />
-      </Container>
-    </Spin>
+                  <Button icon={<EyeInvisible />} onClick={() => togglePeerJobsVisible(false)}>
+                    {t('workflow.btn_hide_peer_config')}
+                  </Button>
+                </ChartHeader>
+
+                {peerJobsWithExeDetails.length === 0 ? (
+                  <NoJobs>
+                    {peerWorkflowQuery.isFetching ? (
+                      <Spin style={{ margin: 'auto' }} />
+                    ) : (
+                      <NoResult text={t('workflow.msg_peer_not_ready')} />
+                    )}
+                  </NoJobs>
+                ) : (
+                  <ReactFlowProvider>
+                    <WorkflowJobsCanvas
+                      nodeType="execution"
+                      workflowConfig={{
+                        ...peerWorkflowQuery.data?.config!,
+                        job_definitions: peerJobsWithExeDetails,
+                        variables: [],
+                      }}
+                      onJobClick={viewPeerJobDetail}
+                      onCanvasClick={() => toggleDrawerVisible(false)}
+                    />
+                  </ReactFlowProvider>
+                )}
+              </ChartContainer>
+            )}
+          </ChartSection>
+
+          <JobExecutionDetailsDrawer
+            key="self"
+            visible={drawerVisible && !isPeerSide}
+            toggleVisible={toggleDrawerVisible}
+            jobData={data}
+            workflow={workflow}
+          />
+
+          <JobExecutionDetailsDrawer
+            key="peer"
+            visible={drawerVisible && isPeerSide}
+            toggleVisible={toggleDrawerVisible}
+            jobData={data}
+            placement="left"
+            workflow={peerWorkflow}
+            isPeerSide
+          />
+        </Container>
+      </Spin>
+    </SharedPageLayout>
   );
 
   function viewJobDetail(jobNode: JobNode) {

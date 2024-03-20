@@ -13,10 +13,14 @@
 # limitations under the License.
 
 # coding: utf-8
+import json
+
 from flask_restful import Resource, Api, request
 
 from fedlearner_webconsole.composer.composer import composer
 from fedlearner_webconsole.composer.runner import MemoryItem
+from fedlearner_webconsole.dataset.data_pipeline import DataPipelineItem, \
+    DataPipelineType
 
 
 class ComposerApi(Resource):
@@ -42,5 +46,47 @@ class ComposerApi(Resource):
         return {'data': {'name': name}}
 
 
+class DataPipelineApi(Resource):
+    def get(self, name: str):
+        # '/data/fl_v2_fish_fooding/dataset/20210527_221741_pipeline'
+        input_dir = request.args.get('input_dir', None)
+        if not input_dir:
+            return {'msg': 'no input dir'}
+        if 'pipe' in name:
+            composer.collect(
+                name,
+                [DataPipelineItem(1), DataPipelineItem(2)],
+                {  # meta data
+                    1: {  # convertor
+                        'sparkapp_name': '1',
+                        'task_type': DataPipelineType.CONVERTER.value,
+                        'input': [input_dir, 'batch/**/*.csv'],
+                    },
+                    2: {  # analyzer
+                        'sparkapp_name': '2',
+                        'task_type': DataPipelineType.ANALYZER.value,
+                        'input': [input_dir, 'rds/**'],
+                    },
+                },
+            )
+        elif 'fe' in name:
+            composer.collect(
+                name,
+                [DataPipelineItem(1)],
+                {  # meta data
+                    1: {  # transformer
+                        'sparkapp_name': '1',
+                        'task_type': DataPipelineType.TRANSFORMER.value,
+                        'input': [input_dir, 'rds/**', json.dumps({
+                            'f00000': 1.0,
+                            'f00010': 0.0,
+                        })],
+                    },
+                },
+            )
+        return {'data': {'name': name}}
+
+
 def initialize_debug_apis(api: Api):
     api.add_resource(ComposerApi, '/debug/composer/<string:name>')
+    api.add_resource(DataPipelineApi, '/debug/pipeline/<string:name>')

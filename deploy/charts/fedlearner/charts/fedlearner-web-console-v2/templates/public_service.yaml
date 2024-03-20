@@ -1,0 +1,19 @@
+{{- if .Values.publicService.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: "{{ include "fedlearner-web-console-v2.fullname" . }}-http"
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "fedlearner-web-console-v2.labels" . | nindent 4 }}
+spec:
+  type: NodePort
+  ports:
+    - port: {{ .Values.publicService.podPort }}
+      targetPort: {{ .Values.publicService.podPort }}
+      protocol: TCP
+      name: http
+      nodePort: {{ .Values.publicService.nodePort }}
+  selector:
+    {{- include "fedlearner-web-console-v2.selectorLabels" . | nindent 4 }}
+{{- end}}

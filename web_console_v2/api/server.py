@@ -16,7 +16,9 @@
 from config import Config
 from fedlearner_webconsole.app import create_app
 from fedlearner_webconsole.utils import middlewares
+from fedlearner_webconsole.utils.hooks import pre_start_hook
 
+pre_start_hook()
 app = create_app(Config())
 # Middlewares
 app = middlewares.init_app(app)

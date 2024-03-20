@@ -25,9 +25,10 @@ from slugify import slugify
 
 from fedlearner_webconsole.dataset.models import (Dataset, DatasetType,
                                                   BatchState, DataBatch)
+from fedlearner_webconsole.dataset.services import DatasetService
 from fedlearner_webconsole.exceptions import (InvalidArgumentException,
                                               NotFoundException)
-from fedlearner_webconsole.db import db
+from fedlearner_webconsole.db import db_handler as db
 from fedlearner_webconsole.proto import dataset_pb2
 from fedlearner_webconsole.scheduler.scheduler import scheduler
 from fedlearner_webconsole.utils.decorators import jwt_required
@@ -47,10 +48,12 @@ def _get_dataset_path(dataset_name):
 class DatasetApi(Resource):
     @jwt_required()
     def get(self, dataset_id):
-        dataset = Dataset.query.get(dataset_id)
-        if dataset is None:
-            raise NotFoundException()
-        return {'data': dataset.to_dict()}
+        with db.session_scope() as session:
+            dataset = session.query(Dataset).get(dataset_id)
+            if dataset is None:
+                raise NotFoundException(
+                    f'Failed to find dataset: {dataset_id}')
+            return {'data': dataset.to_dict()}
 
     @jwt_required()
     def patch(self, dataset_id: int):
@@ -65,22 +68,53 @@ class DatasetApi(Resource):
                             help='dataset comment')
         parser.add_argument('comment')
         data = parser.parse_args()
-        dataset = db.session.query(Dataset).filter_by(id=dataset_id).first()
-        if not dataset:
-            raise NotFoundException()
-        if data['name']:
-            dataset.name = data['name']
-        if data['comment']:
-            dataset.comment = data['comment']
-        db.session.commit()
-        return {'data': dataset.to_dict()}, HTTPStatus.OK
+        with db.session_scope() as session:
+            dataset = session.query(Dataset).filter_by(id=dataset_id).first()
+            if not dataset:
+                raise NotFoundException(
+                    f'Failed to find dataset: {dataset_id}')
+            if data['name']:
+                dataset.name = data['name']
+            if data['comment']:
+                dataset.comment = data['comment']
+            session.commit()
+            return {'data': dataset.to_dict()}, HTTPStatus.OK
+
+
+class DatasetPreviewApi(Resource):
+    def get(self, dataset_id: int):
+        if dataset_id <= 0:
+            raise NotFoundException(f'Failed to find dataset: {dataset_id}')
+        with db.session_scope() as session:
+            data = DatasetService(session).get_dataset_preview(dataset_id)
+            return {'data': data}
+
+
+class DatasetMetricsApi(Resource):
+    def get(self, dataset_id: int):
+        if dataset_id <= 0:
+            raise NotFoundException(f'Failed to find dataset: {dataset_id}')
+        name = request.args.get('name', None)
+        if not name:
+            raise InvalidArgumentException(f'required params name')
+        with db.session_scope() as session:
+            data = DatasetService(session).feature_metrics(name, dataset_id)
+            return {'data': data}
 
 
 class DatasetsApi(Resource):
     @jwt_required()
     def get(self):
-        datasets = Dataset.query.order_by(Dataset.created_at.desc()).all()
-        return {'data': [d.to_dict() for d in datasets]}
+        parser = reqparse.RequestParser()
+        parser.add_argument('project',
+                            type=int,
+                            required=False,
+                            help='project')
+        data = parser.parse_args()
+        with db.session_scope() as session:
+            datasets = DatasetService(session).get_datasets(
+                project_id=int(data['project'] or 0))
+            return {'data': [d.to_dict() for d in datasets]}
 
     @jwt_required()
     def post(self):
@@ -104,22 +138,23 @@ class DatasetsApi(Resource):
         comment = body.get('comment')
         project_id = body.get('project_id')
 
-        try:
-            # Create dataset
-            dataset = Dataset(
-                name=name,
-                dataset_type=dataset_type,
-                comment=comment,
-                path=_get_dataset_path(name),
-                project_id=project_id,
-            )
-            db.session.add(dataset)
-            # TODO: scan cronjob
-            db.session.commit()
-            return {'data': dataset.to_dict()}
-        except Exception as e:
-            db.session.rollback()
-            raise InvalidArgumentException(details=str(e))
+        with db.session_scope() as session:
+            try:
+                # Create dataset
+                dataset = Dataset(
+                    name=name,
+                    dataset_type=dataset_type,
+                    comment=comment,
+                    path=_get_dataset_path(name),
+                    project_id=project_id,
+                )
+                session.add(dataset)
+                # TODO: scan cronjob
+                session.commit()
+                return {'data': dataset.to_dict()}
+            except Exception as e:
+                session.rollback()
+                raise InvalidArgumentException(details=str(e))
 
 
 class BatchesApi(Resource):
@@ -139,40 +174,40 @@ class BatchesApi(Resource):
         files = body.get('files')
         move = body.get('move', False)
         comment = body.get('comment')
+        with db.session_scope() as session:
+            dataset = session.query(Dataset).filter_by(id=dataset_id).first()
+            if dataset is None:
+                raise NotFoundException(
+                    f'Failed to find dataset: {dataset_id}')
+            if event_time is None and dataset.type == DatasetType.STREAMING:
+                raise InvalidArgumentException(
+                    details='data_batch.event_time is empty')
+            # TODO: PSI dataset should not allow multi batches
 
-        dataset = Dataset.query.filter_by(id=dataset_id).first()
-        if dataset is None:
-            raise NotFoundException()
-        if event_time is None and dataset.type == DatasetType.STREAMING:
-            raise InvalidArgumentException(
-                details='data_batch.event_time is empty')
-        # TODO: PSI dataset should not allow multi batches
-
-        # Use current timestamp to fill when type is PSI
-        event_time = datetime.fromtimestamp(event_time
-                                            or datetime.utcnow().timestamp(),
-                                            tz=timezone.utc)
-        batch_folder_name = event_time.strftime('%Y%m%d_%H%M%S')
-        batch_path = f'{dataset.path}/batch/{batch_folder_name}'
-        # Create batch
-        batch = DataBatch(dataset_id=dataset.id,
-                          event_time=event_time,
-                          comment=comment,
-                          state=BatchState.NEW,
-                          move=move,
-                          path=batch_path)
-        batch_details = dataset_pb2.DataBatch()
-        for file_path in files:
-            file = batch_details.files.add()
-            file.source_path = file_path
-            file_name = file_path.split('/')[-1]
-            file.destination_path = f'{batch_path}/{file_name}'
-        batch.set_details(batch_details)
-        db.session.add(batch)
-        db.session.commit()
-        db.session.refresh(batch)
-        scheduler.wakeup(data_batch_ids=[batch.id])
-        return {'data': batch.to_dict()}
+            # Use current timestamp to fill when type is PSI
+            event_time = datetime.fromtimestamp(
+                event_time or datetime.utcnow().timestamp(), tz=timezone.utc)
+            batch_folder_name = event_time.strftime('%Y%m%d_%H%M%S')
+            batch_path = f'{dataset.path}/batch/{batch_folder_name}'
+            # Create batch
+            batch = DataBatch(dataset_id=dataset.id,
+                              event_time=event_time,
+                              comment=comment,
+                              state=BatchState.NEW,
+                              move=move,
+                              path=batch_path)
+            batch_details = dataset_pb2.DataBatch()
+            for file_path in files:
+                file = batch_details.files.add()
+                file.source_path = file_path
+                file_name = file_path.split('/')[-1]
+                file.destination_path = f'{batch_path}/{file_name}'
+            batch.set_details(batch_details)
+            session.add(batch)
+            session.commit()
+            session.refresh(batch)
+            scheduler.wakeup(data_batch_ids=[batch.id])
+            return {'data': batch.to_dict()}
 
 
 class FilesApi(Resource):
@@ -195,4 +230,7 @@ def initialize_dataset_apis(api: Api):
     api.add_resource(DatasetsApi, '/datasets')
     api.add_resource(DatasetApi, '/datasets/<int:dataset_id>')
     api.add_resource(BatchesApi, '/datasets/<int:dataset_id>/batches')
+    api.add_resource(DatasetPreviewApi, '/datasets/<int:dataset_id>/preview')
+    api.add_resource(DatasetMetricsApi,
+                     '/datasets/<int:dataset_id>/feature_metrics')
     api.add_resource(FilesApi, '/files')

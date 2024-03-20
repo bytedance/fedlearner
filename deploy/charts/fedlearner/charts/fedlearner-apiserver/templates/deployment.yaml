@@ -20,6 +20,10 @@ spec:
       labels:
         app: fedlearner-apiserver
     spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       hostNetwork: {{ .Values.hostNetwork }}
       containers:
         - args:
@@ -31,6 +35,7 @@ spec:
           name: fedlearner-apiserver
           ports:
             - containerPort: 8101
+              protocol: TCP
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
       restartPolicy: Always

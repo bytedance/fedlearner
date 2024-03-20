@@ -9,7 +9,7 @@ import { projectListQuery } from 'stores/project';
 import { useRecoilQuery } from 'hooks/recoil';
 import { DisplayType } from 'typings/component';
 import { Project } from 'typings/project';
-import ListPageLayout from 'components/ListPageLayout';
+import SharedPageLayout from 'components/SharedPageLayout';
 import NoResult from 'components/NoResult';
 import ProjectDetailDrawer from '../ProjectDetailDrawer';
 import store from 'store2';
@@ -86,7 +86,7 @@ function ProjectList(): ReactElement {
     <Spin spinning={isLoading}>
       <GlobalStyle />
 
-      <ListPageLayout title={t('menu.label_project')} tip={t('project.describe')}>
+      <SharedPageLayout title={t('menu.label_project')} tip={t('project.describe')}>
         <ProjectListFilters
           onDisplayTypeChange={(type: number) => {
             store.set(LOCAL_STORAGE_KEYS.projects_display, type);
@@ -121,7 +121,7 @@ function ProjectList(): ReactElement {
             />
           )}
         </Row>
-      </ListPageLayout>
+      </SharedPageLayout>
     </Spin>
   );
 

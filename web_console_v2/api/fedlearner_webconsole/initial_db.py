@@ -13,7 +13,7 @@
 # limitations under the License.
 
 from fedlearner_webconsole.auth.models import User, Role, State
-from fedlearner_webconsole.db import db
+from fedlearner_webconsole.db import db_handler as db
 
 INITIAL_USER_INFO = [{
     'username': 'ada',
@@ -33,20 +33,22 @@ INITIAL_USER_INFO = [{
 
 
 def initial_db():
-    # initial user info first
-    for u_info in INITIAL_USER_INFO:
-        username = u_info['username']
-        password = u_info['password']
-        name = u_info['name']
-        email = u_info['email']
-        role = u_info['role']
-        state = u_info['state']
-        if User.query.filter_by(username=username).first() is None:
-            user = User(username=username,
-                        name=name,
-                        email=email,
-                        role=role,
-                        state=state)
-            user.set_password(password=password)
-            db.session.add(user)
-    db.session.commit()
+    with db.session_scope() as session:
+        # initial user info first
+        for u_info in INITIAL_USER_INFO:
+            username = u_info['username']
+            password = u_info['password']
+            name = u_info['name']
+            email = u_info['email']
+            role = u_info['role']
+            state = u_info['state']
+            if session.query(User).filter_by(
+                    username=username).first() is None:
+                user = User(username=username,
+                            name=name,
+                            email=email,
+                            role=role,
+                            state=state)
+                user.set_password(password=password)
+                session.add(user)
+        session.commit()

@@ -1,22 +1,4 @@
-nfs-server-provisioner:
-  enabled: true
 
-nfs-client-provisioner:
-  enabled: false
-
-  nfs:
-    path: /
-    mountOptions:
-      - vers=3
-      - nolock,tcp,noresvport
-
-  storageClass:
-    name: nfs
-
-  image:
-    repository: registry.cn-beijing.aliyuncs.com/fedlearner/nfs-client-provisioner
-    tag: v3.1.0-k8s1.11
-    pullPolicy: IfNotPresent
 
 mysql:
   enabled: true
@@ -79,3 +61,34 @@ etcd:
       enabled: false
   persistence:
     storageClass: nfs
+
+sparkoperator:
+  enabled: false
+
+  serviceAccounts:
+    spark:
+      create: true
+      name: spark
+
+  image:
+    repository: registry.cn-beijing.aliyuncs.com/fedlearner/spark-operator
+    pullPolicy: IfNotPresent
+    tag: v1beta2-1.2.0-3.0.0_patch2
+
+  sparkJobNamespace: default
+  installCrds: true
+  logLevel: 4
+
+  enableWebhook: true
+  webhookPort: 8080
+
+  resources:
+    limits:
+      cpu: "1"
+      memory: "1Gi"
+    requests:
+      cpu: "1"
+      memory: "1Gi"
+
+  leaderElection:
+    enable: true

@@ -32,10 +32,11 @@ const AppSidebar = styled(Sidebar)`
 `;
 
 const AppMainContent = styled.main`
+  position: relative;
   display: flex;
   flex-direction: column;
   grid-area: main-content;
-  padding: var(--contentOuterPadding);
+
   overflow: auto;
   overflow-anchor: auto;
 `;

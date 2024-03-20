@@ -18,6 +18,7 @@
 import os
 import signal
 import time
+from typing import Optional
 from concurrent import futures
 import threading
 import grpc
@@ -27,11 +28,12 @@ from fedlearner.common import fl_logging
 from fedlearner.common import trainer_master_service_pb2 as tm_pb
 from fedlearner.common import trainer_master_service_pb2_grpc as tm_grpc
 from fedlearner.common import common_pb2 as common_pb
+from fedlearner.common.metric_collector import metric_collector
+from fedlearner.trainer.bridge import FakeBridge
 from fedlearner.trainer.estimator import FLEstimator
 from fedlearner.trainer.sparse_estimator import SparseFLEstimator
 from fedlearner.trainer.cluster_server import ClusterServer
-from fedlearner.trainer._global_context import global_context as _gctx
-
+from fedlearner.common.hdfs_util import upload_to_mt_hdfs
 
 class ExportModelHook():
     def after_save(self, sess, model, export_dir, inputs, outputs):
@@ -87,13 +89,13 @@ class _TriggerHook(tf.train.SessionRunHook):
         self._last_triggered_step = global_step
 
 
-#class _CheckpointSaverHook(tf.train.CheckpointSaverHook):
-#    def _save(self, session, step):
-#        if self._timer.last_triggered_step() is None:
-#            # skip save checkpoint
-#            fl_logging.info("skip save checkpoint")
-#            return False
-#        return super(_CheckpointSaverHook, self)._save(session, step)
+class _CheckpointSaverHook(tf.train.CheckpointSaverHook):
+    def _save(self, session, step):
+        if self._timer.last_triggered_step() is None:
+            # skip save checkpoint
+            fl_logging.info("skip save checkpoint at first time")
+            return False
+        return super(_CheckpointSaverHook, self)._save(session, step)
 
 
 class _DataVisitorCheckpointHook(tf.train.SessionRunHook):
@@ -145,29 +147,13 @@ class DataBlockCheckpointSaverListener(tf.train.CheckpointSaverListener):
         #fl_logging.info("data checkpoint saved result: %s", res)
 
 
-class _FakeBridge():
-    def send_op(self, name, x):
-        def func(x):
-            raise RuntimeError("Unexcepted call send op")
-
-        out = tf.py_function(func=func, inp=[x], Tout=[], name='send_' + name)
-        return out
-    def receive_op(self, name, dtype):
-        def func():
-            raise RuntimeError("Unexcepted call receive op")
-
-        return tf.py_function(func=func, inp=[], Tout=[dtype])[0]
-    def register_data_block_handler(self, handler):
-        pass
-
-
 class _FakeTrainerMasterClient():
     pass
 
 
 class _TrainerMaster(tm_grpc.TrainerMasterServiceServicer):
     def __init__(self,
-                 cluster_server,
+                 cluster_server: ClusterServer,
                  role,
                  mode,
                  model_fn,
@@ -182,7 +168,9 @@ class _TrainerMaster(tm_grpc.TrainerMasterServiceServicer):
                  summary_save_secs=None,
                  export_path=None,
                  sparse_estimator=False,
-                 export_model_hook=None):
+                 export_model_hook=None,
+                 export_model: Optional[bool] = None,
+                 using_mt_hadoop: Optional[bool] = None):
         self._cluster_server = cluster_server
         self._role = role
         self._mode = mode
@@ -199,6 +187,7 @@ class _TrainerMaster(tm_grpc.TrainerMasterServiceServicer):
         self._export_path = export_path
         self._sparse_estimator = sparse_estimator
         self._export_model_hook = export_model_hook
+        self._should_export_model = export_model
 
         self._lock = threading.RLock()
         self._status = tm_pb.MasterStatus.CREATED
@@ -211,6 +200,8 @@ class _TrainerMaster(tm_grpc.TrainerMasterServiceServicer):
         # for compatibility
         self._worker0_terminated_at = 0
         self._worker0_cluster_def = None
+
+        self.using_mt_hadoop = using_mt_hadoop
 
     def _check_status(self, callback_fn):
         with self._lock:
@@ -282,7 +273,7 @@ class _TrainerMaster(tm_grpc.TrainerMasterServiceServicer):
             if self._sparse_estimator else FLEstimator
         return estimator_factory(
             cluster_server=self._cluster_server,
-            bridge=_FakeBridge(),
+            bridge=FakeBridge(),
             trainer_master=_FakeTrainerMasterClient(),
             role=self._role,
             model_fn=self._model_fn)
@@ -293,9 +284,11 @@ class _TrainerMaster(tm_grpc.TrainerMasterServiceServicer):
         fl_logging.info("start session_run")
         self._session_run(estimator)
         fl_logging.info("session_run done")
-        fl_logging.info("start export_model")
-        self._export_model(estimator)
-        fl_logging.info("export_model done")
+        if self._should_export_model or \
+            (self._mode == 'train' and self._should_export_model is None):
+            fl_logging.info("start export_model")
+            self._export_model(estimator)
+            fl_logging.info("export_model done")
         self._transfer_status(tm_pb.MasterStatus.WORKER_COMPLETED,
                               tm_pb.MasterStatus.COMPLETED)
 
@@ -322,7 +315,8 @@ class _TrainerMaster(tm_grpc.TrainerMasterServiceServicer):
             hooks = self._session_hooks
 
             # saver hook
-            if mode_key == tf.estimator.ModeKeys.TRAIN \
+            if (mode_key == tf.estimator.ModeKeys.TRAIN or
+                self._should_export_model) \
                 and self._checkpoint_path \
                 and (self._save_checkpoint_secs \
                     or self._save_checkpoint_steps):
@@ -346,6 +340,7 @@ class _TrainerMaster(tm_grpc.TrainerMasterServiceServicer):
                             output_dir=self._summary_path,
                             save_secs=self._summary_save_secs,
                             save_steps=self._summary_save_steps,
+                            scaffold=session_creator._scaffold,
                         )
                     )
             noop = tf.no_op()
@@ -364,7 +359,6 @@ class _TrainerMaster(tm_grpc.TrainerMasterServiceServicer):
                         if self._status == tm_pb.MasterStatus.WORKER_COMPLETED:
                             break
                     time.sleep(0.2)
-
 
     def _export_model(self, estimator):
         if self._export_path:
@@ -385,6 +379,9 @@ class _TrainerMaster(tm_grpc.TrainerMasterServiceServicer):
                     tf.saved_model.simple_save(sess, export_path,
                                                receiver.receiver_tensors,
                                                spec.predictions, None)
+                    if self.using_mt_hadoop:
+                        upload_to_mt_hdfs(export_path)
+                        upload_to_mt_hdfs(self._checkpoint_path)
                     if self._export_model_hook:
                         self._export_model_hook.after_save(
                             sess, model, export_path,
@@ -495,7 +492,9 @@ class LeaderTrainerMaster(_TrainerMaster):
                  summary_save_secs=None,
                  export_path=None,
                  sparse_estimator=False,
-                 export_model_hook=None):
+                 export_model_hook=None,
+                 export_model: Optional[bool] = None,
+                 using_mt_hadoop: Optional[bool] = None):
         super(LeaderTrainerMaster, self).__init__(
             cluster_server,
             "leader",
@@ -512,16 +511,20 @@ class LeaderTrainerMaster(_TrainerMaster):
             summary_save_secs,
             export_path,
             sparse_estimator,
-            export_model_hook)
+            export_model_hook,
+            export_model=export_model,
+            using_mt_hadoop=using_mt_hadoop
+        )
 
         self._data_visitor = data_visitor
         self._last_global_step = -1
 
         # datavisitor checkpoint hook
-        hook = _DataVisitorCheckpointHook(self._data_visitor)
-        self._add_checkpoint_listener(
-            hook.create_checkpoint_saver_listener())
-        self._add_session_hook(hook)
+        if mode == 'train':
+            hook = _DataVisitorCheckpointHook(self._data_visitor)
+            self._add_checkpoint_listener(
+                hook.create_checkpoint_saver_listener())
+            self._add_session_hook(hook)
 
         # trigger hook
         self._last_trigger_time = 0
@@ -530,38 +533,59 @@ class LeaderTrainerMaster(_TrainerMaster):
                          trigger_fn=self._trigger_fn)
             )
 
+        # worker type: data source type
+        self._worker_data_source_map = {
+            tm_pb.WorkerType.REMOTE_WORKER: tm_pb.DataSourceType.JOINED,
+            tm_pb.WorkerType.LOCAL_WORKER: tm_pb.DataSourceType.LOCAL
+        }
+
     def _trigger_fn(self, global_step):
         now = time.time()
         if self._last_global_step >= 0:
             speed = (global_step-self._last_global_step) \
                 / (now-self._last_trigger_time)
-            allocated_epoch, allocated_datablock = self._data_visitor.summary()
-            total_epoch, total_datablock = \
+            allocated_epoch, allocated_datablock, allocated_local_datablock \
+                = self._data_visitor.summary()
+            total_epoch, total_datablock, total_local_datablock = \
                 self._data_visitor.epoch_num, \
-                    self._data_visitor.datablock_size
+                    self._data_visitor.datablock_size, \
+                        self._data_visitor.local_datablock_size
             fl_logging.info("global_step: %d, speed: %0.2f step/sec, "
                             "epoch: %d/%d, datablock allocated: %d/%d, "
+                            "local datablock allocated: %d/%d, "
                             "worker: %d/%d(running/completed)",
                             global_step, speed,
                             allocated_epoch, total_epoch,
                             allocated_datablock, total_datablock,
+                            allocated_local_datablock, total_local_datablock,
                             len(self._running_workers),
                             len(self._completed_workers))
-            with _gctx.stats_client.pipeline() as pipe:
-                pipe.gauge("trainer.global_step", global_step)
-                pipe.gauge("trainer.datablock_total", total_datablock)
-                pipe.gauge("trainer.datablock_allocated", allocated_datablock)
-                pipe.gauge("trainer.speed", speed)
+            name_prefix = f'model.{self._mode}.nn_vertical'
+            metric_collector.emit_store(
+                f'{name_prefix}.global_step', global_step)
+            metric_collector.emit_store(
+                f'{name_prefix}.datablock_total', total_datablock)
+            metric_collector.emit_store(
+                f'{name_prefix}.datablock_allocated', allocated_datablock)
+            metric_collector.emit_store(
+                f'{name_prefix}.local_datablock_total',
+                total_local_datablock
+            )
+            metric_collector.emit_store(
+                f'{name_prefix}.local_datablock_allocated',
+                allocated_local_datablock
+            )
+            metric_collector.emit_store(f'{name_prefix}.speed', speed)
         self._last_trigger_time = now
         self._last_global_step = global_step
 
     def _request_data_block(self, request):
         try:
-            data_block = next(self._data_visitor)
+            data_block = self._data_visitor.next_with_type(
+                self._worker_data_source_map[request.worker_type])
         except StopIteration:
             data_block = None
 
-        response = tm_pb.DataBlockResponse()
         if data_block:
             fl_logging.info("allocated worker_%d with block: %s",
                             request.worker_rank,
@@ -599,7 +623,10 @@ class FollowerTrainerMaster(_TrainerMaster):
                  summary_save_secs=None,
                  export_path=None,
                  sparse_estimator=False,
-                 export_model_hook=None):
+                 export_model_hook=None,
+                 export_model: Optional[bool] = None,
+                 using_mt_hadoop: Optional[bool] = None
+                 ):
 
         super(FollowerTrainerMaster, self).__init__(
             cluster_server,
@@ -617,7 +644,10 @@ class FollowerTrainerMaster(_TrainerMaster):
             summary_save_secs,
             export_path,
             sparse_estimator,
-            export_model_hook)
+            export_model_hook,
+            export_model=export_model,
+            using_mt_hadoop=using_mt_hadoop
+        )
 
         self._data_visitor = data_visitor
         self._last_global_step = -1
@@ -635,17 +665,24 @@ class FollowerTrainerMaster(_TrainerMaster):
             speed = (global_step-self._last_global_step) \
                 / (now-self._last_trigger_time)
             total_datablock = self._data_visitor.datablock_size
+            total_local_datablock = self._data_visitor.local_datablock_size
             fl_logging.info("global_step: %d, speed: %0.2f step/sec, "
                             "datablock size: %d, "
+                            "local datablock size: %d, "
                             "worker: %d/%d(running/completed)",
                             global_step, speed,
                             total_datablock,
+                            total_local_datablock,
                             len(self._running_workers),
                             len(self._completed_workers))
-            with _gctx.stats_client.pipeline() as pipe:
-                pipe.gauge("trainer.global_step", global_step)
-                pipe.gauge("trainer.datablock_total", total_datablock)
-                pipe.gauge("trainer.speed", speed)
+            name_prefix = f'model.{self._mode}.nn_vertical'
+            metric_collector.emit_store(
+                f'{name_prefix}.global_step', global_step)
+            metric_collector.emit_store(
+                f'{name_prefix}.datablock_total', total_datablock)
+            metric_collector.emit_store(
+                f'{name_prefix}.local_datablock_total', total_local_datablock)
+            metric_collector.emit_store(f'{name_prefix}.speed', speed)
         self._last_trigger_time = now
         self._last_global_step = global_step
 

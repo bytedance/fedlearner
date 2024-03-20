@@ -16,7 +16,8 @@
 import unittest
 
 from http import HTTPStatus
-from fedlearner_webconsole.exceptions import InvalidArgumentException
+from fedlearner_webconsole.exceptions import (InvalidArgumentException,
+                                              NotFoundException)
 
 
 class ExceptionsTest(unittest.TestCase):
@@ -33,6 +34,22 @@ class ExceptionsTest(unittest.TestCase):
                     '123',
                     'df',
                 ]
+            })
+
+    def test_not_found_exception(self):
+        exception1 = NotFoundException('User A not found.')
+        self.assertEqual(exception1.status_code, HTTPStatus.NOT_FOUND)
+        self.assertEqual(
+            exception1.to_dict(), {
+                'code': 404,
+                'message': 'User A not found.',
+            })
+        exception2 = NotFoundException()
+        self.assertEqual(exception2.status_code, HTTPStatus.NOT_FOUND)
+        self.assertEqual(
+            exception2.to_dict(), {
+                'code': 404,
+                'message': 'Resource not found.',
             })
 
 

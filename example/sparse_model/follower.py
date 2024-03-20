@@ -70,7 +70,10 @@ def model_fn(model, features, labels, mode):
     embed_size = 16
     for slot_id in slots:
         fs = model.add_feature_slot(slot_id, hash_size)
-        fc = model.add_feature_column(fs)
+        if slot_id < 1024:
+            fc = model.add_feature_column(fs)
+        else:
+            fc = model.add_feature_column_v2("fc_v2_%d"%slot_id, fs)
         fc.add_vector(embed_size)
 
     model.freeze_slots(features)

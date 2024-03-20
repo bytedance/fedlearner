@@ -42,6 +42,8 @@ for i in range(N):
             Feature(bytes_list=BytesList(value=[str(idx).encode()]))
         features_l['y'] = \
             Feature(int64_list=Int64List(value=[random.randint(0, 1)]))
+        features_l['loss_mask'] =  \
+            Feature(int64_list=Int64List(value=[random.randint(0, 1)]))
         for k in range(512):
             features_l['x_{0}'.format(k)] = \
                 Feature(int64_list=Int64List(value=[random.randint(0, 100)]))

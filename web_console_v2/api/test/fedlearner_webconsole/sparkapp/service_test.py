@@ -20,11 +20,12 @@ import unittest
 
 from unittest.mock import MagicMock, patch
 from os.path import dirname
-from fedlearner_webconsole.sparkapp.schema import SparkAppConfig
 
+from envs import Envs
+from fedlearner_webconsole.sparkapp.schema import SparkAppConfig
 from fedlearner_webconsole.sparkapp.service import SparkAppService
 
-BASE_DIR = os.path.abspath(os.path.join(dirname(__file__), '../../../'))
+BASE_DIR = Envs.BASE_DIR
 
 
 class SparkAppServiceTest(unittest.TestCase):
@@ -124,6 +125,27 @@ class SparkAppServiceTest(unittest.TestCase):
                 },
                 'sparkVersion': '3.0.0',
                 'type': 'Python',
+            },
+            'status': {
+                'applicationState': {
+                    'state': 'COMPLETED'
+                },
+                'driverInfo': {
+                    'podName': 'fl-transformer-yaml-driver',
+                    'webUIAddress': '11.249.131.12:4040',
+                    'webUIPort': 4040,
+                    'webUIServiceName': 'fl-transformer-yaml-ui-svc'
+                },
+                'executionAttempts': 1,
+                'executorState': {
+                    'fl-transformer-yaml-bdc15979a314310b-exec-1': 'PENDING',
+                    'fl-transformer-yaml-bdc15979a314310b-exec-2': 'COMPLETED'
+                },
+                'lastSubmissionAttemptTime': '2021-05-18T10:31:13Z',
+                'sparkApplicationId': 'spark-a380bfd520164d828a334bcb3a6404f9',
+                'submissionAttempts': 1,
+                'submissionID': '5bc7e2e7-cc0f-420c-8bc7-138b651a1dde',
+                'terminationTime': '2021-05-18T10:32:08Z'
             }
         }
 
@@ -211,6 +233,27 @@ class SparkAppServiceTest(unittest.TestCase):
                 },
                 'sparkVersion': '3.0.0',
                 'type': 'Python',
+            },
+            'status': {
+                'applicationState': {
+                    'state': 'COMPLETED'
+                },
+                'driverInfo': {
+                    'podName': 'fl-transformer-yaml-driver',
+                    'webUIAddress': '11.249.131.12:4040',
+                    'webUIPort': 4040,
+                    'webUIServiceName': 'fl-transformer-yaml-ui-svc'
+                },
+                'executionAttempts': 1,
+                'executorState': {
+                    'fl-transformer-yaml-bdc15979a314310b-exec-1': 'PENDING',
+                    'fl-transformer-yaml-bdc15979a314310b-exec-2': 'COMPLETED'
+                },
+                'lastSubmissionAttemptTime': '2021-05-18T10:31:13Z',
+                'sparkApplicationId': 'spark-a380bfd520164d828a334bcb3a6404f9',
+                'submissionAttempts': 1,
+                'submissionID': '5bc7e2e7-cc0f-420c-8bc7-138b651a1dde',
+                'terminationTime': '2021-05-18T10:32:08Z'
             }
         }
 

@@ -15,6 +15,8 @@
 # coding: utf-8
 
 import argparse
+import logging
+import sys
 from google.protobuf import text_format
 
 from fedlearner.common import data_portal_service_pb2 as dp_pb
@@ -55,18 +57,23 @@ if __name__ == "__main__":
                         help='Only process one subfolder at a time')
     parser.add_argument('--files_per_job_limit', type=int, default=None,
                         help='Max number of files in a job')
+    parser.add_argument('--start_date', type=str, default=None,
+                        help='Start date of input data, format %Y%m%d')
+    parser.add_argument('--end_date', type=str, default=None,
+                        help='End date of input data, format %Y%m%d')
     args = parser.parse_args()
     set_logger()
 
     use_mock_etcd = (args.kvstore_type == 'mock')
     kvstore = DBClient(args.kvstore_type, use_mock_etcd)
     kvstore_key = common.portal_kvstore_base_dir(args.data_portal_name)
-    if kvstore.get_data(kvstore_key) is None:
+    portal_manifest = kvstore.get_data(kvstore_key)
+    data_portal_type = dp_pb.DataPortalType.PSI if \
+        args.data_portal_type == 'PSI' else dp_pb.DataPortalType.Streaming
+    if portal_manifest is None:
         portal_manifest = dp_pb.DataPortalManifest(
                 name=args.data_portal_name,
-                data_portal_type=(dp_pb.DataPortalType.PSI if
-                                  args.data_portal_type == 'PSI' else
-                                  dp_pb.DataPortalType.Streaming),
+                data_portal_type=data_portal_type,
                 output_partition_num=args.output_partition_num,
                 input_file_wildcard=args.input_file_wildcard,
                 input_base_dir=args.input_base_dir,
@@ -76,13 +83,36 @@ if __name__ == "__main__":
             )
         kvstore.set_data(kvstore_key, text_format.\
             MessageToString(portal_manifest))
+    else:  # validation parameter consistency
+        passed = True
+        portal_manifest = \
+            text_format.Parse(portal_manifest, dp_pb.DataPortalManifest(),
+                              allow_unknown_field=True)
+        parameter_pairs = [
+            (portal_manifest.data_portal_type, data_portal_type),
+            (portal_manifest.output_partition_num, args.output_partition_num),
+            (portal_manifest.input_file_wildcard, args.input_file_wildcard),
+            (portal_manifest.input_base_dir, args.input_base_dir),
+            (portal_manifest.output_base_dir, args.output_base_dir),
+            (portal_manifest.raw_data_publish_dir, args.raw_data_publish_dir)
+        ]
+        for old, new in parameter_pairs:
+            if old != new:
+                logging.fatal(
+                    "Parameters of the job changed (%s vs %s) which is "
+                    "forbidden, you should create a new job to do this",
+                    old, new)
+                sys.exit(-1)
 
     options = dp_pb.DataPotraMasterlOptions(
         use_mock_etcd=use_mock_etcd,
         long_running=args.long_running,
         check_success_tag=args.check_success_tag,
         single_subfolder=args.single_subfolder,
-        files_per_job_limit=args.files_per_job_limit)
+        files_per_job_limit=args.files_per_job_limit,
+        start_date=args.start_date,
+        end_date=args.end_date
+    )
 
     portal_master_srv = DataPortalMasterService(args.listen_port,
                                                 args.data_portal_name,

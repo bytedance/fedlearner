@@ -1,6 +1,6 @@
 import React, { FC, useState } from 'react';
 import { Form, Input, Button, Tooltip, notification, message } from 'antd';
-import ListPageLayout from 'components/ListPageLayout';
+import SharedPageLayout from 'components/SharedPageLayout';
 import styled from 'styled-components';
 import { useTranslation } from 'react-i18next';
 import { useMutation, useQuery } from 'react-query';
@@ -52,7 +52,7 @@ const SettingsPage: FC = () => {
   });
 
   return (
-    <ListPageLayout title={t('menu.label_settings')}>
+    <SharedPageLayout title={t('menu.label_settings')}>
       <StyledForm
         form={formInstance}
         onFinish={onFinish}
@@ -88,7 +88,7 @@ const SettingsPage: FC = () => {
           </SubmitButton>
         </Form.Item>
       </StyledForm>
-    </ListPageLayout>
+    </SharedPageLayout>
   );
 
   async function onFinish(values: any) {

@@ -1,0 +1,41 @@
+{{- if semverCompare "<1.19-0" .Capabilities.KubeVersion.GitVersion -}}
+
+{{- if .Values.ingress.enabled -}}
+
+{{- if semverCompare ">=1.14-0" .Capabilities.KubeVersion.GitVersion -}}
+apiVersion: networking.k8s.io/v1beta1
+{{- else -}}
+apiVersion: extensions/v1beta1
+{{- end }}
+kind: Ingress
+metadata:
+  name: fedlearner-proxy
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "fedlearner-add-on.labels" . | nindent 4 }}
+  {{- with .Values.ingress.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+    nginx.ingress.kubernetes.io/auth-tls-secret: default/ca-secret
+    nginx.ingress.kubernetes.io/auth-tls-verify-client: "on"
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      grpc_set_header  Authority $http_x_host;
+      grpc_set_header  Host $http_x_host;
+      grpc_next_upstream_tries 5;
+  {{- end }}
+spec:
+  rules:
+    - host: {{ .Values.ingress.host | quote }}
+      http:
+        paths:
+          - path: "/"
+            backend:
+              serviceName: fedlearner-stack-ingress-nginx-controller
+              servicePort: 80
+  tls:
+  - hosts:
+    - {{ .Values.ingress.host }}
+    secretName: fedlearner-proxy-server
+{{- end }}
+
+{{- end }}

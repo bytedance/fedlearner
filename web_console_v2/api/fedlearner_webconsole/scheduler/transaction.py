@@ -38,6 +38,12 @@ class TransactionManager(object):
         return self._project
 
     def process(self):
+        # process local workflow
+        if self._workflow.is_local():
+            self._workflow.update_local_state()
+            self._reload()
+            return self._workflow
+
         # reload workflow and resolve -ing states
         self._workflow.update_state(
             self._workflow.state, self._workflow.target_state,
@@ -117,7 +123,7 @@ class TransactionManager(object):
             resp = client.update_workflow_state(
                 self._workflow.name, state, target_state, transaction_state,
                 self._workflow.uuid,
-                forked_from_uuid)
+                forked_from_uuid, self._workflow.extra)
             if resp.status.code == common_pb2.STATUS_SUCCESS:
                 if resp.state == WorkflowState.INVALID:
                     self._workflow.invalidate()

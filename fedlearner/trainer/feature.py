@@ -147,11 +147,15 @@ class FeatureSlot(object):
         return sslice
 
 
-class FeatureColumnV1(object):
-    def __init__(self, feature_slot):
-        self.name = 'slot_%d' % feature_slot.slot_id
+class _FeatureColumn(object):
+    def __init__(self, fc_name, feature_slot):
+        self._name = fc_name
         self._feature_slot = feature_slot
         self._placeholder_slices = {}
+
+    @property
+    def name(self):
+        return self._name
 
     @property
     def feature_slot(self):
@@ -165,9 +169,20 @@ class FeatureColumnV1(object):
 
         if sslice not in self._placeholder_slices:
             self._placeholder_slices[sslice] = tf.placeholder(
-                self._feature_slot._dtype, [None, sslice.len])
+                self._feature_slot._dtype, [None, sslice.len]
+            )
 
         return self._placeholder_slices[sslice]
 
     def add_vector(self, dim):
         return self.get_vector(self._feature_slot.add_slice(dim))
+
+
+class FeatureColumnV1(_FeatureColumn):
+    def __init__(self, feature_slot):
+        fc_name = 'slot_%d' % feature_slot.slot_id
+        super(FeatureColumnV1, self).__init__(fc_name, feature_slot)
+
+
+class FeatureColumnV2(_FeatureColumn):
+    pass

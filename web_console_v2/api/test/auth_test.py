@@ -17,9 +17,10 @@
 import unittest
 from http import HTTPStatus
 
+from fedlearner_webconsole.utils.base64 import base64encode
 from testing.common import BaseTestCase
 from fedlearner_webconsole.auth.models import State, User
-from fedlearner_webconsole.db import db
+from fedlearner_webconsole.db import db_handler as db
 
 
 class AuthApiTest(BaseTestCase):
@@ -27,8 +28,9 @@ class AuthApiTest(BaseTestCase):
         deleted_user = User(username='deleted_one',
                             email='who.knows@hhh.com',
                             state=State.DELETED)
-        db.session.add(deleted_user)
-        db.session.commit()
+        with db.session_scope() as session:
+            session.add(deleted_user)
+            session.commit()
 
         resp = self.get_helper('/api/v2/auth/users')
         self.assertEqual(resp.status_code, HTTPStatus.UNAUTHORIZED)
@@ -74,6 +76,12 @@ class AuthApiTest(BaseTestCase):
         self.assertEqual(resp.status_code, HTTPStatus.OK)
         self.assertEqual(self.get_response_data(resp).get('role'), 'ADMIN')
 
+        resp = self.patch_helper(f'/api/v2/auth/users/{user_id}',
+                                 data={
+                                     'password': base64encode('fl@1234.'),
+                                 })
+        self.assertEqual(resp.status_code, HTTPStatus.OK)
+
     def test_create_new_user(self):
         new_user = {
             'username': 'fedlearner',
@@ -86,10 +94,26 @@ class AuthApiTest(BaseTestCase):
         self.assertEqual(resp.status_code, HTTPStatus.UNAUTHORIZED)
 
         self.signin_as_admin()
+        illegal_cases = ['aaaaaaaa', '11111111', '!@#$%^[]',
+                         'aaaA1111', 'AAAa!@#$', '1111!@#-',
+                         'aa11!@', 'fl@123.',
+                         'fl@1234567890abcdefg.']
+        legal_case = 'fl@1234.'
+
+        for case in illegal_cases:
+            new_user['password'] = base64encode(case)
+            resp = self.post_helper(f'/api/v2/auth/users', data=new_user)
+            self.assertEqual(resp.status_code, HTTPStatus.BAD_REQUEST)
+
+        new_user['password'] = base64encode(legal_case)
         resp = self.post_helper(f'/api/v2/auth/users', data=new_user)
         self.assertEqual(resp.status_code, HTTPStatus.CREATED)
         self.assertEqual(
             self.get_response_data(resp).get('username'), 'fedlearner')
+
+        # test_repeat_create
+        resp = self.post_helper(f'/api/v2/auth/users', data=new_user)
+        self.assertEqual(resp.status_code, HTTPStatus.CONFLICT)
 
     def test_delete_user(self):
         self.signin_as_admin()
@@ -132,7 +156,7 @@ class AuthApiTest(BaseTestCase):
         self.signin_helper()
 
         resp = self.delete_helper(url='/api/v2/auth/signin')
-        self.assertEqual(resp.status_code, HTTPStatus.OK)
+        self.assertEqual(resp.status_code, HTTPStatus.OK, resp.json)
 
         resp = self.get_helper(url='/api/v2/auth/users/1')
         self.assertEqual(resp.status_code, HTTPStatus.UNAUTHORIZED)

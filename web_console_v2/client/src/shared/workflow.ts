@@ -59,7 +59,7 @@ export function isPreparingRun(workflow: Workflow) {
 export function isRunning(workflow: Workflow) {
   const { state, target_state } = workflow;
 
-  return target_state === RUNNING || (state === RUNNING && target_state === INVALID);
+  return state === RUNNING && target_state === INVALID;
 }
 
 export function isPreparingStop(workflow: Workflow) {

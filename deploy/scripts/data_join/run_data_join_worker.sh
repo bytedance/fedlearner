@@ -18,7 +18,9 @@ set -ex
 
 export CUDA_VISIBLE_DEVICES=
 source /app/deploy/scripts/hdfs_common.sh || true
+source /app/deploy/scripts/pre_start_hook.sh || true
 source /app/deploy/scripts/env_to_args.sh
+
 
 MASTER_POD_NAMES=`python -c 'import json, os; print(json.loads(os.environ["CLUSTER_SPEC"])["clusterSpec"]["Master"][0])'`
 
@@ -53,11 +55,16 @@ if [ -n "$JOIN_KEY_MAPPER" ]; then
     join_key_mapper=$(normalize_env_to_args '--join_key_mapper' "${mapper[0]}")
 fi
 
+LISTEN_PORT=50051
+if [[ -n "${PORT0}" ]]; then
+  LISTEN_PORT=${PORT0}
+fi
+
 python -m fedlearner.data_join.cmd.data_join_worker_service \
     $PEER_ADDR \
     $MASTER_POD_NAMES \
     $INDEX \
-    --listen_port=50051 \
+    --listen_port=${LISTEN_PORT} \
     $raw_data_iter $compressed_type $read_ahead_size $read_batch_size \
     $example_joiner $min_matching_window $max_matching_window \
     $data_block_dump_interval $data_block_dump_threshold \

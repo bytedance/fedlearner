@@ -1,0 +1,100 @@
+libos.entrypoint = "{{ entrypoint }}"
+libos.check_invalid_pointers = false
+
+loader.preload = "file:{{ gramine.libos }}"
+loader.log_level = "none"
+loader.entrypoint = "file:{{ gramine.libos }}"
+
+loader.pal_internal_mem_size = "200M"
+
+loader.insecure__use_cmdline_argv = true
+loader.insecure__use_host_env = true
+
+loader.env.LD_LIBRARY_PATH = "/opt/meituan/hadoop/lib/native:/opt/tiger/jdk/openjdk-1.8.0_265/jre/lib/amd64/server:/opt/meituan/hadoop/lib/native:/opt/meituan/hadoop/lib/native/nfs:/usr/lib/jvm/java-8-openjdk-amd64/jre/lib/amd64/server:/usr/local/lib/x86_64-linux-gnu:/opt/tiger/yarn_deploy/hadoop_current/lib/native:/opt/tiger/jdk/openjdk-1.8.0_265/jre/lib/amd64/server:/opt/tiger/jdk/openjdk-1.8.0_265/jre/lib/amd64/jli/:/opt/tiger/jdk/openjdk-1.8.0_265/jre/lib/amd64:{{ python.stdlib }}/lib:/lib:{{ arch_libdir }}:/usr/local/lib:/usr/local/{{ arch_libdir }}:/usr/lib:/usr/{{ arch_libdir }}"
+
+loader.env.SECRET_PROVISION_CONSTRUCTOR = "1"
+loader.env.SECRET_PROVISION_SET_PF_KEY = "1"
+
+sys.enable_sigterm_injection = true
+sys.enable_extra_runtime_domain_names_conf = true
+sys.stack.size = "1M"
+
+fs.mounts = [
+  { path = "/lib", uri = "file:{{ gramine.runtimedir() }}" },
+  { path = "{{ arch_libdir }}", uri = "file:{{ arch_libdir }}" },
+  { path = "/usr", uri = "file:/usr" },
+  { path = "{{ python.stdlib }}", uri = "file:{{ python.stdlib }}" },
+  { path = "{{ python.distlib }}", uri = "file:{{ python.distlib }}" },
+  { path = "/opt", uri = "file:/opt" },
+  { path = "/gramine/leader", uri = "file:/gramine/leader"},
+  { path = "/gramine/follower", uri = "file:/gramine/follower"},
+  { path = "/etc", uri = "file:/etc" },
+  { path = "/tmp", uri = "file:/tmp" },
+  { path = "/bin", uri = "file:/bin" },
+  { path = "/data", uri = "file:/data" },
+  { path = "/proc/net", uri = "file:/proc/net" },
+  { path = "/proc/stat", uri = "file:/proc/stat" },
+  { path = "/proc/self/cmdline", uri = "file:/proc/self/cmdline" },
+  { path = "/root/.keras/keras.json", uri = "file:/root/.keras/keras.json" }
+]
+
+# Note that Gramine also creates an internal
+# thread for handling inter-process communication (IPC), and potentially another
+# thread for asynchronous events. Therefore, the actual number of threads that
+# the application can create is (sgx.thread_num - 2).
+
+sgx.debug = false
+sgx.remote_attestation = "dcap"
+sgx.preheat_enclave = false
+sgx.nonpie_binary = true
+sgx.enable_stats = false
+sgx.enclave_size = "16G"
+sgx.thread_num = 256
+sgx.rpc_thread_num = 0
+sgx.protected_files_key = "ffeeddccbbaa99887766554433221100"
+
+sgx.trusted_files = [
+  "file:{{ entrypoint }}",
+  "file:{{ gramine.runtimedir() }}/",
+  "file:{{ arch_libdir }}/",
+  "file:/usr/{{ arch_libdir }}/",
+  "file:/etc/ssl/certs/ca-certificates.crt",
+  "file:/etc/default/apport",
+  "file:/etc/mime.types"
+]
+
+sgx.allowed_files = [
+  "file:tensorflow_io.py",
+  "file:/opt/tiger/",
+  "file:/opt/meituan/",
+  "file:{{ python.stdlib }}/",
+  "file:{{ python.distlib }}/",
+  "file:/usr/lib/ssl/openssl.cnf",
+  "file:/usr/lib/gcc",
+  "file:/etc/ethers",
+  "file:/etc/hosts",
+  "file:/etc/group",
+  "file:/etc/passwd",
+  "file:/etc/ld.so.conf",
+  "file:/etc/gai.conf",
+  "file:/etc/host.conf",
+  "file:/etc/resolv.conf",
+  "file:/etc/nsswitch.conf",
+  "file:/etc/sgx_default_qcnl.conf",
+  "file:/etc/ssl/certs/ca-certificates.crt",
+  "file:/etc/tce_dynamic/identity.token",
+  "file:/proc/stat",
+  "file:/proc/net/",
+  "file:/proc/self/cmdline",
+  "file:/tmp/",
+  "file:/root/.keras/keras.json",
+  "file:dynamic_config.json",
+  "file:/usr/bin/",
+  "file:/usr/local/lib",
+  "file:/lib/",
+  "file:/bin/",
+  "file:/data/",
+  "file:/gramine/leader/",
+  "file:/gramine/follower/"
+]
+

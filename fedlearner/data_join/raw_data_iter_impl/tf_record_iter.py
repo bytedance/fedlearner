@@ -34,7 +34,11 @@ class TfExampleItem(RawDataIter.Item):
         self._parse_example_error = False
         example = self._parse_example(record_str)
         dic = common.convert_tf_example_to_dict(example)
-        self._features.update({key: dic[key] for key in dic
+        # should not be list for data block
+        new_dict = {}
+        for key, val in dic.items():
+            new_dict[key] = val[0] if len(val) == 1 else val
+        self._features.update({key: new_dict[key] for key in new_dict
                                if key in common.ALLOWED_FIELDS.keys()})
         self._set_tf_record(record_str)
         self._csv_record = None

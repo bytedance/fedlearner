@@ -44,7 +44,7 @@ class JobServiceTest(BaseTestCase):
         job_1 = Job(id=1,
                     name='raw_data_1',
                     job_type=JobType.RAW_DATA,
-                    state=JobState.WAITING,
+                    state=JobState.COMPLETED,
                     workflow_id=0,
                     project_id=0,
                     config=config)
@@ -58,7 +58,7 @@ class JobServiceTest(BaseTestCase):
         job_3 = Job(id=3,
                     name='data_join_1',
                     job_type=JobType.DATA_JOIN,
-                    state=JobState.STARTED,
+                    state=JobState.COMPLETED,
                     workflow_id=1,
                     project_id=0,
                     config=config)
@@ -91,6 +91,22 @@ class JobServiceTest(BaseTestCase):
         job_service = JobService(db.session)
         self.assertTrue(job_service.is_ready(job_0))
         self.assertFalse(job_service.is_ready(job_2))
-        with patch('fedlearner_webconsole.job.models.Job.is_complete',
-                   return_value=True):
-            self.assertTrue(job_service.is_ready(job_4))
+        self.assertTrue(job_service.is_ready(job_4))
+
+    @patch('fedlearner_webconsole.job.models.Job.is_flapp_failed')
+    @patch('fedlearner_webconsole.job.models.Job.is_flapp_complete')
+    def test_update_running_state(self, mock_is_complete, mock_is_failed):
+        job_0 = db.session.query(Job).get(0)
+        job_2 = db.session.query(Job).get(2)
+        mock_is_complete.return_value = True
+        job_service = JobService(db.session)
+        job_service.update_running_state(job_0.name)
+        self.assertEqual(job_0.state, JobState.COMPLETED)
+        self.assertTrue(job_service.is_ready(job_2))
+        job_0.state = JobState.STARTED
+        mock_is_complete.return_value = False
+        mock_is_failed = True
+        job_service.update_running_state(job_0.name)
+        self.assertEqual(job_0.state, JobState.FAILED)
+
+

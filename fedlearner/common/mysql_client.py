@@ -17,11 +17,24 @@
 
 import os
 from contextlib import contextmanager
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, Column, Integer, String, Text
 from sqlalchemy.orm import sessionmaker, scoped_session
 from sqlalchemy.orm.exc import NoResultFound
-from sqlalchemy.ext.automap import automap_base
+from sqlalchemy.ext.declarative import declarative_base
 from . import fl_logging
+
+Base = declarative_base()
+
+
+class DatasourceMeta(Base):
+    __tablename__ = 'datasource_meta'
+    __table_args__ = {'comment': 'data source meta kvstore'}
+
+    id = Column(Integer, primary_key=True, comment='row id')
+    kv_key = Column(String(255), nullable=False, unique=True,
+                    comment='key for kv store')
+    kv_value = Column(Text, comment='value for kv store')
+
 
 class MySQLClient(object):
     def __init__(self, database, addr, user, password, base_dir):
@@ -41,9 +54,9 @@ class MySQLClient(object):
     def get_data(self, key):
         with self.closing(self._engine) as sess:
             try:
-                table = self._datasource_meta
-                value = sess.query(table).filter(table.kv_key ==
-                    self._generate_key(key)).one().kv_value
+                value = sess.query(DatasourceMeta).filter(
+                    DatasourceMeta.kv_key == self._generate_key(key)
+                ).one().kv_value
                 if isinstance(value, str):
                     return value.encode()
                 return value
@@ -57,14 +70,13 @@ class MySQLClient(object):
     def set_data(self, key, data):
         with self.closing(self._engine) as sess:
             try:
-                table = self._datasource_meta
-                context = sess.query(table).filter(table.kv_key ==
-                    self._generate_key(key)).first()
+                context = sess.query(DatasourceMeta).filter(
+                    DatasourceMeta.kv_key == self._generate_key(key)).first()
                 if context:
                     context.kv_value = data
                     sess.commit()
                 else:
-                    context = self._datasource_meta(
+                    context = DatasourceMeta(
                         kv_key=self._generate_key(key),
                         kv_value=data)
                     sess.add(context)
@@ -79,9 +91,8 @@ class MySQLClient(object):
     def delete(self, key):
         with self.closing(self._engine) as sess:
             try:
-                table = self._datasource_meta
-                for context in sess.query(table).filter(table.kv_key ==
-                    self._generate_key(key)):
+                for context in sess.query(DatasourceMeta).filter(
+                    DatasourceMeta.kv_key == self._generate_key(key)):
                     sess.delete(context)
                 sess.commit()
                 return True
@@ -93,9 +104,8 @@ class MySQLClient(object):
     def delete_prefix(self, key):
         with self.closing(self._engine) as sess:
             try:
-                table = self._datasource_meta
-                for context in sess.query(table).filter(table.kv_key.\
-                    like(self._generate_key(key) + '%')):
+                for context in sess.query(DatasourceMeta).filter(
+                    DatasourceMeta.kv_key.like(self._generate_key(key) + '%')):
                     sess.delete(context)
                 sess.commit()
                 return True
@@ -107,16 +117,16 @@ class MySQLClient(object):
     def cas(self, key, old_data, new_data):
         with self.closing(self._engine) as sess:
             try:
-                table = self._datasource_meta
                 flag = True
                 if old_data is None:
-                    context = self._datasource_meta(
+                    context = DatasourceMeta(
                         kv_key=self._generate_key(key),
                         kv_value=new_data)
                     sess.add(context)
                     sess.commit()
                 else:
-                    context = sess.query(table).filter(table.kv_key ==\
+                    context = sess.query(DatasourceMeta).filter(
+                        DatasourceMeta.kv_key ==\
                         self._generate_key(key)).one()
                     if context.kv_value != old_data:
                         flag = False
@@ -134,9 +144,9 @@ class MySQLClient(object):
         path = self._generate_key(prefix)
         with self.closing(self._engine) as sess:
             try:
-                table = self._datasource_meta
-                for context in sess.query(table).filter(table.kv_key.\
-                    like(path + '%')).order_by(table.kv_key):
+                for context in sess.query(DatasourceMeta).filter(
+                    DatasourceMeta.kv_key.like(path + '%')).order_by(
+                    DatasourceMeta.kv_key):
                     if ignor_prefix and context.kv_key == path:
                         continue
                     nkey = self._normalize_output_key(context.kv_key,
@@ -186,9 +196,9 @@ class MySQLClient(object):
                 conn_string = conn_string + sub
             self._engine = create_engine(conn_string, echo=False,
                                         pool_recycle=180)
-            Base = automap_base()
-            Base.prepare(self._engine, reflect=True)
-            self._datasource_meta = Base.classes.datasource_meta
+            # Creates table if not exists
+            Base.metadata.create_all(bind=self._engine,
+                                     checkfirst=True)
         except Exception as e:
             raise ValueError('create mysql engine failed; [{}]'.\
                 format(e))

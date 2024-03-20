@@ -7,6 +7,7 @@ from itertools import chain
 
 import pytz
 
+import fedlearner.data_join.common as djc
 import fedlearner.common.data_join_service_pb2 as dj_pb
 from fedlearner.common.common import convert_to_datetime
 from fedlearner.common.metrics import emit, Config
@@ -72,8 +73,10 @@ class OptionalStats(object):
         if random.random() < self._sample_rate:
             tags = copy.deepcopy(self._tags)
             tags.update(item_stat)
-            tags['event_time'] = convert_to_datetime(item.event_time, True) \
-                .isoformat(timespec='microseconds')
+            if item.event_time != djc.InvalidEventTime:
+                tags['event_time'] = convert_to_datetime(
+                    item.event_time, True
+                ).isoformat(timespec='microseconds')
             tags['process_time'] = datetime.now(tz=pytz.utc) \
                 .isoformat(timespec='microseconds')
             emit(name='', value=0, tags=tags, index_type='data_join')

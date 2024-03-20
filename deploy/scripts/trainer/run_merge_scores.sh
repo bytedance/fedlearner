@@ -18,6 +18,7 @@ set -ex
 
 export CUDA_VISIBLE_DEVICES=
 source /app/deploy/scripts/hdfs_common.sh || true
+source /app/deploy/scripts/pre_start_hook.sh || true
 
 python example/tree_model/merge_scores.py \
     --worker-rank=$WORKER_RANK \

@@ -10,7 +10,7 @@ import {
   getTemplateDownloadHref,
 } from 'services/workflow';
 import styled from 'styled-components';
-import ListPageLayout from 'components/ListPageLayout';
+import SharedPageLayout from 'components/SharedPageLayout';
 import NoResult from 'components/NoResult';
 import {
   Col,
@@ -27,12 +27,13 @@ import {
 } from 'antd';
 import { WorkflowTemplate, WorkflowTemplatePayload } from 'typings/workflow';
 import GridRow from 'components/_base/GridRow';
-import { Experiment } from 'components/IconPark';
 import { to } from 'shared/helpers';
 import { useToggle } from 'react-use';
 import { forceToRefreshQuery } from 'shared/queryClient';
 import { CloudUploadOutlined } from '@ant-design/icons';
 import TemplateUploadDialog from './TemplateUploadDialog';
+import request from 'libs/request';
+import { saveBlob } from 'shared/helpers';
 
 const ListContainer = styled.div`
   display: flex;
@@ -49,20 +50,25 @@ const TemplateName = styled(Link)`
 
 export const TPL_LIST_QUERY_KEY = 'fetchTemplateList';
 
-const DownloadTemplate: FC<{ template: WorkflowTemplate }> = ({ template: { id } }) => {
+const DownloadTemplate: FC<{ template: WorkflowTemplate }> = ({ template: { id, name } }) => {
   const { t } = useTranslation();
 
   return (
-    <Button
-      type="link"
-      size="small"
-      target="_blank"
-      href={getTemplateDownloadHref(id)}
-      rel="noopen"
-    >
+    <Button type="link" size="small" onClick={onClick}>
       {t('workflow.action_download')}
     </Button>
   );
+
+  async function onClick() {
+    try {
+      const blob = await request(getTemplateDownloadHref(id), {
+        responseType: 'blob',
+      });
+      saveBlob(blob, `${name}.json`);
+    } catch (error) {
+      message.error(error.message);
+    }
+  }
 };
 
 const DuplicateTemplate: FC<{ template: WorkflowTemplate }> = ({ template: { id } }) => {
@@ -170,15 +176,7 @@ const TemplateList: FC = () => {
     <>
       <Route path="/workflow-templates/upload" exact component={TemplateUploadDialog} />
 
-      <ListPageLayout
-        title={
-          <GridRow gap="4">
-            <Experiment />
-            {t('menu.label_workflow_tpl')}
-          </GridRow>
-        }
-        tip="This feature is experimental"
-      >
+      <SharedPageLayout title={t('menu.label_workflow_tpl')} tip="This feature is experimental">
         <Row gutter={16} justify="space-between" align="middle">
           <Col>
             <Dropdown.Button
@@ -222,7 +220,7 @@ const TemplateList: FC = () => {
             />
           )}
         </ListContainer>
-      </ListPageLayout>
+      </SharedPageLayout>
     </>
   );
 

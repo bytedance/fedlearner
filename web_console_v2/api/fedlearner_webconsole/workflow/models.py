@@ -31,6 +31,7 @@ from fedlearner_webconsole.job.models import (Job, JobState, JobType,
 from fedlearner_webconsole.rpc.client import RpcClient
 from fedlearner_webconsole.mmgr.service import ModelService
 
+
 class WorkflowState(enum.Enum):
     INVALID = 0
     NEW = 1
@@ -201,6 +202,8 @@ class Workflow(db.Model):
                            server_default=func.now(),
                            comment='update_at')
 
+    extra = db.Column(db.Text(), comment='extra')  # json string
+
     owned_jobs = db.relationship(
         'Job', primaryjoin='foreign(Job.workflow_id) == Workflow.id')
     project = db.relationship(
@@ -208,12 +211,13 @@ class Workflow(db.Model):
 
     def get_state_for_frontend(self):
         if self.state == WorkflowState.RUNNING:
-            is_complete = all([
-                job.is_disabled or job.is_complete() for job in self.owned_jobs
-            ])
+            is_complete = all([job.is_disabled or
+                               job.state == JobState.COMPLETED
+                               for job in self.owned_jobs])
             if is_complete:
                 return 'COMPLETED'
-            is_failed = any([job.is_failed() for job in self.owned_jobs])
+            is_failed = any([job.state == JobState.FAILED
+                             for job in self.owned_jobs])
             if is_failed:
                 return 'FAILED'
         return self.state.name
@@ -390,6 +394,17 @@ class Workflow(db.Model):
     def rollback(self):
         self.target_state = WorkflowState.INVALID
 
+    def start(self):
+        self.start_at = int(datetime.now().timestamp())
+        for job in self.owned_jobs:
+            if not job.is_disabled:
+                job.schedule()
+
+    def stop(self):
+        self.stop_at = int(datetime.now().timestamp())
+        for job in self.owned_jobs:
+            job.stop()
+
     # TODO: separate this method to another module
     def commit(self):
         assert self.transaction_state in [
@@ -398,23 +413,18 @@ class Workflow(db.Model):
             'Workflow not in prepare state'
 
         if self.target_state == WorkflowState.STOPPED:
-            self.stop_at = int(datetime.now().timestamp())
             try:
-                for job in self.owned_jobs:
-                    job.stop()
+                self.stop()
             except RuntimeError as e:
                 # errors from k8s
-                logging.error('Stop workflow %d has Runtime error msg: %s',
+                logging.error('Stop workflow %d has error msg: %s',
                               self.id, e.args)
                 return
         elif self.target_state == WorkflowState.READY:
             self._setup_jobs()
             self.fork_proposal_config = None
         elif self.target_state == WorkflowState.RUNNING:
-            self.start_at = int(datetime.now().timestamp())
-            for job in self.owned_jobs:
-                if not job.is_disabled:
-                    job.schedule()
+            self.start()
 
         self.state = self.target_state
         self.target_state = WorkflowState.INVALID
@@ -465,7 +475,7 @@ class Workflow(db.Model):
                     config=job_def.SerializeToString(),
                     workflow_id=self.id,
                     project_id=self.project_id,
-                    state=JobState.STOPPED,
+                    state=JobState.NEW,
                     is_disabled=(flag == common_pb2.CreateJobFlag.DISABLED))
                 db.session.add(job)
             jobs.append(job)
@@ -522,3 +532,30 @@ class Workflow(db.Model):
             return True
 
         return bool(self.config)
+
+    def is_local(self):
+        # since _setup_jobs has not been called, job_definitions is used
+        job_defs = self.get_config().job_definitions
+        flags = self.get_create_job_flags()
+        for i, (job_def, flag) in enumerate(zip(job_defs, flags)):
+            if flag != common_pb2.CreateJobFlag.REUSE and job_def.is_federated:
+                return False
+        return True
+
+    def update_local_state(self):
+        if self.target_state == WorkflowState.INVALID:
+            return
+        if self.target_state == WorkflowState.READY:
+            self._setup_jobs()
+        elif self.target_state == WorkflowState.RUNNING:
+            self.start()
+        elif self.target_state == WorkflowState.STOPPED:
+            try:
+                self.stop()
+            except Exception as e:
+                # errors from k8s
+                logging.error('Stop workflow %d has error msg: %s',
+                              self.id, e.args)
+                return
+        self.state = self.target_state
+        self.target_state = WorkflowState.INVALID

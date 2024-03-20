@@ -101,7 +101,8 @@ class RpcClient(object):
     @catch_and_fallback(resp_class=service_pb2.UpdateWorkflowStateResponse)
     @retry_fn(retry_times=3, needed_exceptions=[grpc.RpcError])
     def update_workflow_state(self, name, state, target_state,
-                              transaction_state, uuid, forked_from_uuid):
+                              transaction_state, uuid, forked_from_uuid,
+                              extra=''):
         msg = service_pb2.UpdateWorkflowStateRequest(
             auth_info=self._auth_info,
             workflow_name=name,
@@ -109,7 +110,9 @@ class RpcClient(object):
             target_state=target_state.value,
             transaction_state=transaction_state.value,
             uuid=uuid,
-            forked_from_uuid=forked_from_uuid)
+            forked_from_uuid=forked_from_uuid,
+            extra=extra
+        )
         response = self._client.UpdateWorkflowState(
             request=msg, metadata=self._get_metadata(),
             timeout=Envs.GRPC_CLIENT_TIMEOUT)

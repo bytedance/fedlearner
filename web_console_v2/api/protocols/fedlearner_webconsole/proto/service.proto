@@ -39,6 +39,13 @@ message CheckConnectionResponse {
     Status status = 1;
 }
 
+message PingRequest {}
+
+message PingResponse {
+    Status status = 1;
+    string  msg = 2;
+}
+
 message UpdateWorkflowStateRequest {
     ProjAuthInfo auth_info = 1;
     string workflow_name = 2;
@@ -47,6 +54,8 @@ message UpdateWorkflowStateRequest {
     int64 transaction_state = 5;
     string forked_from_uuid = 6;
     string uuid = 7;
+    // json string
+    string extra = 8;
 }
 
 message UpdateWorkflowStateResponse {
@@ -140,6 +149,7 @@ message GetJobKibanaResponse {
 
 service WebConsoleV2Service {
     rpc CheckConnection (CheckConnectionRequest) returns (CheckConnectionResponse) {}
+    rpc Ping (PingRequest) returns (PingResponse) {}
     rpc UpdateWorkflowState (UpdateWorkflowStateRequest) returns (UpdateWorkflowStateResponse) {}
     rpc GetWorkflow (GetWorkflowRequest) returns (GetWorkflowResponse) {}
     rpc UpdateWorkflow(UpdateWorkflowRequest) returns (UpdateWorkflowResponse) {}

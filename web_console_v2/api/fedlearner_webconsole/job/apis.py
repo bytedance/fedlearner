@@ -36,7 +36,7 @@ from fedlearner_webconsole.workflow.models import Workflow
 def _get_job(job_id):
     result = Job.query.filter_by(id=job_id).first()
     if result is None:
-        raise NotFoundException()
+        raise NotFoundException(f'Failed to find job_id: {job_id}')
     return result
 
 
@@ -115,7 +115,8 @@ class PeerJobMetricsApi(Resource):
     def get(self, workflow_uuid, participant_id, job_name):
         workflow = Workflow.query.filter_by(uuid=workflow_uuid).first()
         if workflow is None:
-            raise NotFoundException()
+            raise NotFoundException(
+                f'Failed to find workflow: {workflow_uuid}')
         project_config = workflow.project.get_config()
         party = project_config.participants[participant_id]
         client = RpcClient(project_config, party)
@@ -147,7 +148,7 @@ class JobEventApi(Resource):
         job = _get_job(job_id)
         if start_time is None:
             start_time = job.workflow.start_at
-        return {'data': es.query_events('filebeat-*', job.name,
+        return {'data': es.query_events(Envs.ES_INDEX, job.name,
                                         'fedlearner-operator',
                                         start_time,
                                         int(time.time() * 1000
@@ -171,7 +172,8 @@ class PeerJobEventsApi(Resource):
         max_lines = data['max_lines']
         workflow = Workflow.query.filter_by(uuid=workflow_uuid).first()
         if workflow is None:
-            raise NotFoundException()
+            raise NotFoundException(
+                f'Failed to find workflow: {workflow_uuid}')
         if start_time is None:
             start_time = workflow.start_at
         project_config = workflow.project.get_config()
@@ -306,7 +308,8 @@ class PeerKibanaMetricsApi(Resource):
         args = parser.parse_args()
         workflow = Workflow.query.filter_by(uuid=workflow_uuid).first()
         if workflow is None:
-            raise NotFoundException()
+            raise NotFoundException(
+                f'Failed to find workflow: {workflow_uuid}')
         project_config = workflow.project.get_config()
         party = project_config.participants[participant_id]
         client = RpcClient(project_config, party)

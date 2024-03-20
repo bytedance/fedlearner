@@ -22,8 +22,6 @@ from tensorflow.python.estimator.util import parse_input_fn_result #pylint: disa
 
 from tensorflow_estimator.python.estimator import model_fn as model_fn_lib
 from fedlearner.common import fl_logging
-from fedlearner.trainer.run_hooks import TraceStatsHook
-from fedlearner.trainer._global_context import global_context as _gctx
 
 
 class FLModel(object):
@@ -193,9 +191,6 @@ class FLEstimator(object):
                 features, labels, tf.estimator.ModeKeys.TRAIN)
 
             hooks = []
-            # stats
-            hooks.append(TraceStatsHook(
-                every_secs=30, stats_client=_gctx.stats_client))
             # user define chief hook
             if spec.training_chief_hooks and self._is_chief:
                 hooks.extend(spec.training_chief_hooks)
@@ -262,6 +257,9 @@ class FLEstimator(object):
             final_ops_hook = tf.train.FinalOpsHook(eval_dict)
             all_hooks.append(final_ops_hook)
 
+            if self._input_hooks:
+                all_hooks.extend(self._input_hooks)
+
             session_creator = tf.train.WorkerSessionCreator(
                 master=self._cluster_server.target,
                 config=self._cluster_server.cluster_config)
@@ -278,7 +276,6 @@ class FLEstimator(object):
                     fl_logging.debug("after session run. time: %f sec",
                                      use_time)
             self._bridge.terminate()
-
             # Print result
             fl_logging.info('Metrics for evaluate: %s',
                 _dict_to_str(final_ops_hook.final_ops_values))

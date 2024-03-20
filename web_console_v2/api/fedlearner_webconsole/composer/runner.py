@@ -16,12 +16,14 @@
 import datetime
 import logging
 import random
+import sys
 import time
 from typing import Tuple
 
 from fedlearner_webconsole.composer.interface import IItem, IRunner, ItemType
 from fedlearner_webconsole.composer.models import Context, RunnerStatus, \
     SchedulerRunner
+from fedlearner_webconsole.dataset.data_pipeline import DataPipelineRunner
 from fedlearner_webconsole.db import get_session
 from fedlearner_webconsole.workflow.cronjob import WorkflowCronJob
 
@@ -77,8 +79,16 @@ class MemoryRunner(IRunner):
         return RunnerStatus.DONE, {}
 
 
-# register runner_fn
-global_runner_fn = {
-    ItemType.MEMORY.value: MemoryRunner,
-    ItemType.WORKFLOW_CRON_JOB.value: WorkflowCronJob,
-}
+def global_runner_fn():
+    # register runner_fn
+    runner_fn = {
+        ItemType.MEMORY.value: MemoryRunner,
+        ItemType.WORKFLOW_CRON_JOB.value: WorkflowCronJob,
+        ItemType.DATA_PIPELINE.value: DataPipelineRunner,
+    }
+    for item in ItemType:
+        if item.value in runner_fn or item == ItemType.TASK:
+            continue
+        logging.error(f'failed to find item, {item.value}')
+        sys.exit(-1)
+    return runner_fn

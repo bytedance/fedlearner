@@ -16,6 +16,8 @@
 
 set -ex
 
+source /app/deploy/scripts/pre_start_hook.sh || true
+
 WORKER_REPLICAS=`python -c 'import json, os; print(len(json.loads(os.environ["CLUSTER_SPEC"])["clusterSpec"]["Worker"]))'`
 echo "${WORKER_REPLICAS:?Need to set WORKER_REPLICAS non-empty}"
 echo "${INDEX:?Need to set INDEX non-empty}"

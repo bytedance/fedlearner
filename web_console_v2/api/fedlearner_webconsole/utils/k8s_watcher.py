@@ -27,9 +27,10 @@ from fedlearner_webconsole.utils.k8s_client import (
     FEDLEARNER_CUSTOM_VERSION)
 from fedlearner_webconsole.mmgr.service import ModelService
 from fedlearner_webconsole.db import make_session_context
+from fedlearner_webconsole.job.service import JobService
+
 
 session_context = make_session_context()
-
 
 class K8sWatcher(object):
     def __init__(self):
@@ -77,6 +78,8 @@ class K8sWatcher(object):
             try:
                 event = self._queue.get()
                 k8s_cache.update_cache(event)
+                # job state must be updated before model service
+                self._update_hook(event)
                 if Features.FEATURE_MODEL_K8S_HOOK:
                     with session_context() as session:
                         ModelService(session).k8s_watcher_hook(event)
@@ -84,6 +87,14 @@ class K8sWatcher(object):
             except Exception as e:  # pylint: disable=broad-except
                 logging.error(f'K8s event_consumer : {str(e)}. '
                               f'traceback:{traceback.format_exc()}')
+
+    def _update_hook(self, event: Event):
+        if event.obj_type == ObjectType.FLAPP:
+            logging.debug('[k8s_watcher][_update_hook]receive event %s',
+                          event.flapp_name)
+            with session_context() as session:
+                JobService(session).update_running_state(event.flapp_name)
+                session.commit()
 
     def _k8s_flapp_watcher(self):
         resource_version = '0'

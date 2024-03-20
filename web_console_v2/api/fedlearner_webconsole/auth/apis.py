@@ -14,12 +14,15 @@
 
 # coding: utf-8
 # pylint: disable=cyclic-import
+import re
 import datetime
 from http import HTTPStatus
 from flask import request
 from flask_restful import Resource, reqparse
 from flask_jwt_extended.utils import get_current_user
 from flask_jwt_extended import create_access_token, decode_token, get_jwt
+
+from fedlearner_webconsole.utils.base64 import base64decode
 from fedlearner_webconsole.utils.decorators import jwt_required
 
 from fedlearner_webconsole.utils.decorators import admin_required
@@ -31,6 +34,28 @@ from fedlearner_webconsole.exceptions import (NotFoundException,
                                               ResourceConflictException,
                                               UnauthorizedException,
                                               NoAccessException)
+
+# rule: password must have a letter, a num and a special character
+PASSWORD_FORMAT_L = re.compile(r'.*[A-Za-z]')
+PASSWORD_FORMAT_N = re.compile(r'.*[0-9]')
+PASSWORD_FORMAT_S = re.compile(r'.*[`!@#$%^&*()\-_=+|{}\[\];:\'\",<.>/?~]')
+
+
+def check_password_format(password: str):
+    if not 8 <= len(password) <= 20:
+        raise InvalidArgumentException(
+            'Password is not legal: 8 <= length <= 20')
+    required_chars = []
+    if PASSWORD_FORMAT_L.match(password) is None:
+        required_chars.append('a letter')
+    if PASSWORD_FORMAT_N.match(password) is None:
+        required_chars.append('a num')
+    if PASSWORD_FORMAT_S.match(password) is None:
+        required_chars.append('a special character')
+    if required_chars:
+        tip = ', '.join(required_chars)
+        raise InvalidArgumentException(
+            f'Password is not legal: must have {tip}.')
 
 
 class SigninApi(Resource):
@@ -44,11 +69,11 @@ class SigninApi(Resource):
                             help='password is empty')
         data = parser.parse_args()
         username = data['username']
-        password = data['password']
+        password = base64decode(data['password'])
         user = User.query.filter_by(username=username).filter_by(
             state=State.ACTIVE).first()
         if user is None:
-            raise NotFoundException()
+            raise NotFoundException(f'Failed to find user: {username}')
         if not user.verify_password(password):
             raise UnauthorizedException('Invalid password')
         token = create_access_token(identity=username)
@@ -61,11 +86,11 @@ class SigninApi(Resource):
         db.session.commit()
 
         return {
-            'data': {
-                'user': user.to_dict(),
-                'access_token': token
-            }
-        }, HTTPStatus.OK
+                   'data': {
+                       'user': user.to_dict(),
+                       'access_token': token
+                   }
+               }, HTTPStatus.OK
 
     @jwt_required()
     def delete(self):
@@ -105,10 +130,12 @@ class UsersApi(Resource):
 
         data = parser.parse_args()
         username = data['username']
-        password = data['password']
+        password = base64decode(data['password'])
         role = data['role']
         name = data['name']
         email = data['email']
+
+        check_password_format(password)
 
         if User.query.filter_by(username=username).first() is not None:
             raise ResourceConflictException(
@@ -129,7 +156,8 @@ class UserApi(Resource):
     def _find_user(self, user_id) -> User:
         user = User.query.filter_by(id=user_id).first()
         if user is None or user.state == State.DELETED:
-            raise NotFoundException()
+            raise NotFoundException(
+                f'Failed to find user_id: {user_id}')
         return user
 
     def _check_current_user(self, user_id, msg):
@@ -158,7 +186,9 @@ class UserApi(Resource):
             if k not in mutable_attrs:
                 raise InvalidArgumentException(f'cannot edit {k} attribute!')
             if k == 'password':
-                user.set_password(v)
+                password = base64decode(v)
+                check_password_format(password)
+                user.set_password(password)
             else:
                 setattr(user, k, v)
 
