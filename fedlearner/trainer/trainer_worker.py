@@ -185,6 +185,7 @@ def create_argument_parser():
                         type=str,
                         default=None,
                         help="use Meituan hadoop to get or upload data")
+    # 添加与label protection相关的参数
     parser.add_argument('--using_embedding_protection',
                         type=str_as_bool,
                         default='False',
