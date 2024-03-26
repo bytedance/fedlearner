@@ -185,6 +185,30 @@ def create_argument_parser():
                         type=str,
                         default=None,
                         help="use Meituan hadoop to get or upload data")
+    parser.add_argument('--using_embedding_protection',
+                        type=str_as_bool,
+                        default='False',
+                        help='Whether use embedding protection.')
+    parser.add_argument('--discorloss_weight',
+                        type=str,
+                        default='0.01',
+                        help='Distance correlation weight.')
+    parser.add_argument('--using_marvell_protection',
+                        type=str_as_bool,
+                        default='False',
+                        help='Whether use marvell protection.')
+    parser.add_argument('--sumkl_threshold',
+                        type=str,
+                        default='0.25',
+                        help='Marvell sumKL threshold.')
+    parser.add_argument('--using_emb_attack',
+                        type=str_as_bool,
+                        default='False',
+                        help='Whether use embedding attack.')
+    parser.add_argument('--using_norm_attack',
+                        type=str_as_bool,
+                        default='False',
+                        help='Whether use norm attack.')
     return parser
 
 def _run_master(role,
