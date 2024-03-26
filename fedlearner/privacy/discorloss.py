@@ -33,6 +33,7 @@ class DisCorLoss(tf.keras.losses.Loss):
         a = self._pairwise_dist(embeddings, embeddings)
         b = self._pairwise_dist(labels, labels)
 
+        # X = x - x的行均值 - x的列均值 + x的总均值
         A = a - tf.reduce_mean(a,
                             axis=1) - tf.expand_dims(tf.reduce_mean(a,
                                                                     axis=0),
@@ -41,11 +42,12 @@ class DisCorLoss(tf.keras.losses.Loss):
                             axis=1) - tf.expand_dims(tf.reduce_mean(b,
                                                                     axis=0),
                                                         axis=1) + tf.reduce_mean(b)
-
+        # 计算协方差
         dCovXY = tf.sqrt(tf.abs(tf.reduce_sum(A * B) / (n ** 2)))
+        # 计算方差
         dVarXX = tf.sqrt(tf.abs(tf.reduce_sum(A * A) / (n ** 2)))
         dVarYY = tf.sqrt(tf.abs(tf.reduce_sum(B * B) / (n ** 2)))
-
+        # 计算相关性
         dCorXY = dCovXY / tf.sqrt(dVarXX * dVarYY)
         end = time.time()
         if debug:
