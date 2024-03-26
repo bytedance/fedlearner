@@ -2,6 +2,8 @@ import tensorflow as tf
 import logging
 import time
 
+# DisCorLoss论文详见：https://arxiv.org/abs/2203.01451
+
 class DisCorLoss(tf.keras.losses.Loss):
     def __init__(self, **kwargs):
         super(DisCorLoss, self).__init__(**kwargs)
