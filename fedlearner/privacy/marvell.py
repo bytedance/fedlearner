@@ -6,41 +6,57 @@ import logging
 import time
 import sys
 
+#论文见：https://arxiv.org/pdf/2102.08504.pdf
+
 sys.setrecursionlimit(100000)
 
+# OBJECTIVE_EPSILON为优化过程的结束条件
 OBJECTIVE_EPSILON = np.float32(1e-16)
+
+# CONVEX_EPSILON为二值优化问题的结束条件
 CONVEX_EPSILON = np.float32(1e-20)
+
+# NUM_CANDIDATE为优化过程候选数量
 NUM_CANDIDATE = 1
+
+# ZERO_REPLACE用来应对除零错误
 ZERO_REPLACE = 1e-3
 
 @tf.function
 def KL_gradient_perturb(g, batch_y, sumKL_threshold=0.25):
-    uv_choice = "uv"  # "uv"
+    # 算法流程：
+    # 1.根据gradient对label=0和label=1的gradient的分布进行统计：得到均值和方差
+    # 2.调用compute_lambdas解决 四变量优化 问题：得到四个变量lambda
+    # 3.根据噪声添加公式计算噪声：得到noise
+    # 4.添加噪声并返回
+
+    # Step 1: 分布统计
+    uv_choice = "uv"
     init_scale = 1.0
 
     p_frac = 'pos_frac'
     dynamic = True
     error_prob_lower_bound = None
-    # sumKL_threshold= 0.25 #0.25 #0.81 #0.64#0.16 #0.64
 
     if dynamic and (error_prob_lower_bound is not None):
         sumKL_threshold = (2 - 4 * error_prob_lower_bound) ** 2
     # elif dynamic:
     #     print('using sumKL_threshold', sumKL_threshold)
 
-        # start = time.time()
     y = tf.reshape(tf.cast(batch_y, dtype=tf.float32), [-1, 1])
-    # pos_g = g[y==1]
+    # 正例的gradient
     pos_g = tf.boolean_mask(g, tf.tile(tf.cast(y, dtype=tf.int32), [1, tf.shape(g)[1]]))
     pos_g = tf.reshape(pos_g, [-1, tf.shape(g)[1]])
 
+    # 正例gradient的均值和方差
     pos_g_mean = tf.math.reduce_mean(pos_g, axis=0, keepdims=True)  # shape [1, d]
     pos_coordinate_var = tf.reduce_mean(tf.math.square(pos_g - pos_g_mean), axis=0)  # use broadcast
 
-    # neg_g = g[y==0]
+    # 负例的gradient
     neg_g = tf.boolean_mask(g, tf.tile(1 - tf.cast(y, dtype=tf.int32), [1, tf.shape(g)[1]]))
     neg_g = tf.reshape(neg_g, [-1, tf.shape(g)[1]])
 
+    # 负例gradient的均值和方差
     neg_g_mean = tf.math.reduce_mean(neg_g, axis=0, keepdims=True)  # shape [1, d]
     neg_coordinate_var = tf.reduce_mean(tf.math.square(neg_g - neg_g_mean), axis=0)
 
@@ -51,8 +67,9 @@ def KL_gradient_perturb(g, batch_y, sumKL_threshold=0.25):
              avg_neg_coordinate_var):
         return g
 
+    # 对应论文 \delta g
     g_diff = pos_g_mean - neg_g_mean
-
+    # 对应论文 \delta g的二范数
     g_diff_norm = tf.norm(tensor=g_diff)
 
     if tf.math.is_nan(g_diff_norm):
@@ -66,14 +83,20 @@ def KL_gradient_perturb(g, batch_y, sumKL_threshold=0.25):
         v = (avg_neg_coordinate_var + avg_pos_coordinate_var) / 2.0
     elif uv_choice == 'zero':
         u, v = 0.0, 0.0
+
+    # d是gradient的维度
     d = tf.cast(tf.shape(g)[1], dtype=tf.float32)
+
+    # p是标签y中正例的占比
     if p_frac == 'pos_frac':
         p = tf.math.reduce_mean(y)
     else:
         p = float(p_frac)
+    
     scale = init_scale
     g_norm_square = g_diff_norm ** 2
 
+    # debug用
     def print_tensor(pos_g_mean, neg_g_mean, g_diff):
         logging.info("gradient pos_g_mean: {}, neg_g_mean: {}".format(np.mean(pos_g_mean), np.mean(neg_g_mean)))
         logging.info("gradient pos_g_max: {}, neg_g_max: {}".format(np.amax(pos_g_mean), np.amax(neg_g_mean)))
@@ -85,27 +108,12 @@ def KL_gradient_perturb(g, batch_y, sumKL_threshold=0.25):
                                                                                                         np.amax(g_diff),
                                                                                                         np.linalg.norm(
                                                                                                             g_diff)))
-
+    # Step 2: 计算论文中4个lambda
     def compute_lambdas(u, v, scale, d, g_norm_square, p, sumKL_threshold, pos_g_mean, neg_g_mean, g_diff):
-        # u = np.float32(u.numpy().item())
-        # v = np.float32(v.numpy().item())
-        # scale = np.float32(scale.numpy().item())
-        # d = np.float32(d.numpy().item())
-        # g_norm_square = np.float32(g_norm_square.numpy().item())
-        # p = np.float32(p.numpy().item())
-        # sumKL_threshold = np.float32(sumKL_threshold.numpy().item())
-
-        # kl_obj = symKL_objective(np.float32(0.0), np.float32(0.0), np.float32(0.0), np.float32(0.0), u, v, d,
-        #                          g_norm_square)
-        # logging.info("u: {}, v:{}, scale:{}, d:{}, g_diff_norm_square:{}, p:{}, sumKL_threshold:{}, current_kl: {}".format(u, v, scale, d, g_norm_square, p, sumKL_threshold, kl_obj))
-
-        # if kl_obj < sumKL_threshold:
-        #     # logging.info("lam10: {}, lam20: {}, lam11:{}, lam21:{}, sumKL:{}".format(0.0, 0.0, 0.0, 0.0, kl_obj))
-        #     return np.float32(0.0), np.float32(0.0), np.float32(0.0), np.float32(0.0), kl_obj
-
         lam10, lam20, lam11, lam21 = None, None, None, None
         start = time.time()
         while True:
+            # P 对应论文中“Additional details of Marvell.”所讲述的power constarint hyperparameter
             P = scale * g_norm_square
             lam10, lam20, lam11, lam21, sumKL = solve_isotropic_covariance(u=u,
                                                                            v=v,
@@ -120,17 +128,11 @@ def KL_gradient_perturb(g, batch_y, sumKL_threshold=0.25):
             # logging.info('scale: {}, sumKL: {}, P:{}, type_scale: {}, type_sumKL: {}, type_P:{}'.format(scale, sumKL, P, type(scale), type(sumKL), type(P)))
             if not dynamic or sumKL <= sumKL_threshold:
                 break
-
             scale *= np.float32(1.5)  # loosen the power constraint
-
         # logging.info('solve_isotropic_covariance solving time: {}'.format(time.time() - start))
-
         return lam10, lam20, lam11, lam21, sumKL
 
-    # lam10, lam20, lam11, lam21, sumKL = tf.py_function(compute_lambdas,
-    #                                                [u, v, scale, d, g_norm_square, p, sumKL_threshold, pos_g_mean,
-    #                                                 neg_g_mean, g_diff],
-    #                                                [tf.float32, tf.float32, tf.float32, tf.float32, tf.float32])
+    
     lam10, lam20, lam11, lam21, sumKL = tf.py_function(compute_lambdas,
                                                        [u, v, scale, d, g_norm_square, p, sumKL_threshold, pos_g_mean,
                                                         neg_g_mean, g_diff],
@@ -138,30 +140,39 @@ def KL_gradient_perturb(g, batch_y, sumKL_threshold=0.25):
     lam10, lam20, lam11, lam21, sumKL = tf.reshape(lam10, shape=[1]), tf.reshape(lam20, shape=[1]), \
                                         tf.reshape(lam11,shape=[1]), tf.reshape(lam21, shape=[1]), \
                                         tf.reshape(sumKL, shape=[1])
-
+    
     perturbed_g = g
     y_float = tf.cast(y, dtype=tf.float32)
-
+    
     div_g = g_diff_norm
     if div_g == 0.:
         div_g = ZERO_REPLACE
 
+    # Step 3: 计算噪声
+    # 四个noise的公式详见论文Theorem 2
+    # noise_1和noise_2给 label=1 的gradient添加噪声，对应论文中 \Sigma 1
+    # noise_1中采样标准高斯噪声x，保留对应 label=1 的部分，扩大 sqrt( (lambda11 - lmabda21) / ||\Delta g||_2^2 ) * ||\Delta g||_2，对应\Sigma 1的前一个加项
     noise_1 = tf.reshape(tf.multiply(x=tf.random.normal(shape=tf.shape(y)), y=y_float), shape=(-1, 1)) * g_diff * (
                 tf.math.sqrt(tf.math.abs(lam11 - lam21)) / div_g)
     noise_1 = tf.debugging.check_numerics(noise_1, "noise_1 ERROR", name="noise_1_debugging")
 
+    # noise_2对应\Sigma 1的后一个加项
     noise_2 = tf.random.normal(shape=tf.shape(g)) * tf.reshape(y_float, shape=(-1, 1)) * tf.math.sqrt(
         tf.math.maximum(lam21, 0.0))
     noise_2 = tf.debugging.check_numerics(noise_2, "noise_2 ERROR", name="noise_2_debugging")
 
+    # noise_3和noise_4给 label=2 的gradient添加噪声，对应论文中的 \Sigma 0
+    # noise_3对应\Sigma 0的前一个加项（与noise_1类似）
     noise_3 = tf.reshape(tf.multiply(x=tf.random.normal(shape=tf.shape(y)), y=1 - y_float), shape=(-1, 1)) * g_diff * (
                 tf.math.sqrt(tf.math.abs(lam10 - lam20)) / div_g)
     noise_3 = tf.debugging.check_numerics(noise_3, "noise_3 ERROR", name="noise_3_debugging")
 
+    # noise_4对应\Sigma 0的后一个加项
     noise_4 = tf.random.normal(shape=tf.shape(g)) * tf.reshape(1 - y_float, shape=(-1, 1)) * tf.math.sqrt(
         tf.math.maximum(lam20, 0.0))
     noise_4 = tf.debugging.check_numerics(noise_4, "noise_4 ERROR", name="noise_4_debugging")
 
+    # Step 4 : 添加噪声并返回
     perturbed_g += (noise_1 + noise_2 + noise_3 + noise_4)
     perturbed_g = tf.debugging.check_numerics(perturbed_g, "perturbed_g ERROR", name="perturbed_g_debugging")
 
@@ -170,6 +181,7 @@ def KL_gradient_perturb(g, batch_y, sumKL_threshold=0.25):
 
 # solver
 def symKL_objective(lam10, lam20, lam11, lam21, u, v, d, g_norm_square):
+    # 计算优化的目标函数
     div1 = lam21 + v
     div2 = lam20 + u
     div3 = lam11 + v
@@ -192,6 +204,7 @@ def symKL_objective(lam10, lam20, lam11, lam21, u, v, d, g_norm_square):
 
 
 def symKL_objective_zero_uv(lam10, lam11, g_norm_square):
+    # 计算优化的目标函数（u, v均为0）
     if lam11 == 0.:
         lam11 = ZERO_REPLACE
     if lam10 == 0.:
@@ -230,39 +243,34 @@ def solve_isotropic_covariance(u, v, d, g_norm_square, p, P,
     div3 = p
     if div3 == 0.:
         div3 = ZERO_REPLACE
+
+    # lambda21=0，对剩下的参数随机赋值(NUM_CANDIDATE决定候选的 lambda解 的数量)
     if u <= v:
         # logging.info("solve_isotropic_covariance, u<=v")
         for i in range(NUM_CANDIDATE):
             if i % 3 == ordering[0]:
-                # print('a')
                 if lam20_init:  # if we pass an initialization
                     lam20 = lam20_init
-                    # print('here')
                 else:
                     lam20 = np.float32(random.random() * P / div1 / div2)
                 lam10, lam11 = None, None
-                # print('lam21', lam21)
             elif i % 3 == ordering[1]:
-                # print('b')
                 if lam11_init:
                     lam11 = lam11_init
                 else:
                     lam11 = np.float32(random.random() * P / div3)
                 lam10, lam20 = None, None
-                # print('lam11', lam11)
             else:
-                # print('c')
                 if lam10_init:
                     lam10 = lam10_init
                 else:
                     lam10 = np.float32(random.random() * P / div1)
                 lam11, lam20 = None, None
-                # print('lam10', lam10)
             # logging.info("solve_isotropic_covariance, u<=v_iter_{}, lam10: {}, lam20: {}, lam11: {}, type_lam10: {}, type_lam20: {}, type_lam11: {}".format(i, lam10, lam20, lam11, type(lam10), type(lam20), type(lam11)))
             solutions.append(
                 solve_small_neg(u=u, v=v, d=d, g_norm_square=g_norm_square, p=p, P=P, lam10=lam10, lam11=lam11,
                                 lam20=lam20))
-
+    # lambda20=0，对剩下的参数随机赋值(NUM_CANDIDATE决定候选的 lambda解 的数量)
     else:
         # logging.info("solve_isotropic_covariance, u>v")
         for i in range(NUM_CANDIDATE):
@@ -272,37 +280,32 @@ def solve_isotropic_covariance(u, v, d, g_norm_square, p, P,
                 else:
                     lam21 = np.float32(random.random() * P / div3 / div2)
                 lam10, lam11 = None, None
-                # print('lam21', lam21)
             elif i % 3 == ordering[1]:
                 if lam11_init:
                     lam11 = lam11_init
                 else:
                     lam11 = np.float32(random.random() * P / div3)
                 lam10, lam21 = None, None
-                # print('lam11', lam11)
             else:
                 if lam10_init:
                     lam10 = lam10_init
                 else:
                     lam10 = np.float32(random.random() * P / div1)
                 lam11, lam21 = None, None
-                # print('lam10', lam10)
             # logging.info("solve_isotropic_covariance, u>v_iter_{}, lam10: {}, lam21: {}, lam11: {}, type_lam10: {}, type_lam21: {}, type_lam11: {}".format(i, lam10, lam21, lam11, type(lam10), type(lam21), type(lam11)))
             solutions.append(
                 solve_small_pos(u=u, v=v, d=d, g_norm_square=g_norm_square, p=p, P=P, lam10=lam10, lam11=lam11,
                                 lam21=lam21))
 
-    # print(solutions)
     # logging.info("solve_isotropic_covariance, solutions: {}, len: {}".format(solutions, len(solutions)))
     lam10, lam20, lam11, lam21, objective = min(solutions, key=lambda x: x[-1])
     # logging.info("solve_isotropic_covariance, lam10: {}, lam20: {}, lam21: {}, lam11: {}, type_lam10: {}, type_lam21: {}, type_lam11: {}, type_lam20: {}".format(lam10, lam20, lam21, lam11, type(lam10), type(lam21), type(lam11), type(lam20)))
-
-    # print('sum', p * lam11 + p*(d-1)*lam21 + (1-p) * lam10 + (1-p)*(d-1)*lam20)
 
     return (lam10, lam20, lam11, lam21, objective)
 
 
 def solve_zero_uv(g_norm_square, p, P):
+    # 特殊情况：当u, v=0
     C = P
     div1 = C + p * g_norm_square
     if div1 == 0.:
@@ -315,18 +318,15 @@ def solve_zero_uv(g_norm_square, p, P):
     if div3 == 0.:
         div3 = ZERO_REPLACE
     tau = np.float32(max((P / div2) / div3, np.float32(0.0)))
-    # print('tau', tau)
     # logging.info("solve_zero_uv, C: {}, E: {}, tau: {}, type_C: {}, type_E: {}, type_tau: {}".format(C, E, tau, type(C), type(E), type(tau)))
     div4 = np.float32(1.0) - p
     if div4 == 0.:
         div4 = ZERO_REPLACE
     if 0 <= tau and tau <= P / div4:
-        # print('A')
         lam10 = tau
         lam11 = np.float32(max(P / div2 - (np.float32(1.0) - p) * tau / div2, np.float32(0.0)))
         # logging.info("solve_zero_uv, branch_1, lam10: {}, lam11: {}, type_lam10: {}, type_lam11:{}".format(lam10, lam11, type(lam10), type(lam11)))
     else:
-        # print('B')
         lam10_case1, lam11_case1 = np.float32(0.0), max(P / div2, np.float32(0.0))
         lam10_case2, lam11_case2 = np.float32(max(P / div4, np.float32(0.0))), np.float32(0.0)
         objective1 = symKL_objective_zero_uv(lam10=lam10_case1, lam11=lam11_case1,
@@ -391,6 +391,8 @@ def prime2(x, d, v, p, lam10, u, g_norm_square, D):
 def solve_small_neg(u, v, d, g_norm_square, p, P, lam10=None, lam20=None, lam11=None):
     """[When u < v]
     """
+    # 优化过程：三个参数，轮流固定其中一个，另两个形成一个线性优化问题，求解另两个参数最优解 
+    # 结束条件：最后一轮的目标函数和倒数第四轮的目标函数的差值在一定范围内
     # some intialization to start the alternating optimization
     LAM21 = np.float32(0.0)
     i = 0
@@ -402,7 +404,6 @@ def solve_small_neg(u, v, d, g_norm_square, p, P, lam10=None, lam20=None, lam11=
         ordering = [1, 0, 2]
     else:
         ordering = [1, 2, 0]
-    # print(ordering)
 
     while True:
         if i % 3 == ordering[0]:  # fix lam20
@@ -422,17 +423,14 @@ def solve_small_neg(u, v, d, g_norm_square, p, P, lam10=None, lam20=None, lam11=
             if div_x == 0.:
                 div_x = ZERO_REPLACE
             tau = np.float32(max((D / div2 + v - E * u) / div_x, np.float32(0.0)))
-            # print('tau', tau)
             div3 = np.float32(1.0) - p
             if div3 == 0.:
                 div3 = ZERO_REPLACE
 
             if lam20 <= tau and tau <= np.float32(P / div3 - (d - np.float32(1.0)) * lam20):
-                # print('A')
                 lam10 = tau
                 lam11 = np.float32(max(D / div2 - (np.float32(1.0) - p) * tau / div2, np.float32(0.0)))
             else:
-                # print('B')
                 lam10_case1, lam11_case1 = lam20, np.float32(
                     max(P / div2 - (np.float32(1.0) - p) * d * lam20 / div2, np.float32(0.0)))
                 lam10_case2, lam11_case2 = np.float32(
@@ -456,11 +454,6 @@ def solve_small_neg(u, v, d, g_norm_square, p, P, lam10=None, lam20=None, lam11=
 
             f_prime = lambda x: prime1(x=x, d=d, v=v, lam11=lam11, u=u, g_norm_square=g_norm_square, D=D)
 
-            # f_prime = lambda x: (d - np.float32(1.0)) / v - (d - np.float32(1.0)) / (lam11 + v) - (
-            #             d - np.float32(1.0)) / (x + u) * (v / (x + u)) + (lam11 + v + g_norm_square) / (
-            #                                 D - (d - np.float32(1.0)) * x + u) * (
-            #                                 (d - np.float32(1.0)) / (D - (d - np.float32(1.0)) * x + u))
-
             div2 = d
             if div2 == 0.:
                 div2 = ZERO_REPLACE
@@ -481,12 +474,6 @@ def solve_small_neg(u, v, d, g_norm_square, p, P, lam10=None, lam20=None, lam11=
 
             f_prime = lambda x: prime2(x=x, d=d, v=v, p=p, lam10=lam10, u=u, g_norm_square=g_norm_square, D=D)
 
-            # f_prime = lambda x: (d - np.float32(1.0)) / v - (np.float32(1.0) - p) * (d - np.float32(1.0)) / (
-            #             lam10 + u) / p - (d - np.float32(1.0)) / (x + u) * (v / (x + u)) + (
-            #                                 lam10 + u + g_norm_square) / (
-            #                                 D / p - (np.float32(1.0) - p) * (d - np.float32(1.0)) * x / p + v) * (
-            #                                 1 - p) * (d - 1) / p / (D / p - (1 - p) * (d - 1) * x / p + v)
-
             div2 = (np.float32(1.0) - p) * (d - np.float32(1.0))
             if div2 == 0.:
                 div2 = ZERO_REPLACE
@@ -500,13 +487,8 @@ def solve_small_neg(u, v, d, g_norm_square, p, P, lam10=None, lam20=None, lam11=
 
         objective_value_list.append(symKL_objective(lam10=lam10, lam20=lam20, lam11=lam11, lam21=LAM21,
                                                     u=u, v=v, d=d, g_norm_square=g_norm_square))
-        # print(i)
-        # print(objective_value_list[-1])
-        # print(lam10, lam20, lam11, LAM21, objective_value_list[-1])
-        # print('sum', p * lam11 + p*(d-1)*LAM21 + (1-p) * lam10 + (1-p)*(d-1)*lam20)
         # logging.info("solve_small_neg, iter: {}, objective_value_list[-1]: {}".format(i, objective_value_list[-1]))
         if (i >= 3 and objective_value_list[-4] - objective_value_list[-1] < OBJECTIVE_EPSILON) or i >= 100:
-            # print(i)
             # logging.info("solve_small_neg, iter: {}, terminated".format(i))
             return (lam10, lam20, lam11, LAM21, np.float32(0.5) * objective_value_list[-1] - d)
 
@@ -553,6 +535,7 @@ def prime4(x, d, u, lam10, v, g_norm_square, D):
 def solve_small_pos(u, v, d, g_norm_square, p, P, lam10=None, lam11=None, lam21=None):
     """[When u > v] lam20 = 0.0 and will not change throughout the optimization
     """
+    # 优化过程：三个参数，轮流固定其中一个，另两个形成一个线性优化问题，求解另两个参数最优解 
     # some intialization to start the alternating optimization
     LAM20 = np.float32(0.0)
     i = 0
@@ -562,8 +545,6 @@ def solve_small_pos(u, v, d, g_norm_square, p, P, lam10=None, lam11=None, lam21=
     elif lam11:
         ordering = [1, 0, 2]
     else:
-        ordering = [1, 2, 0]
-    # print(ordering)
     while True:
         if i % 3 == ordering[0]:  # fix lam21
             D = np.float32(P - p * (d - np.float32(1.0)) * lam21)
@@ -580,16 +561,13 @@ def solve_small_pos(u, v, d, g_norm_square, p, P, lam10=None, lam11=None, lam21=
             if div3 == 0.:
                 div3 = ZERO_REPLACE
             tau = np.float32(max((D / div2 + v - E * u) / div3, np.float32(0.0)))
-            # print('tau', tau)
             div4 = (np.float32(1.0) - p)
             if div4 == 0.:
                 div4 = ZERO_REPLACE
             if np.float32(0.0) <= tau and tau <= (P - p * d * lam21) / div4:
-                # print('A')
                 lam10 = tau
                 lam11 = np.float32(max(D / div2 - (np.float32(1.0) - p) * tau / div2, np.float32(0.0)))
             else:
-                # print('B')
                 lam10_case1, lam11_case1 = np.float32(0), np.float32(
                     max(P / div2 - (d - np.float32(1.0)) * lam21, np.float32(0.0)))
                 lam10_case2, lam11_case2 = np.float32(
@@ -613,11 +591,6 @@ def solve_small_pos(u, v, d, g_norm_square, p, P, lam10=None, lam11=None, lam21=
                                           u=u, v=v, d=d, g_norm_square=g_norm_square)
 
             f_prime = lambda x: prime3(x=x, d=d, u=v, lam11=lam11, v=v, p=p, g_norm_square=g_norm_square, D=D)
-            # f_prime = lambda x: (d - np.float32(1.0)) / u - p * (d - np.float32(1.0)) / (lam11 + v) / (
-            #             np.float32(1.0) - p) - (d - 1) / (x + v) * (u / (x + v)) + (lam11 + v + g_norm_square) / (
-            #                                 (D - p * (d - 1) * x) / (np.float32(1.0) - p) + u) * p * (
-            #                                 d - np.float32(1.0)) / (np.float32(1.0) - p) / (
-            #                                 (D - p * (d - np.float32(1.0)) * x) / (np.float32(1.0) - p) + u)
 
             div2 = p
             if div2 == 0.:
@@ -639,10 +612,6 @@ def solve_small_pos(u, v, d, g_norm_square, p, P, lam10=None, lam11=None, lam21=
                                           u=u, v=v, d=d, g_norm_square=g_norm_square)
 
             f_prime = lambda x: prime4(x=x, d=d, u=u, lam10=lam10, v=v, g_norm_square=g_norm_square, D=D)
-            # f_prime = lambda x: (d - np.float32(1.0)) / u - (d - np.float32(1.0)) / (lam10 + u) - (
-            #             d - np.float32(1.0)) / (x + v) * (u / (x + v)) + (lam10 + u + g_norm_square) / (
-            #                                 D - (d - np.float32(1.0)) * x + v) * (d - np.float32(1.0)) / (
-            #                                 D - (d - np.float32(1.0)) * x + v)
 
             div2 = d
             if div2 == 0.:
@@ -661,6 +630,7 @@ def solve_small_pos(u, v, d, g_norm_square, p, P, lam10=None, lam11=None, lam21=
 
 
 def convex_min_1d(xl, xr, f, f_prime):
+    # 求解二值优化问题：1-d line-search minimization 
     xm = np.float32((xl + xr) / np.float32(2.0))
     if abs(xl - xr) <= CONVEX_EPSILON or abs(xl - xm) <= CONVEX_EPSILON or abs(xm - xr) <= CONVEX_EPSILON:
         return np.float32(min((f(x), x) for x in [xl, xm, xr])[1])
