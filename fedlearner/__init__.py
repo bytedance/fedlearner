@@ -20,3 +20,4 @@ from fedlearner import data_join
 from fedlearner import proxy
 from fedlearner import trainer
 from fedlearner import fedavg
+from fedlearner import privacy
