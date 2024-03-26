@@ -22,7 +22,7 @@ from tensorflow.python.estimator.util import parse_input_fn_result #pylint: disa
 
 from tensorflow_estimator.python.estimator import model_fn as model_fn_lib
 from fedlearner.common import fl_logging
-
+from fedlearner.privacy.marvell import KL_gradient_perturb
 
 class FLModel(object):
     def __init__(self, role, bridge, example_ids, exporting=False):
@@ -93,7 +93,10 @@ class FLModel(object):
                  aggregation_method=None,
                  colocate_gradients_with_ops=False,
                  name=None,
-                 grad_loss=None):
+                 grad_loss=None,
+                 marvell_protection=False,
+                 marvell_threshold=0.25,
+                 labels=None):
         recv_grads = [i for i in self._recvs if i[2]]
 
         if var_list is None:
@@ -113,6 +116,9 @@ class FLModel(object):
         send_grads = grads_and_vars[:len(recv_grads)]
         for (n, _, _), (grad, _) in zip(recv_grads, send_grads):
             if grad is not None:
+                # marvell related
+                if marvell_protection and labels is not None:
+                    grad = KL_gradient_perturb(grad, labels, marvell_threshold)
                 self.send(n + '_grad', grad)
 
         if grads_and_vars[len(recv_grads):]:
