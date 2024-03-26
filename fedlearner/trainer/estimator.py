@@ -116,7 +116,7 @@ class FLModel(object):
         send_grads = grads_and_vars[:len(recv_grads)]
         for (n, _, _), (grad, _) in zip(recv_grads, send_grads):
             if grad is not None:
-                # marvell related
+                # Marvell：给即将发送的gradient添加噪声
                 if marvell_protection and labels is not None:
                     grad = KL_gradient_perturb(grad, labels, marvell_threshold)
                 self.send(n + '_grad', grad)
