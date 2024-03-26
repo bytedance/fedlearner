@@ -20,6 +20,7 @@ CONVEX_EPSILON = np.float32(1e-20)
 NUM_CANDIDATE = 1
 
 # ZERO_REPLACE用来应对除零错误
+# 为了应对除零问题，将所有除数替换成了div_{x}
 ZERO_REPLACE = 1e-3
 
 @tf.function
