@@ -54,6 +54,8 @@ namespace sgx {
 #include <mbedtls/ecdsa.h>
 #include <mbedtls/rsa.h>
 
+#include <cjson/cJSON.h>
+
 void hexdump_mem(const void*, size_t);
 
 int parse_hex(const char*, void*, size_t);
@@ -77,6 +79,30 @@ class library_engine {
   private:
     void* handle;
     char* error;
+};
+
+class json_engine {
+  public:
+    json_engine();
+
+    json_engine(const char*);
+
+    ~json_engine();
+
+    bool open(const char*);
+
+    void close();
+
+    cJSON * get_handle();
+
+    cJSON * get_item(cJSON *obj, const char *item);
+
+    char * print_item(cJSON *obj);
+
+    bool compare_item(cJSON *obj, const char *item);
+
+  private:
+    cJSON* handle;
 };
 
 }  // namespace sgx

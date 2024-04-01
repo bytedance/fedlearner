@@ -15,11 +15,46 @@
 # limitations under the License.
 
 EXEC_DIR=/app/exec_dir
+SGX_CONFIG_PATH="$GRPC_PATH/examples/dynamic_config.json"
+TEMPLATE_PATH="/gramine/CI-Examples/generate-token/python.manifest.template"
 
+# 更新sgx的认证策略
+update_sgx_dynamic_config() {
+  local mr_enclave="$1"
+  local mr_signer="$2"
+  local isv_prod_id="$3"
+  local isv_svn="$4"
+  local json_data=$(cat "$SGX_CONFIG_PATH")
+  
+  # 创建json体
+  local new_mrs=$(jq -n --arg mr_enclave "$mr_enclave" \
+                         --arg mr_signer "$mr_signer" \
+                         --arg isv_prod_id "$isv_prod_id" \
+                         --arg isv_svn "$isv_svn" \
+                         '{
+                             mr_enclave: $mr_enclave,
+                             mr_signer: $mr_signer,
+                             isv_prod_id: $isv_prod_id,
+                             isv_svn: $isv_svn
+                         }')
+  
+  # 检查sgx_mrs数组中是否存在相同的条目
+  local exists=$(echo "$json_data" | jq --argjson check_mrs "$new_mrs" \
+                    '.sgx_mrs[] | select(.mr_enclave == $check_mrs.mr_enclave and .mr_signer == $check_mrs.mr_signer and .isv_prod_id == $check_mrs.isv_prod_id and .isv_svn == $check_mrs.isv_svn) | . != null')
+
+  # 不重复添加
+  if [[ -z "$exists" ]]; then
+    json_data=$(echo "$json_data" | jq --argjson new_mrs "$new_mrs" '.sgx_mrs += [$new_mrs]')
+    echo "$json_data" > "$SGX_CONFIG_PATH"
+  fi
+}
+
+# 从sig中获取度量值hex
 function get_env() {
     gramine-sgx-get-token -s python.sig -o /dev/null | grep $1 | awk -F ":" '{print $2}' | xargs
 }
 
+# 设置自定义环境
 function make_custom_env() {
     cd $EXEC_DIR
 
@@ -44,10 +79,6 @@ function make_custom_env() {
     export JAVA_HOME=/opt/tiger/jdk/openjdk-1.8.0_265
     export LD_LIBRARY_PATH=${HADOOP_HOME}/lib/native:${JAVA_HOME}/jre/lib/amd64/server:${LD_LIBRARY_PATH}
     export CLASSPATH=.:$CLASSPATH:$JAVA_HOME/lib/dt.jar:$JAVA_HOME/lib/tools.jar:$($HADOOP_HOME/bin/hadoop classpath --glob)
-    export MR_ENCLAVE=`get_env mr_enclave`
-    export MR_SIGNER=`get_env mr_signer`
-    export ISV_PROD_ID=`get_env isv_prod_id`
-    export ISV_SVN=`get_env isv_svn`
     export RA_TLS_ALLOW_OUTDATED_TCB_INSECURE=1
 
     if [ -z "$PEER_MR_SIGNER" ]; then
@@ -58,19 +89,16 @@ function make_custom_env() {
         export PEER_MR_ENCLAVE=`get_env mr_enclave`
     fi
 
-    # network proxy
-    unset http_proxy https_proxy
-    # need meituan's
-    jq --arg mr_enclave "$PEER_MR_ENCLAVE" --arg mr_signer "$PEER_MR_SIGNER" \
-        '.sgx_mrs[0].mr_enclave = $mr_enclave | .sgx_mrs[0].mr_signer = $mr_signer' \
-        $GRPC_PATH/examples/dynamic_config.json > $EXEC_DIR/dynamic_config.json
-    
+    update_sgx_dynamic_config $PEER_MR_ENCLAVE $PEER_MR_SIGNER 0 0
+    cp $SGX_CONFIG_PATH $EXEC_DIR
     cd -
 }
 
+# 生成enclave和token
 function generate_token() {
     cd /gramine/CI-Examples/generate-token/
     ./generate.sh
+    update_sgx_dynamic_config `get_env mr_enclave` `get_env mr_signer` 0 0
     mkdir -p $EXEC_DIR
     cp /app/sgx/gramine/CI-Examples/tensorflow_io.py $EXEC_DIR
     cp python.sig $EXEC_DIR
@@ -80,6 +108,57 @@ function generate_token() {
     cd -
 }
 
+# 根据enclave_size调整enclave
+function build_enclave(){
+    local enclave_size="$1"
+    local need_clean="$2"
+    sed -i "/sgx.enclave_size/ s/\"[^\"]*\"/\"$enclave_size\"/" "$TEMPLATE_PATH"
+    if [ $? -eq 0 ]; then
+        echo "Enclave size changed to $enclave_size in $TEMPLATE_PATH"
+    else
+        echo "Failed to change enclave size in $TEMPLATE_PATH"
+    fi
+    generate_token
+    if [ -n "$need_clean" ]; then
+        rm -rf $EXEC_DIR
+    fi
+}
+
+function build_enclave_all(){
+    local enclave_size="8G"
+    if [ -n "$1" ] && [ $1 == "Ps" ]; then
+        # build worker/master
+        if [ -n "$GRAMINE_ENCLAVE_SIZE" ]; then
+            enclave_size=$GRAMINE_ENCLAVE_SIZE
+        fi
+        build_enclave $enclave_size 1
+
+        # build ps
+        if [ -n "$COSTOM_PS_SIZE" ]; then
+            enclave_size=$COSTOM_PS_SIZE
+        else
+            enclave_size="16G"
+        fi
+        build_enclave $enclave_size
+    else
+        # build ps
+        if [ -n "$COSTOM_PS_SIZE" ]; then
+            enclave_size=$COSTOM_PS_SIZE
+        else
+            enclave_size="16G"
+        fi
+        build_enclave $enclave_size 1
+
+        # build worker/master
+        if [ -n "$GRAMINE_ENCLAVE_SIZE" ]; then
+            enclave_size=$GRAMINE_ENCLAVE_SIZE
+        else
+            enclave_size="8G"
+        fi
+        build_enclave $enclave_size
+    fi
+}
+
 if [ -n "$PCCS_IP" ]; then
         sed -i "s|PCCS_URL=https://[^ ]*|PCCS_URL=https://pccs_url:8081/sgx/certification/v3/|" /etc/sgx_default_qcnl.conf
         echo >> /etc/hosts
@@ -87,8 +166,8 @@ if [ -n "$PCCS_IP" ]; then
 elif [ -n "$PCCS_URL" ]; then
         sed -i "s|PCCS_URL=[^ ]*|PCCS_URL=$PCCS_URL|" /etc/sgx_default_qcnl.conf
 fi
+sed -i 's/USE_SECURE_CERT=TRUE/USE_SECURE_CERT=FALSE/' /etc/sgx_default_qcnl.conf
 
-TEMPLATE_PATH="/gramine/CI-Examples/generate-token/python.manifest.template"
 if [ -n "$GRAMINE_LOG_LEVEL" ]; then
         sed -i "/loader.log_level/ s/\"[^\"]*\"/\"$GRAMINE_LOG_LEVEL\"/" "$TEMPLATE_PATH"
         if [ $? -eq 0 ]; then
@@ -96,15 +175,6 @@ if [ -n "$GRAMINE_LOG_LEVEL" ]; then
         else
             echo "Failed to change log level in $TEMPLATE_PATH"
         fi
-fi
-
-if [ -n "$GRAMINE_ENCLAVE_SIZE" ]; then
-    sed -i "/sgx.enclave_size/ s/\"[^\"]*\"/\"$GRAMINE_ENCLAVE_SIZE\"/" "$TEMPLATE_PATH"
-    if [ $? -eq 0 ]; then
-        echo "Enclave size changed to $GRAMINE_ENCLAVE_SIZE in $TEMPLATE_PATH"
-    else
-        echo "Failed to change enclave size in $TEMPLATE_PATH"
-    fi
 fi
 
 if [ -n "$GRAMINE_THREAD_NUM" ]; then
@@ -125,7 +195,5 @@ if [ -n "$GRAMINE_STACK_SIZE" ]; then
     fi
 fi
 
-sed -i 's/USE_SECURE_CERT=TRUE/USE_SECURE_CERT=FALSE/' /etc/sgx_default_qcnl.conf
 mkdir -p /data
-
-generate_token
+build_enclave_all $1

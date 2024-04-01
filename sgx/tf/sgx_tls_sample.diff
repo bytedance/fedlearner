@@ -1,8 +1,8 @@
 diff --git a/tensorflow/core/distributed_runtime/rpc/BUILD b/tensorflow/core/distributed_runtime/rpc/BUILD
-index ce1a20a5ae9..a972f51f930 100644
+index ce1a20a5ae9..65266309cba 100644
 --- a/tensorflow/core/distributed_runtime/rpc/BUILD
 +++ b/tensorflow/core/distributed_runtime/rpc/BUILD
-@@ -41,9 +41,9 @@ filegroup(
+@@ -41,9 +41,10 @@ filegroup(
  
  cc_library(
      name = "grpc_util",
@@ -11,23 +11,16 @@ index ce1a20a5ae9..a972f51f930 100644
 -    linkopts = if_windows(["-DEFAULTLIB:ws2_32.lib"]),
 +    srcs = ["grpc_util.cc", "grpc_sgx_ra_tls_utils.cc", "grpc_sgx_ra_tls_server.cc", "grpc_sgx_ra_tls_client.cc", "grpc_sgx_credentials_provider.cc"],
 +    hdrs = ["grpc_util.h", "grpc_sgx_ra_tls.h", "grpc_sgx_ra_tls_utils.h", "grpc_sgx_credentials_provider.h"],
-+    linkopts = ["-L/usr/local/lib", "-l:libmbedx509_gramine.a", "-l:libmbedcrypto_gramine.a"],
++    include_dirs = ["/usr/local/include"],
++    linkopts = ["-L/usr/local/lib", "-l:libmbedx509_gramine.a", "-l:libmbedcrypto_gramine.a", "-l:libcjson.a", "-l:libcjson_utils.a"],
      deps = [
          "//tensorflow/core:lib",
          # Required to be able to overload TensorResponse parsing.
 diff --git a/tensorflow/core/distributed_runtime/rpc/grpc_channel.cc b/tensorflow/core/distributed_runtime/rpc/grpc_channel.cc
-index 985b0454837..f0b462d06e9 100644
+index 985b0454837..2d2b6d68003 100644
 --- a/tensorflow/core/distributed_runtime/rpc/grpc_channel.cc
 +++ b/tensorflow/core/distributed_runtime/rpc/grpc_channel.cc
-@@ -36,6 +36,7 @@ limitations under the License.
- #include "tensorflow/core/platform/types.h"
- #include "tensorflow/core/util/device_name_utils.h"
- 
-+
- namespace tensorflow {
- 
- namespace {
-@@ -143,8 +144,9 @@ Status NewHostPortGrpcChannel(const string& target,
+@@ -143,8 +143,9 @@ Status NewHostPortGrpcChannel(const string& target,
    TF_RETURN_IF_ERROR(ValidateHostPortPair(target));
  
    ::grpc::ChannelArguments args = GetChannelArguments(rpc_options);
@@ -65,7 +58,7 @@ index fb925e51497..2dbe6b3ba32 100644
  
  ChannelCreationFunction GrpcServer::GetChannelCreationFunction() const {
 diff --git a/tensorflow/core/distributed_runtime/rpc/grpc_util.cc b/tensorflow/core/distributed_runtime/rpc/grpc_util.cc
-index 98e05b64aad..d92b93d5df9 100644
+index 98e05b64aad..3d802241a5b 100644
 --- a/tensorflow/core/distributed_runtime/rpc/grpc_util.cc
 +++ b/tensorflow/core/distributed_runtime/rpc/grpc_util.cc
 @@ -16,6 +16,7 @@ limitations under the License.
@@ -96,12 +89,12 @@ index 98e05b64aad..d92b93d5df9 100644
 +    LOG(INFO) << "GetCredentials";
 +    if (secure && strcmp(secure, "on") == 0) {
 +       LOG(INFO) << "Secure mode: " << string(secure);
-+       const char* mr_enclave = std::getenv("MR_ENCLAVE");
-+       const char* mr_signer = std::getenv("MR_SIGNER");
-+       const char* isv_prod_id = std::getenv("ISV_PROD_ID");
-+       const char* isv_svn = std::getenv("ISV_SVN");
-+       LOG(INFO) << "\tSecure Params: " << string(mr_enclave) << "\n\t\t" << string(mr_signer);
-+       return ::grpc::sgx::TlsCredentials(mr_enclave, mr_signer, isv_prod_id, isv_svn);
++       const char* config_path = std::getenv("TF_GRPC_SGX_RA_TLS_CONFIG");
++       if (!config_path){
++          config_path = "dynamic_config.json";
++       }
++       LOG(INFO) << "Config path: " << string(config_path);
++       return ::grpc::sgx::TlsCredentials(config_path);
 +    }
 +    return ::grpc::InsecureChannelCredentials();
 +}
@@ -120,12 +113,11 @@ index aed798217cb..aa70e94971a 100644
  }  // namespace tensorflow
  
  #endif  // TENSORFLOW_CORE_DISTRIBUTED_RUNTIME_RPC_GRPC_UTIL_H_
-
 diff --git a/third_party/grpc/generate_cc_env_fix.patch b/third_party/grpc/generate_cc_env_fix.patch
-index 51832fe9628..199d0cda566 100644
+index 51832fe9628..4be9e293263 100644
 --- a/third_party/grpc/generate_cc_env_fix.patch
 +++ b/third_party/grpc/generate_cc_env_fix.patch
-@@ -1,10 +1,81 @@
+@@ -1,6 +1,8 @@
 +diff --git a/bazel/generate_cc.bzl b/bazel/generate_cc.bzl
 +index 484959ebb7..81d52fd28f 100644
  --- a/bazel/generate_cc.bzl
@@ -135,10 +127,9 @@ index 51832fe9628..199d0cda566 100644
           outputs = out_files,
           executable = ctx.executable._protoc,
           arguments = arguments,
- +        use_default_shell_env = True,
+@@ -8,3 +10,72 @@
       )
--
-+
+ 
       return struct(files = depset(out_files))
 +diff --git a/src/core/lib/security/credentials/tls/tls_credentials.cc b/src/core/lib/security/credentials/tls/tls_credentials.cc
 +index 701fd3b150..0826d05933 100644

@@ -83,5 +83,67 @@ void* library_engine::get_handle() {
   return handle;
 }
 
+json_engine::json_engine() : handle(nullptr) {};
+
+json_engine::json_engine(const char* file) : handle(nullptr){
+  this->open(file);
+}
+
+json_engine::~json_engine() {
+  this->close();
+}
+
+bool json_engine::open(const char* file) {
+  if (!file) {
+    mbedtls_printf("wrong json file path\n");
+    return false;
+  }
+
+  this->close();
+
+  auto file_ptr = fopen(file, "r");
+  fseek(file_ptr, 0, SEEK_END);
+  auto length = ftell(file_ptr);
+  fseek(file_ptr, 0, SEEK_SET);
+  auto buffer = malloc(length);
+  fread(buffer, 1, length, file_ptr);
+  fclose(file_ptr);
+
+  this->handle = cJSON_Parse((const char *)buffer);
+
+  check_free(buffer);
+
+  if (this->handle) {
+    return true;
+  } else {
+    mbedtls_printf("cjson open %s error: %s", file, cJSON_GetErrorPtr());
+    return false;
+  }
+}
+
+void json_engine::close() {
+  if (this->handle) {
+    cJSON_Delete(this->handle);
+    this->handle = nullptr;
+  }
+}
+
+cJSON * json_engine::get_handle() {
+  return this->handle;
+}
+
+cJSON * json_engine::get_item(cJSON *obj, const char *item) {
+  return cJSON_GetObjectItem(obj, item);
+};
+
+char * json_engine::print_item(cJSON *obj) {
+  return cJSON_Print(obj);
+};
+
+bool json_engine::compare_item(cJSON *obj, const char *item) {
+  auto obj_item = this->print_item(obj);
+  return strncmp(obj_item+1, item, std::min(strlen(item), strlen(obj_item)-2)) == 0;
+};
+
 }  // namespace sgx
 }  // namespace grpc

@@ -364,6 +364,8 @@ def _grpc_error_need_recover(e):
             #if 400 <= httpstatus < 500:
             #    return True
             return True
+    if e.code() == grpc.StatusCode.UNAUTHENTICATED:
+        return False
     return True # recover in any case
     #return False
 

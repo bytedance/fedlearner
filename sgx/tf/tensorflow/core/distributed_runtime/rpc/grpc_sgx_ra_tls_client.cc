@@ -45,11 +45,12 @@ struct sgx_measurement {
 };
 
 struct sgx_config {
+  bool verify_in_enclave  = true;
   bool verify_mr_enclave  = true;
   bool verify_mr_signer   = true;
   bool verify_isv_prod_id = true;
   bool verify_isv_svn     = true;
-  struct sgx_measurement sgx_mrs;
+  std::vector<sgx_measurement> sgx_mrs;
 };
 
 struct ra_tls_cache {
@@ -71,78 +72,104 @@ struct ra_tls_context {
 
 struct ra_tls_context _ctx_;
 
-void parse_args(const char* mr_enclave, const char* mr_signer,
-                const char* isv_prod_id, const char* isv_svn) {
-  if (parse_hex(mr_enclave, _ctx_.sgx_cfg.sgx_mrs.mr_enclave,
-                sizeof(_ctx_.sgx_cfg.sgx_mrs.mr_enclave)) < 0) {
-    mbedtls_printf("Cannot parse MRENCLAVE!\n");
-    return;
-  }
+sgx_config parse_sgx_config_json(const char* file) {
+  class json_engine sgx_json(file);
+  struct sgx_config sgx_cfg;
 
-  if (parse_hex(mr_signer, _ctx_.sgx_cfg.sgx_mrs.mr_signer,
-                sizeof(_ctx_.sgx_cfg.sgx_mrs.mr_signer)) < 0) {
-    mbedtls_printf("Cannot parse MRSIGNER!\n");
-    return;
-  }
+  sgx_cfg.verify_in_enclave = sgx_json.compare_item(sgx_json.get_item(sgx_json.get_handle(), "verify_in_enclave"), "on");
+  sgx_cfg.verify_mr_enclave = sgx_json.compare_item(sgx_json.get_item(sgx_json.get_handle(), "verify_mr_enclave"), "on");
+  sgx_cfg.verify_mr_signer = sgx_json.compare_item(sgx_json.get_item(sgx_json.get_handle(), "verify_mr_signer"), "on");
+  sgx_cfg.verify_isv_prod_id = sgx_json.compare_item(sgx_json.get_item(sgx_json.get_handle(), "verify_isv_prod_id"), "on");
+  sgx_cfg.verify_isv_svn = sgx_json.compare_item(sgx_json.get_item(sgx_json.get_handle(), "verify_isv_svn"), "on");
+  
+  mbedtls_printf("|- verify_in_enclave: %s\n",sgx_cfg.verify_in_enclave ? "on" : "off");
+  mbedtls_printf("|- verify_mr_enclave: %s\n",sgx_cfg.verify_mr_enclave ? "on" : "off");
+  mbedtls_printf("|- verify_mr_signer: %s\n",sgx_cfg.verify_mr_signer ? "on" : "off");
+  mbedtls_printf("|- verify_isv_prod_id: %s\n",sgx_cfg.verify_isv_prod_id ? "on" : "off");
+  mbedtls_printf("|- verify_isv_svn: %s\n",sgx_cfg.verify_isv_svn ? "on" : "off");
 
-  errno = 0;
-  _ctx_.sgx_cfg.sgx_mrs.isv_prod_id = (uint16_t)strtoul(isv_prod_id, NULL, 10);
-  if (errno) {
-    mbedtls_printf("Cannot parse ISV_PROD_ID!\n");
-    return;
-  }
+  auto objs = sgx_json.get_item(sgx_json.get_handle(), "sgx_mrs");
+  auto obj_num = cJSON_GetArraySize(objs);
 
-  errno = 0;
-  _ctx_.sgx_cfg.sgx_mrs.isv_svn = (uint16_t)strtoul(isv_svn, NULL, 10);
-  if (errno) {
-    mbedtls_printf("Cannot parse ISV_SVN\n");
-    return;
+  sgx_cfg.sgx_mrs = std::vector<sgx_measurement>(obj_num, sgx_measurement());
+  for (auto i = 0; i < obj_num; i++) {
+    auto obj = cJSON_GetArrayItem(objs, i);
+    mbedtls_printf("  |- expect measurement [%d]\n:", i + 1);
+    auto mr_enclave = sgx_json.print_item(sgx_json.get_item(obj, "mr_enclave"));
+    mbedtls_printf("    |- mr_enclave: %s\n", mr_enclave);
+    memset(sgx_cfg.sgx_mrs[i].mr_enclave, 0, sizeof(sgx_cfg.sgx_mrs[i].mr_enclave));
+    parse_hex(mr_enclave+1, sgx_cfg.sgx_mrs[i].mr_enclave, sizeof(sgx_cfg.sgx_mrs[i].mr_enclave));
+
+    auto mr_signer = sgx_json.print_item(sgx_json.get_item(obj, "mr_signer"));
+    mbedtls_printf("    |- mr_signer: %s\n", mr_signer);
+    memset(sgx_cfg.sgx_mrs[i].mr_signer, 0, sizeof(sgx_cfg.sgx_mrs[i].mr_signer));
+    parse_hex(mr_signer+1, sgx_cfg.sgx_mrs[i].mr_signer, sizeof(sgx_cfg.sgx_mrs[i].mr_signer));
+
+    auto isv_prod_id = sgx_json.print_item(sgx_json.get_item(obj, "isv_prod_id"));
+    mbedtls_printf("    |- isv_prod_id: %s\n", isv_prod_id);
+    sgx_cfg.sgx_mrs[i].isv_prod_id = strtoul(isv_prod_id, nullptr, 10);
+
+    auto isv_svn = sgx_json.print_item(sgx_json.get_item(obj, "isv_svn"));
+    mbedtls_printf("    |- isv_svn: %s\n", isv_svn);
+    sgx_cfg.sgx_mrs[i].isv_svn = strtoul(isv_svn, nullptr, 10);
+
+  };
+  return sgx_cfg;
+}
+
+bool ra_tls_verify_measurement(const char* mr_enclave, const char* mr_signer,
+                               const char* isv_prod_id, const char* isv_svn) {
+  bool status = false;
+  auto & sgx_cfg = _ctx_.sgx_cfg;
+  for (auto & obj : sgx_cfg.sgx_mrs) {
+    status = true;
+
+    if (status && sgx_cfg.verify_mr_enclave && \
+        memcmp(obj.mr_enclave, mr_enclave, 32)) {
+      status = false;
+    }
+
+    if (status && sgx_cfg.verify_mr_signer && \
+        memcmp(obj.mr_signer, mr_signer, 32)) {
+      status = false;
+    }
+
+    if (status && sgx_cfg.verify_isv_prod_id && \
+        (obj.isv_prod_id != *(uint16_t*)isv_prod_id)) {
+      status = false;
+    }
+
+    if (status && sgx_cfg.verify_isv_svn && \
+        (obj.isv_svn != *(uint16_t*)isv_svn)) {
+      status = false;
+    }
+
+    if (status) {
+      break;
+    }
   }
+  return status;
 }
 
 // RA-TLS: our own callback to verify SGX measurements
 int ra_tls_verify_mr_callback(const char* mr_enclave, const char* mr_signer,
                               const char* isv_prod_id, const char* isv_svn) {
   std::lock_guard<std::mutex> lock(_ctx_.mtx);
+  bool status = false;
 
   try {
     assert(mr_enclave && mr_signer && isv_prod_id && isv_svn);
 
+    status = ra_tls_verify_measurement(mr_enclave, mr_signer, isv_prod_id, isv_svn);
+
     mbedtls_printf("MRENCLAVE\n"); 
-    mbedtls_printf("    |- Expect :    "); hexdump_mem(_ctx_.sgx_cfg.sgx_mrs.mr_enclave, 32);
     mbedtls_printf("    |- Get    :    "); hexdump_mem(mr_enclave, 32);
     mbedtls_printf("MRSIGNER\n");
-    mbedtls_printf("    |- Expect :    "); hexdump_mem(_ctx_.sgx_cfg.sgx_mrs.mr_signer, 32);
     mbedtls_printf("    |- Get    :    "); hexdump_mem(mr_signer, 32);
     mbedtls_printf("ISV_PROD_ID\n");
-    mbedtls_printf("    |- Expect :    %hu\n", _ctx_.sgx_cfg.sgx_mrs.isv_prod_id);
     mbedtls_printf("    |- Get    :    %hu\n", *((uint16_t*)isv_prod_id));
     mbedtls_printf("ISV_SVN\n");
-    mbedtls_printf("    |- Expect :    %hu\n", _ctx_.sgx_cfg.sgx_mrs.isv_svn);
     mbedtls_printf("    |- Get    :    %hu\n", *((uint16_t*)isv_svn));
-
-    bool status = true;
-    if (status && _ctx_.sgx_cfg.verify_mr_enclave &&
-        memcmp(mr_enclave, _ctx_.sgx_cfg.sgx_mrs.mr_enclave,
-                sizeof(_ctx_.sgx_cfg.sgx_mrs.mr_enclave))) {
-      status = false;
-    }
-
-    if (status && _ctx_.sgx_cfg.verify_mr_signer &&
-        memcmp(mr_signer, _ctx_.sgx_cfg.sgx_mrs.mr_signer,
-                sizeof(_ctx_.sgx_cfg.sgx_mrs.mr_signer))) {
-      status = false;
-    }
-
-    if (status && _ctx_.sgx_cfg.verify_isv_prod_id &&
-        (_ctx_.sgx_cfg.sgx_mrs.isv_prod_id != *(uint16_t*)isv_prod_id)) {
-        status = false;
-    }
-
-    if (status && _ctx_.sgx_cfg.verify_isv_svn &&
-        (_ctx_.sgx_cfg.sgx_mrs.isv_svn != *(uint16_t*)isv_svn)) {
-        status = false;
-    }
 
     if (status) {
       mbedtls_printf("Quote Verify\n    |- Result :    Success\n");
@@ -159,9 +186,14 @@ int ra_tls_verify_mr_callback(const char* mr_enclave, const char* mr_signer,
   }
 }
 
+void ra_tls_verify_init(const char* sgx_cfg_path) {
+  std::lock_guard<std::mutex> lock(_ctx_.mtx);
+  _ctx_.sgx_cfg = parse_sgx_config_json(sgx_cfg_path);
+  ra_tls_verify_init();
+}
+
 void ra_tls_verify_init() {
-  const char* in_enclave = getenv("TF_GRPC_SGX_RA_TLS_ENABLE");
-  if (in_enclave && strcmp(in_enclave, "on") == 0) {
+  if (_ctx_.sgx_cfg.verify_in_enclave) {
     if (!_ctx_.verify_lib.get_handle()) {
       _ctx_.verify_lib.open("libra_tls_verify_dcap_gramine.so", RTLD_LAZY);
     }
@@ -250,14 +282,9 @@ class TlsServerAuthorizationCheck : public TlsServerAuthorizationCheckInterface 
 //     }
 // };
 
-std::shared_ptr<grpc::ChannelCredentials> TlsCredentials(
-        const char* mr_enclave, const char* mr_signer,
-        const char* isv_prod_id, const char* isv_svn) {
-    std::lock_guard<std::mutex> lock(_ctx_.mtx);
+std::shared_ptr<grpc::ChannelCredentials> TlsCredentials(const char* sgx_cfg_path) {
 
-    parse_args(mr_enclave, mr_signer, isv_prod_id, isv_svn);
-
-    ra_tls_verify_init();
+    ra_tls_verify_init(sgx_cfg_path);
 
     _ctx_.cache.id++;
 
