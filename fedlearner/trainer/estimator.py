@@ -22,7 +22,7 @@ from tensorflow.python.estimator.util import parse_input_fn_result #pylint: disa
 
 from tensorflow_estimator.python.estimator import model_fn as model_fn_lib
 from fedlearner.common import fl_logging
-from fedlearner.privacy.marvell import KL_gradient_perturb
+from fedlearner.privacy.splitnn.marvell import KL_gradient_perturb
 
 class FLModel(object):
     def __init__(self, role, bridge, example_ids, exporting=False):
