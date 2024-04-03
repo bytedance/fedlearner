@@ -9,15 +9,22 @@ loader.pal_internal_mem_size = "200M"
 
 loader.insecure__use_cmdline_argv = true
 loader.insecure__use_host_env = true
+loader.insecure_disable_aslr = true
+sgx.allow_file_creation = true
+sgx.static_address = 1
 
 loader.env.LD_LIBRARY_PATH = "/opt/meituan/hadoop/lib/native:/opt/tiger/jdk/openjdk-1.8.0_265/jre/lib/amd64/server:/opt/meituan/hadoop/lib/native:/opt/meituan/hadoop/lib/native/nfs:/usr/lib/jvm/java-8-openjdk-amd64/jre/lib/amd64/server:/usr/local/lib/x86_64-linux-gnu:/opt/tiger/yarn_deploy/hadoop_current/lib/native:/opt/tiger/jdk/openjdk-1.8.0_265/jre/lib/amd64/server:/opt/tiger/jdk/openjdk-1.8.0_265/jre/lib/amd64/jli/:/opt/tiger/jdk/openjdk-1.8.0_265/jre/lib/amd64:{{ python.stdlib }}/lib:/lib:{{ arch_libdir }}:/usr/local/lib:/usr/local/{{ arch_libdir }}:/usr/lib:/usr/{{ arch_libdir }}"
-
 loader.env.SECRET_PROVISION_CONSTRUCTOR = "1"
 loader.env.SECRET_PROVISION_SET_PF_KEY = "1"
 
 sys.enable_sigterm_injection = true
 sys.enable_extra_runtime_domain_names_conf = true
-sys.stack.size = "1M"
+sgx.ioctl_structs.ifconf = [ {name = "ifc_len",size = 4, direction = "inout" }, {size = 4}, { ptr=[ {size= "ifc_len", direction = "in"} ] } ]
+sgx.ioctl_structs.ifreq = [ {  name ="ifreq", size=40, direction ="inout"} ]
+sgx.allowed_ioctls = [
+  { request_code = 0x8912, struct = "ifconf"},
+  { request_code = 0x8927, struct = "ifreq"},
+]
 
 fs.mounts = [
   { path = "/lib", uri = "file:{{ gramine.runtimedir() }}" },
@@ -48,7 +55,7 @@ sgx.remote_attestation = "dcap"
 sgx.preheat_enclave = false
 sgx.nonpie_binary = true
 sgx.enable_stats = false
-sgx.enclave_size = "16G"
+sgx.enclave_size = "8G"
 sgx.thread_num = 256
 sgx.rpc_thread_num = 0
 sgx.protected_files_key = "ffeeddccbbaa99887766554433221100"
@@ -60,7 +67,9 @@ sgx.trusted_files = [
   "file:/usr/{{ arch_libdir }}/",
   "file:/etc/ssl/certs/ca-certificates.crt",
   "file:/etc/default/apport",
-  "file:/etc/mime.types"
+  "file:/etc/mime.types",
+  "file:/gramine/leader/",
+  "file:/gramine/follower/"
 ]
 
 sgx.allowed_files = [
@@ -94,7 +103,4 @@ sgx.allowed_files = [
   "file:/lib/",
   "file:/bin/",
   "file:/data/",
-  "file:/gramine/leader/",
-  "file:/gramine/follower/"
 ]
-
