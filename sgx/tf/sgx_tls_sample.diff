@@ -1,8 +1,8 @@
 diff --git a/tensorflow/core/distributed_runtime/rpc/BUILD b/tensorflow/core/distributed_runtime/rpc/BUILD
-index ce1a20a5ae9..65266309cba 100644
+index ce1a20a5ae9..23f329096ca 100644
 --- a/tensorflow/core/distributed_runtime/rpc/BUILD
 +++ b/tensorflow/core/distributed_runtime/rpc/BUILD
-@@ -41,9 +41,10 @@ filegroup(
+@@ -41,9 +41,9 @@ filegroup(
  
  cc_library(
      name = "grpc_util",
@@ -11,7 +11,6 @@ index ce1a20a5ae9..65266309cba 100644
 -    linkopts = if_windows(["-DEFAULTLIB:ws2_32.lib"]),
 +    srcs = ["grpc_util.cc", "grpc_sgx_ra_tls_utils.cc", "grpc_sgx_ra_tls_server.cc", "grpc_sgx_ra_tls_client.cc", "grpc_sgx_credentials_provider.cc"],
 +    hdrs = ["grpc_util.h", "grpc_sgx_ra_tls.h", "grpc_sgx_ra_tls_utils.h", "grpc_sgx_credentials_provider.h"],
-+    include_dirs = ["/usr/local/include"],
 +    linkopts = ["-L/usr/local/lib", "-l:libmbedx509_gramine.a", "-l:libmbedcrypto_gramine.a", "-l:libcjson.a", "-l:libcjson_utils.a"],
      deps = [
          "//tensorflow/core:lib",

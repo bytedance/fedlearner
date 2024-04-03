@@ -56,9 +56,9 @@ namespace sgx {
 
 #include <cjson/cJSON.h>
 
-void hexdump_mem(const void*, size_t);
+bool parse_hex(const char*, void*, size_t);
 
-int parse_hex(const char*, void*, size_t);
+void hexdump_mem(const void* data, size_t size);
 
 class library_engine {
   public:
@@ -81,28 +81,29 @@ class library_engine {
     char* error;
 };
 
-class json_engine {
-  public:
+class json_engine
+{
+public:
     json_engine();
 
-    json_engine(const char*);
+    json_engine(const char *);
 
     ~json_engine();
 
-    bool open(const char*);
+    bool open(const char *);
 
     void close();
 
-    cJSON * get_handle();
+    cJSON *get_handle();
 
-    cJSON * get_item(cJSON *obj, const char *item);
-
-    char * print_item(cJSON *obj);
+    cJSON *get_item(cJSON *obj, const char *item);
 
     bool compare_item(cJSON *obj, const char *item);
 
-  private:
-    cJSON* handle;
+    const char* get_item_string(cJSON *obj, const char* item);
+
+private:
+    cJSON *handle;
 };
 
 }  // namespace sgx

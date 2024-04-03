@@ -21,25 +21,25 @@
 namespace grpc {
 namespace sgx {
 
+bool parse_hex(const char* hex, void* buffer, size_t buffer_size) {
+  if (strlen(hex) < buffer_size * 2) {
+    return false;
+  } else {
+    for (size_t i = 0; i < buffer_size; i++) {
+      if (!isxdigit(hex[i * 2]) || !isxdigit(hex[i * 2 + 1])) {
+        return false;
+      }
+      sscanf(hex + i * 2, "%02hhx", &((uint8_t*)buffer)[i]);
+    }
+    return true;
+  }
+}
+
 void hexdump_mem(const void* data, size_t size) {
   uint8_t* ptr = (uint8_t*)data;
   for (size_t i = 0; i < size; i++)
       printf("%02x", ptr[i]);
   printf("\n");
-}
-
-int parse_hex(const char* hex, void* buffer, size_t buffer_size) {
-  if (strlen(hex) != buffer_size * 2) {
-    return -1;
-  } else {
-    for (size_t i = 0; i < buffer_size; i++) {
-      if (!isxdigit(hex[i * 2]) || !isxdigit(hex[i * 2 + 1])) {
-        return -1;
-      }
-      sscanf(hex + i * 2, "%02hhx", &((uint8_t*)buffer)[i]);
-    }
-    return 0;
-  }
 }
 
 library_engine::library_engine() : handle(nullptr), error(nullptr) {};
@@ -83,67 +83,88 @@ void* library_engine::get_handle() {
   return handle;
 }
 
-json_engine::json_engine() : handle(nullptr) {};
+json_engine::json_engine() : handle(nullptr){};
 
-json_engine::json_engine(const char* file) : handle(nullptr){
-  this->open(file);
+json_engine::json_engine(const char *file) : handle(nullptr)
+{
+    this->open(file);
 }
 
-json_engine::~json_engine() {
-  this->close();
+json_engine::~json_engine()
+{
+    this->close();
 }
 
-bool json_engine::open(const char* file) {
-  if (!file) {
-    mbedtls_printf("wrong json file path\n");
-    return false;
-  }
+bool json_engine::open(const char *file)
+{
+    if (!file)
+    {
+        printf("wrong json file path\n");
+        return false;
+    }
 
-  this->close();
+    this->close();
 
-  auto file_ptr = fopen(file, "r");
-  fseek(file_ptr, 0, SEEK_END);
-  auto length = ftell(file_ptr);
-  fseek(file_ptr, 0, SEEK_SET);
-  auto buffer = malloc(length);
-  fread(buffer, 1, length, file_ptr);
-  fclose(file_ptr);
+    auto file_ptr = fopen(file, "r");
+    fseek(file_ptr, 0, SEEK_END);
+    auto length = ftell(file_ptr);
+    fseek(file_ptr, 0, SEEK_SET);
+    auto buffer = malloc(length + 1);
+    memset(buffer, 0, length);
+    fread(buffer, 1, length, file_ptr);
+    fclose(file_ptr);
 
-  this->handle = cJSON_Parse((const char *)buffer);
+    this->handle = cJSON_Parse((const char*)buffer);
 
-  check_free(buffer);
+    if (buffer)
+    {
+      free(buffer);
+      buffer = nullptr;
+    }
 
-  if (this->handle) {
-    return true;
-  } else {
-    mbedtls_printf("cjson open %s error: %s", file, cJSON_GetErrorPtr());
-    return false;
-  }
+    if (this->handle)
+    {
+        return true;
+    }
+    else
+    {
+        printf("cjson open %s error: %s", file, cJSON_GetErrorPtr());
+        return false;
+    }
 }
 
-void json_engine::close() {
-  if (this->handle) {
-    cJSON_Delete(this->handle);
-    this->handle = nullptr;
-  }
+void json_engine::close()
+{
+    if (this->handle)
+    {
+        cJSON_Delete(this->handle);
+        this->handle = nullptr;
+    }
 }
 
-cJSON * json_engine::get_handle() {
-  return this->handle;
+cJSON *json_engine::get_handle()
+{
+    return this->handle;
 }
 
-cJSON * json_engine::get_item(cJSON *obj, const char *item) {
-  return cJSON_GetObjectItem(obj, item);
+cJSON *json_engine::get_item(cJSON *obj, const char *item)
+{
+    return cJSON_GetObjectItem(obj, item);
 };
 
-char * json_engine::print_item(cJSON *obj) {
-  return cJSON_Print(obj);
+bool json_engine::compare_item(cJSON *obj, const char *item)
+{
+    if (!obj || !cJSON_IsString(obj)){
+        return false;
+    }
+    auto obj_item = obj->valuestring;
+    return strncmp(obj_item, item, std::min(strlen(item), strlen(obj_item))) == 0;
 };
 
-bool json_engine::compare_item(cJSON *obj, const char *item) {
-  auto obj_item = this->print_item(obj);
-  return strncmp(obj_item+1, item, std::min(strlen(item), strlen(obj_item)-2)) == 0;
-};
+const char* json_engine::get_item_string(cJSON *obj, const char* item){
+    auto item_json = get_item(obj, item);
+    return cJSON_IsString(item_json) ? item_json->valuestring : "";
+}
 
 }  // namespace sgx
 }  // namespace grpc

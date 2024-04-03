@@ -72,49 +72,56 @@ struct ra_tls_context {
 
 struct ra_tls_context _ctx_;
 
-sgx_config parse_sgx_config_json(const char* file) {
-  class json_engine sgx_json(file);
-  struct sgx_config sgx_cfg;
+sgx_config parse_sgx_config_json(const char *file)
+{
+    class json_engine sgx_json(file);
+    struct sgx_config sgx_cfg;
 
-  sgx_cfg.verify_in_enclave = sgx_json.compare_item(sgx_json.get_item(sgx_json.get_handle(), "verify_in_enclave"), "on");
-  sgx_cfg.verify_mr_enclave = sgx_json.compare_item(sgx_json.get_item(sgx_json.get_handle(), "verify_mr_enclave"), "on");
-  sgx_cfg.verify_mr_signer = sgx_json.compare_item(sgx_json.get_item(sgx_json.get_handle(), "verify_mr_signer"), "on");
-  sgx_cfg.verify_isv_prod_id = sgx_json.compare_item(sgx_json.get_item(sgx_json.get_handle(), "verify_isv_prod_id"), "on");
-  sgx_cfg.verify_isv_svn = sgx_json.compare_item(sgx_json.get_item(sgx_json.get_handle(), "verify_isv_svn"), "on");
-  
-  mbedtls_printf("|- verify_in_enclave: %s\n",sgx_cfg.verify_in_enclave ? "on" : "off");
-  mbedtls_printf("|- verify_mr_enclave: %s\n",sgx_cfg.verify_mr_enclave ? "on" : "off");
-  mbedtls_printf("|- verify_mr_signer: %s\n",sgx_cfg.verify_mr_signer ? "on" : "off");
-  mbedtls_printf("|- verify_isv_prod_id: %s\n",sgx_cfg.verify_isv_prod_id ? "on" : "off");
-  mbedtls_printf("|- verify_isv_svn: %s\n",sgx_cfg.verify_isv_svn ? "on" : "off");
+    sgx_cfg.verify_in_enclave = sgx_json.compare_item(sgx_json.get_item(sgx_json.get_handle(), "verify_in_enclave"), "on");
+    sgx_cfg.verify_mr_enclave = sgx_json.compare_item(sgx_json.get_item(sgx_json.get_handle(), "verify_mr_enclave"), "on");
+    sgx_cfg.verify_mr_signer = sgx_json.compare_item(sgx_json.get_item(sgx_json.get_handle(), "verify_mr_signer"), "on");
+    sgx_cfg.verify_isv_prod_id = sgx_json.compare_item(sgx_json.get_item(sgx_json.get_handle(), "verify_isv_prod_id"), "on");
+    sgx_cfg.verify_isv_svn = sgx_json.compare_item(sgx_json.get_item(sgx_json.get_handle(), "verify_isv_svn"), "on");
 
-  auto objs = sgx_json.get_item(sgx_json.get_handle(), "sgx_mrs");
-  auto obj_num = cJSON_GetArraySize(objs);
+    mbedtls_printf("|- verify_in_enclave: %s\n", sgx_cfg.verify_in_enclave ? "on" : "off");
+    mbedtls_printf("|- verify_mr_enclave: %s\n", sgx_cfg.verify_mr_enclave ? "on" : "off");
+    mbedtls_printf("|- verify_mr_signer: %s\n", sgx_cfg.verify_mr_signer ? "on" : "off");
+    mbedtls_printf("|- verify_isv_prod_id: %s\n", sgx_cfg.verify_isv_prod_id ? "on" : "off");
+    mbedtls_printf("|- verify_isv_svn: %s\n", sgx_cfg.verify_isv_svn ? "on" : "off");
 
-  sgx_cfg.sgx_mrs = std::vector<sgx_measurement>(obj_num, sgx_measurement());
-  for (auto i = 0; i < obj_num; i++) {
-    auto obj = cJSON_GetArrayItem(objs, i);
-    mbedtls_printf("  |- expect measurement [%d]\n:", i + 1);
-    auto mr_enclave = sgx_json.print_item(sgx_json.get_item(obj, "mr_enclave"));
-    mbedtls_printf("    |- mr_enclave: %s\n", mr_enclave);
-    memset(sgx_cfg.sgx_mrs[i].mr_enclave, 0, sizeof(sgx_cfg.sgx_mrs[i].mr_enclave));
-    parse_hex(mr_enclave+1, sgx_cfg.sgx_mrs[i].mr_enclave, sizeof(sgx_cfg.sgx_mrs[i].mr_enclave));
+    auto objs = sgx_json.get_item(sgx_json.get_handle(), "sgx_mrs");
+    auto obj_num = cJSON_GetArraySize(objs);
 
-    auto mr_signer = sgx_json.print_item(sgx_json.get_item(obj, "mr_signer"));
-    mbedtls_printf("    |- mr_signer: %s\n", mr_signer);
-    memset(sgx_cfg.sgx_mrs[i].mr_signer, 0, sizeof(sgx_cfg.sgx_mrs[i].mr_signer));
-    parse_hex(mr_signer+1, sgx_cfg.sgx_mrs[i].mr_signer, sizeof(sgx_cfg.sgx_mrs[i].mr_signer));
+    sgx_cfg.sgx_mrs = std::vector<sgx_measurement>(obj_num, sgx_measurement());
+    for (auto i = 0; i < obj_num; i++)
+    {
+        auto obj = cJSON_GetArrayItem(objs, i);
+        mbedtls_printf("  |- expect measurement [%d]:\n", i + 1);
+        auto mr_enclave = sgx_json.get_item_string(obj, "mr_enclave");
+        mbedtls_printf("    |- mr_enclave: %s\n", mr_enclave);
+        memset(sgx_cfg.sgx_mrs[i].mr_enclave, 0, sizeof(sgx_cfg.sgx_mrs[i].mr_enclave));
+        auto res = parse_hex(mr_enclave, sgx_cfg.sgx_mrs[i].mr_enclave, sizeof(sgx_cfg.sgx_mrs[i].mr_enclave));
+        if (!res){
+          mbedtls_printf("mr_enclave invalid, %s\n", mr_enclave);
+        }
 
-    auto isv_prod_id = sgx_json.print_item(sgx_json.get_item(obj, "isv_prod_id"));
-    mbedtls_printf("    |- isv_prod_id: %s\n", isv_prod_id);
-    sgx_cfg.sgx_mrs[i].isv_prod_id = strtoul(isv_prod_id, nullptr, 10);
+        auto mr_signer = sgx_json.get_item_string(obj, "mr_signer");
+        mbedtls_printf("    |- mr_signer: %s\n", mr_signer);
+        memset(sgx_cfg.sgx_mrs[i].mr_signer, 0, sizeof(sgx_cfg.sgx_mrs[i].mr_signer));
+        res = parse_hex(mr_signer, sgx_cfg.sgx_mrs[i].mr_signer, sizeof(sgx_cfg.sgx_mrs[i].mr_signer));
+        if (!res){
+          mbedtls_printf("mr_signer invalid, %s\n", mr_signer);
+        }
 
-    auto isv_svn = sgx_json.print_item(sgx_json.get_item(obj, "isv_svn"));
-    mbedtls_printf("    |- isv_svn: %s\n", isv_svn);
-    sgx_cfg.sgx_mrs[i].isv_svn = strtoul(isv_svn, nullptr, 10);
+        auto isv_prod_id = sgx_json.get_item_string(obj, "isv_prod_id");
+        mbedtls_printf("    |- isv_prod_id: %s\n", isv_prod_id);
+        sgx_cfg.sgx_mrs[i].isv_prod_id = strtoul(isv_prod_id ,nullptr, 10);
 
-  };
-  return sgx_cfg;
+        auto isv_svn = sgx_json.get_item_string(obj, "isv_svn");
+        mbedtls_printf("    |- isv_svn: %s\n", isv_svn);
+        sgx_cfg.sgx_mrs[i].isv_svn = strtoul(isv_svn ,nullptr, 10);;
+    };
+    return sgx_cfg;
 }
 
 bool ra_tls_verify_measurement(const char* mr_enclave, const char* mr_signer,
@@ -186,12 +193,6 @@ int ra_tls_verify_mr_callback(const char* mr_enclave, const char* mr_signer,
   }
 }
 
-void ra_tls_verify_init(const char* sgx_cfg_path) {
-  std::lock_guard<std::mutex> lock(_ctx_.mtx);
-  _ctx_.sgx_cfg = parse_sgx_config_json(sgx_cfg_path);
-  ra_tls_verify_init();
-}
-
 void ra_tls_verify_init() {
   if (_ctx_.sgx_cfg.verify_in_enclave) {
     if (!_ctx_.verify_lib.get_handle()) {
@@ -217,6 +218,12 @@ void ra_tls_verify_init() {
                                           const char *isv_svn))>(
       _ctx_.verify_lib.get_func("ra_tls_set_measurement_callback"));
   (*set_verify_mr_callback_f)(ra_tls_verify_mr_callback);
+}
+
+void ra_tls_verify_init(const char* sgx_cfg_path) {
+  std::lock_guard<std::mutex> lock(_ctx_.mtx);
+  _ctx_.sgx_cfg = parse_sgx_config_json(sgx_cfg_path);
+  ra_tls_verify_init();
 }
 
 typedef class ::grpc_impl::experimental::TlsServerAuthorizationCheckArg
