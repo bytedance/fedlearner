@@ -126,7 +126,7 @@ function build_enclave(){
 
 function build_enclave_all(){
     local enclave_size="8G"
-    if [ -n "$1" ] && [ $1 == "Ps" ]; then
+    if [ -n "$1" ] && [ $1 == "ps" ]; then
         # build worker/master
         if [ -n "$GRAMINE_ENCLAVE_SIZE" ]; then
             enclave_size=$GRAMINE_ENCLAVE_SIZE
