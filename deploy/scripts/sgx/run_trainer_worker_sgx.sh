@@ -46,7 +46,7 @@ fi
 
 cp /app/sgx/gramine/CI-Examples/tensorflow_io.py /gramine/follower/
 cp /app/sgx/gramine/CI-Examples/tensorflow_io.py /gramine/leader/
-source /app/deploy/scripts/sgx/enclave_env.sh
+source /app/deploy/scripts/sgx/enclave_env.sh worker
 
 unset HTTPS_PROXY https_proxy http_proxy ftp_proxy
 

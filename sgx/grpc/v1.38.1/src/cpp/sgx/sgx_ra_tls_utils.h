@@ -85,28 +85,29 @@ class library_engine {
     char* error;
 };
 
-class json_engine {
-  public:
+class json_engine
+{
+public:
     json_engine();
 
-    json_engine(const char*);
+    json_engine(const char *);
 
     ~json_engine();
 
-    bool open(const char*);
+    bool open(const char *);
 
     void close();
 
-    cJSON * get_handle();
+    cJSON *get_handle();
 
-    cJSON * get_item(cJSON *obj, const char *item);
-
-    char * print_item(cJSON *obj);
+    cJSON *get_item(cJSON *obj, const char *item);
 
     bool compare_item(cJSON *obj, const char *item);
 
-  private:
-    cJSON* handle;
+    const char* get_item_string(cJSON *obj, const char* item);
+
+private:
+    cJSON *handle;
 };
 
 class TlsAuthorizationCheck
@@ -154,8 +155,6 @@ struct ra_tls_context {
   class library_engine sgx_urts_lib;
   int (*verify_callback_f)(uint8_t* der_crt, size_t der_crt_size) = nullptr;
 };
-
-void check_free(void* ptr);
 
 sgx_config parse_sgx_config_json(const char* file);
 

@@ -27,9 +27,7 @@
 namespace grpc {
 namespace sgx {
 
-std::shared_ptr<grpc::ChannelCredentials> TlsCredentials(
-    const char* mrenclave, const char* mrsigner,
-    const char* isv_prod_id, const char* isv_svn);
+std::shared_ptr<grpc::ChannelCredentials> TlsCredentials(const char* sgx_cfg_path);
 
 std::shared_ptr<grpc::Channel> CreateSecureChannel(string, std::shared_ptr<grpc::ChannelCredentials>);
 

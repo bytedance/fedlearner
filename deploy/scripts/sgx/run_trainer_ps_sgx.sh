@@ -35,7 +35,7 @@ fi
 
 cp /app/sgx/gramine/CI-Examples/tensorflow_io.py /gramine/leader
 cp /app/sgx/gramine/CI-Examples/tensorflow_io.py /gramine/follower
-source /app/deploy/scripts/sgx/enclave_env.sh
+source /app/deploy/scripts/sgx/enclave_env.sh ps
 
 make_custom_env 4
 source /root/start_aesm_service.sh

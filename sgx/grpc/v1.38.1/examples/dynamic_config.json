@@ -5,12 +5,6 @@
     "verify_isv_prod_id" : "on",
     "verify_isv_svn" : "on",
     "sgx_mrs": [
-        {
-            "mr_enclave" : "",
-            "mr_signer" : "",
-            "isv_prod_id" : "0",
-            "isv_svn" : "0"
-        }
     ],
     "other" : []
 }
