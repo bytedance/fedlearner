@@ -32,6 +32,7 @@ fi
 echo $PROXY_LOCAL_PORT > /pod-data/proxy_local_port
 
 cp /app/sgx/gramine/CI-Examples/tensorflow_io.py ./
+unset HTTPS_PROXY https_proxy http_proxy ftp_proxy
 source /app/deploy/scripts/hdfs_common.sh || true
 source /app/deploy/scripts/pre_start_hook.sh || true
 source /app/deploy/scripts/env_to_args.sh
@@ -47,8 +48,6 @@ fi
 cp /app/sgx/gramine/CI-Examples/tensorflow_io.py /gramine/follower/
 cp /app/sgx/gramine/CI-Examples/tensorflow_io.py /gramine/leader/
 source /app/deploy/scripts/sgx/enclave_env.sh worker
-
-unset HTTPS_PROXY https_proxy http_proxy ftp_proxy
 
 mode=$(normalize_env_to_args "--mode" "$MODE")
 sparse_estimator=$(normalize_env_to_args "--sparse-estimator" "$SPARSE_ESTIMATOR")
