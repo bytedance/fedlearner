@@ -546,6 +546,7 @@ def solve_small_pos(u, v, d, g_norm_square, p, P, lam10=None, lam11=None, lam21=
     elif lam11:
         ordering = [1, 0, 2]
     else:
+        ordering = [1, 2, 0]
     while True:
         if i % 3 == ordering[0]:  # fix lam21
             D = np.float32(P - p * (d - np.float32(1.0)) * lam21)
