@@ -6,6 +6,8 @@ ENV DEBIAN_FRONTEND=noninteractive
 ENV INSTALL_PREFIX=/usr/local
 ENV LD_LIBRARY_PATH=${INSTALL_PREFIX}/lib:${INSTALL_PREFIX}/lib/x86_64-linux-gnu:${LD_LIBRARY_PATH}
 ENV PATH=${INSTALL_PREFIX}/bin:${LD_LIBRARY_PATH}:${PATH}
+# For Gramine RA-TLS
+ENV PYTHONDONTWRITEBYTECODE=1
 
 # Add steps here to set up common dependencies
 RUN apt-get update \
@@ -60,8 +62,8 @@ RUN apt-get install -y libcurl4-openssl-dev libprotobuf-c-dev python3-protobuf p
 RUN apt-get install -y libgmp-dev libmpfr-dev libmpc-dev libisl-dev nasm protobuf-compiler
 
 RUN ln -s /usr/bin/python3 /usr/bin/python \
-    && pip3 install --upgrade pip \
-    && pip3 install toml meson pyelftools
+    && pip3 install --no-compile --upgrade pip -i https://mirrors.aliyun.com/pypi/simple/ \
+    && pip3 install --no-compile toml meson pyelftools -i https://mirrors.aliyun.com/pypi/simple/
 
 RUN git clone https://github.com/analytics-zoo/gramine ${GRAMINEDIR} \
     && cd ${GRAMINEDIR} \
@@ -101,8 +103,8 @@ ENV GRPC_VERSION=v1.38.1
 
 RUN git clone --recurse-submodules -b ${GRPC_VERSION} https://github.com/grpc/grpc ${GRPC_PATH}
 
-RUN pip3 install --upgrade pip \
-    && pip3 install -r ${GRPC_PATH}/requirements.txt
+RUN pip3 install --no-compile --upgrade pip -i https://mirrors.aliyun.com/pypi/simple/ \
+    && pip3 install --no-compile -r ${GRPC_PATH}/requirements.txt -i https://mirrors.aliyun.com/pypi/simple/
 
 # Tensorflow dependencies
 ENV BAZEL_VERSION=3.1.0
@@ -110,8 +112,8 @@ ENV TF_VERSION=v2.4.2
 ENV TF_BUILD_PATH=/tf/src
 ENV TF_BUILD_OUTPUT=/tf/output
 
-RUN pip3 install --upgrade pip \
-    && pip3 install numpy keras_preprocessing
+RUN pip3 install --no-compile --upgrade pip -i https://mirrors.aliyun.com/pypi/simple/ \
+    && pip3 install --no-compile numpy keras_preprocessing -i https://mirrors.aliyun.com/pypi/simple/
 
 RUN wget "https://github.com/bazelbuild/bazel/releases/download/${BAZEL_VERSION}/bazel_${BAZEL_VERSION}-linux-x86_64.deb" \
     && dpkg -i bazel_*.deb
@@ -127,7 +129,7 @@ RUN apt-get install -y libmysqlclient-dev
 COPY sgx/grpc/common ${GRPC_PATH}
 COPY sgx/grpc/v1.38.1 ${GRPC_PATH}
 
-RUN pip3 install 'cython==0.29.36'
+RUN pip3 install --no-compile 'cython==0.29.36' -i https://mirrors.aliyun.com/pypi/simple/
 RUN ${GRPC_PATH}/build_python.sh
 
 # Build tensorflow
@@ -150,17 +152,17 @@ RUN if [ -f ${FEDLEARNER_PATH}/docker/hadoop-mt-2.7.0.tar.gz ]; then mkdir -p /o
 # For meituan hadoop auth
 RUN apt-get install -y libkrb5-dev openjdk-8-jdk
 
-RUN pip3 install --upgrade pip \
-    && pip3 install -r ${FEDLEARNER_PATH}/requirements.txt -i https://mirrors.aliyun.com/pypi/simple/
+RUN pip3 install --no-compile --upgrade pip -i https://mirrors.aliyun.com/pypi/simple/ \
+    && pip3 install --no-compile  -r ${FEDLEARNER_PATH}/requirements.txt -i https://mirrors.aliyun.com/pypi/simple/
 
 RUN cd ${FEDLEARNER_PATH} \
     && make protobuf \
     && python3 setup.py bdist_wheel \
-    && pip3 install ./dist/*.whl
+    && pip3 install --no-compile ./dist/*.whl
 
 # Re-install tensorflow, uninstall tensorflow_io, mock it
 RUN pip3 uninstall -y tensorflow tensorflow-io \
-    && pip3 install ${TF_BUILD_OUTPUT}/*.whl
+    && pip3 install --no-compile ${TF_BUILD_OUTPUT}/*.whl
 
 # Re-install fedlearner plugin
 RUN cd ${FEDLEARNER_PATH} \
@@ -170,7 +172,7 @@ RUN cd ${FEDLEARNER_PATH} \
 
 # Re-install grpcio
 RUN pip3 uninstall -y grpcio \
-    && pip3 install ${GRPC_PATH}/dist/grpcio*.whl
+    && pip3 install --no-compile ${GRPC_PATH}/dist/grpcio*.whl
 
 # For debug
 RUN apt-get install -y strace gdb ctags vim
@@ -181,6 +183,11 @@ COPY sgx/configs /
 # https://askubuntu.com/questions/93457/how-do-i-enable-or-disable-apport
 RUN echo "enabled=0" > /etc/default/apport
 RUN echo "exit 0" > /usr/sbin/policy-rc.d
+
+# For gramine ra-tls
+RUN dpkg --remove --force-depends libgtk2.0-0 \
+    && pip3 uninstall -y numpy keras_preprocessing protobuf \
+    && pip3 install --no-compile numpy keras_preprocessing protobuf -i https://mirrors.aliyun.com/pypi/simple/
 
 # Clean tmp files
 RUN apt-get clean all \
