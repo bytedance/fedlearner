@@ -232,6 +232,33 @@ def _run_master(role,
         cluster_server = ClusterServer(cluster_spec, "master",
                                        server_port=args.server_port)
 
+    # use Meituan hadoop
+    # first：convert Meituan HDFS path to local storage path, if local exit psi result file, user local file
+    # second：if local not exit psi result file，from Meituan HDFS download to local
+    if args.using_mt_hadoop:
+        data_path = args.data_path
+        if data_path:
+            local_data_path = get_local_temp_path(data_path)
+            if not exists(local_data_path):
+                data_path = mt_hadoop_download(data_path)
+            else:
+                data_path = local_data_path
+            args.data_path = data_path
+
+        checkpoint_path = args.checkpoint_path
+        if checkpoint_path:
+            args.checkpoint_path = get_local_temp_path(checkpoint_path)
+
+        load_checkpoint_path = args.load_checkpoint_path
+        if load_checkpoint_path:
+            args.load_checkpoint_path = get_local_temp_path(load_checkpoint_path)
+            if not exists(args.load_checkpoint_path):
+                mt_hadoop_download(load_checkpoint_path)
+
+        export_path = args.export_path
+        if export_path:
+            args.export_path = get_local_temp_path(export_path)
+
     checkpoint_filename_with_path = _get_checkpoint_filename_with_path(args)
     data_visitor = _create_data_visitor(args)
     master_factory = LeaderTrainerMaster \
@@ -478,33 +505,6 @@ def train(role,
 
     if not isinstance(role, str) or role.lower() not in (LEADER, FOLLOER):
         raise ValueError("--role must set one of %s or %s"%(LEADER, FOLLOER))
-
-    # use Meituan hadoop
-    # first：convert Meituan HDFS path to local storage path, if local exit psi result file, user local file
-    # second：if local not exit psi result file，from Meituan HDFS download to local
-    if args.using_mt_hadoop:
-        data_path = args.data_path
-        if data_path:
-            local_data_path = get_local_temp_path(data_path)
-            if not exists(local_data_path):
-                data_path = mt_hadoop_download(data_path)
-            else:
-                data_path = local_data_path
-            args.data_path = data_path
-
-        checkpoint_path = args.checkpoint_path
-        if checkpoint_path:
-            args.checkpoint_path = get_local_temp_path(checkpoint_path)
-
-        load_checkpoint_path = args.load_checkpoint_path
-        if load_checkpoint_path:
-            args.load_checkpoint_path = get_local_temp_path(load_checkpoint_path)
-            if not exists(args.load_checkpoint_path):
-                mt_hadoop_download(load_checkpoint_path)
-
-        export_path = args.export_path
-        if export_path:
-            args.export_path = get_local_temp_path(export_path)
 
     if args.loglevel:
         fl_logging.set_level(args.loglevel)
