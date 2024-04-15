@@ -365,7 +365,7 @@ sgx.allowed_files = [
   "file:/usr/local/lib/python3.6/dist-packages/sqlalchemy/",
   "file:/usr/local/lib/python3.6/dist-packages/tensorflow/__init__.py",
   "file:/usr/local/lib/python3.6/dist-packages/tensorflow/lite/python/",
-  "file:/usr/local/lib/python3.6/dist-packages/tensorflow/_api/v2/",
+  "file:/usr/local/lib/python3.6/dist-packages/tensorflow/_api/v2/v2.py",
   "file:/usr/local/lib/python3.6/dist-packages/wrapt/",
   "file:/usr/local/lib/python3.6/dist-packages/Cython-0.29.36.dist-info/",
   "file:/usr/local/lib/python3.6/dist-packages/Deprecated-1.2.14.dist-info/",
