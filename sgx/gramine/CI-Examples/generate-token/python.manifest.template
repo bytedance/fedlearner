@@ -21,6 +21,7 @@ sys.enable_sigterm_injection = true
 sys.enable_extra_runtime_domain_names_conf = true
 sgx.ioctl_structs.ifconf = [ {name = "ifc_len",size = 4, direction = "inout" }, {size = 4}, { ptr=[ {size= "ifc_len", direction = "in"} ] } ]
 sgx.ioctl_structs.ifreq = [ {  name ="ifreq", size=40, direction ="inout"} ]
+
 sgx.allowed_ioctls = [
   { request_code = 0x8912, struct = "ifconf"},
   { request_code = 0x8927, struct = "ifreq"},
