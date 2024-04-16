@@ -23,7 +23,7 @@ function DetailBody({ project }: DetailBodyProps): ReactElement {
   const properties = [
     {
       label: t('project.participant_name'),
-      value: project.name,
+      value: participant.name || '-',
     },
     {
       label: t('project.participant_domain'),

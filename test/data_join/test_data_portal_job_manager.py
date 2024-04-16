@@ -57,17 +57,18 @@ class TestDataPortalJobManager(unittest.TestCase):
             gfile.DeleteRecursively(self._portal_input_base_dir)
         gfile.MakeDirs(self._portal_input_base_dir)
 
-        self._data_fnames = ['1001/{}.data'.format(i) for i in range(100)]
+        self._data_fnames = ['c/20210101/{}.data'.format(i) for i in range(100)]
         self._data_fnames_without_success = \
-            ['1002/{}.data'.format(i) for i in range(100)]
-        self._csv_fnames = ['1003/{}.csv'.format(i) for i in range(100)]
+            ['a/20210102/{}.data'.format(i) for i in range(100)]
+        self._csv_fnames = ['b/20210103/{}.csv'.format(i) for i in range(100)]
         self._unused_fnames = ['{}.xx'.format(100)]
         self._ignored_fnames = [f'.part-{i}.crc' for i in range(10)]
         self._all_fnames = self._data_fnames + \
                            self._data_fnames_without_success + \
                            self._csv_fnames + self._unused_fnames
 
-        all_fnames_with_success = ['1001/_SUCCESS'] + ['1003/_SUCCESS'] +\
+        all_fnames_with_success = ['c/20210101/_SUCCESS',
+                                   'b/20210103/_SUCCESS'] + \
                                   self._all_fnames + self._ignored_fnames
         for fname in all_fnames_with_success:
             fpath = os.path.join(self._portal_input_base_dir, fname)
@@ -102,7 +103,9 @@ class TestDataPortalJobManager(unittest.TestCase):
                 portal_options.check_success_tag,
                 portal_options.single_subfolder,
                 portal_options.files_per_job_limit,
-                max_files_per_job
+                max_files_per_job,
+                start_date=portal_options.start_date,
+                end_date=portal_options.end_date
             )
         portal_job = data_portal_job_manager._sync_processing_job()
         target_fnames.sort()
@@ -213,6 +216,48 @@ class TestDataPortalJobManager(unittest.TestCase):
             files_per_job_limit=None
         )
         self._list_input_dir(portal_options, None, self._all_fnames)
+
+    def test_list_input_dir_with_start_date(self):
+        portal_options = dp_pb.DataPotraMasterlOptions(
+            use_mock_etcd=True,
+            long_running=False,
+            check_success_tag=False,
+            single_subfolder=False,
+            files_per_job_limit=None,
+            start_date='20210102'
+        )
+        self._list_input_dir(
+            portal_options, None,
+            self._data_fnames_without_success + self._csv_fnames
+            + self._unused_fnames)
+
+    def test_list_input_dir_with_start_end_date(self):
+        portal_options = dp_pb.DataPotraMasterlOptions(
+            use_mock_etcd=True,
+            long_running=False,
+            check_success_tag=False,
+            single_subfolder=False,
+            files_per_job_limit=None,
+            start_date='20210101',
+            end_date='20210103'
+        )
+        self._list_input_dir(
+            portal_options, None,
+            self._data_fnames + self._data_fnames_without_success
+            + self._unused_fnames)
+
+    def test_list_input_dir_with_invalid_date(self):
+        portal_options = dp_pb.DataPotraMasterlOptions(
+            use_mock_etcd=True,
+            long_running=False,
+            check_success_tag=False,
+            single_subfolder=False,
+            files_per_job_limit=None,
+            start_date=None,
+            end_date='',
+        )
+        self._list_input_dir(
+            portal_options, None, self._all_fnames)
 
 
 if __name__ == '__main__':

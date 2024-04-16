@@ -42,7 +42,7 @@ namespace sgx {
 
   int ret = (*ra_tls_create_key_and_crt_f)(&pkey, &srvcert);
   if (ret != 0) {
-      throw std::runtime_error(std::string("ra_tls_create_key_and_crt failed and returned %d\n\n", ret));
+      throw std::runtime_error(std::string("ra_tls_create_key_and_crt failed and error %s\n\n", mbedtls_high_level_strerr(ret)));
   }
 
   unsigned char private_key_pem[16000], cert_pem[16000];
@@ -50,14 +50,14 @@ namespace sgx {
 
   ret = mbedtls_pk_write_key_pem(&pkey, private_key_pem, 16000);
   if (ret != 0) {
-    throw std::runtime_error(std::string("something went wrong while extracting private key\n\n"));
+    throw std::runtime_error(std::string("something went wrong while extracting private key, %s\n\n", mbedtls_high_level_strerr(ret)));
   }
 
   ret = mbedtls_pem_write_buffer(PEM_BEGIN_CRT, PEM_END_CRT,
                                  srvcert.raw.p, srvcert.raw.len,
                                  cert_pem, 16000, &olen);
   if (ret != 0) {
-    throw std::runtime_error(std::string("mbedtls_pem_write_buffer failed\n\n"));
+    throw std::runtime_error(std::string("mbedtls_pem_write_buffer failed, error %s\n\n", mbedtls_high_level_strerr(ret)));
   };
 
   auto private_key = std::string((char*) private_key_pem);
@@ -73,55 +73,6 @@ namespace sgx {
   mbedtls_pk_free(&pkey);
   return pkcp;
 }
-
-typedef class ::grpc_impl::experimental::TlsKeyMaterialsConfig
-TlsKeyMaterialsConfig;
-typedef class ::grpc_impl::experimental::TlsCredentialReloadArg
-TlsCredentialReloadArg;
-typedef struct ::grpc_impl::experimental::TlsCredentialReloadInterface
-TlsCredentialReloadInterface;
-typedef class ::grpc_impl::experimental::TlsServerAuthorizationCheckArg
-TlsServerAuthorizationCheckArg;
-typedef struct ::grpc_impl::experimental::TlsServerAuthorizationCheckInterface
-TlsServerAuthorizationCheckInterface;
-
-class TestTlsCredentialReload : public TlsCredentialReloadInterface {
-    int Schedule(TlsCredentialReloadArg* arg) override {
-        if (!arg->is_pem_key_cert_pair_list_empty()) {
-            arg->set_status(GRPC_SSL_CERTIFICATE_CONFIG_RELOAD_UNCHANGED);
-            return 0;
-        }
-        GPR_ASSERT(arg != nullptr);
-        auto key_pair = get_cred_key_pair();
-        struct TlsKeyMaterialsConfig::PemKeyCertPair pair3 = { key_pair.private_key.c_str(),
-            key_pair.cert_chain.c_str()};
-        arg->set_pem_root_certs("new_pem_root_certs");
-        arg->add_pem_key_cert_pair(pair3);
-        arg->set_status(GRPC_SSL_CERTIFICATE_CONFIG_RELOAD_NEW);
-        return 0;
-    }
-
-    void Cancel(TlsCredentialReloadArg* arg) override {
-        GPR_ASSERT(arg != nullptr);
-        arg->set_status(GRPC_SSL_CERTIFICATE_CONFIG_RELOAD_FAIL);
-        arg->set_error_details("cancelled");
-    }
-};
-
-
-class TestTlsServerAuthorizationCheck
-: public TlsServerAuthorizationCheckInterface {
-    int Schedule(TlsServerAuthorizationCheckArg* arg) override {
-        GPR_ASSERT(arg != nullptr);
-        return 0;
-    }
-
-    void Cancel(TlsServerAuthorizationCheckArg* arg) override {
-        GPR_ASSERT(arg != nullptr);
-        arg->set_status(GRPC_STATUS_PERMISSION_DENIED);
-        arg->set_error_details("cancelled");
-    }
-};
 
 std::shared_ptr<grpc::ServerCredentials> TlsServerCredentials() {
   using namespace ::grpc_impl::experimental;

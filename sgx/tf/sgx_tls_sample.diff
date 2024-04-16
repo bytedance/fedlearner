@@ -1,5 +1,5 @@
 diff --git a/tensorflow/core/distributed_runtime/rpc/BUILD b/tensorflow/core/distributed_runtime/rpc/BUILD
-index ce1a20a5ae9..a972f51f930 100644
+index ce1a20a5ae9..23f329096ca 100644
 --- a/tensorflow/core/distributed_runtime/rpc/BUILD
 +++ b/tensorflow/core/distributed_runtime/rpc/BUILD
 @@ -41,9 +41,9 @@ filegroup(
@@ -11,30 +11,22 @@ index ce1a20a5ae9..a972f51f930 100644
 -    linkopts = if_windows(["-DEFAULTLIB:ws2_32.lib"]),
 +    srcs = ["grpc_util.cc", "grpc_sgx_ra_tls_utils.cc", "grpc_sgx_ra_tls_server.cc", "grpc_sgx_ra_tls_client.cc", "grpc_sgx_credentials_provider.cc"],
 +    hdrs = ["grpc_util.h", "grpc_sgx_ra_tls.h", "grpc_sgx_ra_tls_utils.h", "grpc_sgx_credentials_provider.h"],
-+    linkopts = ["-lmbedtls", "-lmbedx509", "-lmbedcrypto", "-lra_tls_attest"],
++    linkopts = ["-L/usr/local/lib", "-l:libmbedx509_gramine.a", "-l:libmbedcrypto_gramine.a", "-l:libcjson.a", "-l:libcjson_utils.a"],
      deps = [
          "//tensorflow/core:lib",
          # Required to be able to overload TensorResponse parsing.
 diff --git a/tensorflow/core/distributed_runtime/rpc/grpc_channel.cc b/tensorflow/core/distributed_runtime/rpc/grpc_channel.cc
-index 985b0454837..f0b462d06e9 100644
+index 985b0454837..2d2b6d68003 100644
 --- a/tensorflow/core/distributed_runtime/rpc/grpc_channel.cc
 +++ b/tensorflow/core/distributed_runtime/rpc/grpc_channel.cc
-@@ -36,6 +36,7 @@ limitations under the License.
- #include "tensorflow/core/platform/types.h"
- #include "tensorflow/core/util/device_name_utils.h"
- 
-+
- namespace tensorflow {
- 
- namespace {
-@@ -143,8 +144,9 @@ Status NewHostPortGrpcChannel(const string& target,
+@@ -143,8 +143,9 @@ Status NewHostPortGrpcChannel(const string& target,
    TF_RETURN_IF_ERROR(ValidateHostPortPair(target));
  
    ::grpc::ChannelArguments args = GetChannelArguments(rpc_options);
 +  auto cred = GetChannelCredentials();
    *channel_pointer = ::grpc::CreateCustomChannel(
 -      "dns:///" + target, ::grpc::InsecureChannelCredentials(), args);
-+          "dns:///" + target, cred, args);
++      "dns:///" + target, cred, args);
    return Status::OK();
  }
  
@@ -65,7 +57,7 @@ index fb925e51497..2dbe6b3ba32 100644
  
  ChannelCreationFunction GrpcServer::GetChannelCreationFunction() const {
 diff --git a/tensorflow/core/distributed_runtime/rpc/grpc_util.cc b/tensorflow/core/distributed_runtime/rpc/grpc_util.cc
-index 98e05b64aad..fd1118d2956 100644
+index 98e05b64aad..3d802241a5b 100644
 --- a/tensorflow/core/distributed_runtime/rpc/grpc_util.cc
 +++ b/tensorflow/core/distributed_runtime/rpc/grpc_util.cc
 @@ -16,6 +16,7 @@ limitations under the License.
@@ -76,13 +68,15 @@ index 98e05b64aad..fd1118d2956 100644
  
  namespace tensorflow {
  
-@@ -128,4 +129,24 @@ bool GrpcMaybeParseProto(grpc::ByteBuffer* src, tstring* dst) {
+@@ -128,4 +129,29 @@ bool GrpcMaybeParseProto(grpc::ByteBuffer* src, tstring* dst) {
    return true;
  }
  
 +std::shared_ptr<::grpc::ServerCredentials> GetCredentials() {
-+    const char* secure = std::getenv("TF_OPTIONAL_TLS_ENABLE");
-+    if (secure) {
++    const char* secure = std::getenv("TF_GRPC_SGX_RA_TLS_ENABLE");
++    LOG(INFO) << "GetCredentials";
++    if (secure && strcmp(secure, "on") == 0) {
++        LOG(INFO) << "Secure mode: " << string(secure);
 +        return ::grpc::sgx::TlsServerCredentials();
 +    }
 +    return ::grpc::InsecureServerCredentials();
@@ -90,13 +84,16 @@ index 98e05b64aad..fd1118d2956 100644
 +}
 +
 +std::shared_ptr<::grpc::ChannelCredentials> GetChannelCredentials() {
-+    const char* secure = std::getenv("TF_OPTIONAL_TLS_ENABLE");
-+    if (secure) {
-+       const char* mr_enclave = std::getenv("MR_ENCLAVE");
-+       const char* mr_signer = std::getenv("MR_SIGNER");
-+       const char* isv_prod_id = std::getenv("ISV_PROD_ID");
-+       const char* isv_svn = std::getenv("ISV_SVN");
-+       return ::grpc::sgx::TlsCredentials(mr_enclave, mr_signer, isv_prod_id, isv_svn);
++    const char* secure = std::getenv("TF_GRPC_SGX_RA_TLS_ENABLE");
++    LOG(INFO) << "GetCredentials";
++    if (secure && strcmp(secure, "on") == 0) {
++       LOG(INFO) << "Secure mode: " << string(secure);
++       const char* config_path = std::getenv("TF_GRPC_SGX_RA_TLS_CONFIG");
++       if (!config_path){
++          config_path = "dynamic_config.json";
++       }
++       LOG(INFO) << "Config path: " << string(config_path);
++       return ::grpc::sgx::TlsCredentials(config_path);
 +    }
 +    return ::grpc::InsecureChannelCredentials();
 +}
@@ -115,40 +112,90 @@ index aed798217cb..aa70e94971a 100644
  }  // namespace tensorflow
  
  #endif  // TENSORFLOW_CORE_DISTRIBUTED_RUNTIME_RPC_GRPC_UTIL_H_
-diff --git a/tensorflow/workspace.bzl b/tensorflow/workspace.bzl
-index d6237e10439..8a7f0e7db64 100755
---- a/tensorflow/workspace.bzl
-+++ b/tensorflow/workspace.bzl
-@@ -650,7 +650,7 @@ def tf_repositories(path_prefix = "", tf_repo_name = ""):
-     # WARNING: make sure ncteisen@ and vpai@ are cc-ed on any CL to change the below rule
-     tf_http_archive(
-         name = "com_github_grpc_grpc",
--        sha256 = "b956598d8cbe168b5ee717b5dafa56563eb5201a947856a6688bbeac9cac4e1f",
-+        sha256 = "b6783a2724cdfe2826ea92477812fddcf329f9b6e403f27a3b0194e7994cd29e",
-         strip_prefix = "grpc-b54a5b338637f92bfcf4b0bc05e0f57a5fd8fadd",
-         system_build_file = clean_dep("//third_party/systemlibs:grpc.BUILD"),
-         patch_file = clean_dep("//third_party/grpc:generate_cc_env_fix.patch"),
-@@ -664,8 +664,9 @@ def tf_repositories(path_prefix = "", tf_repo_name = ""):
-             "//third_party/systemlibs:grpc.bazel.protobuf.bzl": "bazel/protobuf.bzl",
-         },
-         urls = [
--            "https://storage.googleapis.com/mirror.tensorflow.org/github.com/grpc/grpc/archive/b54a5b338637f92bfcf4b0bc05e0f57a5fd8fadd.tar.gz",
--            "https://github.com/grpc/grpc/archive/b54a5b338637f92bfcf4b0bc05e0f57a5fd8fadd.tar.gz",
-+            #"https://storage.googleapis.com/mirror.tensorflow.org/github.com/grpc/grpc/archive/b54a5b338637f92bfcf4b0bc05e0f57a5fd8fadd.tar.gz",
-+            #"https://github.com/grpc/grpc/archive/b54a5b338637f92bfcf4b0bc05e0f57a5fd8fadd.tar.gz",
-+            "http://127.0.0.1:8000/b54a5b338637f92bfcf4b0bc05e0f57a5fd8fadd.tar.gz",
-         ],
-     )
+diff --git a/third_party/grpc/generate_cc_env_fix.patch b/third_party/grpc/generate_cc_env_fix.patch
+index 51832fe9628..4be9e293263 100644
+--- a/third_party/grpc/generate_cc_env_fix.patch
++++ b/third_party/grpc/generate_cc_env_fix.patch
+@@ -1,6 +1,8 @@
++diff --git a/bazel/generate_cc.bzl b/bazel/generate_cc.bzl
++index 484959ebb7..81d52fd28f 100644
+ --- a/bazel/generate_cc.bzl
+ +++ b/bazel/generate_cc.bzl
+-@@ -141,6 +141,7 @@ def generate_cc_impl(ctx):
++@@ -140,6 +140,7 @@ def generate_cc_impl(ctx):
+          outputs = out_files,
+          executable = ctx.executable._protoc,
+          arguments = arguments,
+@@ -8,3 +10,72 @@
+      )
  
-diff --git a/third_party/repo.bzl b/third_party/repo.bzl
-index ef729b5223d..4c59a0ef201 100644
---- a/third_party/repo.bzl
-+++ b/third_party/repo.bzl
-@@ -16,6 +16,7 @@
- 
- _SINGLE_URL_WHITELIST = depset([
-     "arm_compiler",
-+    "com_github_grpc_grpc",
- ])
- 
- def _is_windows(ctx):
+      return struct(files = depset(out_files))
++diff --git a/src/core/lib/security/credentials/tls/tls_credentials.cc b/src/core/lib/security/credentials/tls/tls_credentials.cc
++index 701fd3b150..0826d05933 100644
++--- a/src/core/lib/security/credentials/tls/tls_credentials.cc
+++++ b/src/core/lib/security/credentials/tls/tls_credentials.cc
++@@ -111,9 +111,9 @@ TlsServerCredentials::create_security_connector() {
++
++ grpc_channel_credentials* grpc_tls_credentials_create(
++     grpc_tls_credentials_options* options) {
++-  if (!CredentialOptionSanityCheck(options, true /* is_client */)) {
++-    return nullptr;
++-  }
+++  //if (!CredentialOptionSanityCheck(options, true /* is_client */)) {
+++  //  return nullptr;
+++  //}
++   return new TlsCredentials(
++       grpc_core::RefCountedPtr<grpc_tls_credentials_options>(options));
++ }
++diff --git a/src/core/lib/security/security_connector/alts/alts_security_connector.cc b/src/core/lib/security/security_connector/alts/alts_security_connector.cc
++index 1274edb6e6..cdfe9834dd 100644
++--- a/src/core/lib/security/security_connector/alts/alts_security_connector.cc
+++++ b/src/core/lib/security/security_connector/alts/alts_security_connector.cc
++@@ -108,6 +108,8 @@ class grpc_alts_channel_security_connector final
++                        grpc_auth_context* /*auth_context*/,
++                        grpc_closure* /*on_call_host_checked*/,
++                        grpc_error** error) override {
+++	*error = GRPC_ERROR_NONE;
+++	return true;
++     if (host.empty() || host != target_name_) {
++       *error = GRPC_ERROR_CREATE_FROM_STATIC_STRING(
++           "ALTS call host does not match target name");
++diff --git a/src/core/lib/security/security_connector/local/local_security_connector.cc b/src/core/lib/security/security_connector/local/local_security_connector.cc
++index 6fb770d7ad..61f454509e 100644
++--- a/src/core/lib/security/security_connector/local/local_security_connector.cc
+++++ b/src/core/lib/security/security_connector/local/local_security_connector.cc
++@@ -186,6 +186,8 @@ class grpc_local_channel_security_connector final
++                        grpc_auth_context* /*auth_context*/,
++                        grpc_closure* /*on_call_host_checked*/,
++                        grpc_error** error) override {
+++	*error = GRPC_ERROR_NONE;
+++	return true;
++     if (host.empty() || host != target_name_) {
++       *error = GRPC_ERROR_CREATE_FROM_STATIC_STRING(
++           "local call host does not match target name");
++diff --git a/src/core/lib/security/security_connector/ssl/ssl_security_connector.cc b/src/core/lib/security/security_connector/ssl/ssl_security_connector.cc
++index 13b0dd59a0..a60637b7c2 100644
++--- a/src/core/lib/security/security_connector/ssl/ssl_security_connector.cc
+++++ b/src/core/lib/security/security_connector/ssl/ssl_security_connector.cc
++@@ -190,6 +190,8 @@ class grpc_ssl_channel_security_connector final
++                        grpc_auth_context* auth_context,
++                        grpc_closure* /*on_call_host_checked*/,
++                        grpc_error** error) override {
+++	*error = GRPC_ERROR_NONE;
+++	return true;
++     grpc_security_status status = GRPC_SECURITY_ERROR;
++     tsi_peer peer = grpc_shallow_peer_from_ssl_auth_context(auth_context);
++     if (grpc_ssl_host_matches_name(&peer, host)) status = GRPC_SECURITY_OK;
++diff --git a/src/core/lib/security/security_connector/ssl_utils.cc b/src/core/lib/security/security_connector/ssl_utils.cc
++index 2c2d706673..6c62e73040 100644
++--- a/src/core/lib/security/security_connector/ssl_utils.cc
+++++ b/src/core/lib/security/security_connector/ssl_utils.cc
++@@ -169,6 +169,8 @@ bool grpc_ssl_check_call_host(grpc_core::StringView host,
++                               grpc_auth_context* auth_context,
++                               grpc_closure* /*on_call_host_checked*/,
++                               grpc_error** error) {
+++  *error = GRPC_ERROR_NONE;
+++  return true;
++   grpc_security_status status = GRPC_SECURITY_ERROR;
++   tsi_peer peer = grpc_shallow_peer_from_ssl_auth_context(auth_context);
++   if (grpc_ssl_host_matches_name(&peer, host)) status = GRPC_SECURITY_OK;

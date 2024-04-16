@@ -146,7 +146,7 @@ class WorkflowTemplateApi(Resource):
 
         template = WorkflowTemplate.query.filter_by(id=template_id).first()
         if template is None:
-            raise NotFoundException()
+            raise NotFoundException(f'Failed to find template: {template_id}')
 
         result = template.to_dict()
         if download:
@@ -164,7 +164,7 @@ class WorkflowTemplateApi(Resource):
     def delete(self, template_id):
         result = WorkflowTemplate.query.filter_by(id=template_id)
         if result.first() is None:
-            raise NotFoundException()
+            raise NotFoundException(f'Failed to find template: {template_id}')
         result.delete()
         db.session.commit()
         return {'data': {}}, HTTPStatus.OK
@@ -192,7 +192,7 @@ class WorkflowTemplateApi(Resource):
                 'Workflow template {} already exists'.format(name))
         template = WorkflowTemplate.query.filter_by(id=template_id).first()
         if template is None:
-            raise NotFoundException()
+            raise NotFoundException(f'Failed to find template: {template_id}')
         template_proto, editor_info_proto = _check_config_and_editor_info(
             config, editor_info)
         template_proto = _format_template_with_yaml_editor(

@@ -2,8 +2,7 @@ import React, { FC } from 'react';
 import styled from 'styled-components';
 import { Input, Checkbox, Form, Button, message } from 'antd';
 import { EyeInvisibleOutlined, EyeTwoTone } from '@ant-design/icons';
-import leftBackground from 'assets/images/hacker-codes.jpg';
-import logoWhite from 'assets/images/logo-white.svg';
+import loginIllustration from 'assets/images/login-illustration.png';
 import logColorful from 'assets/images/logo-colorful.svg';
 import { MixinFlexAlignCenter } from 'styles/mixins';
 import { login } from 'services/user';
@@ -36,37 +35,28 @@ const Block = styled.section`
   height: 100%;
 `;
 const Left = styled(Block)`
+  grid-area: left;
   display: flex;
   justify-content: center;
   align-items: center;
   flex-direction: column;
-  background: url(${logoWhite}) top 24px left 32px no-repeat,
-    linear-gradient(270deg, rgba(40, 106, 244, 0.9) 0%, rgba(62, 151, 254, 0.9) 100%),
-    url(${leftBackground}) no-repeat;
-  background-size: 121px auto, contain, cover;
+  background-image: url(${logColorful}), url(${loginIllustration});
+  background-position: 20px 20px, center;
+  background-repeat: no-repeat;
+  background-color: #2b5ccc;
+  background-size: 121px auto, 80% auto;
 
   > * {
     transform: translateY(-9vh);
   }
 `;
-const Slogan = styled.h1`
-  width: 80%;
-  margin-bottom: 0;
-  color: white;
-  font-size: 50px;
-  font-weight: bolder;
-`;
-const Vision = styled.small`
-  width: 80%;
-  font-size: 16px;
-  line-height: 22px;
-  color: white;
-`;
+
 const Right = styled(Block)`
   ${MixinFlexAlignCenter()}
 
   display: flex;
   background-color: white;
+  grid-area: right;
 
   @media screen and (max-width: 1000px) {
     background: url(${logColorful}) top 24px left 32px no-repeat;
@@ -80,9 +70,11 @@ const LoginForm = styled(Form)`
     font-size: 27px;
     line-height: 36px;
   }
+
   > .ant-space {
     display: flex;
   }
+
   .ant-form-item {
     margin-bottom: 32px;
 
@@ -90,16 +82,19 @@ const LoginForm = styled(Form)`
       margin-bottom: 8px;
     }
   }
+
   .ant-input-lg {
     padding: 5.5px 0 !important;
     font-size: 14px;
   }
+
   .no-account {
     margin-top: 16px;
     color: var(--textColorSecondary);
     font-size: 12px;
     white-space: nowrap;
   }
+
   > .checkboxItem {
     margin-bottom: 0;
   }
@@ -127,17 +122,14 @@ const Login: FC = () => {
 
   return (
     <Layout>
-      <Left>
-        <Slogan>{t('login.slogan')}</Slogan>
-        <Vision>{t('login.vision')}</Vision>
-      </Left>
+      <Left />
 
       <Right>
         <LoginForm
           size="large"
           name="login-form"
           initialValues={{ remember: true }}
-          onFinish={onSubmit}
+          onFinish={onSubmit as any}
         >
           <h3 className="form-title">{t('login.form_title')}</h3>
 
@@ -181,9 +173,10 @@ const Login: FC = () => {
 
   // -------- Handlers ------------
 
-  async function onSubmit(payload: unknown) {
+  async function onSubmit(payload: FedLoginFormData) {
     toggleSubmit(true);
     try {
+      payload.password = btoa(payload.password);
       const { data } = await login(payload as FedLoginFormData);
 
       store.set(LOCAL_STORAGE_KEYS.current_user, {

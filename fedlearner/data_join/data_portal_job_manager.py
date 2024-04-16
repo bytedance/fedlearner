@@ -25,15 +25,17 @@ from tensorflow.compat.v1 import gfile
 
 from fedlearner.common import data_portal_service_pb2 as dp_pb
 
+from fedlearner.common.common import convert_to_datetime, INVALID_DATETIME
 from fedlearner.data_join import common
 from fedlearner.data_join.raw_data_publisher import RawDataPublisher
 from fedlearner.data_join.sort_run_merger import MergedSortRunMeta
 
 
 class DataPortalJobManager(object):
+
     def __init__(self, kvstore, portal_name, long_running, check_success_tag,
                  single_subfolder, files_per_job_limit,
-                 max_files_per_job=8000):
+                 max_files_per_job=8000, start_date=None, end_date=None):
         self._lock = threading.Lock()
         self._kvstore = kvstore
         self._portal_name = portal_name
@@ -41,6 +43,8 @@ class DataPortalJobManager(object):
         self._single_subfolder = single_subfolder
         self._files_per_job_limit = files_per_job_limit
         self._max_files_per_job = max_files_per_job
+        self._start_date = convert_to_datetime(start_date)
+        self._end_date = convert_to_datetime(end_date)
         self._portal_manifest = None
         self._processing_job = None
         self._sync_portal_manifest()
@@ -335,6 +339,17 @@ class DataPortalJobManager(object):
                 res.append(fname)
         return res
 
+    def _is_wanted_date(self, cur_date_str):
+        cur_date = convert_to_datetime(cur_date_str)
+        if cur_date != INVALID_DATETIME:
+            if self._start_date != INVALID_DATETIME and \
+                cur_date < self._start_date:
+                return False
+            if self._end_date != INVALID_DATETIME and \
+                cur_date >= self._end_date:
+                return False
+        return True
+
     def _list_input_dir(self):
         logging.info("List input directory, it will take some time...")
         root = self._portal_manifest.input_base_dir
@@ -351,7 +366,6 @@ class DataPortalJobManager(object):
         by_folder = {}
         for fname in all_files:
             splits = path.split(path.relpath(fname, root))
-            basename = splits[-1]
             dirnames = splits[:-1]
 
             # ignore files and dirs starting with _ or .
@@ -368,7 +382,6 @@ class DataPortalJobManager(object):
             # check wildcard
             if wildcard and not fnmatch(fname, wildcard):
                 continue
-            num_target_files += 1
 
             # check success tag
             if self._check_success_tag:
@@ -376,14 +389,20 @@ class DataPortalJobManager(object):
                 if succ_fname not in all_files:
                     continue
 
+            # check dirname is wanted date
+            folder_name = path.basename(dirnames[-1])
+            if not self._is_wanted_date(folder_name):
+                continue
+
+            num_target_files += 1
+
             if fname in self._processed_fpath:
                 continue
             num_new_files += 1
 
-            folder = path.join(*dirnames)
-            if folder not in by_folder:
-                by_folder[folder] = []
-            by_folder[folder].append(fname)
+            if folder_name not in by_folder:
+                by_folder[folder_name] = []
+            by_folder[folder_name].append(fname)
 
         if not by_folder:
             rest_fpaths = []
@@ -410,7 +429,7 @@ class DataPortalJobManager(object):
 
         logging.info(
             'Listing %s: found %d dirs, %d files, %d tmp files ignored, '
-            '%d files matching wildcard, %d new files to process. '
+            '%d files matching condition, %d new files to process. '
             'Processing %d files in this iteration.',
             root, len(by_folder), len(all_files), num_ignored,
             num_target_files, num_new_files, len(rest_fpaths))

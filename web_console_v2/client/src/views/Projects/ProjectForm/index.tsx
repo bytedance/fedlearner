@@ -23,6 +23,7 @@ import ip from 'ip-port-regex';
 import Certificate from './Certificate';
 import { DOMAIN_PREFIX, DOMAIN_SUFFIX, wrapWithDomainName } from 'shared/project';
 import { Z_INDEX_GREATER_THAN_HEADER } from 'components/Header';
+import { FormHeader } from 'components/SharedPageLayout';
 
 const Container = styled.div`
   flex: 1;
@@ -95,6 +96,7 @@ const ProjectForm: FC<Props> = ({ onSubmit, isEdit, initialValues }) => {
 
   return (
     <Container>
+      <FormHeader>{isEdit ? '编辑项目' : '创建项目'}</FormHeader>
       <StyledForm
         {...layout}
         initialValues={defaultValues}
@@ -268,6 +270,7 @@ const ProjectForm: FC<Props> = ({ onSubmit, isEdit, initialValues }) => {
 
       if (isEdit) {
         params = {
+          participant_name: data.participantName,
           variables: data.variables ?? [],
           comment: data.comment,
         };

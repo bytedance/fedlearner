@@ -14,8 +14,10 @@
 
 # coding: utf-8
 import datetime
+import logging
 import enum
 import json
+
 from sqlalchemy.sql import func
 from sqlalchemy.sql.schema import Index
 from fedlearner_webconsole.utils.mixins import to_dict_mixin
@@ -26,10 +28,20 @@ from fedlearner_webconsole.proto.workflow_definition_pb2 import JobDefinition
 
 
 class JobState(enum.Enum):
-    INVALID = 0
-    STOPPED = 1
-    WAITING = 2
-    STARTED = 3
+    # VALID TRANSITION:
+    # 1. NEW : init by workflow
+    # 2. NEW/STOPPED/COMPLTED/FAILED -> WAITING: triggered by user, run workflow
+    # 3. WAITING -> STARTED: triggered by scheduler
+    # 4. WAITING -> NEW: triggered by user, stop workflow
+    # 4. STARTED -> STOPPED: triggered by user, stop workflow
+    # 5. STARTED -> COMPLETED/FAILED: triggered by k8s_watcher
+    INVALID = 0 # INVALID STATE
+    STOPPED = 1 # STOPPED BY USER
+    WAITING = 2 # SCHEDULED, WAITING FOR RUNNING
+    STARTED = 3 # RUNNING
+    NEW = 4 # BEFORE SCHEDULE
+    COMPLETED = 5 # SUCCEEDED JOB
+    FAILED = 6 # FAILED JOB
 
 
 # must be consistent with JobType in proto
@@ -161,23 +173,14 @@ class Job(db.Model):
         return [pod.to_dict(include_private_info) for pod in result.values()]
 
     def get_state_for_frontend(self):
-        if self.state == JobState.STARTED:
-            if self.is_complete():
-                return 'COMPLETED'
-            if self.is_failed():
-                return 'FAILED'
-            return 'RUNNING'
-        if self.state == JobState.STOPPED:
-            if self.get_flapp_details()['flapp'] is None:
-                return 'NEW'
         return self.state.name
 
-    def is_failed(self):
+    def is_flapp_failed(self):
         # TODO: make the getter more efficient
         flapp = FlApp.from_json(self.get_flapp_details()['flapp'])
         return flapp.state in [FlAppState.FAILED, FlAppState.SHUTDOWN]
 
-    def is_complete(self):
+    def is_flapp_complete(self):
         # TODO: make the getter more efficient
         flapp = FlApp.from_json(self.get_flapp_details()['flapp'])
         return flapp.state == FlAppState.COMPLETED
@@ -188,19 +191,47 @@ class Job(db.Model):
         return flapp.completed_at
 
     def stop(self):
+        if self.state not in [JobState.WAITING, JobState.STARTED,
+                              JobState.COMPLETED, JobState.FAILED]:
+            logging.warning('illegal job state, name: %s, state: %s',
+                            self.name, self.state)
+            return
         if self.state == JobState.STARTED:
             self._set_snapshot_flapp()
             k8s_client.delete_flapp(self.name)
-        self.state = JobState.STOPPED
+        # state change:
+        # WAITING -> NEW
+        # STARTED -> STOPPED
+        # COMPLETED/FAILED unchanged
+        if self.state == JobState.STARTED:
+            self.state = JobState.STOPPED
+        if self.state == JobState.WAITING:
+            self.state = JobState.NEW
 
     def schedule(self):
-        assert self.state == JobState.STOPPED
+        # COMPLETED/FAILED Job State can be scheduled since stop action
+        # will not change the state of completed or failed job
+        assert self.state in [JobState.NEW, JobState.STOPPED,
+                              JobState.COMPLETED, JobState.FAILED]
         self.pods_snapshot = None
         self.flapp_snapshot = None
         self.state = JobState.WAITING
 
     def start(self):
+        assert self.state == JobState.WAITING
         self.state = JobState.STARTED
+
+    def complete(self):
+        assert self.state == JobState.STARTED, 'Job State is not STARTED'
+        self._set_snapshot_flapp()
+        k8s_client.delete_flapp(self.name)
+        self.state = JobState.COMPLETED
+
+    def fail(self):
+        assert self.state == JobState.STARTED, 'Job State is not STARTED'
+        self._set_snapshot_flapp()
+        k8s_client.delete_flapp(self.name)
+        self.state = JobState.FAILED
 
 
 class JobDependency(db.Model):

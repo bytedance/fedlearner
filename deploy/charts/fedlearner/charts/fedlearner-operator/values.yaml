@@ -6,10 +6,11 @@ replicaCount: 1
 
 image:
   repository: fedlearner/fedlearner-operator
-  tag: "v1.5-rc2"
+  tag: "v2-rc1"
   pullPolicy: IfNotPresent
 
 imagePullSecrets: []
+
 nameOverride: ""
 fullnameOverride: ""
 
@@ -28,7 +29,6 @@ ingress:
   annotations:
     kubernetes.io/ingress.class: nginx
     nginx.ingress.kubernetes.io/backend-protocol: GRPC
-  tls: []
-  host: default.fedlearner.operator
+  host: fedlearner-operator
 
 installCRD: true

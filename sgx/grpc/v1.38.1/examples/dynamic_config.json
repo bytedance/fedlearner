@@ -1,0 +1,10 @@
+{
+    "verify_in_enclave" : "on",
+    "verify_mr_enclave" : "on",
+    "verify_mr_signer" : "on",
+    "verify_isv_prod_id" : "on",
+    "verify_isv_svn" : "on",
+    "sgx_mrs": [
+    ],
+    "other" : []
+}

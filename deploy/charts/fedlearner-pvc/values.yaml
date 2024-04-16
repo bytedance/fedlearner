@@ -1,0 +1,28 @@
+# Default values for fedlearner-pvc.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+nfs:
+  path: /data
+  server: 127.0.0.1
+  capacity: 20Gi
+
+nfs-server-provisioner:
+  enabled: true
+
+nfs-client-provisioner:
+  enabled: false
+
+  nfs:
+    path: /
+    mountOptions:
+      - vers=3
+      - nolock,tcp,noresvport
+
+  storageClass:
+    name: nfs
+
+  image:
+    repository: registry.cn-beijing.aliyuncs.com/fedlearner/nfs-client-provisioner
+    tag: v4.0.0
+    pullPolicy: IfNotPresent

@@ -22,9 +22,7 @@ from tensorflow.python.estimator.util import parse_input_fn_result #pylint: disa
 
 from tensorflow_estimator.python.estimator import model_fn as model_fn_lib
 from fedlearner.common import fl_logging
-from fedlearner.trainer.run_hooks import TraceStatsHook
-from fedlearner.trainer._global_context import global_context as _gctx
-
+from fedlearner.privacy.splitnn.marvell import KL_gradient_perturb
 
 class FLModel(object):
     def __init__(self, role, bridge, example_ids, exporting=False):
@@ -95,7 +93,10 @@ class FLModel(object):
                  aggregation_method=None,
                  colocate_gradients_with_ops=False,
                  name=None,
-                 grad_loss=None):
+                 grad_loss=None,
+                 marvell_protection=False,
+                 marvell_threshold=0.25,
+                 labels=None):
         recv_grads = [i for i in self._recvs if i[2]]
 
         if var_list is None:
@@ -115,6 +116,9 @@ class FLModel(object):
         send_grads = grads_and_vars[:len(recv_grads)]
         for (n, _, _), (grad, _) in zip(recv_grads, send_grads):
             if grad is not None:
+                # Marvell：给即将发送的gradient添加噪声
+                if marvell_protection and labels is not None:
+                    grad = KL_gradient_perturb(grad, labels, marvell_threshold)
                 self.send(n + '_grad', grad)
 
         if grads_and_vars[len(recv_grads):]:
@@ -193,9 +197,6 @@ class FLEstimator(object):
                 features, labels, tf.estimator.ModeKeys.TRAIN)
 
             hooks = []
-            # stats
-            hooks.append(TraceStatsHook(
-                every_secs=30, stats_client=_gctx.stats_client))
             # user define chief hook
             if spec.training_chief_hooks and self._is_chief:
                 hooks.extend(spec.training_chief_hooks)
@@ -262,6 +263,9 @@ class FLEstimator(object):
             final_ops_hook = tf.train.FinalOpsHook(eval_dict)
             all_hooks.append(final_ops_hook)
 
+            if self._input_hooks:
+                all_hooks.extend(self._input_hooks)
+
             session_creator = tf.train.WorkerSessionCreator(
                 master=self._cluster_server.target,
                 config=self._cluster_server.cluster_config)
@@ -278,7 +282,6 @@ class FLEstimator(object):
                     fl_logging.debug("after session run. time: %f sec",
                                      use_time)
             self._bridge.terminate()
-
             # Print result
             fl_logging.info('Metrics for evaluate: %s',
                 _dict_to_str(final_ops_hook.final_ops_values))

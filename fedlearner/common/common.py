@@ -11,7 +11,7 @@ class Config(object):
     DATA_JOIN_METRICS_SAMPLE_RATE = \
         float(os.environ.get('DATA_JOIN_METRICS_SAMPLE_RATE', 0.3))
     RAW_DATA_METRICS_SAMPLE_RATE = \
-        float(os.environ.get('RAW_DATA_METRICS_SAMPLE_RATE', 0.02))
+        float(os.environ.get('RAW_DATA_METRICS_SAMPLE_RATE', 0.0))
     ES_BATCH_SIZE = int(float(os.environ.get('ES_BATCH_SIZE', 1000)))
     TZ = pytz.timezone(os.environ.get('TZ', 'UTC'))
     ES_USERNAME = os.environ.get('ES_USERNAME', 'elastic')
@@ -19,6 +19,7 @@ class Config(object):
     METRICS_TO_STDOUT = int(float(os.environ.get('METRICS_TO_STDOUT', 0)))
 
 
+INVALID_DATETIME = datetime.datetime.fromtimestamp(0)
 # YYYY-MM-DD'T'hh:mm:ss.SSSSSSZ
 _es_datetime_format = 'strict_date_optional_time'
 # WARNING: MAPPINGS BELOW ARE COMPATIBILITY MEASURES AND SHOULD NOT BE MODIFIED.
@@ -227,8 +228,8 @@ def convert_to_datetime(value, enable_tz=False):
         except ValueError:  # might be a non-number str
             # 3. default to 0
             fl_logging.warning('Unable to parse time %s to iso format, '
-                            'defaults to 0.', value)
-            date_time = datetime.datetime.fromtimestamp(0)
+                               'defaults to 0.', value)
+            date_time = INVALID_DATETIME
     if enable_tz:
         date_time = set_timezone(date_time)
     return date_time
@@ -270,18 +271,20 @@ def time_diff(minuend, sub):
     ts_sub = convert_to_datetime(sub, enable_tz=False).timestamp()
     return ts_minuend - ts_sub
 
-def use_tls():
-    enable = os.environ.get("TF_OPTIONAL_TLS_ENABLE", False)
-    if not enable:
-        return False, None
 
-    key = os.environ.get("TF_OPTIONAL_TLS_CERT_KEY", False)
-    with open(key, 'rb') as f:
-        private_key = f.read()
-    cert = os.environ.get("TF_OPTIONAL_TLS_CERT", False)
-    with open(cert, 'rb') as f:
-        certificate_chain = f.read()
-    root_key = os.environ.get("TF_OPTIONAL_TLS_ROOT_CERT", False)
-    with open(root_key, 'rb') as f:
-        root_certificates = f.read()
-    return True, (root_certificates, private_key, certificate_chain)
+def use_tls():
+    enable = os.getenv("FL_GRPC_SGX_RA_TLS_ENABLE") == "on"
+    if not enable:
+        return False
+    return True
+
+
+def get_tf_config():
+    return {
+        "intra_op_parallelism_threads": \
+            int(os.environ.get("INTRA_OP_PARALLELISM_THREADS", 16)),
+        "inter_op_parallelism_threads": \
+            int(os.environ.get("INTER_OP_PARALLELISM_THREADS", 16)),
+        "grpc_server_channel_threads": \
+            int(os.environ.get("GRPC_SERVER_CHANNEL_THREADS", 16))
+    }

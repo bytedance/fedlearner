@@ -20,14 +20,15 @@ import grpc_testing
 from grpc import StatusCode
 from grpc.framework.foundation import logging_pool
 
-from testing.common import create_test_db
+from testing.common import NoWebServerTestCase
 
 from fedlearner_webconsole.proto.service_pb2 import DESCRIPTOR
 from fedlearner_webconsole.rpc.client import RpcClient
 from fedlearner_webconsole.project.models import Project as ProjectModel
 from fedlearner_webconsole.job.models import Job
-from fedlearner_webconsole.proto.common_pb2 import (GrpcSpec, Status, StatusCode
-                                                    as FedLearnerStatusCode)
+from fedlearner_webconsole.proto.common_pb2 import (GrpcSpec, Status,
+                                                    StatusCode as
+                                                    FedLearnerStatusCode)
 from fedlearner_webconsole.proto.project_pb2 import Project, Participant
 from fedlearner_webconsole.proto.service_pb2 import (CheckConnectionRequest,
                                                      ProjAuthInfo)
@@ -37,7 +38,7 @@ from fedlearner_webconsole.proto.service_pb2 import CheckConnectionResponse, \
 TARGET_SERVICE = DESCRIPTOR.services_by_name['WebConsoleV2Service']
 
 
-class RpcClientTest(unittest.TestCase):
+class RpcClientTest(NoWebServerTestCase):
     _TEST_PROJECT_NAME = 'test-project'
     _TEST_RECEIVER_NAME = 'test-receiver'
     _TEST_URL = 'localhost:123'
@@ -46,10 +47,9 @@ class RpcClientTest(unittest.TestCase):
     _TEST_X_HOST = 'default.fedlearner.webconsole'
     _TEST_SELF_DOMAIN_NAME = 'fl-test-self.com'
 
-    _DB = create_test_db()
-
     @classmethod
     def setUpClass(cls):
+
         grpc_spec = GrpcSpec(
             authority=cls._TEST_AUTHORITY,
             extra_headers={cls._X_HOST_HEADER_KEY: cls._TEST_X_HOST})
@@ -70,16 +70,6 @@ class RpcClientTest(unittest.TestCase):
         cls._project = ProjectModel(name=cls._TEST_PROJECT_NAME)
         cls._project.set_config(project_config)
         cls._job = job
-
-        # Inserts the project entity
-        cls._DB.create_all()
-        cls._DB.session.add(cls._project)
-        cls._DB.session.commit()
-
-    @classmethod
-    def tearDownClass(cls):
-        cls._DB.session.remove()
-        cls._DB.drop_all()
 
     def setUp(self):
         self._client_execution_thread_pool = logging_pool.pool(1)

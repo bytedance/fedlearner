@@ -234,7 +234,7 @@ def convert_tf_example_to_dict(src_tf_example):
         else:
             assert False, "feat type must in int64, byte, float"
         assert isinstance(csv_val, list)
-        dst_dict[key] = csv_val[0] if len(csv_val) == 1 else csv_val
+        dst_dict[key] = csv_val
     return dst_dict
 
 def int2bytes(digit, byte_len, byteorder='little'):
@@ -302,6 +302,11 @@ class _MemUsageProxy(object, metaclass=Singleton):
         return hpy().heap().size
 
     def _update_rss_mem_usage(self):
+        use_sgx = os.getenv('SGX') == '1'
+        # cannot get Process in sgx enclave
+        if use_sgx:
+            self._rss_mem_usage = 0
+            return self._rss_mem_usage
         with self._lock:
             if time.time() - self._rss_updated_tm >= 0.25:
                 self._rss_mem_usage = psutil.Process().memory_info().rss

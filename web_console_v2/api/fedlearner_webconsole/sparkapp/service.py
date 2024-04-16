@@ -18,7 +18,6 @@ import logging
 import tempfile
 
 from typing import Tuple
-from pathlib import Path
 
 from envs import Envs
 from fedlearner_webconsole.utils.file_manager import FileManager
@@ -87,12 +86,18 @@ class SparkAppService(object):
             os.makedirs(temp_path)
             TarCli.untar_file(source_filesystem_path, temp_path)
 
-        for root, _, res in os.walk(temp_path):
-            for file in res:
-                file_path = os.path.join(root, file)
-                remote_file_path = os.path.join(target_filesystem_path, file)
-                if Path(file_path).is_file():
-                    self._file_client.copy(file_path, remote_file_path)
+        for root, dirs, files in os.walk(temp_path):
+            relative_path = os.path.relpath(root, temp_path)
+            for f in files:
+                file_path = os.path.join(root, f)
+                remote_file_path = os.path.join(target_filesystem_path,
+                                                relative_path, f)
+                self._file_client.copy(file_path, remote_file_path)
+            for d in dirs:
+                remote_dir_path = os.path.join(target_filesystem_path,
+                                               relative_path, d)
+                self._file_client.mkdir(remote_dir_path)
+
         return True
 
     def submit_sparkapp(self, config: SparkAppConfig) -> SparkAppInfo:
@@ -107,19 +112,22 @@ class SparkAppService(object):
         Returns:
             SparkAppInfo: resp of sparkapp
         """
-        _, sparkapp_path = self._get_sparkapp_upload_path(config.name)
-        self._clear_and_make_an_empty_dir(sparkapp_path)
+        sparkapp_path = config.files_path
+        if config.files_path is None:
+            _, sparkapp_path = self._get_sparkapp_upload_path(config.name)
+            self._clear_and_make_an_empty_dir(sparkapp_path)
 
-        with tempfile.TemporaryDirectory() as temp_dir:
-            tar_path = os.path.join(temp_dir, 'files.tar')
-            with open(tar_path, 'wb') as fwrite:
-                fwrite.write(config.files)
-            self._copy_files_to_target_filesystem(
-                source_filesystem_path=tar_path,
-                target_filesystem_path=sparkapp_path)
+            with tempfile.TemporaryDirectory() as temp_dir:
+                tar_path = os.path.join(temp_dir, 'files.tar')
+                with open(tar_path, 'wb') as fwrite:
+                    fwrite.write(config.files)
+                self._copy_files_to_target_filesystem(
+                    source_filesystem_path=tar_path,
+                    target_filesystem_path=sparkapp_path)
 
-        resp = k8s_client.create_sparkapplication(
-            config.build_config(sparkapp_path))
+        config_dict = config.build_config(sparkapp_path)
+        logging.info(f'submit sparkapp, config: {config_dict}')
+        resp = k8s_client.create_sparkapplication(config_dict)
         return SparkAppInfo.from_k8s_resp(resp)
 
     def get_sparkapp_info(self, name: str) -> SparkAppInfo:

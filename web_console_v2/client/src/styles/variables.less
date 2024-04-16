@@ -304,9 +304,9 @@
 @background-color-error: @error-color-light;
 @background-color-error-hover: @red-2;
 
-@line-color: @dark-gray-9;
+@line-color: #e5e8ef;
 
-@header-background: white;
+@header-background: @gray-10;
 
 // ----------- Transitions ----------------------
 @common-timing: cubic-bezier(0.4, 0, 0.2, 1);
@@ -315,7 +315,8 @@
 @font-family: 'nunito_for_arco', 'Helvetica Neue', Helvetica, 'PingFang SC', 'Hiragino Sans GB',
   'Microsoft YaHei', '微软雅黑', Arial, sans-serif;
 
-// ---------- Sizes ----------------------
+// ---------- Spacing ----------------------
 @header-height: 60px;
+@page-header-height: 44px;
 @content-outer-padding: 16px; // padding between real content and header&sidebar
-@content-height: calc(100vh - @header-height - @content-outer-padding * 2);
+@content-min-height: calc(100vh - @header-height - @content-outer-padding * 2);

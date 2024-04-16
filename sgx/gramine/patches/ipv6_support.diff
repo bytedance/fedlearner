@@ -1,0 +1,166 @@
+diff --git a/libos/src/net/ip.c b/libos/src/net/ip.c
+index 20278149..d335ff5b 100644
+--- a/libos/src/net/ip.c
++++ b/libos/src/net/ip.c
+@@ -318,6 +318,12 @@ static int set_ipv6_option(struct libos_handle* handle, int optname, void* optva
+         case IPV6_RECVERR:
+             /* See the comment in `set_ipv4_option` for why we handle it this way. */
+             return 0;
++        case IP_MULTICAST_ALL:
++            attr.socket.ip_multicast_all = !!*(int*)optval;
++            break;
++        case IPV6_MULTICAST_HOPS:
++            attr.socket.ipv6_multicast_hops = !!*(int*)optval;
++            break;
+         default:
+             return -ENOPROTOOPT;
+     }
+@@ -529,6 +535,12 @@ static int get_ipv6_option(struct libos_handle* handle, int optname, void* optva
+         case IPV6_V6ONLY:
+             val = attr.socket.ipv6_v6only;
+             break;
++        case IP_MULTICAST_ALL:
++            val = attr.socket.ip_multicast_all;
++            break;
++        case IPV6_MULTICAST_HOPS:
++            val = attr.socket.ipv6_multicast_hops;
++            break;
+         default:
+             return -ENOPROTOOPT;
+     }
+diff --git a/pal/include/pal/pal.h b/pal/include/pal/pal.h
+index e4f98c01..4cae9ea9 100644
+--- a/pal/include/pal/pal.h
++++ b/pal/include/pal/pal.h
+@@ -480,6 +480,8 @@ typedef struct _PAL_STREAM_ATTR {
+             bool tcp_cork;
+             bool tcp_nodelay;
+             bool ipv6_v6only;
++            bool ip_multicast_all;
++            bool ipv6_multicast_hops;
+         } socket;
+     };
+ } PAL_STREAM_ATTR;
+diff --git a/pal/src/host/linux-sgx/pal_host.h b/pal/src/host/linux-sgx/pal_host.h
+index b6e00d09..258cbc4c 100644
+--- a/pal/src/host/linux-sgx/pal_host.h
++++ b/pal/src/host/linux-sgx/pal_host.h
+@@ -104,6 +104,8 @@ typedef struct {
+             bool tcp_cork;
+             bool tcp_nodelay;
+             bool ipv6_v6only;
++            bool ip_multicast_all;
++            bool ipv6_multicast_hops;
+         } sock;
+ 
+         struct {
+diff --git a/pal/src/host/linux-sgx/pal_sockets.c b/pal/src/host/linux-sgx/pal_sockets.c
+index 08560ba9..cceb6dd6 100644
+--- a/pal/src/host/linux-sgx/pal_sockets.c
++++ b/pal/src/host/linux-sgx/pal_sockets.c
+@@ -95,6 +95,8 @@ static PAL_HANDLE create_sock_handle(int fd, enum pal_socket_domain domain,
+     handle->sock.tcp_cork = false;
+     handle->sock.tcp_nodelay = false;
+     handle->sock.ipv6_v6only = false;
++    handle->sock.ip_multicast_all = false;
++    handle->sock.ipv6_multicast_hops = false;
+ 
+     return handle;
+ }
+@@ -320,6 +322,8 @@ static int attrquerybyhdl(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) {
+     attr->socket.tcp_cork = handle->sock.tcp_cork;
+     attr->socket.tcp_nodelay = handle->sock.tcp_nodelay;
+     attr->socket.ipv6_v6only = handle->sock.ipv6_v6only;
++    attr->socket.ip_multicast_all = handle->sock.ip_multicast_all;
++    attr->socket.ipv6_multicast_hops = handle->sock.ipv6_multicast_hops;
+ 
+     return 0;
+ };
+@@ -441,6 +445,25 @@ static int attrsetbyhdl_common(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) {
+         handle->sock.ipv6_v6only = attr->socket.ipv6_v6only;
+     }
+ 
++    if (attr->socket.ip_multicast_all != handle->sock.ip_multicast_all) {
++        int val = attr->socket.ip_multicast_all;
++        int ret = ocall_setsockopt(handle->sock.fd, IPPROTO_IPV6, IP_MULTICAST_ALL, &val, sizeof(val));
++        if (ret < 0) {
++            return unix_to_pal_error(ret);
++        }
++        handle->sock.ip_multicast_all = attr->socket.ip_multicast_all;
++    }
++
++    if (attr->socket.ipv6_multicast_hops != handle->sock.ipv6_multicast_hops) {
++        int val = attr->socket.ipv6_multicast_hops;
++        int ret = ocall_setsockopt(handle->sock.fd, IPPROTO_IPV6, IPV6_MULTICAST_HOPS, &val,
++                             sizeof(val));
++        if (ret < 0) {
++            return unix_to_pal_error(ret);
++        }
++        handle->sock.ipv6_multicast_hops = attr->socket.ipv6_multicast_hops;
++    }
++
+     return 0;
+ }
+ 
+diff --git a/pal/src/host/linux/pal_host.h b/pal/src/host/linux/pal_host.h
+index 155d72cd..89678877 100644
+--- a/pal/src/host/linux/pal_host.h
++++ b/pal/src/host/linux/pal_host.h
+@@ -81,6 +81,8 @@ typedef struct {
+             bool tcp_cork;
+             bool tcp_nodelay;
+             bool ipv6_v6only;
++            bool ip_multicast_all;
++            bool ipv6_multicast_hops;
+         } sock;
+ 
+         struct {
+diff --git a/pal/src/host/linux/pal_sockets.c b/pal/src/host/linux/pal_sockets.c
+index 7757ffc2..ee48843b 100644
+--- a/pal/src/host/linux/pal_sockets.c
++++ b/pal/src/host/linux/pal_sockets.c
+@@ -78,6 +78,8 @@ static PAL_HANDLE create_sock_handle(int fd, enum pal_socket_domain domain,
+     handle->sock.tcp_cork = false;
+     handle->sock.tcp_nodelay = false;
+     handle->sock.ipv6_v6only = false;
++    handle->sock.ip_multicast_all = false;
++    handle->sock.ipv6_multicast_hops = false;
+ 
+     return handle;
+ }
+@@ -351,6 +353,8 @@ static int attrquerybyhdl(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) {
+     attr->socket.tcp_cork = handle->sock.tcp_cork;
+     attr->socket.tcp_nodelay = handle->sock.tcp_nodelay;
+     attr->socket.ipv6_v6only = handle->sock.ipv6_v6only;
++    attr->socket.ip_multicast_all = handle->sock.ip_multicast_all;
++    attr->socket.ipv6_multicast_hops = handle->sock.ipv6_multicast_hops;
+ 
+     return 0;
+ };
+@@ -487,6 +491,26 @@ static int attrsetbyhdl_common(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) {
+         handle->sock.ipv6_v6only = attr->socket.ipv6_v6only;
+     }
+ 
++    if (attr->socket.ip_multicast_all != handle->sock.ip_multicast_all) {
++        int val = attr->socket.ip_multicast_all;
++        int ret =
++            DO_SYSCALL(setsockopt, handle->sock.fd, IPPROTO_IPV6, IP_MULTICAST_ALL, &val, sizeof(val));
++        if (ret < 0) {
++            return unix_to_pal_error(ret);
++        }
++        handle->sock.ip_multicast_all = attr->socket.ip_multicast_all;
++    }
++
++    if (attr->socket.ipv6_multicast_hops != handle->sock.ipv6_multicast_hops) {
++        int val = attr->socket.ipv6_multicast_hops;
++        int ret = DO_SYSCALL(setsockopt, handle->sock.fd, IPPROTO_IPV6, IPV6_MULTICAST_HOPS, &val,
++                             sizeof(val));
++        if (ret < 0) {
++            return unix_to_pal_error(ret);
++        }
++        handle->sock.ipv6_multicast_hops = attr->socket.ipv6_multicast_hops;
++    }
++
+     return 0;
+ }
+ 

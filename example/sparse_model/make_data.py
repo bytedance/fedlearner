@@ -25,7 +25,9 @@ import argparse
 import numpy as np
 import tensorflow.compat.v1 as tf
 
-from tensorflow.train import Example, Feature, Features, Int64List, BytesList
+from tensorflow.core.example.example_pb2 import Example
+from tensorflow.core.example.feature_pb2 import Features, Feature, \
+                                                Int64List, BytesList, FloatList
 
 current_dir = os.path.dirname(__file__)
 shutil.rmtree(os.path.join(current_dir, 'data'), ignore_errors=True)
@@ -42,7 +44,7 @@ if args.fid_version == 1:
     FOLLOWER_SLOTS = [512, 1023]
 elif args.fid_version == 2:
     FEATURE_BITS = 48
-    LEADER_SLOTS = [0, 1, 2, 511]
+    LEADER_SLOTS = [0, 1, 2, 511, 1025]
     FOLLOWER_SLOTS = [512, 1023, 32767]
 else:
     raise ValueError("fid_version should be 1 or 2")
@@ -80,6 +82,9 @@ if __name__ == '__main__':
                 Feature(int64_list=Int64List(value=[random.randint(0, 1)]))
             features_l['fids'] = \
                 Feature(int64_list=Int64List(value=_fake_sample(LEADER_SLOTS)))
+            features_l['act1_f'] = \
+                Feature(float_list=FloatList(value=np.random.uniform(
+                    low=0., high=1., size=(64,))))
             fl.write(Example(features=Features(feature=features_l))
                 .SerializeToString())
 

@@ -53,10 +53,17 @@ spec:
               protocol: TCP
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
-          {{- if .Values.extraVolumeMounts }}
           volumeMounts:
+            {{- if .Values.hook }}
+            - name: hook-volume
+              mountPath: /app/api/hooks
+            {{- end }}
+            {{- if .Values.extraVolumeMounts }}
             {{- toYaml .Values.extraVolumeMounts | nindent 12 }}
-          {{- end }}
+            {{- end }}
+            {{- if .Values.userVolumes }}
+            {{- toYaml .Values.userVolumeMounts | nindent 12 }}
+            {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
@@ -69,7 +76,18 @@ spec:
       tolerations:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- with .Values.extraVolumes }}
       volumes:
+        {{- if .Values.hook }}
+        - name: hook-volume
+          configMap: 
+            name: "{{ .Release.Name }}-hook"
+            items:
+            - key: hook
+              path: "hook.py"
+        {{- end }}
+        {{- with .Values.extraVolumes }}
         {{- toYaml . | nindent 8 }}
-      {{- end }}
+        {{- end }}
+        {{- with .Values.userVolumes }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}

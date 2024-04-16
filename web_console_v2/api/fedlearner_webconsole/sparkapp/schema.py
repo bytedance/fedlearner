@@ -18,7 +18,7 @@ from envs import Envs
 from fedlearner_webconsole.utils.mixins import from_dict_mixin, to_dict_mixin
 
 SPARK_POD_CONFIG_SERILIZE_FIELDS = [
-    'cores', 'memory', 'instances', 'core_limit', 'envs'
+    'cores', 'memory', 'instances', 'core_limit', 'envs', 'volume_mounts'
 ]
 
 
@@ -31,6 +31,7 @@ class SparkPodConfig(object):
         self.memory = None
         self.instances = None
         self.core_limit = None
+        self.volume_mounts = []
         self.envs = {}
 
     def build_config(self) -> dict:
@@ -48,18 +49,20 @@ class SparkPodConfig(object):
             config['instances'] = self.instances
         if self.core_limit:
             config['coreLimit'] = self.core_limit
-        if len(self.envs) > 0:
+        if self.envs and len(self.envs) > 0:
             config['env'] = [{
                 'name': k,
                 'value': v
             } for k, v in self.envs.items()]
+        if self.volume_mounts and len(self.volume_mounts) > 0:
+            config['volumeMounts'] = self.volume_mounts
 
         return config
 
 
 SPARK_APP_CONFIG_SERILIZE_FIELDS = [
-    'name', 'files', 'image_url', 'driver_config', 'executor_config',
-    'command', 'main_application'
+    'name', 'files', 'files_path', 'volumes', 'image_url', 'driver_config',
+    'executor_config', 'command', 'main_application', 'py_files'
 ]
 SPARK_APP_CONFIG_REQUIRED_FIELDS = ['name', 'image_url']
 
@@ -71,10 +74,16 @@ SPARK_APP_CONFIG_REQUIRED_FIELDS = ['name', 'image_url']
 class SparkAppConfig(object):
     def __init__(self):
         self.name = None
+        # local files should be compressed to submit spark
         self.files = None
+        # if nas/hdfs has those files, such as analyzer, only need files path \
+        # to submit spark
+        self.files_path = None
         self.image_url = None
+        self.volumes = []
         self.driver_config = SparkPodConfig()
         self.executor_config = SparkPodConfig()
+        self.py_files = []
         self.command = []
         self.main_application = None
 
@@ -107,6 +116,8 @@ class SparkAppConfig(object):
                 self.image_url,
                 'imagePullPolicy':
                 'Always',
+                'volumes':
+                self.volumes,
                 'mainApplicationFile':
                 self._replace_placeholder_with_real_path(
                     self.main_application, sparkapp_path),
@@ -114,6 +125,12 @@ class SparkAppConfig(object):
                     self._replace_placeholder_with_real_path(c, sparkapp_path)
                     for c in self.command
                 ],
+                'deps': {
+                    'pyFiles': [
+                        self._replace_placeholder_with_real_path(
+                            f, sparkapp_path) for f in self.py_files
+                    ]
+                },
                 'sparkConf': {
                     'spark.shuffle.service.enabled': 'false',
                 },
@@ -144,7 +161,7 @@ class SparkAppConfig(object):
 
 SPARK_APP_INFO_SERILIZE_FIELDS = [
     'name', 'namespace', 'command', 'driver', 'executor', 'image_url',
-    'main_application', 'spark_version', 'type'
+    'main_application', 'spark_version', 'type', 'state'
 ]
 
 
@@ -159,6 +176,14 @@ class SparkAppInfo(object):
         elif 'name' in resp['details']:
             sparkapp_info.name = resp['details']['name']
         sparkapp_info.namespace = resp['metadata'].get('namespace', None)
+        sparkapp_info.state = None
+        if 'status' in resp:
+            if isinstance(resp['status'], str):
+                sparkapp_info.state = None
+            elif isinstance(resp['status'], dict):
+                sparkapp_info.state = resp.get('status',
+                                               {}).get('applicationState',
+                                                       {}).get('state', None)
         sparkapp_info.command = resp.get('spec', {}).get('arguments', None)
         sparkapp_info.executor = SparkPodConfig.from_dict(
             resp.get('spec', {}).get('executor', {}))
@@ -175,6 +200,7 @@ class SparkAppInfo(object):
 
     def __init__(self):
         self.name = None
+        self.state = None
         self.namespace = None
         self.command = None
         self.driver = SparkPodConfig()

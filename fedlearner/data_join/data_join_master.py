@@ -532,7 +532,10 @@ class DataJoinMasterService(object):
         peer_client = dj_grpc.DataJoinMasterServiceStub(channel)
         self._data_source_name = data_source_name
         self._listen_port = listen_port
-        self._server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
+        self._server = grpc.server(
+            futures.ThreadPoolExecutor(max_workers=10),
+            options=[('grpc.max_send_message_length', 2**31-1),
+                     ('grpc.max_receive_message_length', 2**31-1)])
         self._data_join_master = DataJoinMaster(
                 peer_client, data_source_name, kvstore_type, options
             )
