@@ -341,7 +341,8 @@ def _run_local(role,
                                   trainer_master,
                                   bridge,
                                   role,
-                                  model_fn)
+                                  model_fn,
+                                  is_chief=True)
 
     if mode == 'train':
         estimator.train(input_fn)

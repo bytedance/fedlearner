@@ -500,7 +500,6 @@ class Bridge(object):
 
         return tf.py_function(func=func, inp=[], Tout=dtype, name='recv_'+name)
 
-
 class FakeBridge(object):
     def __init__(self):
         self._condition = threading.Condition()
