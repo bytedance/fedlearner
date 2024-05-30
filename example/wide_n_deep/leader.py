@@ -18,7 +18,6 @@
 import os
 import tensorflow.compat.v1 as tf
 import fedlearner.trainer as flt
-from fedlearner.common import fl_logging
 
 ROLE = 'leader'
 ENV = os.environ
@@ -28,6 +27,7 @@ parser = flt.trainer_worker.create_argument_parser()
 parser.add_argument('--batch-size', type=int, default=32,
                     help='Training batch size.')
 args = parser.parse_args()
+
 
 def input_fn(bridge, trainer_master=None):
     dataset = flt.data.DataBlockLoader(
@@ -46,6 +46,7 @@ def input_fn(bridge, trainer_master=None):
 
     return dataset
 
+
 def serving_input_receiver_fn():
     feature_map = {"x_{0}".format(i): tf.VarLenFeature(
         tf.int64) for i in range(512)}
@@ -61,6 +62,7 @@ def serving_input_receiver_fn():
     return tf.estimator.export.ServingInputReceiver(
         features, receiver_tensors)
 
+
 def final_fn(model, tensor_name, is_send, tensor=None, shape=None):
     ops = []
 
@@ -73,6 +75,7 @@ def final_fn(model, tensor_name, is_send, tensor=None, shape=None):
 
     ops.append(model.recv_no_deps(tensor_name, shape=shape))
     return ops
+
 
 def model_fn(model, features, labels, mode):
     """Model Builder of wide&deep learning models
