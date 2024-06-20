@@ -37,3 +37,12 @@ python -m fedlearner.data_join.cmd.rsa_psi_signer_service \
     --rsa_private_key_path="$RSA_PRIVATE_KEY_PATH" \
     --rsa_privet_key_pem="$RSA_KEY_PEM" \
     $slow_sign_threshold $worker_num $signer_offload_processor_number
+
+TCP_MSL=60
+if [ -f "/proc/sys/net/ipv4/tcp_fin_timeout" ]
+then
+  TCP_MSL=`cat /proc/sys/net/ipv4/tcp_fin_timeout`
+fi
+SLEEP_TM=$((TCP_MSL * 3))
+echo "sleep 3msl($SLEEP_TM) to make sure tcp state at CLOSED"
+sleep $SLEEP_TM
