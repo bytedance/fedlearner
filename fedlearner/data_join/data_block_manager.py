@@ -215,6 +215,7 @@ class DataBlockBuilder(object):
     def _build_data_block_meta(self):
         tmp_meta_fpath = self._get_tmp_fpath()
         meta = self._data_block_meta
+        logging.info("===build db meta: %s", meta.follower_restart_index)
         with tf.io.TFRecordWriter(tmp_meta_fpath) as meta_writer:
             meta_writer.write(text_format.MessageToString(meta).encode())
         if self._data_block_manager is not None:
