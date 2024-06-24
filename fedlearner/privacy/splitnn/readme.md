@@ -2,12 +2,12 @@
 
 ## embedding保护
 
-- using_embedding_protection : bool型，是否开启embedding保护(discorloss)，True为开启
+--using_embedding_protection : bool型，是否开启embedding保护(discorloss)，True为开启
 
-- discorloss_weight : float型，若开启embedding保护，设置embedding保护大小，值越大embedding保护效果越强，相应的对准确率影响越大，推荐设置设置范围在[0.001, 0.05]
+--discorloss_weight : float型，若开启embedding保护，设置embedding保护大小，值越大embedding保护效果越强，相应的对准确率影响越大，推荐设置设置范围在[0.001, 0.05]
 
 样例：
-
+’‘’python
 from fedlearner.privacy.splitnn.discorloss import DisCorLoss
 
 if args.using_embedding_protection:
@@ -24,9 +24,9 @@ if args.using_embedding_protection:
 
 ## gradient保护
 
-- using_marvell_protection : bool型，是否开启gradient保护(Marvell)，True为开启
+--using_marvell_protection : bool型，是否开启gradient保护(Marvell)，True为开启
 
-- sumkl_threshold : float型，若开启gradient保护，设置gradient保护大小，值越小保护效果越强，相应的对准确率影响越大，推荐设置范围在[0.1, 4.0]
+--sumkl_threshold : float型，若开启gradient保护，设置gradient保护大小，值越小保护效果越强，相应的对准确率影响越大，推荐设置范围在[0.1, 4.0]
 
 样例：
 
@@ -40,17 +40,17 @@ train_op = model.minimize(optimizer, loss, global_step=global_step, \
 
 ## fedpass保护
 
--- using_fedpass: bool型，是否开启FedPass，True为开启
+--using_fedpass: bool型，是否开启FedPass，True为开启
 
--- fedpass_mean: fedpass的密钥的均值，默认值为50.0
+--fedpass_mean: fedpass的密钥的均值，默认值为50.0
 
--- fedpass_scale: fedpass的密钥的方差，默认值为5.0
+--fedpass_scale: fedpass的密钥的方差，默认值为5.0
 
 样例：dense_logits = fedpass(32, dense_activations， mean=float(args.fedpass_mean), scale=float(args.fedpass_scale))
 
 ## embedding攻击
 
-- using_emb_attack : bool型，是否开启embedding攻击，True为开启
+--using_emb_attack : bool型，是否开启embedding攻击，True为开启
 
 样例：
 
@@ -64,7 +64,7 @@ if args.using_emb_attack:
 
 ## gradient攻击
 
-- using_norm_attack : bool型，是否开启norm攻击，True为开启
+--using_norm_attack : bool型，是否开启norm攻击，True为开启
 
 样例：
 
