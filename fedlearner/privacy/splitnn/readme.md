@@ -7,22 +7,22 @@
 --discorloss_weight : float型，若开启embedding保护，设置embedding保护大小，值越大embedding保护效果越强，相应的对准确率影响越大，推荐设置设置范围在[0.001, 0.05]
 
 样例：
-’‘’python
 
+```python
 from fedlearner.privacy.splitnn.discorloss import DisCorLoss
 
 if args.using_embedding_protection:
 
   discorloss = DisCorLoss().tf_distance_cor(act1_f, y, False)
 
-  //act1_f为另一方的前传激活值，y为标签，False表示不输出debug信息
+  #act1_f为另一方的前传激活值，y为标签，False表示不输出debug信息
 
   discorloss = tf.math.reduce_mean(discorloss)
 
   loss += float(args.discorloss_weight) * discorloss
 
-//在原来的loss上添加discorloss
-'''
+  #在原来的loss上添加discorloss
+```
 
 ## gradient保护
 
