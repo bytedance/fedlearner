@@ -11,8 +11,7 @@ with open('requirements.txt') as f:
 
 def get_version():
     base = "1.5"
-    day = time.strftime('%Y%m%d', time.localtime())
-    return '%s-dev%s'%(base, day)
+    return '%s-dev' % base
 
 setup(
     name='fedlearner',
