@@ -202,6 +202,18 @@ def create_argument_parser():
                         type=str,
                         default='0.25',
                         help='Marvell sumKL threshold.')
+    parser.add_argument('--using_fedpass',
+                        type=str_as_bool,
+                        default='False',
+                        help='Whether use fedpass protection.')
+    parser.add_argument('--fedpass_mean',
+                        type=str,
+                        default='50.0',
+                        help='FedPass secretkey mean.')
+    parser.add_argument('--fedpass_scale',
+                        type=str,
+                        default='5.0',
+                        help='FedPass secretkey scale.')
     parser.add_argument('--using_emb_attack',
                         type=str_as_bool,
                         default='False',
