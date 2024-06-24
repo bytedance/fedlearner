@@ -31,15 +31,15 @@ if args.using_embedding_protection:
 --sumkl_threshold : float型，若开启gradient保护，设置gradient保护大小，值越小保护效果越强，相应的对准确率影响越大，推荐设置范围在[0.1, 4.0]
 
 样例：
-
+```python
 train_op = model.minimize(optimizer, loss, global_step=global_step, \ 
 
                   marvell_protection=args.using_marvell_protection, \ 
 
                   marvell_threshold=float(args.sumkl_threshold), labels=y) 
 
-// model.minimize中使用参数marvell_protection和marvell_threshold并传入labels
-
+#model.minimize中使用参数marvell_protection和marvell_threshold并传入labels
+```
 ## fedpass保护
 
 --using_fedpass: bool型，是否开启FedPass，True为开启
@@ -48,32 +48,36 @@ train_op = model.minimize(optimizer, loss, global_step=global_step, \
 
 --fedpass_scale: fedpass的密钥的方差，默认值为5.0
 
-样例：dense_logits = fedpass(32, dense_activations， mean=float(args.fedpass_mean), scale=float(args.fedpass_scale))
-
+样例：
+```python
+dense_logits = fedpass(32, dense_activations， mean=float(args.fedpass_mean), scale=float(args.fedpass_scale))
+```
 ## embedding攻击
 
 --using_emb_attack : bool型，是否开启embedding攻击，True为开启
 
 样例：
-
+```python
 from fedlearner.privacy.splitnn.emb_attack import emb_attack_auc
 
 if args.using_emb_attack:
 
-  //传入另一方的前传激活值act1_f和标签y
+  #传入另一方的前传激活值act1_f和标签y
 
   emb_auc = emb_attack_auc(act1_f, y)
+```
 
 ## gradient攻击
 
 --using_norm_attack : bool型，是否开启norm攻击，True为开启
 
 样例：
-
+```python
 from fedlearner.privacy.splitnn.norm_attack import norm_attack_auc
 
 if args.using_norm_attack:
 
-  //传入loss，另一方的前传激活值act1_f，model.minimize使用的参数gate_gradients以及标签y以及marvell参数
+  #传入loss，另一方的前传激活值act1_f，model.minimize使用的参数gate_gradients以及标签y以及marvell参数
 
   norm_auc = norm_attack_auc(loss=loss, var_list=[act1_f], gate_gradients=tf.train.Optimizer.GATE_OP, y=y, marvell_protection=args.marvell_protection, sumkl_threshold=args.sumkl_threshold)
+```
