@@ -8,6 +8,7 @@
 
 样例：
 ’‘’python
+
 from fedlearner.privacy.splitnn.discorloss import DisCorLoss
 
 if args.using_embedding_protection:
@@ -21,6 +22,7 @@ if args.using_embedding_protection:
   loss += float(args.discorloss_weight) * discorloss
 
 //在原来的loss上添加discorloss
+'''
 
 ## gradient保护
 
