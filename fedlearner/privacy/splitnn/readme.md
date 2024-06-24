@@ -72,6 +72,6 @@ from fedlearner.privacy.splitnn.norm_attack import norm_attack_auc
 
 if args.using_norm_attack:
 
-# 传入loss，另一方的前传激活值act1_f，model.minimize使用的参数gate_gradients以及标签y
+  //传入loss，另一方的前传激活值act1_f，model.minimize使用的参数gate_gradients以及标签y以及marvell参数
 
   norm_auc = norm_attack_auc(loss=loss, var_list=[act1_f], gate_gradients=tf.train.Optimizer.GATE_OP, y=y, marvell_protection=args.marvell_protection, sumkl_threshold=args.sumkl_threshold)
