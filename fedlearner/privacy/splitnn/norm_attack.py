@@ -9,7 +9,7 @@ def get_norm_pred(loss, var_list, gate_gradients, marvell_protection, sumkl_thre
     if marvell_protection:
         g = KL_gradient_perturb(g, y, float(sumkl_threshold))
     # 计算gradient二范数，label=0和label=1的gradient二范数会存在差异
-    norm_pred = tf.math.sigmoid(tf.norm(g, ord=2, axis=1))
+    norm_pred = tf.norm(g, ord=2, axis=1)
     return norm_pred
 
 def norm_attack_auc(loss, var_list, gate_gradients, y, marvell_protection, sumkl_threshold):
