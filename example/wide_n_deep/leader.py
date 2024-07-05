@@ -69,7 +69,7 @@ def final_fn(model, tensor_name, is_send, tensor=None, shape=None):
     if is_send:
         assert tensor, "Please specify tensor to send"
         if DEBUG_PRINT:
-           ops.append(tf.print(tensor))
+            ops.append(tf.print(tensor))
         ops.append(model.send_no_deps(tensor_name, tensor))
         return ops
 
@@ -161,7 +161,8 @@ def model_fn(model, features, labels, mode):
         {"loss" : loss}, every_n_iter=10)
     metric_hook = flt.GlobalStepMetricTensorHook(tensor_dict={"loss": loss},
                                                  every_steps=10)
-    final_ops = final_fn(model=model, tensor_name='reflux_embedding',is_send=True,tensor=embeddings)
+    final_ops = final_fn(model=model, tensor_name='reflux_embedding',
+                         is_send=True, tensor=embeddings)
     embedding_hook = tf.train.FinalOpsHook(final_ops=final_ops)
 
     optimizer = tf.train.GradientDescentOptimizer(0.1)

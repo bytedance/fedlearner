@@ -122,7 +122,8 @@ def model_fn(model, features, labels, mode):
         train_op = model.minimize(
             optimizer, act1_f, grad_loss=gact1_f, global_step=global_step)
         final_ops = final_fn(model=model, tensor_name='reflux_embedding',
-                                is_send=False, assignee=peer_embeddings, shape=[num_slot,fid_size,embed_size])
+                                is_send=False, assignee=peer_embeddings,
+                                shape=[num_slot, fid_size, embed_size])
         embedding_hook = tf.train.FinalOpsHook(final_ops=final_ops)
         return model.make_spec(mode, loss=tf.math.reduce_mean(act1_f),
                                training_chief_hooks=[embedding_hook],
