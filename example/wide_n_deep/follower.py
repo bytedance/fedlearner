@@ -15,11 +15,14 @@
 # coding: utf-8
 # pylint: disable=no-else-return, inconsistent-return-statements
 
+import os
 import tensorflow.compat.v1 as tf
 import fedlearner.trainer as flt
 
 
 ROLE = 'follower'
+ENV = os.environ
+DEBUG_PRINT = int(ENV.get('DEBUG_PRINT', 0))
 
 parser = flt.trainer_worker.create_argument_parser()
 parser.add_argument('--batch-size', type=int, default=32,
@@ -50,9 +53,31 @@ def serving_input_receiver_fn():
 
     record_batch = tf.placeholder(dtype=tf.string, name='examples')
     features = tf.parse_example(record_batch, features=feature_map)
+    receiver_tensors = {
+        'examples': record_batch
+    }
     return tf.estimator.export.ServingInputReceiver(
-        features, {'examples': record_batch})
+        features, receiver_tensors)
 
+def final_fn(model, tensor_name, is_send, assignee, tensor=None, shape=None):
+    ops = []
+    if is_send:
+        assert tensor, "Please specify tensor to send"
+        ops.append(model.send_no_deps(tensor_name, tensor))
+        return ops
+
+    receiver_op = model.recv_no_deps(tensor_name, shape=shape)
+    ops.append(receiver_op)
+
+    with tf.control_dependencies([receiver_op]):
+        if DEBUG_PRINT:
+            ops.append(tf.print('received embedding info: ', receiver_op))
+        index = 0
+        while index < len(assignee):
+            ops.append(tf.assign(assignee[index], receiver_op[index]))
+            index += 1
+
+    return ops
 
 def model_fn(model, features, labels, mode):
     global_step = tf.train.get_or_create_global_step()
@@ -61,6 +86,13 @@ def model_fn(model, features, labels, mode):
 
     num_slot = 512
     fid_size, embed_size = 101, 16
+    peer_embeddings = [
+            tf.get_variable(
+                'peer_slot_emb{0}'.format(i), shape=[fid_size, embed_size],
+                dtype=tf.float32,
+                initializer=tf.zeros_initializer())
+            for i in range(num_slot)]
+
     embeddings = [
         tf.get_variable('slot_emb{0}'.format(i),
                         shape=[fid_size, embed_size], dtype=tf.float32,
@@ -89,7 +121,11 @@ def model_fn(model, features, labels, mode):
         optimizer = tf.train.GradientDescentOptimizer(0.1)
         train_op = model.minimize(
             optimizer, act1_f, grad_loss=gact1_f, global_step=global_step)
+        final_ops = final_fn(model=model, tensor_name='reflux_embedding',
+                                is_send=False, assignee=peer_embeddings, shape=[num_slot,fid_size,embed_size])
+        embedding_hook = tf.train.FinalOpsHook(final_ops=final_ops)
         return model.make_spec(mode, loss=tf.math.reduce_mean(act1_f),
+                               training_chief_hooks=[embedding_hook],
                                train_op=train_op)
 
     if mode == tf.estimator.ModeKeys.EVAL:
@@ -100,8 +136,18 @@ def model_fn(model, features, labels, mode):
     # mode == tf.estimator.ModeKeys.PREDICT:
     return model.make_spec(mode, predictions={'act1_f': act1_f})
 
+class ExportModelHook(flt.trainer_worker.ExportModelHook):
+    def after_save(self, sess, model, export_dir, inputs, outputs):
+        print("**************export model hook**************")
+        print("sess :", sess)
+        print("model: ", model)
+        print("export_dir: ", export_dir)
+        print("inputs: ", inputs)
+        print("outpus: ", outputs)
+        print("*********************************************")
 
 if __name__ == '__main__':
     flt.trainer_worker.train(
         ROLE, args, input_fn,
-        model_fn, serving_input_receiver_fn)
+        model_fn, serving_input_receiver_fn,
+        export_model_hook=ExportModelHook())

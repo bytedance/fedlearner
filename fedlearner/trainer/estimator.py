@@ -82,6 +82,24 @@ class FLModel(object):
         self._recvs.append((name, receive_op, require_grad))
         return receive_op
 
+    def send_no_deps(self, name, tensor):
+        send_op = self._bridge.send_op(name, tensor)
+        self._sends.append((name, tensor, False))
+        return send_op
+
+    def recv_no_deps(self, name, dtype=tf.float32, require_grad=False, shape=None):
+        receive_op = self._bridge.receive_op(name, dtype)
+        if shape:
+            receive_op = tf.ensure_shape(receive_op, shape)
+        else:
+            fl_logging.warning(
+                'Receiving tensor %s without checking shape. '
+                'Consider setting shape at model.recv(shape=(...)). '
+                'shape can have None dimensions '
+                'which matches to any length.', name)
+        self._recvs.append((name, receive_op, require_grad))
+        return receive_op
+
     def minimize(self,
                  optimizer,
                  loss,

@@ -15,10 +15,13 @@
 # coding: utf-8
 # pylint: disable=no-else-return, inconsistent-return-statements
 
+import os
 import tensorflow.compat.v1 as tf
 import fedlearner.trainer as flt
 
 ROLE = 'leader'
+ENV = os.environ
+DEBUG_PRINT = int(ENV.get('DEBUG_PRINT', 0))
 
 parser = flt.trainer_worker.create_argument_parser()
 parser.add_argument('--batch-size', type=int, default=32,
@@ -60,6 +63,20 @@ def serving_input_receiver_fn():
         features, receiver_tensors)
 
 
+def final_fn(model, tensor_name, is_send, tensor=None, shape=None):
+    ops = []
+
+    if is_send:
+        assert tensor, "Please specify tensor to send"
+        if DEBUG_PRINT:
+           ops.append(tf.print(tensor))
+        ops.append(model.send_no_deps(tensor_name, tensor))
+        return ops
+
+    ops.append(model.recv_no_deps(tensor_name, shape=shape))
+    return ops
+
+
 def model_fn(model, features, labels, mode):
     """Model Builder of wide&deep learning models
     Args:
@@ -75,12 +92,17 @@ def model_fn(model, features, labels, mode):
 
     num_slot = 512
     fid_size, embed_size = 101, 16
+
+    num_slot = 512
+    fid_size, embed_size = 101, 16
+
     embeddings = [
         tf.get_variable(
             'slot_emb{0}'.format(i), shape=[fid_size, embed_size],
             dtype=tf.float32,
             initializer=tf.random_uniform_initializer(-0.01, 0.01))
         for i in range(num_slot)]
+
     embed_output = tf.concat(
         [
             tf.nn.embedding_lookup_sparse(
@@ -139,9 +161,14 @@ def model_fn(model, features, labels, mode):
         {"loss" : loss}, every_n_iter=10)
     metric_hook = flt.GlobalStepMetricTensorHook(tensor_dict={"loss": loss},
                                                  every_steps=10)
+    final_ops = final_fn(model=model, tensor_name='reflux_embedding',is_send=True,tensor=embeddings)
+    embedding_hook = tf.train.FinalOpsHook(final_ops=final_ops)
+
     optimizer = tf.train.GradientDescentOptimizer(0.1)
+
     train_op = model.minimize(optimizer, loss, global_step=global_step)
     return model.make_spec(mode, loss=loss, train_op=train_op,
+                           training_chief_hooks=[embedding_hook],
                            training_hooks=[logging_hook, metric_hook])
 
 class ExportModelHook(flt.trainer_worker.ExportModelHook):
