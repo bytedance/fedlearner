@@ -87,7 +87,8 @@ class FLModel(object):
         self._sends.append((name, tensor, False))
         return send_op
 
-    def recv_no_deps(self, name, dtype=tf.float32, require_grad=False, shape=None):
+    def recv_no_deps(self,
+                     name, dtype=tf.float32, require_grad=False, shape=None):
         receive_op = self._bridge.receive_op(name, dtype)
         if shape:
             receive_op = tf.ensure_shape(receive_op, shape)
