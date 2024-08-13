@@ -30,6 +30,13 @@ elastic-stack:
     indexTemplateLoad:
       - "{{ .Release.Name }}-elasticsearch-client:9200"
 
+  metricbeat:
+    enabled: true
+    daemonset:
+      enabled: true
+    deployment:
+      enabled: true
+
 ingress-nginx:
   controller:
     image:
