@@ -1,0 +1,32 @@
+.dataset_job_detail_container{
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    :global(.arco-spin) {
+      flex-grow: 1;
+      margin-right: 12px;
+    }
+}
+
+.data_detail_tab_pane{
+  display: grid;
+}
+
+.data_detail_tab{
+  margin-bottom: 0 !important;
+}
+
+.data_job_task_detail{
+  padding: 20px 20px;
+  flex: 1;
+  :global(.arco-spin-children){
+    height: 100%;
+    > div{
+      height: 100%;
+    }
+  }
+  :global(.react-flow-container){
+    height: 100%;
+    margin: 0px;
+  }
+}

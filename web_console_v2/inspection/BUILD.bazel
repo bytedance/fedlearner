@@ -1,0 +1,67 @@
+load("@rules_python//python:defs.bzl", "py_library")
+
+package(default_visibility = [":data_inspection_package"])
+
+package_group(
+    name = "data_inspection_package",
+    packages = ["//web_console_v2/inspection/..."],
+)
+
+py_library(
+    name = "error_code_lib",
+    srcs = [
+        "error_code.py",
+    ],
+    imports = ["."],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":envs_lib",
+        "@common_fsspec//:pkg",
+    ],
+)
+
+py_library(
+    name = "dataset_directory_lib",
+    srcs = ["dataset_directory.py"],
+    imports = ["."],
+    visibility = ["//visibility:public"],
+)
+
+py_library(
+    name = "envs_lib",
+    srcs = ["envs.py"],
+    imports = ["."],
+    visibility = ["//web_console_v2/inspection:data_inspection_package"],
+)
+
+py_test(
+    name = "error_code_test",
+    size = "small",
+    srcs = [
+        "error_code_test.py",
+    ],
+    visibility = ["//web_console_v2/inspection:data_inspection_package"],
+    deps = [
+        ":error_code_lib",
+        "@common_fsspec//:pkg",
+    ],
+)
+
+py_test(
+    name = "dataset_directory_test",
+    size = "small",
+    srcs = [
+        "dataset_directory_test.py",
+    ],
+    visibility = ["//web_console_v2/inspection:data_inspection_package"],
+    deps = [
+        ":dataset_directory_lib",
+    ],
+)
+
+# TODO(liuhehan): bazelize this part after we copy two tfrecords jar and hist jars to docker
+filegroup(
+    name = "inspection_srcs",
+    srcs = glob(["**"]),
+    visibility = ["//visibility:public"],
+)

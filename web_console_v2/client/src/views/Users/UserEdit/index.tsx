@@ -1,14 +1,15 @@
-import { message } from 'antd';
 import React, { FC } from 'react';
-import { useTranslation } from 'react-i18next';
-import { useQuery } from 'react-query';
 import { useHistory, useParams } from 'react-router-dom';
+import { useQuery } from 'react-query';
+
 import { fetchUserInfo, updateUser } from 'services/user';
-import { FedUserInfo } from 'typings/auth';
+
+import { Message } from '@arco-design/web-react';
 import UserForm from '../UserForm';
 
+import { FedUserInfo } from 'typings/auth';
+
 const UserEdit: FC = () => {
-  const { t } = useTranslation();
   const { id } = useParams<{ id: string }>();
 
   const currUserQuery = useQuery(['getCurrUserInfo', id], () => fetchUserInfo(id), {
@@ -32,11 +33,11 @@ const UserEdit: FC = () => {
 
     await updateUser(initialValues.id!, payload)
       .then(() => {
-        message.success(t('users.message_modify_success'));
+        Message.success('修改成功');
         history.push('/users');
       })
       .catch((e) => {
-        message.error(e.toString());
+        Message.error(e.toString());
       });
   }
 

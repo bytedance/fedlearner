@@ -1,0 +1,54 @@
+{
+    "apiVersion": "sparkoperator.k8s.io/v1beta2",
+    "kind": "SparkApplication",
+    "metadata": {
+        "name": self.name,
+        "namespace": system.variables.namespace,
+        "labels": ${Slot_labels},
+        "annotations": {
+            "queue": "fedlearner-spark",
+            "schedulerName": "batch",
+        },
+    },
+    "spec": {
+        "type": "Python",
+        "pythonVersion": "3",
+        "mode": "cluster",
+        "image": ${Slot_image} or system.variables.image_repo + "/pp_data_inspection:" + system.version,
+        "imagePullPolicy": "IfNotPresent",
+        "volumes": ${Slot_volumes},
+        "mainApplicationFile": ${Slot_spark_transformer_file},
+        "arguments": [
+            ${Slot_dataset},
+            "rds/**",
+            str(${Slot_configs})
+        ],
+        "sparkVersion": "3.0.0",
+        "restartPolicy": {
+            "type": "OnFailure",
+            "onFailureRetries": 3,
+            "onFailureRetryInterval": 10,
+            "onSubmissionFailureRetries": 5,
+            "onSubmissionFailureRetryInterval": 20
+        },
+        "driver": {
+            "cores": ${Slot_driver_cores},
+            "coreLimit": ${Slot_driver_core_limit},
+            "memory": ${Slot_driver_memory},
+            "labels": {
+                "version": "3.0.0"
+            },
+            "serviceAccount": "spark",
+            "volumeMounts": ${Slot_volume_mounts}
+        },
+        "executor": {
+            "cores": ${Slot_executor_cores},
+            "instances": ${Slot_executor_instances},
+            "memory": ${Slot_executor_memory},
+            "labels": {
+                "version": "3.0.0"
+            },
+            "volumeMounts": ${Slot_volume_mounts}
+        }
+    }
+}

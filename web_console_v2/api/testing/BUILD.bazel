@@ -1,0 +1,70 @@
+load("@rules_python//python:defs.bzl", "py_library")
+
+package(default_visibility = ["//web_console_v2/api:console_api_package"])
+
+py_library(
+    name = "helpers_lib",
+    srcs = ["helpers.py"],
+    imports = [".."],
+    visibility = ["//visibility:public"],
+)
+
+py_library(
+    name = "fake_lib",
+    testonly = True,
+    srcs = [
+        "dataset.py",
+        "fake_file_manager.py",
+        "fake_model_job_config.py",
+        "fake_remote_serving.py",
+        "fake_time_patcher.py",
+    ],
+    imports = [".."],
+    deps = [
+        "//web_console_v2/api/fedlearner_webconsole/composer:composer_lib",
+        "//web_console_v2/api/fedlearner_webconsole/composer:composer_service_lib",
+        "//web_console_v2/api/fedlearner_webconsole/dataset/scheduler:base_executor_lib",
+        "//web_console_v2/api/fedlearner_webconsole/dataset/scheduler:consts_lib",
+        "//web_console_v2/api/fedlearner_webconsole/mmgr:models_lib",
+        "//web_console_v2/api/fedlearner_webconsole/serving:remote_lib",
+        "//web_console_v2/api/fedlearner_webconsole/utils:pp_time_lib",
+        "//web_console_v2/api/fedlearner_webconsole/workflow_template:utils_lib",
+        "//web_console_v2/api/protocols/fedlearner_webconsole/proto:py_proto",
+        "@com_google_protobuf//:protobuf_python",
+        "@common_freezegun//:pkg",
+    ],
+)
+
+py_library(
+    name = "common_lib",
+    testonly = True,
+    srcs = ["common.py"],
+    imports = [".."],
+    deps = [
+        ":no_web_server_test_case_lib",
+        "//web_console_v2/api:envs_lib",
+        "//web_console_v2/api/fedlearner_webconsole:app_lib",
+        "//web_console_v2/api/fedlearner_webconsole:db_lib",
+        "//web_console_v2/api/fedlearner_webconsole:initial_db_lib",
+        "//web_console_v2/api/fedlearner_webconsole/auth:services_lib",
+        "//web_console_v2/api/fedlearner_webconsole/composer:composer_lib",
+        "//web_console_v2/api/fedlearner_webconsole/iam:client_lib",
+        "//web_console_v2/api/fedlearner_webconsole/participant:models_lib",
+        "//web_console_v2/api/fedlearner_webconsole/scheduler:scheduler_lib",
+        "//web_console_v2/api/fedlearner_webconsole/utils:pp_base64_lib",
+        "@com_github_grpc_grpc//src/python/grpcio/grpc:grpcio",
+        "@common_flask_testing//:pkg",
+    ],
+)
+
+py_library(
+    name = "no_web_server_test_case_lib",
+    testonly = True,
+    srcs = ["no_web_server_test_case.py"],
+    imports = [".."],
+    deps = [
+        "//web_console_v2/api:envs_lib",
+        "//web_console_v2/api/fedlearner_webconsole:db_lib",
+        "@common_sqlalchemy//:pkg",
+    ],
+)

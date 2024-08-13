@@ -1,0 +1,158 @@
+/* Copyright 2023 The FedLearner Authors. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+syntax = "proto3";
+
+package fedlearner_webconsole.proto;
+
+import "fedlearner_webconsole/proto/project.proto";
+
+message DomainNameDataset {
+    string pure_domain_name = 1;
+    string dataset_uuid = 2;
+    string dataset_name = 3;
+}
+
+message Resource {
+  int32 cpu = 1; // Unit is the number of core
+  int32 memory = 2; // Unit is Gi
+  int32 replicas = 3;
+}
+
+message ParticipantDataset {
+    int64 participant_id = 1;
+    string uuid = 2;
+    string name = 3;
+}
+
+message ParticipantDatasetList {
+    repeated ParticipantDataset items = 1;
+}
+
+message TrustedJobGroupPb {
+    int64 id = 1;
+    string name = 2;
+    string uuid = 3;
+    int64 latest_version = 4;
+    string comment = 5;
+    int64 project_id = 6;
+    int64 created_at = 7;
+    int64 updated_at = 8;
+    int64 coordinator_id = 9;
+    string ticket_uuid = 10;
+    // ref: TicketStatus
+    string ticket_status = 11;
+    // ref: AuthStatus
+    string auth_status = 12;
+    // ref: TrustedJobStatus
+    string latest_job_status = 13;
+    // ref: TicketAuthStatus
+    string ticket_auth_status = 14;
+    repeated int64 unauth_participant_ids = 15;
+    int64 algorithm_id = 16;
+    Resource resource = 17;
+    int64 dataset_id = 18;
+    ParticipantDatasetList participant_datasets = 19;
+    // ref: GroupCreateStatus
+    string status = 20;
+    int64 analyzer_id = 21;
+    string creator_username = 22;
+    // TODO(liuledian): remove algorithm_id after frontend completed
+    string algorithm_uuid = 23;
+    string algorithm_project_uuid = 24;
+    int64 algorithm_participant_id = 25;
+}
+
+message TrustedJobGroupRef {
+    int64 id = 1;
+    string name = 2;
+    int64 created_at = 3;
+    bool is_creator = 4;
+    int64 creator_id = 5;
+    // ref: TicketStatus
+    string ticket_status = 6;
+    // ref: AuthStatus
+    string auth_status = 7;
+    // ref: TrustedJobStatus
+    string latest_job_status = 8;
+    // ref: TicketAuthStatus
+    string ticket_auth_status = 9;
+    repeated int64 unauth_participant_ids = 10;
+    // ref: GroupCreateStatus
+    string status = 11;
+    bool is_configured = 12;
+}
+
+message TrustedJobPb {
+    int64 id = 1;
+    string name = 2;
+    int64 job_id = 3;
+    string uuid  = 4;
+    int64 version = 5;
+    string comment = 6;
+    int64 project_id = 7;
+    int64 trusted_job_group_id = 8;
+    int64 started_at = 9;
+    int64 finished_at = 10;
+    // ref: TrustedJobStatus
+    string status = 11;
+    int64 algorithm_id = 12;
+    Resource resource = 13;
+    // ref: AuthStatus
+    string auth_status = 14;
+    int64 export_dataset_id = 15;
+    // ref: TrustedJobType
+    string type = 16;
+    // ref: TicketStatus
+    string ticket_status = 17;
+    string ticket_uuid = 18;
+    // TODO(liuledian): remove algorithm_id after frontend completed
+    string algorithm_uuid = 19;
+    // ref: TicketAuthStatus
+    string ticket_auth_status = 20;
+    ParticipantsInfo participants_info = 21;
+    int64 created_at = 22;
+    int64 updated_at = 23;
+    int64 coordinator_id = 24;
+}
+
+message TrustedJobRef {
+    int64 id = 1;
+    string name = 2;
+    int64 job_id = 3;
+    string comment = 4;
+    int64 started_at = 5;
+    int64 finished_at = 6;
+    // ref: TrustedJobStatus
+    string status = 7;
+    // ref: TrustedJobType
+    string type = 8;
+    // ref: TicketAuthStatus
+    string ticket_auth_status = 9;
+    ParticipantsInfo participants_info = 10;
+    int64 coordinator_id = 11;
+}
+
+message TrustedNotification {
+    enum Type {
+        TRUSTED_JOB_GROUP_CREATE = 0;
+        TRUSTED_JOB_EXPORT = 1;
+    }
+    Type type = 1;
+    int64 id = 2;
+    string name = 3;
+    int64 created_at = 4;
+    int64 coordinator_id = 5;
+}

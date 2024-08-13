@@ -1,7 +1,7 @@
 import { useQuery, UseQueryOptions } from 'react-query';
-import { useSetRecoilState } from 'recoil';
+import { useResetRecoilState, useSetRecoilState } from 'recoil';
 import { checkConnection } from 'services/project';
-import { forceReloadProjectList } from 'stores/project';
+import { forceReloadProjectList, projectCreateForm, projectJoinForm } from 'stores/project';
 import { ConnectionStatus, Project } from 'typings/project';
 
 export function useCheckConnection(
@@ -9,7 +9,7 @@ export function useCheckConnection(
   options?: UseQueryOptions<{ data: { success: boolean } }>,
 ): [ConnectionStatus, Function] {
   const checkQuery = useQuery(
-    [`checkConnection-${project.id}`, project.id],
+    [`checkConnection-project-${project.id}`, project.id],
     () => checkConnection(project.id),
     {
       cacheTime: 1,
@@ -34,5 +34,20 @@ export function useReloadProjectList() {
 
   return function () {
     setter(Math.random());
+  };
+}
+
+export function useResetCreateForm() {
+  const resetCreateForm = useResetRecoilState(projectCreateForm);
+
+  return function () {
+    resetCreateForm();
+  };
+}
+export function useResetJoinForm() {
+  const resetJoinForm = useResetRecoilState(projectJoinForm);
+
+  return function () {
+    resetJoinForm();
   };
 }

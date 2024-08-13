@@ -9,15 +9,15 @@
     "strict": true,
     "forceConsistentCasingInFileNames": true,
     "noFallthroughCasesInSwitch": true,
-    "module": "esnext",
+    "module": "commonjs",
     "moduleResolution": "node",
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,
     "jsx": "react",
     "baseUrl": "./src",
-    "typeRoots": ["./src/typings", "./node_modules/@types"]
+    "typeRoots": ["node_modules/@types", "./src/typings"]
   },
-  "include": ["./src", "./src/typings", "tests"],
-  "exclude": ["node_modules", "./node_modules", "./node_modules/*", "build", "build/*"]
+  "include": ["./src", "tests"],
+  "exclude": ["build", "build/*"]
 }

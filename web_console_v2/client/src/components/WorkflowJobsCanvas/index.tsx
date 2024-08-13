@@ -29,11 +29,12 @@ import ReactFlow, {
 } from 'react-flow-renderer';
 import { Container } from './elements';
 import { ChartWorkflowConfig } from 'typings/workflow';
-import { cloneDeep } from 'lodash';
+import { cloneDeep } from 'lodash-es';
 import { useResizeObserver } from 'hooks';
 import { Side } from 'typings/app';
 import { WORKFLOW_JOB_NODE_CHANNELS } from './JobNodes/shared';
 import PubSub from 'pubsub-js';
+import { nextTick } from 'shared/helpers';
 
 type Props = {
   workflowConfig: ChartWorkflowConfig;
@@ -172,9 +173,9 @@ const WorkflowJobsCanvas: ForwardRefRenderFunction<ChartExposedRef | undefined, 
   }
   function onLoad(_reactFlowInstance: OnLoadParams) {
     setChartInstance(_reactFlowInstance!);
+
     // Fit view at next tick
-    // TODO: implement nextTick
-    setImmediate(() => {
+    nextTick(() => {
       _reactFlowInstance!.fitView();
     });
   }

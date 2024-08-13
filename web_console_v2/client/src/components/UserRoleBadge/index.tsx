@@ -1,3 +1,5 @@
+/* istanbul ignore file */
+
 import React, { FC } from 'react';
 import styled from 'styled-components';
 import { useTranslation } from 'react-i18next';
@@ -6,9 +8,9 @@ import { MixinCircle, MixinFlexAlignCenter } from 'styles/mixins';
 import { Crown, User } from 'components/IconPark';
 
 const Container = styled.div`
-  --background-color: var(--blue1);
-  --color: var(--blue6);
-  --badge-background: var(--blue3);
+  --background-color: rgb(var(--blue-1));
+  --color: rgb(var(--blue-6));
+  --badge-background: rgb(var(--blue-3));
 
   display: inline-flex;
   align-items: center;
@@ -23,9 +25,9 @@ const Container = styled.div`
   background-color: var(--background-color);
 
   &[data-role='admin'] {
-    --background-color: var(--gold1);
-    --color: var(--gold6);
-    --badge-background: var(--gold3);
+    --background-color: rgb(var(--gold-1));
+    --color: rgb(var(--gold-6));
+    --badge-background: rgb(var(--gold-3));
   }
 `;
 

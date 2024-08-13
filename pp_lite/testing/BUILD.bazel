@@ -1,0 +1,8 @@
+load("@rules_python//python:defs.bzl", "py_library")
+
+py_library(
+    name = "testing",
+    testonly = True,
+    srcs = ["make_data.py"],
+    visibility = ["//pp_lite:pp_lite_package"],
+)

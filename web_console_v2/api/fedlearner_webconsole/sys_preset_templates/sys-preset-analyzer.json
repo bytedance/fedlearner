@@ -1,0 +1,148 @@
+{
+    "comment": "",
+    "config": {
+        "group_alias": "sys_preset_analyzer",
+        "job_definitions": [
+            {
+                "dependencies": [],
+                "easy_mode": false,
+                "is_federated": false,
+                "job_type": "ANALYZER",
+                "name": "analyzer",
+                "variables": [],
+                "yaml_template": "{\n    \"apiVersion\": \"sparkoperator.k8s.io/v1beta2\",\n    \"kind\": \"SparkApplication\",\n    \"metadata\": {\n        \"name\": self.name,\n        \"namespace\": system.variables.namespace,\n        \"labels\": dict(system.variables.labels),\n        \"annotations\": {\n            \"queue\": \"fedlearner-spark\",\n            \"schedulerName\": \"batch\",\n        },\n    },\n    \"spec\": {\n        \"type\": \"Python\",\n        \"pythonVersion\": \"3\",\n        \"mode\": \"cluster\",\n        \"image\": (system.variables.get(\"spark_image_repo\") or str(system.variables.image_repo + \"/pp_data_inspection\")) + \":\" + system.version,\n        \"imagePullPolicy\": \"IfNotPresent\",\n        \"volumes\": list(system.variables.volumes_list),\n        \"mainApplicationFile\": \"/opt/spark/work-dir/analyzer_v2.py\",\n        \"arguments\": [\n            workflow.variables.data_type,\n            \"--data_path=\" + workflow.variables.input_batch_path,\n            \"--file_wildcard=\" + \"batch/**/**\",\n            \"--buckets_num=\" + workflow.variables.buckets_num,\n            \"--thumbnail_path=\" + workflow.variables.thumbnail_path,\n            \"--batch_name=\" + str(workflow.variables.output_batch_name),\n        ],\n        \"sparkVersion\": \"3.0.0\",\n        \"restartPolicy\": {\n            \"type\": \"OnFailure\",\n            \"onFailureRetries\": 3,\n            \"onFailureRetryInterval\": 10,\n            \"onSubmissionFailureRetries\": 5,\n            \"onSubmissionFailureRetryInterval\": 20\n        },\n        \"driver\": {\n            \"cores\": int(workflow.variables.driver_cores),\n            \"coreLimit\": workflow.variables.driver_cores_limit,\n            \"memory\": workflow.variables.driver_mem,\n            \"labels\": {\n                \"version\": \"3.0.0\"\n            },\n            \"serviceAccount\": \"spark\",\n            \"volumeMounts\": list(system.variables.volume_mounts_list),\n            \"env\": system.variables.envs_list\n        },\n        \"executor\": {\n            \"cores\": int(workflow.variables.executor_cores),\n            \"instances\": int(workflow.variables.executor_nums),\n            \"memory\": workflow.variables.executor_mem,\n            \"labels\": {\n                \"version\": \"3.0.0\"\n            },\n            \"volumeMounts\": list(system.variables.volume_mounts_list),\n            \"env\": system.variables.envs_list\n        },\n        \"dynamicAllocation\": {\n            \"enabled\": True,\n            \"initialExecutors\": int(workflow.variables.initial_executors),\n            \"maxExecutors\": int(workflow.variables.max_executors),\n            \"minExecutors\": int(workflow.variables.min_executors)\n        }\n    }\n}\n"
+            }
+        ],
+        "variables": [
+            {
+                "access_mode": "PEER_READABLE",
+                "name": "input_batch_path",
+                "tag": "INPUT_PATH",
+                "typed_value": "",
+                "value": "",
+                "value_type": "STRING",
+                "widget_schema": "{\"component\":\"Input\",\"required\":true,\"tag\":\"INPUT_PATH\",\"tooltip\":\"输入batch路径\"}"
+            },
+            {
+                "access_mode": "PEER_WRITABLE",
+                "name": "data_type",
+                "tag": "OPERATING_PARAM",
+                "typed_value": "tabular",
+                "value": "tabular",
+                "value_type": "STRING",
+                "widget_schema": "{\"component\":\"Input\",\"required\":true,\"hidden\":false,\"tag\":\"OPERATING_PARAM\"}"
+            },
+            {
+                "access_mode": "PEER_WRITABLE",
+                "name": "buckets_num",
+                "tag": "OPERATING_PARAM",
+                "typed_value": "10",
+                "value": "10",
+                "value_type": "STRING",
+                "widget_schema": "{\"component\":\"Input\",\"required\":true,\"tooltip\":\"the number of buckets for hist\",\"tag\":\"OPERATING_PARAM\"}"
+            },
+            {
+                "access_mode": "PEER_WRITABLE",
+                "name": "thumbnail_path",
+                "tag": "OUTPUT_PATH",
+                "typed_value": "",
+                "value": "",
+                "value_type": "STRING",
+                "widget_schema": "{\"component\":\"Input\",\"required\":true,\"tooltip\":\"dir path to save the thumbnails\",\"tag\":\"OUTPUT_PATH\"}"
+            },
+            {
+                "access_mode": "PEER_READABLE",
+                "name": "driver_cores",
+                "tag": "RESOURCE_ALLOCATION",
+                "typed_value": "1",
+                "value": "1",
+                "value_type": "STRING",
+                "widget_schema": "{\"component\":\"Input\",\"required\":true,\"hidden\":true,\"tag\":\"RESOURCE_ALLOCATION\"}"
+            },
+            {
+                "access_mode": "PEER_READABLE",
+                "name": "driver_cores_limit",
+                "tag": "RESOURCE_ALLOCATION",
+                "typed_value": "4000m",
+                "value": "4000m",
+                "value_type": "STRING",
+                "widget_schema": "{\"component\":\"Input\",\"required\":true,\"hidden\":true,\"tag\":\"RESOURCE_ALLOCATION\"}"
+            },
+            {
+                "access_mode": "PEER_READABLE",
+                "name": "driver_mem",
+                "tag": "RESOURCE_ALLOCATION",
+                "typed_value": "4g",
+                "value": "4g",
+                "value_type": "STRING",
+                "widget_schema": "{\"component\":\"Input\",\"required\":true,\"hidden\":true,\"tag\":\"RESOURCE_ALLOCATION\"}"
+            },
+            {
+                "access_mode": "PEER_READABLE",
+                "name": "executor_cores",
+                "tag": "RESOURCE_ALLOCATION",
+                "typed_value": "2",
+                "value": "2",
+                "value_type": "STRING",
+                "widget_schema": "{\"component\":\"Input\",\"required\":true,\"hidden\":false,\"tag\":\"RESOURCE_ALLOCATION\"}"
+            },
+            {
+                "access_mode": "PEER_READABLE",
+                "name": "executor_nums",
+                "tag": "RESOURCE_ALLOCATION",
+                "typed_value": "2",
+                "value": "2",
+                "value_type": "STRING",
+                "widget_schema": "{\"component\":\"Input\",\"required\":true,\"hidden\":true,\"tag\":\"RESOURCE_ALLOCATION\"}"
+            },
+            {
+                "access_mode": "PEER_READABLE",
+                "name": "executor_mem",
+                "tag": "RESOURCE_ALLOCATION",
+                "typed_value": "4g",
+                "value": "4g",
+                "value_type": "STRING",
+                "widget_schema": "{\"component\":\"Input\",\"required\":true,\"hidden\":false,\"tag\":\"RESOURCE_ALLOCATION\"}"
+            },
+            {
+                "access_mode": "PEER_READABLE",
+                "name": "initial_executors",
+                "tag": "RESOURCE_ALLOCATION",
+                "typed_value": "2",
+                "value": "2",
+                "value_type": "STRING",
+                "widget_schema": "{\"component\":\"Input\",\"required\":true,\"hidden\":false,\"tag\":\"RESOURCE_ALLOCATION\"}"
+            },
+            {
+                "access_mode": "PEER_READABLE",
+                "name": "max_executors",
+                "tag": "RESOURCE_ALLOCATION",
+                "typed_value": "64",
+                "value": "64",
+                "value_type": "STRING",
+                "widget_schema": "{\"component\":\"Input\",\"required\":true,\"hidden\":false,\"tag\":\"RESOURCE_ALLOCATION\"}"
+            },
+            {
+                "access_mode": "PEER_READABLE",
+                "name": "min_executors",
+                "tag": "RESOURCE_ALLOCATION",
+                "typed_value": "2",
+                "value": "2",
+                "value_type": "STRING",
+                "widget_schema": "{\"component\":\"Input\",\"required\":true,\"hidden\":false,\"tag\":\"RESOURCE_ALLOCATION\"}"
+            },
+            {
+                "access_mode": "PEER_WRITABLE",
+                "name": "output_batch_name",
+                "tag": "OUTPUT_PATH",
+                "typed_value": "",
+                "value": "",
+                "value_type": "STRING",
+                "widget_schema": "{\"component\":\"Input\",\"required\":true,\"hidden\":true,\"tag\":\"OUTPUT_PATH\"}"
+            }
+        ]
+    },
+    "editor_info": {},
+    "group_alias": "sys_preset_analyzer",
+    "name": "sys-preset-analyzer"
+}

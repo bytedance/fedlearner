@@ -1,0 +1,32 @@
+{
+    "additionalProperties": false,
+    "properties": {
+        "channel": {
+            "type": "integer"
+        },
+        "cols": {
+            "type": "integer"
+        },
+        "image": {
+            "type": "string"
+        },
+        "label": {
+            "type": "string"
+        },
+        "raw_id": {
+            "type": "string"
+        },
+        "rows": {
+            "type": "integer"
+        }
+    },
+    "required": [
+        "raw_id",
+        "image",
+        "rows",
+        "cols",
+        "channel",
+        "label"
+    ],
+    "type": "object"
+}

@@ -1,0 +1,298 @@
+{
+    "Slot_role": {
+      "reference": "",
+      "value_type": "STRING",
+      "default_value": "Leader",
+      "help": "Flapp 通讯时的角色 Leader 或 Follower",
+      "reference_type": "WORKFLOW",
+      "label": "Flapp通讯时角色"
+    },
+    "Slot_storage_root_path": {
+      "reference": "project.variables.storage_root_path",
+      "value_type": "STRING",
+      "default_value": "/data",
+      "help": "联邦学习中任务存储根目录",
+      "reference_type": "PROJECT",
+      "label": "存储根目录"
+    },
+    "Slot_image_version": {
+      "reference": "",
+      "value_type": "STRING",
+      "default_value": "882310f",
+      "help": "建议不修改，指定Pod中运行的容器镜像版本，前缀为system.variables.image_repo + '/fedlearner:'",
+      "reference_type": "DEFAULT",
+      "label": "容器镜像版本"
+    },
+    "Slot_master_cpu": {
+      "reference": "",
+      "value_type": "STRING",
+      "default_value": "2000m",
+      "help": "Master Pod 所分配的CPU资源（request和limit一致）",
+      "reference_type": "DEFAULT",
+      "label": "Master的CPU"
+    },
+    "Slot_master_memory": {
+      "reference": "",
+      "value_type": "STRING",
+      "default_value": "3Gi",
+      "help": "Master Pod 所分配的内存资源（request和limit一致）",
+      "reference_type": "DEFAULT",
+      "label": "Master的内存"
+    },
+    "Slot_master_replicas": {
+      "reference": "",
+      "value_type": "INT",
+      "default_value": 1,
+      "help": "同时运行的完全相同的Master Pods数量",
+      "reference_type": "DEFAULT",
+      "label": "Master的Pod个数"
+    },
+    "Slot_worker_cpu": {
+      "reference": "",
+      "value_type": "STRING",
+      "default_value": "2000m",
+      "help": "Worker Pod 所分配的CPU资源（request和limit一致）",
+      "reference_type": "DEFAULT",
+      "label": "Worker的CPU"
+    },
+    "Slot_worker_memory": {
+      "reference": "",
+      "value_type": "STRING",
+      "default_value": "3Gi",
+      "help": "Worker Pod 所分配的内存资源（request和limit一致）",
+      "reference_type": "DEFAULT",
+      "label": "Worker的内存"
+    },
+    "Slot_worker_replicas": {
+      "reference": "",
+      "value_type": "INT",
+      "default_value": 1,
+      "help": "同时运行的完全相同的Worker Pods数量",
+      "reference_type": "DEFAULT",
+      "label": "Worker的Pod个数"
+    },
+    "Slot_ps_cpu": {
+      "reference": "",
+      "value_type": "STRING",
+      "default_value": "2000m",
+      "help": "Master Pod 所分配的CPU资源（request和limit一致）",
+      "reference_type": "DEFAULT",
+      "label": "PS的CPU"
+    },
+    "Slot_ps_memory": {
+      "reference": "",
+      "value_type": "STRING",
+      "default_value": "3Gi",
+      "help": "Master Pod 所分配的内存资源（request和limit一致）",
+      "reference_type": "DEFAULT",
+      "label": "PS的内存"
+    },
+    "Slot_ps_replicas": {
+      "reference": "",
+      "value_type": "INT",
+      "default_value": 1,
+      "help": "同时运行的完全相同的PS Pods数量",
+      "reference_type": "DEFAULT",
+      "label": "PS的Pod个数"
+    },
+    "Slot_data_source": {
+      "reference": "",
+      "value_type": "STRING",
+      "default_value": "",
+      "help": "必须修改，求交任务的名字",
+      "reference_type": "JOB_PROPERTY",
+      "label": "数据源"
+    },
+    "Slot_epoch_num": {
+      "reference": "",
+      "value_type": "INT",
+      "default_value": 1,
+      "help": "number of epoch for training, not support in online training",
+      "reference_type": "DEFAULT",
+      "label": "epoch数量"
+    },
+    "Slot_start_date": {
+      "reference": "",
+      "value_type": "INT",
+      "default_value": null,
+      "help": "training data start date",
+      "reference_type": "DEFAULT",
+      "label": "开始时间"
+    },
+    "Slot_end_date": {
+      "reference": "",
+      "value_type": "INT",
+      "default_value": null,
+      "help": "training data end date",
+      "reference_type": "DEFAULT",
+      "label": "结束时间"
+    },
+    "Slot_online_training": {
+      "reference": "",
+      "value_type": "STRING",
+      "default_value": "",
+      "help": "['','--online_training'] 否 是,the train master run for online training",
+      "reference_type": "DEFAULT",
+      "label": "是否在线训练"
+    },
+    "Slot_suffle_data_block": {
+      "reference": "",
+      "value_type": "STRING",
+      "default_value": "",
+      "help": "['','--shuffle_data_block'] 否 是,shuffle the data block or not",
+      "reference_type": "DEFAULT",
+      "label": "是否shuffle数据块"
+    },
+    "Slot_mode": {
+      "reference": "",
+      "value_type": "STRING",
+      "default_value": "eval",
+      "help": "choices:['train','eval']  训练还是验证",
+      "reference_type": "DEFAULT",
+      "label": "模式"
+    },
+    "Slot_verbosity": {
+      "reference": "",
+      "value_type": "INT",
+      "default_value": 1,
+      "help": "int, Logging level",
+      "reference_type": "DEFAULT",
+      "label": "日志等级"
+    },
+    "Slot_code_key": {
+      "reference": "",
+      "value_type": "STRING",
+      "default_value": "",
+      "help": "代码tar包地址，如果为空则使用code tar",
+      "reference_type": "WORKFLOW",
+      "label": "模型代码路径"
+    },
+    "Slot_code_tar": {
+      "reference": "",
+      "value_type": "STRING",
+      "default_value": "",
+      "help": "代码包，variable中请使用代码类型",
+      "reference_type": "DEFAULT",
+      "label": "代码"
+    },
+    "Slot_save_checkpoint_steps": {
+      "reference": "",
+      "value_type": "INT",
+      "default_value": 1000,
+      "help": "int, Number of steps between checkpoints.",
+      "reference_type": "DEFAULT",
+      "label": "SAVE_CHECKPOINT_STEPS"
+    },
+    "Slot_save_checkpoint_secs": {
+      "reference": "",
+      "value_type": "INT",
+      "default_value": null,
+      "help": "int,Number of secs between checkpoints.",
+      "reference_type": "DEFAULT",
+      "label": "SAVE_CHECKPOINT_SECS"
+    },
+    "Slot_sparse_estimator": {
+      "reference": "",
+      "value_type": "BOOL",
+      "default_value": false,
+      "help": "bool,default False  Whether using sparse estimator.",
+      "reference_type": "DEFAULT",
+      "label": "SPARSE_ESTIMATOR"
+    },
+    "Slot_summary_save_steps": {
+      "reference": "",
+      "value_type": "INT",
+      "default_value": null,
+      "help": "int, Number of steps to save summary files.",
+      "reference_type": "DEFAULT",
+      "label": "SUMMARY_SAVE_STEPS"
+    },
+    "Slot_checkpoint_path": {
+      "reference": "",
+      "value_type": "STRING",
+      "default_value": "",
+      "help": "不建议修改，checkpoint输出路径，建议为空，会默认使用{storage_root_path}/job_output/{job_name}/checkpoints，强烈建议保持空值",
+      "reference_type": "DEFAULT",
+      "label": "CHECKPOINT_PATH"
+    },
+    "Slot_load_checkpoint_filename": {
+      "reference": "",
+      "value_type": "STRING",
+      "default_value": "",
+      "help": "加载checkpoint_path下的相对路径的checkpoint, 默认会加载checkpoint_path下的latest checkpoint",
+      "reference_type": "DEFAULT",
+      "label": "LOAD_CHECKPOINT_FILENAME"
+    },
+    "Slot_load_checkpoint_filename_with_path": {
+      "reference": "",
+      "value_type": "STRING",
+      "default_value": "",
+      "help": "加载绝对路径下的checkpoint，需要细致到文件名",
+      "reference_type": "DEFAULT",
+      "label": "从绝对路径加载checkpoint"
+    },
+    "Slot_load_checkpoint_from_job": {
+      "reference": "",
+      "value_type": "STRING",
+      "default_value": "",
+      "help": "指定任务名job_output下的latest checkpoint",
+      "reference_type": "DEFAULT",
+      "label": "以任务名加载checkpoint"
+    },
+    "Slot_export_path": {
+      "reference": "",
+      "value_type": "STRING",
+      "default_value": "",
+      "help": "使用默认空值，将把models保存到$OUTPUT_BASE_DIR/exported_models 路径下。",
+      "reference_type": "DEFAULT",
+      "label": "EXPORT_PATH"
+    },
+    "Slot_master_envs": {
+      "reference": "",
+      "value_type": "LIST",
+      "default_value": [],
+      "help": "数组类型，master pod额外的环境变量",
+      "reference_type": "DEFAULT",
+      "label": "Master额外环境变量"
+    },
+    "Slot_ps_envs": {
+      "reference": "",
+      "value_type": "LIST",
+      "default_value": [],
+      "help": "数组类型，ps pod额外的环境变量",
+      "reference_type": "DEFAULT",
+      "label": "PS额外环境变量"
+    },
+    "Slot_worker_envs": {
+      "reference": "",
+      "value_type": "LIST",
+      "default_value": [],
+      "help": "数组类型，worker pod额外的环境变量",
+      "reference_type": "DEFAULT",
+      "label": "Worker额外环境变量"
+    },
+    "Slot_labels": {
+      "reference": "system.variables.labels",
+      "value_type": "OBJECT",
+      "default_value": {},
+      "help": "建议不修改，格式： {}",
+      "reference_type": "SYSTEM",
+      "label": "FLAPP额外元信息"
+    },
+    "Slot_volumes": {
+      "reference": "system.variables.volumes_list",
+      "value_type": "LIST",
+      "default_value": [{"persistentVolumeClaim": {"claimName": "pvc-fedlearner-default"},"name": "data"}],
+      "help": "建议不修改，数组类型，和volume_mounts一一对应",
+      "reference_type": "SYSTEM",
+      "label": "为Pod提供的卷"
+    },
+    "Slot_volume_mounts": {
+      "reference": "system.variables.volume_mounts_list",
+      "value_type": "LIST",
+      "default_value": [{"mountPath": "/data","name": "data"}],
+      "help": "建议不修改，容器中卷挂载的位置，数组类型",
+      "reference_type": "SYSTEM",
+      "label": "卷挂载位置"
+    }
+  }

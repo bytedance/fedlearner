@@ -1,0 +1,30 @@
+.MixinSquare(@size: 0px) {
+  width: @size;
+  height: @size;
+}
+
+.MixinCircle(@size: 0px) {
+  .MixinSquare(@size);
+  border-radius: 50%;
+}
+
+.MixinEllipsis(@maxWidth: 'auto') {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: @maxWidth;
+}
+
+.MixinFontClarity() {
+  font-family: 'ClarityMono', sans-serif;
+}
+
+.MixinFlexAlignCenter() {
+  justify-content: center;
+  align-items: center;
+}
+
+.MixinFlexAlignCenter() {
+  justify-content: center;
+  align-items: center;
+}

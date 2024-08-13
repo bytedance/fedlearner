@@ -1,96 +1,40 @@
-import { loadScript } from 'shared/helpers';
 import React, { FC, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import getMetricsSVG from 'assets/images/get-metrics.svg';
 import emptySVG from 'assets/images/empty.svg';
-import styled from 'styled-components';
-import { Button, message, Spin } from 'antd';
+import styled from './JobExecutionMetrics.module.less';
+import { Button, Message, Spin } from '@arco-design/web-react';
 import { useQuery } from 'react-query';
 import { JobNodeRawData } from 'components/WorkflowJobsCanvas/types';
 import { fetchJobMpld3Metrics, fetchPeerJobMpld3Metrics } from 'services/workflow';
 import queryClient from 'shared/queryClient';
 import { Workflow } from 'typings/workflow';
-import { MixinFlexAlignCenter } from 'styles/mixins';
-import ErrorBoundary from 'antd/lib/alert/ErrorBoundary';
+import ErrorBoundary from 'components/ErrorBoundary';
 
-const Container = styled.div`
-  margin-top: 30px;
-  margin-bottom: 20px;
-`;
-const Header = styled.h3``;
-const ChartContainer = styled.div`
-  height: 480px;
-  overflow: hidden;
-  text-align: center;
-  line-height: 200px;
-`;
-const Placeholder = styled.div`
-  display: flex;
-  flex-direction: column;
-  width: 280px;
-  height: 400px;
-  margin: auto;
-
-  > img {
-    width: 230px;
-    margin-top: auto;
-  }
-`;
-const MetricsNotPublic = styled.div`
-  ${MixinFlexAlignCenter()}
-  display: flex;
-  height: 160px;
-`;
-const Explaination = styled.p`
-  margin-top: 10px;
-  font-size: 12px;
-  text-align: center;
-  color: var(--textColorSecondary);
-`;
-const CTAButton = styled(Button)`
-  display: block;
-  margin: 0 auto auto;
-`;
-
-declare global {
-  interface Window {
-    mpld3: {
-      draw_figure: (containerId: string, data: any) => void;
-      remove_figure: (containerId: string) => void;
-    };
-  }
-}
 type Props = {
   workflow?: Workflow;
   job: JobNodeRawData;
   isPeerSide: boolean;
   visible?: boolean;
+  participantId?: ID;
 };
 
-const JobExecutionMetrics: FC<Props> = ({ job, workflow, visible, isPeerSide }) => {
+const JobExecutionMetrics: FC<Props> = ({ job, workflow, visible, isPeerSide, participantId }) => {
   const { t } = useTranslation();
 
-  const [mpld3, setMpld3Intance] = useState((null as any) as Window['mpld3']);
   const [chartsVisible, setChartsVisible] = useState(false);
-
-  // Load deps only one time
-  useEffect(() => {
-    _loadDependencies().then(() => {
-      setMpld3Intance(window.mpld3);
-    });
-  }, []);
 
   const metricsQ = useQuery(['fetchMetrics', job.id, chartsVisible, isPeerSide], fetcher, {
     refetchOnWindowFocus: false,
     cacheTime: 60 * 60 * 1000,
     retry: 2,
-    enabled: chartsVisible && visible && Boolean(mpld3),
+    enabled: chartsVisible && visible,
   });
 
   const chartMetrics = metricsQ.data;
 
   if (metricsQ.isError) {
-    message.error((metricsQ.error as any)?.message);
+    Message.error((metricsQ.error as any)?.message);
   }
 
   /**
@@ -105,25 +49,37 @@ const JobExecutionMetrics: FC<Props> = ({ job, workflow, visible, isPeerSide }) 
 
   // Chart render effect
   useEffect(() => {
-    if (chartMetrics?.data) {
-      if (!mpld3) {
-        message.warn(t('workflow.msg_chart_deps_loading'));
-        return;
-      }
-      clearChart();
-      try {
-        chartMetrics.data.forEach((metric, index) => {
-          const chartId = _targetChartId(index);
-          setTimeout(() => {
-            mpld3.draw_figure(chartId, metric);
-          }, 20);
-        });
-      } catch (error) {
-        message.error(error.message);
-      }
-    }
+    import('mpld3/d3.v5.min.js')
+      .then((d3) => {
+        window.d3 = d3;
+      })
+      .then(() => import('mpld3'))
+      .then((mpld3) => {
+        if (chartMetrics?.data) {
+          if (!mpld3) {
+            Message.warning(t('workflow.msg_chart_deps_loading'));
+            return;
+          }
+          chartMetrics.data.forEach((_, index) => {
+            setTimeout(() => {
+              mpld3.remove_figure(_targetChartId(index));
+            }, 20);
+          });
+          try {
+            chartMetrics.data.forEach((metric, index) => {
+              const chartId = _targetChartId(index);
+              setTimeout(() => {
+                mpld3.draw_figure(chartId, metric);
+              }, 20);
+            });
+          } catch (error) {
+            Message.error(error.message);
+          }
+        }
+      });
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [chartMetrics, mpld3]);
+  }, [chartMetrics]);
 
   const isEmpty = chartMetrics?.data?.length === 0;
   const isPeerMetricsPublic = isPeerSide && workflow?.metric_is_public;
@@ -131,62 +87,57 @@ const JobExecutionMetrics: FC<Props> = ({ job, workflow, visible, isPeerSide }) 
 
   return (
     <ErrorBoundary>
-      <Container data-display-chart={chartsVisible}>
-        <Header>{t('workflow.label_job_metrics')}</Header>
+      <div data-display-chart={chartsVisible} className={styled.container}>
+        <h3>{t('workflow.label_job_metrics')}</h3>
 
         {!metricsVisible && (
-          <MetricsNotPublic>
-            <Explaination>{t('workflow.placeholder_metric_not_public')}</Explaination>
-          </MetricsNotPublic>
+          <div className={styled.metric_not_public}>
+            <p className={styled.explaination}>{t('workflow.placeholder_metric_not_public')}</p>
+          </div>
         )}
 
         {!chartMetrics && metricsVisible && (
-          <Spin spinning={metricsQ.isFetching}>
-            <Placeholder>
+          <Spin loading={metricsQ.isFetching} style={{ width: '100%' }}>
+            <div className={styled.placeholder}>
               <img src={getMetricsSVG} alt="fetch-metrics" />
-              <Explaination>{t('workflow.placeholder_fetch_metrics')}</Explaination>
-              <CTAButton type="primary" onClick={() => setChartsVisible(true)}>
+              <p className={styled.explaination}>{t('workflow.placeholder_fetch_metrics')}</p>
+              <Button
+                className={styled.cta_button}
+                type="primary"
+                onClick={() => setChartsVisible(true)}
+              >
                 {t('workflow.btn_fetch_metrics')}
-              </CTAButton>
-            </Placeholder>
+              </Button>
+            </div>
           </Spin>
         )}
 
         {isEmpty && (
-          <Placeholder>
+          <div className={styled.placeholder}>
             <img src={emptySVG} alt="fetch-metrics" />
-            <Explaination> {t('workflow.placeholder_no_metrics')}</Explaination>
-            <CTAButton
+            <p className={styled.explaination}> {t('workflow.placeholder_no_metrics')}</p>
+            <Button
+              className={styled.cta_button}
               loading={metricsQ.isFetching}
               type="primary"
               onClick={() => metricsQ.refetch()}
             >
               {t('workflow.btn_retry')}
-            </CTAButton>
-          </Placeholder>
+            </Button>
+          </div>
         )}
 
         {chartMetrics?.data?.map((_, index) => {
-          return <ChartContainer id={_targetChartId(index)} />;
+          return <div className={styled.chart_container} id={_targetChartId(index)} />;
         })}
-      </Container>
+      </div>
     </ErrorBoundary>
   );
-
-  function clearChart() {
-    if (!chartMetrics || !mpld3) return;
-
-    chartMetrics.data.forEach((_, index) => {
-      setTimeout(() => {
-        mpld3.remove_figure(_targetChartId(index));
-      }, 20);
-    });
-  }
 
   function fetcher() {
     if (isPeerSide) {
       if (workflow && workflow.uuid) {
-        return fetchPeerJobMpld3Metrics(workflow.uuid, job.k8sName || job.name);
+        return fetchPeerJobMpld3Metrics(workflow.uuid, job.k8sName || job.name, participantId ?? 0);
       }
 
       throw new Error(t('workflow.msg_lack_workflow_infos'));
@@ -194,12 +145,6 @@ const JobExecutionMetrics: FC<Props> = ({ job, workflow, visible, isPeerSide }) 
     return fetchJobMpld3Metrics(job.id);
   }
 };
-
-function _loadDependencies() {
-  return loadScript('https://d3js.org/d3.v5.min.js').then(() => {
-    return loadScript('https://mpld3.github.io/js/mpld3.v0.5.2.js');
-  });
-}
 
 function _targetChartId(index: number) {
   return `chart_${index}`;

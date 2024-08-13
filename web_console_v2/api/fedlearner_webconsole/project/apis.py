@@ -1,4 +1,4 @@
-# Copyright 2021 The FedLearner Authors. All Rights Reserved.
+# Copyright 2023 The FedLearner Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the 'License');
 # you may not use this file except in compliance with the License.
@@ -13,282 +13,498 @@
 # limitations under the License.
 
 # coding: utf-8
-# pylint: disable=raise-missing-from
-
-import re
 from enum import Enum
-from uuid import uuid4
+from functools import partial
+from http import HTTPStatus
+from typing import Optional, Dict, Any, List
 
-from sqlalchemy.sql import func
-from flask import request
-from flask_restful import Resource, Api, reqparse
 from google.protobuf.json_format import ParseDict
+from flask_restful import Resource, Api
+from marshmallow import Schema, fields, validate, post_load
+from marshmallow.validate import Length
 
+from envs import Envs
+from fedlearner_webconsole.audit.decorators import emits_event
 from fedlearner_webconsole.db import db
-from fedlearner_webconsole.project.models import Project
-from fedlearner_webconsole.proto.common_pb2 import Variable, StatusCode
-from fedlearner_webconsole.proto.project_pb2 \
-    import Project as ProjectProto, CertificateStorage, \
-    Participant as ParticipantProto
-from fedlearner_webconsole.project.add_on \
-    import parse_certificates, verify_certificates, create_add_on
+from fedlearner_webconsole.iam.client import create_iams_for_resource
+from fedlearner_webconsole.iam.iam_required import iam_required
+from fedlearner_webconsole.iam.permission import Permission
+from fedlearner_webconsole.participant.services import ParticipantService
+from fedlearner_webconsole.participant.models import ProjectParticipant
+from fedlearner_webconsole.project.controllers import PendingProjectRpcController
+from fedlearner_webconsole.project.models import Project, PendingProjectState, ProjectRole, PendingProject
+from fedlearner_webconsole.project.services import ProjectService, PendingProjectService
+from fedlearner_webconsole.proto.common_pb2 import StatusCode, Variable
 from fedlearner_webconsole.exceptions \
-    import InvalidArgumentException, NotFoundException
+    import InvalidArgumentException, NotFoundException, ResourceConflictException, InternalException
+from fedlearner_webconsole.proto.project_pb2 import ProjectConfig
+from fedlearner_webconsole.proto.review_pb2 import TicketType, TicketDetails
+from fedlearner_webconsole.review.ticket_helper import get_ticket_helper
 from fedlearner_webconsole.rpc.client import RpcClient
-from fedlearner_webconsole.utils.decorators import jwt_required
-from fedlearner_webconsole.utils.k8s_client import k8s_client
-from fedlearner_webconsole.workflow.models import Workflow
-
-_CERTIFICATE_FILE_NAMES = [
-    'client/client.pem', 'client/client.key', 'client/intermediate.pem',
-    'client/root.pem', 'server/server.pem', 'server/server.key',
-    'server/intermediate.pem', 'server/root.pem'
-]
-
-_URL_REGEX = r'(?:^((?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])(?:\.' \
-             r'(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])){3})(?::+' \
-             r'(\d+))?$)|(?:^\[((?:(?:[0-9a-fA-F:]){1,4}(?:(?::(?:[0-9a-fA-F]' \
-             r'){1,4}|:)){2,7})+)\](?::+(\d+))?|((?:(?:[0-9a-fA-F:]){1,4}(?:(' \
-             r'?::(?:[0-9a-fA-F]){1,4}|:)){2,7})+)$)'
+from fedlearner_webconsole.rpc.v2.project_service_client import ProjectServiceClient
+from fedlearner_webconsole.swagger.models import schema_manager
+from fedlearner_webconsole.utils.decorators.pp_flask import input_validator, use_args, use_kwargs
+from fedlearner_webconsole.auth.third_party_sso import credentials_required
+from fedlearner_webconsole.utils.flask_utils import get_current_user, make_flask_response, FilterExpField
 
 
 class ErrorMessage(Enum):
     PARAM_FORMAT_ERROR = 'Format of parameter {} is wrong: {}'
-    NAME_CONFLICT = 'Project name {} has been used.'
+
+
+def _add_variable(config: Optional[Dict], field: str, value: Any) -> Dict:
+    config = config or {}
+    config['variables'] = config.get('variables', [])
+    for item in config['variables']:
+        if item['name'] == field:
+            return config
+    config['variables'].append({'name': field, 'value': value})
+    return config
+
+
+class CreateProjectParameter(Schema):
+    name = fields.String(required=True)
+    config = fields.Dict(load_default={})
+    # System does not support multiple participants now
+    participant_ids = fields.List(fields.Integer(), validate=Length(equal=1))
+    comment = fields.String(load_default='')
+
+
+class CreatePendingProjectParameter(Schema):
+    name = fields.String(required=True)
+    config = fields.Dict(load_default={})
+    participant_ids = fields.List(fields.Integer(), validate=Length(min=1))
+    comment = fields.String(load_default='')
+
+    @post_load()
+    def make(self, data, **kwargs):
+        data['config'] = ParseDict(data['config'], ProjectConfig(), ignore_unknown_fields=True)
+        return data
 
 
 class ProjectsApi(Resource):
-    @jwt_required()
-    def post(self):
-        parser = reqparse.RequestParser()
-        parser.add_argument('name',
-                            required=True,
-                            type=str,
-                            help=ErrorMessage.PARAM_FORMAT_ERROR.value.format(
-                                'name', 'Empty'))
-        parser.add_argument('config',
-                            required=True,
-                            type=dict,
-                            help=ErrorMessage.PARAM_FORMAT_ERROR.value.format(
-                                'config', 'Empty'))
-        parser.add_argument('comment')
-        data = parser.parse_args()
+
+    @input_validator
+    @credentials_required
+    @iam_required(Permission.PROJECTS_POST)
+    @emits_event(audit_fields=['participant_ids'])
+    @use_args(CreateProjectParameter())
+    def post(self, data: Dict):
+        """Creates a new project.
+        ---
+        tags:
+          - project
+        description: Creates a new project
+        parameters:
+        - in: body
+          name: body
+          schema:
+            $ref: '#/definitions/CreateProjectParameter'
+        responses:
+          201:
+            description: Created a project
+            content:
+              application/json:
+                schema:
+                  $ref: '#/definitions/fedlearner_webconsole.proto.Project'
+        """
         name = data['name']
         config = data['config']
         comment = data['comment']
+        participant_ids = data['participant_ids']
+        with db.session_scope() as session:
+            if session.query(Project).filter_by(name=name).first() is not None:
+                raise ResourceConflictException(message=f'Project name {name} has been used.')
 
-        if Project.query.filter_by(name=name).first() is not None:
-            raise InvalidArgumentException(
-                details=ErrorMessage.NAME_CONFLICT.value.format(name))
-
-        if config.get('participants') is None:
-            raise InvalidArgumentException(
-                details=ErrorMessage.PARAM_FORMAT_ERROR.value.format(
-                    'participants', 'Empty'))
-        if len(config.get('participants')) != 1:
-            # TODO: remove limit after operator supports multiple participants
-            raise InvalidArgumentException(
-                details='Currently not support multiple participants.')
-
-        # exact configuration from variables
-        # TODO: one custom host for one participant
-        grpc_ssl_server_host = None
-        egress_host = None
-        for variable in config.get('variables', []):
-            if variable.get('name') == 'GRPC_SSL_SERVER_HOST':
-                grpc_ssl_server_host = variable.get('value')
-            if variable.get('name') == 'EGRESS_HOST':
-                egress_host = variable.get('value')
-
-        # parse participant
-        certificates = {}
-        for participant in config.get('participants'):
-            if 'name' not in participant.keys() or \
-                'domain_name' not in participant.keys():
-                raise InvalidArgumentException(
-                    details=ErrorMessage.PARAM_FORMAT_ERROR.value.format(
-                        'participants', 'Participant must have name and '
-                        'domain_name.'))
-            domain_name = participant.get('domain_name')
-            # Grpc spec
-            participant['grpc_spec'] = {
-                'authority':
-                egress_host or '{}-client-auth.com'.format(domain_name[:-4])
-            }
-
-            if participant.get('certificates'):
-                # If users use web console to create add-on,
-                # peer url must be given
-                if 'url' not in participant.keys():
+        with db.session_scope() as session:
+            try:
+                user = get_current_user()
+                # defensive programming, if user is none, wont query user.username
+                new_project = Project(name=name, comment=comment, creator=user and user.username)
+                config = _add_variable(config, 'storage_root_path', Envs.STORAGE_ROOT)
+                try:
+                    new_project.set_config(ParseDict(config, ProjectConfig()))
+                except Exception as e:
                     raise InvalidArgumentException(
-                        details=ErrorMessage.PARAM_FORMAT_ERROR.value.format(
-                            'participants', 'Participant must have url.'))
-                if re.match(_URL_REGEX, participant.get('url')) is None:
-                    raise InvalidArgumentException('URL pattern is wrong')
+                        details=ErrorMessage.PARAM_FORMAT_ERROR.value.format('config', e)) from e
+                session.add(new_project)
+                session.flush()
 
-                current_cert = parse_certificates(
-                    participant.get('certificates'))
-                success, err = verify_certificates(current_cert)
-                if not success:
-                    raise InvalidArgumentException(err)
-                certificates[domain_name] = {'certs': current_cert}
-            if 'certificates' in participant.keys():
-                participant.pop('certificates')
+                for participant_id in participant_ids:
+                    # insert a relationship into the table
+                    new_relationship = ProjectParticipant(project_id=new_project.id, participant_id=participant_id)
+                    session.add(new_relationship)
 
-        new_project = Project()
-        # generate token
-        # If users send a token, then use it instead.
-        # If `token` is None, generate a new one by uuid.
-        config['name'] = name
-        token = config.get('token', uuid4().hex)
-        config['token'] = token
+                create_iams_for_resource(new_project, user)
+                session.commit()
+            except Exception as e:
+                raise InvalidArgumentException(details=str(e)) from e
+            return make_flask_response(data=new_project.to_proto(), status=HTTPStatus.CREATED)
 
-        # check format of config
-        try:
-            new_project.set_config(ParseDict(config, ProjectProto()))
-        except Exception as e:
-            raise InvalidArgumentException(
-                details=ErrorMessage.PARAM_FORMAT_ERROR.value.format(
-                    'config', e))
-        new_project.set_certificate(
-            ParseDict({'domain_name_to_cert': certificates},
-                      CertificateStorage()))
-        new_project.name = name
-        new_project.token = token
-        new_project.comment = comment
-
-        # create add on
-        for participant in new_project.get_config().participants:
-            if participant.domain_name in\
-                new_project.get_certificate().domain_name_to_cert.keys():
-                _create_add_on(
-                    participant,
-                    new_project.get_certificate().domain_name_to_cert[
-                        participant.domain_name], grpc_ssl_server_host)
-        try:
-            new_project = db.session.merge(new_project)
-            db.session.commit()
-        except Exception as e:
-            raise InvalidArgumentException(details=str(e))
-
-        return {'data': new_project.to_dict()}
-
-    @jwt_required()
+    @credentials_required
     def get(self):
-        # TODO: Not count soft-deleted workflow
-        projects = db.session.query(
-                Project, func.count(Workflow.id).label('num_workflow'))\
-            .join(Workflow, Workflow.project_id == Project.id, isouter=True)\
-            .group_by(Project.id)\
-            .all()
-        result = []
-        for project in projects:
-            project_dict = project.Project.to_dict()
-            project_dict['num_workflow'] = project.num_workflow
-            result.append(project_dict)
-        return {'data': result}
+        """Gets all projects.
+        ---
+        tags:
+          - project
+        description: gets all projects.
+        responses:
+          200:
+            content:
+              application/json:
+                schema:
+                  type: array
+                  items:
+                    $ref: '#/definitions/fedlearner_webconsole.proto.ProjectRef'
+        """
+        with db.session_scope() as session:
+            service = ProjectService(session)
+            return make_flask_response(data=service.get_projects())
 
 
 class ProjectApi(Resource):
-    @jwt_required()
-    def get(self, project_id):
-        project = Project.query.filter_by(id=project_id).first()
-        if project is None:
-            raise NotFoundException(
-                f'Failed to find project: {project_id}')
-        return {'data': project.to_dict()}
 
-    @jwt_required()
-    def patch(self, project_id):
-        project = Project.query.filter_by(id=project_id).first()
-        if project is None:
-            raise NotFoundException(
-                f'Failed to find project: {project_id}')
-        config = project.get_config()
-        if request.json.get('token') is not None:
-            new_token = request.json.get('token')
-            config.token = new_token
-            project.token = new_token
-        if request.json.get('variables') is not None:
-            del config.variables[:]
-            config.variables.extend([
-                ParseDict(variable, Variable())
-                for variable in request.json.get('variables')
-            ])
+    @credentials_required
+    @iam_required(Permission.PROJECT_GET)
+    def get(self, project_id: int):
+        """Gets a project.
+        ---
+        tags:
+          - project
+        description: Gets a project
+        parameters:
+        - in: path
+          name: project_id
+          schema:
+            type: integer
+        responses:
+          200:
+            content:
+              application/json:
+                schema:
+                  $ref: '#/definitions/fedlearner_webconsole.proto.Project'
+        """
+        with db.session_scope() as session:
+            project = session.query(Project).filter_by(id=project_id).first()
+            if project is None:
+                raise NotFoundException(f'Failed to find project: {project_id}')
+            return make_flask_response(data=project.to_proto(), status=HTTPStatus.OK)
 
-        # exact configuration from variables
-        grpc_ssl_server_host = None
-        egress_host = None
-        for variable in config.variables:
-            if variable.name == 'GRPC_SSL_SERVER_HOST':
-                grpc_ssl_server_host = variable.value
-            if variable.name == 'EGRESS_HOST':
-                egress_host = variable.value
+    @input_validator
+    @credentials_required
+    @iam_required(Permission.PROJECT_PATCH)
+    @emits_event(audit_fields=['variables'])
+    @use_kwargs({
+        'comment': fields.String(load_default=None),
+        'variables': fields.List(fields.Dict(), load_default=None),
+        'config': fields.Dict(load_default=None)
+    })
+    def patch(self, project_id: int, comment: Optional[str], variables: Optional[List[Dict]], config: Optional[Dict]):
+        """Patch a project.
+        ---
+        tags:
+          - project
+        description: Update a project.
+        parameters:
+        - in: path
+          name: project_id
+          schema:
+            type: integer
+        - in: body
+          name: body
+          schema:
+            type: object
+            properties:
+              comment:
+                type: string
+              variables:
+                description: A list of variables to override existing ones.
+                type: array
+                items:
+                  $ref: '#/definitions/fedlearner_webconsole.proto.Variable'
+              config:
+                description: Config of project, include variables.
+                schema:
+                    $ref: '#/definitions/fedlearner_webconsole.proto.ProjectConfig'
+        responses:
+          200:
+            description: Updated project
+            content:
+              application/json:
+                schema:
+                  $ref: '#/definitions/fedlearner_webconsole.proto.Project'
+        """
+        with db.session_scope() as session:
+            project = session.query(Project).filter_by(id=project_id).first()
+            if project is None:
+                raise NotFoundException(f'Failed to find project: {project_id}')
 
-        if request.json.get('participant_name'):
-            config.participants[0].name = request.json.get('participant_name')
+            if comment:
+                project.comment = comment
 
-        if request.json.get('comment'):
-            project.comment = request.json.get('comment')
+            if config is not None:
+                config_proto = ParseDict(config, ProjectConfig(), ignore_unknown_fields=True)
+                project.set_config(config_proto)
+                session.flush()
+            # TODO(xiangyuxuan.prs): remove variables parameter when pending project launch
+            if variables is not None:
+                # Overrides all variables
+                variables = [ParseDict(variable, Variable()) for variable in variables]
+                project.set_variables(variables)
+            try:
+                session.commit()
+            except Exception as e:
+                raise InvalidArgumentException(details=e) from e
 
-        for participant in config.participants:
-            if participant.domain_name in\
-                project.get_certificate().domain_name_to_cert.keys():
-                _create_add_on(
-                    participant,
-                    project.get_certificate().domain_name_to_cert[
-                        participant.domain_name], grpc_ssl_server_host)
-            if egress_host:
-                participant.grpc_spec.authority = egress_host
-        project.set_config(config)
-        try:
-            db.session.commit()
-        except Exception as e:
-            raise InvalidArgumentException(details=e)
-        return {'data': project.to_dict()}
+            return make_flask_response(data=project.to_proto(), status=HTTPStatus.OK)
 
 
 class CheckConnectionApi(Resource):
-    @jwt_required()
-    def post(self, project_id):
-        project = Project.query.filter_by(id=project_id).first()
-        if project is None:
-            raise NotFoundException(
-                f'Failed to find project: {project_id}')
-        success = True
-        details = []
-        # TODO: Concurrently check
-        for participant in project.get_config().participants:
-            result = self.check_connection(project.get_config(), participant)
-            success = success & (result.code == StatusCode.STATUS_SUCCESS)
-            if result.code != StatusCode.STATUS_SUCCESS:
-                details.append(result.msg)
-        return {'data': {'success': success, 'details': details}}
 
-    def check_connection(self, project_config: ProjectProto,
-                         participant_proto: ParticipantProto):
-        client = RpcClient(project_config, participant_proto)
-        return client.check_connection().status
+    @credentials_required
+    def get(self, project_id: int):
+        """Checks the connection for a project.
+        ---
+        tags:
+          - project
+        description: Checks the connection for a project.
+        parameters:
+        - in: path
+          name: project_id
+          schema:
+            type: integer
+        responses:
+          200:
+            content:
+              application/json:
+                schema:
+                  type: object
+                  properties:
+                    success:
+                      description: If the connection is established or not.
+                      type: boolean
+                    message:
+                      type: string
+        """
+        with db.session_scope() as session:
+            project = session.query(Project).filter_by(id=project_id).first()
+            if project is None:
+                raise NotFoundException(f'Failed to find project: {project_id}')
+            service = ParticipantService(session)
+            participants = service.get_platform_participants_by_project(project.id)
+
+        error_messages = []
+        for participant in participants:
+            client = RpcClient.from_project_and_participant(project.name, project.token, participant.domain_name)
+            result = client.check_connection().status
+            if result.code != StatusCode.STATUS_SUCCESS:
+                error_messages.append(
+                    f'failed to validate {participant.domain_name}\'s workspace, result: {result.msg}')
+
+        return {
+            'data': {
+                'success': len(error_messages) == 0,
+                'message': '\n'.join(error_messages) if len(error_messages) > 0 else 'validate project successfully!'
+            }
+        }, HTTPStatus.OK
+
+
+class ProjectParticipantsApi(Resource):
+
+    @credentials_required
+    def get(self, project_id: int):
+        """Gets participants of a project.
+        ---
+        tags:
+          - project
+        description: Gets participants of a project.
+        parameters:
+        - in: path
+          name: project_id
+          schema:
+            type: integer
+        responses:
+          200:
+            content:
+              application/json:
+                schema:
+                  type: array
+                  items:
+                    $ref: '#/definitions/fedlearner_webconsole.proto.Participant'
+        """
+        with db.session_scope() as session:
+            project = session.query(Project).filter_by(id=project_id).first()
+            if project is None:
+                raise NotFoundException(f'Failed to find project: {project_id}')
+            service = ParticipantService(session)
+            participants = service.get_participants_by_project(project_id)
+            return make_flask_response(data=[participant.to_proto() for participant in participants])
+
+
+class PendingProjectsApi(Resource):
+
+    @input_validator
+    @credentials_required
+    @iam_required(Permission.PROJECTS_POST)
+    @use_args(CreatePendingProjectParameter())
+    def post(self, data: Dict):
+        """Creates a new pending project.
+        ---
+        tags:
+          - project
+        description: Creates a new pending project
+        parameters:
+        - in: body
+          name: body
+          schema:
+            $ref: '#/definitions/CreatePendingProjectParameter'
+        responses:
+          201:
+            description: Created a pending project
+            content:
+              application/json:
+                schema:
+                  $ref: '#/definitions/fedlearner_webconsole.proto.PendingProjectPb'
+        """
+        with db.session_scope() as session:
+            # TODO(xiangyuxuan.prs): remove after using token instead of name to ensure consistency of project
+            if PendingProjectService(session).duplicated_name_exists(data['name']):
+                raise ResourceConflictException(f'{data["name"]} has already existed')
+            participants_info = PendingProjectService(session).build_participants_info(data['participant_ids'])
+            pending_project = PendingProjectService(session).create_pending_project(data['name'],
+                                                                                    data['config'],
+                                                                                    participants_info,
+                                                                                    data['comment'],
+                                                                                    get_current_user().username,
+                                                                                    state=PendingProjectState.ACCEPTED,
+                                                                                    role=ProjectRole.COORDINATOR)
+            session.flush()
+            ticket_helper = get_ticket_helper(session)
+            ticket_helper.create_ticket(TicketType.CREATE_PROJECT, TicketDetails(uuid=pending_project.uuid))
+            session.commit()
+            return make_flask_response(data=pending_project.to_proto(), status=HTTPStatus.CREATED)
+
+    @credentials_required
+    @use_args(
+        {
+            'filter': FilterExpField(
+                required=False,
+                load_default=None,
+            ),
+            'page': fields.Integer(required=False, load_default=1),
+            'page_size': fields.Integer(required=False, load_default=10)
+        },
+        location='query')
+    def get(self, params: dict):
+        """Gets all pending projects.
+        ---
+        tags:
+          - project
+        description: gets all pending projects.
+        responses:
+          200:
+            content:
+              application/json:
+                schema:
+                  type: array
+                  items:
+                    $ref: '#/definitions/fedlearner_webconsole.proto.PendingProjectPb'
+        """
+        with db.session_scope() as session:
+            try:
+                pagination = PendingProjectService(session).list_pending_projects(
+                    filter_exp=params['filter'],
+                    page=params['page'],
+                    page_size=params['page_size'],
+                )
+            except ValueError as e:
+                raise InvalidArgumentException(details=f'Invalid filter: {str(e)}') from e
+            data = [t.to_proto() for t in pagination.get_items()]
+            return make_flask_response(data=data, page_meta=pagination.get_metadata())
+
+
+class PendingProjectApi(Resource):
+
+    @credentials_required
+    @use_kwargs({
+        'state':
+            fields.String(required=True,
+                          validate=validate.OneOf([PendingProjectState.ACCEPTED.name, PendingProjectState.CLOSED.name]))
+    })
+    def patch(self, pending_project_id: int, state: str):
+        """Accept or refuse a pending project.
+        ---
+        tags:
+          - project
+        description: Accept or refuse a pending project.
+        parameters:
+        - in: path
+          name: pending_project_id
+          schema:
+            type: integer
+        - in: body
+          name: body
+          schema:
+            type: object
+            properties:
+              state:
+                type: string
+        responses:
+          200:
+            description: a pending project
+            content:
+              application/json:
+                schema:
+                  $ref: '#/definitions/fedlearner_webconsole.proto.PendingProjectPb'
+        """
+        with db.session_scope() as session:
+            pending_project = PendingProjectService(session).update_state_as_participant(pending_project_id, state)
+            resp = PendingProjectRpcController(pending_project).sync_pending_project_state_to_coordinator(
+                uuid=pending_project.uuid, state=PendingProjectState(state))
+            if not resp.succeeded:
+                raise InternalException(f'connect to coordinator failed: {resp.msg}')
+            session.commit()
+            return make_flask_response(data=pending_project.to_proto())
+
+    def delete(self, pending_project_id: int):
+        """Delete pending project by id.
+        ---
+        tags:
+          - project
+        description: Delete pending project.
+        parameters:
+        - in: path
+          name: pending_project_id
+          required: true
+          schema:
+            type: integer
+          description: The ID of the pending project
+        responses:
+          204:
+            description: No content.
+        """
+        with db.session_scope() as session:
+            pending_project = session.query(PendingProject).get(pending_project_id)
+            if pending_project is None:
+                return make_flask_response(status=HTTPStatus.NO_CONTENT)
+        result = PendingProjectRpcController(pending_project).send_to_participants(
+            partial(ProjectServiceClient.delete_pending_project, uuid=pending_project.uuid))
+        if not all(resp.succeeded for resp in result.values()):
+            raise InternalException(f'delete participants failed: {result}')
+        with db.session_scope() as session:
+            session.delete(pending_project)
+            session.commit()
+        return make_flask_response(status=HTTPStatus.NO_CONTENT)
 
 
 def initialize_project_apis(api: Api):
     api.add_resource(ProjectsApi, '/projects')
     api.add_resource(ProjectApi, '/projects/<int:project_id>')
-    api.add_resource(CheckConnectionApi,
-                     '/projects/<int:project_id>/connection_checks')
+    api.add_resource(ProjectParticipantsApi, '/projects/<int:project_id>/participants')
+    api.add_resource(CheckConnectionApi, '/projects/<int:project_id>/connection_checks')
 
+    api.add_resource(PendingProjectsApi, '/pending_projects')
+    api.add_resource(PendingProjectApi, '/pending_project/<int:pending_project_id>')
 
-def _create_add_on(participant, certificate, grpc_ssl_server_host=None):
-    if certificate is None:
-        return
-    # check validation
-    for file_name in _CERTIFICATE_FILE_NAMES:
-        if certificate.certs.get(file_name) is None:
-            raise InvalidArgumentException(
-                details=ErrorMessage.PARAM_FORMAT_ERROR.value.format(
-                    'certificates', '{} not existed'.format(file_name)))
-    try:
-        create_add_on(k8s_client, participant.domain_name, participant.url,
-                      certificate.certs, grpc_ssl_server_host)
-    except RuntimeError as e:
-        raise InvalidArgumentException(details=str(e))
+    schema_manager.append(CreateProjectParameter)
+    schema_manager.append(CreatePendingProjectParameter)

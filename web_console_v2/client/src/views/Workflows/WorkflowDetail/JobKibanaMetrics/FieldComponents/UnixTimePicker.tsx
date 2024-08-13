@@ -1,5 +1,5 @@
 import React, { FC } from 'react';
-import { DatePicker } from 'antd';
+import { DatePicker } from '@arco-design/web-react';
 import { disableFuture } from 'shared/date';
 import dayjs from 'dayjs';
 

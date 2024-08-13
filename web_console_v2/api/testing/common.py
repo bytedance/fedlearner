@@ -1,4 +1,4 @@
-# Copyright 2021 The FedLearner Authors. All Rights Reserved.
+# Copyright 2023 The FedLearner Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,40 +13,33 @@
 # limitations under the License.
 
 # coding: utf-8
-import contextlib
 import json
 import logging
 import unittest
 import secrets
 from http import HTTPStatus
 import multiprocessing as mp
+from typing import Dict, List, Union
+from unittest.mock import patch
 
-from flask import Flask
 from flask_testing import TestCase
-from fedlearner_webconsole.composer.composer import Composer, ComposerConfig
-from fedlearner_webconsole.db import db_handler as db, get_database_uri
+
+from envs import Envs
+from fedlearner_webconsole.auth.services import UserService
+from fedlearner_webconsole.composer.composer import composer
+from fedlearner_webconsole.db import db
 from fedlearner_webconsole.app import create_app
+from fedlearner_webconsole.iam.client import create_iams_for_user
 from fedlearner_webconsole.initial_db import initial_db
+from fedlearner_webconsole.participant.models import Participant
 from fedlearner_webconsole.scheduler.scheduler import scheduler
-# NOTE: the following models imported is intended to be analyzed by SQLAlchemy
-from fedlearner_webconsole.auth.models import Role, User, State
-from fedlearner_webconsole.composer.models import SchedulerItem, SchedulerRunner, OptimisticLock
-from fedlearner_webconsole.utils.base64 import base64encode
+from fedlearner_webconsole.utils.pp_base64 import base64encode
+from testing.no_web_server_test_case import NoWebServerTestCase
 
 
-def create_all_tables(database_uri: str = None):
-    if database_uri:
-        db.rebind(database_uri)
+class BaseTestCase(NoWebServerTestCase, TestCase):
 
-    # If there's a db file due to some reason, remove it first.
-    if db.metadata.tables.values():
-        db.drop_all()
-    db.create_all()
-
-
-class BaseTestCase(TestCase):
-    class Config(object):
-        SQLALCHEMY_DATABASE_URI = get_database_uri()
+    class Config(NoWebServerTestCase.Config):
         SQLALCHEMY_TRACK_MODIFICATIONS = False
         JWT_SECRET_KEY = secrets.token_urlsafe(64)
         PROPAGATE_EXCEPTIONS = True
@@ -54,32 +47,35 @@ class BaseTestCase(TestCase):
         TESTING = True
         ENV = 'development'
         GRPC_LISTEN_PORT = 1990
-        START_COMPOSER = False
+        START_K8S_WATCHER = False
 
     def create_app(self):
-        create_all_tables(self.__class__.Config.SQLALCHEMY_DATABASE_URI)
-        initial_db()
         app = create_app(self.__class__.Config)
         return app
 
     def setUp(self):
         super().setUp()
+        initial_db()
         self.signin_helper()
+        with db.session_scope() as session:
+            users = UserService(session).get_all_users()
+            for user in users:
+                create_iams_for_user(user)
 
     def tearDown(self):
         self.signout_helper()
         scheduler.stop()
-        db.drop_all()
+        composer.stop()
         super().tearDown()
 
-    def get_response_data(self, response):
+    def get_response_data(self, response) -> dict:
         return json.loads(response.data).get('data')
 
     def signin_as_admin(self):
         self.signout_helper()
-        self.signin_helper(username='admin', password='fl@123.')
+        self.signin_helper(username='admin', password='fl@12345.')
 
-    def signin_helper(self, username='ada', password='fl@123.'):
+    def signin_helper(self, username='ada', password='fl@12345.'):
         resp = self.client.post('/api/v2/auth/signin',
                                 data=json.dumps({
                                     'username': username,
@@ -105,7 +101,7 @@ class BaseTestCase(TestCase):
     def get_helper(self, url, use_auth=True):
         return self.client.get(url, headers=self._get_headers(use_auth))
 
-    def post_helper(self, url, data, use_auth=True):
+    def post_helper(self, url, data=None, use_auth=True):
         return self.client.post(url,
                                 data=json.dumps(data),
                                 content_type='application/json',
@@ -126,44 +122,43 @@ class BaseTestCase(TestCase):
     def delete_helper(self, url, use_auth=True):
         return self.client.delete(url, headers=self._get_headers(use_auth))
 
+    def assertResponseDataEqual(self, response, expected_data: Union[Dict, List], ignore_fields=None):
+        """Asserts if the data in response equals to expected_data.
+
+        It's actually a comparison between two dicts, if ignore_fields is
+        specified then we ignore those fields in response."""
+        actual_data = self.get_response_data(response)
+        assert type(actual_data) is type(expected_data), 'different type for responce data and expceted data!'
+        self.assertPartiallyEqual(actual_data, expected_data, ignore_fields)
+
     def setup_project(self, role, peer_port):
         if role == 'leader':
             peer_role = 'follower'
         else:
             peer_role = 'leader'
-
+        patch.object(Envs, 'DEBUG', True).start()
+        patch.object(Envs, 'GRPC_SERVER_URL', f'127.0.0.1:{peer_port}').start()
         name = 'test-project'
-        config = {
-            'participants': [{
-                'name': f'party_{peer_role}',
-                'url': f'127.0.0.1:{peer_port}',
-                'domain_name': f'fl-{peer_role}.com'
-            }],
-            'variables': [{
-                'name': 'EGRESS_URL',
-                'value': f'127.0.0.1:{peer_port}'
-            }]
-        }
-        create_response = self.post_helper('/api/v2/projects',
-                                           data={
-                                               'name': name,
-                                               'config': config,
-                                           })
-        self.assertEqual(create_response.status_code, HTTPStatus.OK)
-        return json.loads(create_response.data).get('data')
+        with db.session_scope() as session:
+            participant = Participant(name=f'party_{peer_role}',
+                                      host='127.0.0.1',
+                                      port=peer_port,
+                                      domain_name=f'fl-{peer_role}.com')
+            session.add(participant)
+            session.commit()
 
-    @contextlib.contextmanager
-    def composer_scope(self, config: ComposerConfig):
-        with self.app.app_context():
-            composer = Composer(config=config)
-            composer.run(db.engine)
-            yield composer
-            composer.stop()
+        create_response = self.post_helper('/api/v2/projects', data={
+            'name': name,
+            'participant_ids': [1],
+        })
+        self.assertEqual(create_response.status_code, HTTPStatus.CREATED)
+        return json.loads(create_response.data).get('data')
 
 
 class TestAppProcess(mp.get_context('spawn').Process):
+
     def __init__(self, test_class, method, config=None, result_queue=None):
-        super(TestAppProcess, self).__init__()
+        super().__init__()
         self._test_class = test_class
         self._method = method
         self._app_config = config
@@ -177,10 +172,7 @@ class TestAppProcess(mp.get_context('spawn').Process):
             for h in logging.getLogger().handlers[:]:
                 logging.getLogger().removeHandler(h)
                 h.close()
-            logging.basicConfig(
-                level=logging.DEBUG,
-                format=
-                'SPAWN:%(filename)s %(lineno)s %(levelname)s - %(message)s')
+            logging.basicConfig(level=logging.DEBUG, format='SPAWN:%(filename)s %(lineno)s %(levelname)s - %(message)s')
             if self._app_config:
                 self._test_class.Config = self._app_config
             test = self._test_class(self._method)
@@ -194,6 +186,7 @@ class TestAppProcess(mp.get_context('spawn').Process):
                 for other_q in self.other_process_queues:
                     other_q.put(None)
                 # check if the test success, than wait others to finish
+                # pylint: disable=protected-access
                 if not test._outcome.errors:
                     # wait for others
                     for i in range(len(self.other_process_queues)):
@@ -207,45 +200,30 @@ class TestAppProcess(mp.get_context('spawn').Process):
             result = suite.run(result)
             if result.errors:
                 for method, err in result.errors:
-                    print(
-                        '======================================================================'
-                    )
+                    logging.error('======================================================================')
 
-                    print('ERROR:', method)
-                    print(
-                        '----------------------------------------------------------------------'
-                    )
-                    print(err)
-                    print(
-                        '----------------------------------------------------------------------'
-                    )
+                    logging.error(f'TestAppProcess ERROR: {method}')
+                    logging.error('----------------------------------------------------------------------')
+                    logging.error(err)
+                    logging.error('----------------------------------------------------------------------')
             if result.failures:
                 for method, fail in result.failures:
-                    print(
-                        '======================================================================'
-                    )
-                    print('FAIL:', method)
-                    print(
-                        '----------------------------------------------------------------------'
-                    )
-                    print(fail)
-                    print(
-                        '----------------------------------------------------------------------'
-                    )
+                    logging.error('======================================================================')
+                    logging.error(f'TestAppProcess FAIL: {method}')
+                    logging.error('----------------------------------------------------------------------')
+                    logging.error(fail)
+                    logging.error('----------------------------------------------------------------------')
             assert result.wasSuccessful()
             self._result_queue.put(True)
-        except Exception as err:
-            logging.error('expected happened %s', err)
+        except Exception:
+            logging.exception('exception happened')
             self._result_queue.put(False)
             raise
 
 
 def multi_process_test(test_list):
     result_queue = mp.get_context('spawn').Queue()
-    proc_list = [
-        TestAppProcess(t['class'], t['method'], t['config'], result_queue)
-        for t in test_list
-    ]
+    proc_list = [TestAppProcess(t['class'], t['method'], t['config'], result_queue) for t in test_list]
 
     for p in proc_list:
         for other_p in proc_list:
@@ -265,16 +243,3 @@ def multi_process_test(test_list):
         p.join()
         if p.exitcode != 0:
             raise Exception(f'Subprocess failed: number {i}')
-
-
-class NoWebServerTestCase(unittest.TestCase):
-    class Config(object):
-        SQLALCHEMY_DATABASE_URI = get_database_uri()
-
-    def setUp(self) -> None:
-        super().setUp()
-        create_all_tables(self.__class__.Config.SQLALCHEMY_DATABASE_URI)
-
-    def tearDown(self) -> None:
-        db.drop_all()
-        return super().tearDown()

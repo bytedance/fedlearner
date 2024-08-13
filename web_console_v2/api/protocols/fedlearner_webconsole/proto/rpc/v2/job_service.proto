@@ -1,0 +1,160 @@
+/* Copyright 2023 The FedLearner Authors. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+syntax = "proto3";
+
+package fedlearner_webconsole.proto.rpc.v2;
+
+import "google/protobuf/empty.proto";
+import "fedlearner_webconsole/proto/tee.proto";
+import "fedlearner_webconsole/proto/mmgr.proto";
+import "fedlearner_webconsole/proto/dataset.proto";
+
+message InformTrustedJobGroupRequest {
+    string uuid = 1;
+    // ref: AuthStatus
+    string auth_status = 2;
+}
+
+message UpdateTrustedJobGroupRequest {
+    string uuid = 1;
+    string algorithm_uuid = 2;
+}
+
+message DeleteTrustedJobGroupRequest {
+    string uuid = 1;
+}
+
+message GetTrustedJobGroupRequest {
+    string uuid = 1;
+}
+
+message GetTrustedJobGroupResponse {
+    // ref: AuthStatus
+    string auth_status = 1;
+}
+
+message InformTrustedJobRequest {
+    string uuid = 1;
+    // ref: AuthStatus
+    string auth_status = 2;
+}
+
+message GetTrustedJobRequest {
+    string uuid = 1;
+}
+
+message GetTrustedJobResponse {
+    // ref: AuthStatus
+    string auth_status = 1;
+}
+
+message CreateTrustedExportJobRequest {
+    string uuid = 1;
+    string name = 2;
+    int64 export_count = 3;
+    string parent_uuid = 4;
+    string ticket_uuid = 5;
+}
+
+message CreateModelJobRequest {
+    string name = 1;
+    string uuid = 2;
+    string group_uuid = 3;
+    string model_job_type = 4;
+    string algorithm_type = 5;
+    ModelJobGlobalConfig global_config = 6;
+    // version from model job group
+    int64 version = 7;
+}
+
+message InformModelJobRequest {
+    string uuid = 1;
+    // ref: AuthStatus
+    string auth_status = 2;
+}
+
+message CreateDatasetJobStageRequest {
+    string dataset_job_uuid = 1;
+    string dataset_job_stage_uuid = 2;
+    string name = 3;
+    // timestamp in seconds
+    // event_time == 0 when dataset_type is PSI
+    int64 event_time = 4;
+}
+
+message GetDatasetJobStageRequest {
+    string dataset_job_stage_uuid = 1;
+}
+
+message GetDatasetJobStageResponse {
+    DatasetJobStage dataset_job_stage = 1;
+}
+
+message CreateModelJobGroupRequest {
+    string name = 1;
+    string uuid = 2;
+    // ref: AlgorithmType
+    string algorithm_type = 3;
+    string dataset_uuid = 4;
+    AlgorithmProjectList algorithm_project_list = 5;
+}
+
+message GetModelJobRequest {
+    string uuid = 1;
+}
+
+message GetModelJobGroupRequest {
+    string uuid = 1;
+}
+
+message InformModelJobGroupRequest {
+    string uuid = 1;
+    // ref: AuthStatus
+    string auth_status = 2;
+}
+
+message UpdateModelJobGroupRequest {
+    string uuid = 1;
+    // ref: GroupAutoUpdateStatus
+    string auto_update_status = 2;
+    string start_dataset_job_stage_uuid = 3;
+}
+
+message UpdateDatasetJobSchedulerStateRequest {
+    string uuid = 1;
+    // ref: DatasetJobSchedulerState
+    string scheduler_state = 2;
+}
+
+service JobService {
+    rpc InformTrustedJobGroup (InformTrustedJobGroupRequest) returns (google.protobuf.Empty) {}
+    rpc UpdateTrustedJobGroup (UpdateTrustedJobGroupRequest) returns (google.protobuf.Empty) {}
+    rpc DeleteTrustedJobGroup (DeleteTrustedJobGroupRequest) returns (google.protobuf.Empty) {}
+    rpc GetTrustedJobGroup (GetTrustedJobGroupRequest) returns (GetTrustedJobGroupResponse) {}
+    rpc InformTrustedJob (InformTrustedJobRequest) returns (google.protobuf.Empty) {}
+    rpc CreateTrustedExportJob (CreateTrustedExportJobRequest) returns (google.protobuf.Empty) {}
+    rpc GetTrustedJob (GetTrustedJobRequest) returns (GetTrustedJobResponse) {}
+    rpc CreateModelJob (CreateModelJobRequest) returns (google.protobuf.Empty) {}
+    rpc CreateDatasetJobStage (CreateDatasetJobStageRequest) returns (google.protobuf.Empty) {}
+    rpc GetDatasetJobStage (GetDatasetJobStageRequest) returns (GetDatasetJobStageResponse) {}
+    rpc UpdateDatasetJobSchedulerState (UpdateDatasetJobSchedulerStateRequest) returns (google.protobuf.Empty) {}
+    rpc CreateModelJobGroup (CreateModelJobGroupRequest) returns (google.protobuf.Empty) {}
+    rpc GetModelJob (GetModelJobRequest) returns (ModelJobPb) {}
+    rpc InformModelJob (InformModelJobRequest) returns (google.protobuf.Empty) {}
+    rpc GetModelJobGroup (GetModelJobGroupRequest) returns (ModelJobGroupPb) {}
+    rpc InformModelJobGroup (InformModelJobGroupRequest) returns (google.protobuf.Empty) {}
+    rpc UpdateModelJobGroup (UpdateModelJobGroupRequest) returns (google.protobuf.Empty) {}
+}

@@ -1,7 +1,7 @@
 import React, { FC } from 'react';
 import { useTranslation } from 'react-i18next';
 import { KibanaAggregator, KibanaChartType } from 'typings/kibana';
-import { Select } from 'antd';
+import { Select } from '@arco-design/web-react';
 
 const AggregatorChoices: Partial<Record<KibanaChartType, any[]>> = {
   [KibanaChartType.Timer]: [

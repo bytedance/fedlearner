@@ -1,0 +1,64 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: controller-manager
+  namespace: fedlearner
+  labels:
+    control-plane: controller-manager
+spec:
+  selector:
+    matchLabels:
+      control-plane: controller-manager
+  replicas: 1
+  template:
+    metadata:
+      annotations:
+        kubectl.kubernetes.io/default-container: manager
+      labels:
+        control-plane: controller-manager
+    spec:
+      securityContext:
+        runAsNonRoot: true
+      volumes:
+      - name: hl-kubeconfig
+        configMap:
+          name: hl-kubeconfig
+          defaultMode: 420
+      containers:
+      - command:
+        - /manager
+        env:
+        - name: KUBECONFIG
+          value: /.kube/config
+        args:
+        - --ingress-extra-host-suffix=.fl-bytedance.com
+        - --namespace=fedlearner
+        image: artifact.bytedance.com/fedlearner/pp_fedapp_operator:0.2.2
+        name: manager
+        securityContext:
+          allowPrivilegeEscalation: false
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8081
+          initialDelaySeconds: 15
+          periodSeconds: 20
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: 8081
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        # TODO(user): Configure the resources accordingly based on the project requirements.
+        # More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
+        resources:
+          limits:
+            cpu: 500m
+            memory: 128Mi
+          requests:
+            cpu: 10m
+            memory: 64Mi
+        volumeMounts:
+          - name: hl-kubeconfig
+            mountPath: /.kube/
+      terminationGracePeriodSeconds: 10

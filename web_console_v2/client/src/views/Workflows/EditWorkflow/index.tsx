@@ -1,6 +1,6 @@
-import React, { FC, useState } from 'react';
-import styled from 'styled-components';
-import { Steps, Row, Card } from 'antd';
+import React, { FC, useState, useEffect } from 'react';
+import styled from './index.module.less';
+import { Steps, Grid, Card } from '@arco-design/web-react';
 import StepOneBasic from './StepOneBasic';
 import SteptTwoConfig from './SteptTwoConfig';
 import { Route, useHistory, useParams } from 'react-router-dom';
@@ -11,15 +11,7 @@ import SharedPageLayout from 'components/SharedPageLayout';
 import BackButton from 'components/BackButton';
 
 const { Step } = Steps;
-
-const StepContainer = styled.div`
-  width: 350px;
-`;
-const FormArea = styled.section`
-  flex: 1;
-  margin-top: 12px;
-  background-color: white;
-`;
+const Row = Grid.Row;
 
 enum CreateSteps {
   basic,
@@ -30,8 +22,13 @@ const WorkflowsEdit: FC = () => {
   const { t } = useTranslation();
   const history = useHistory();
   const params = useParams<{ step: keyof typeof CreateSteps; id?: string }>();
-  const [currentStep, setStep] = useState(CreateSteps[params.step || 'basic']);
+  const [currentStep, setStep] = useState(CreateSteps[params.step || 'basic'] + 1);
+  const [isFormValueChanged, setIsFormValueChanged] = useState(false);
   const reset = useResetCreateForms();
+
+  useEffect(() => {
+    setStep(CreateSteps[params.step || 'basic'] + 1);
+  }, [params.step]);
 
   useUnmount(() => {
     reset();
@@ -39,33 +36,46 @@ const WorkflowsEdit: FC = () => {
 
   return (
     <SharedPageLayout
-      title={<BackButton onClick={() => history.goBack()}>{t('menu.label_workflow')}</BackButton>}
+      title={
+        <BackButton
+          onClick={() => history.replace(`/workflow-center/workflows`)}
+          isShowConfirmModal={isFormValueChanged}
+        >
+          {t('menu.label_workflow')}
+        </BackButton>
+      }
       contentWrapByCard={false}
     >
       <Card>
         <Row justify="center">
-          <StepContainer>
+          <div className={styled.step_container}>
             <Steps current={currentStep}>
               <Step title={t('workflow.step_basic')} />
               <Step title={t('workflow.step_config')} />
             </Steps>
-          </StepContainer>
+          </div>
         </Row>
       </Card>
 
-      <FormArea>
+      <section className={styled.form_area}>
         <Route
-          path={`/workflows/edit/basic/:id`}
+          path={`/workflow-center/workflows/edit/basic/:id`}
           exact
-          render={(props) => <StepOneBasic onSuccess={setToConfigStep} {...props} />}
+          render={() => <StepOneBasic onFormValueChange={onFormValueChange} />}
         />
-        <Route path={`/workflows/edit/config/:id`} exact component={SteptTwoConfig} />
-      </FormArea>
+        <Route
+          path={`/workflow-center/workflows/edit/config/:id`}
+          exact
+          component={SteptTwoConfig}
+        />
+      </section>
     </SharedPageLayout>
   );
 
-  function setToConfigStep() {
-    setStep(CreateSteps.config);
+  function onFormValueChange() {
+    if (!isFormValueChanged) {
+      setIsFormValueChanged(true);
+    }
   }
 };
 

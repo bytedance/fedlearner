@@ -1,0 +1,37 @@
+.var_name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 550px;
+  flex: 1 1 0%;
+  padding-left: 10px;
+  font-size: 13px;
+  user-select: none;
+
+  &:empty {
+    color: var(--textColorSecondary);
+
+    &::before {
+      content: '// 补全变量信息';
+      font-weight: normal;
+    }
+  }
+}
+
+.action_button {
+  margin-right: 5px;
+}
+
+.no_link {
+  color: var(--textColorSecondary);
+}
+
+.open_indicator {
+  transition: 0.4s var(--commonTiming);
+}
+
+&[data-open='true'] {
+  .open_indicator {
+    transform: rotate(180deg);
+  }
+}

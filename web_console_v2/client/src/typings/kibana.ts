@@ -32,6 +32,19 @@ export enum KibanaQueryFields {
   split = 'split',
 }
 
-export type KibanaQueryParams = Partial<Record<KibanaQueryFields, any>>;
+export type KibanaQueryParams = {
+  type?: KibanaChartType;
+  interval?: string;
+  x_axis_field?: string;
+  query?: string;
+  start_time?: number;
+  end_time?: number;
+  numerator?: string;
+  denominator?: string;
+  aggregator?: KibanaAggregator;
+  value_field?: string;
+  timer_names?: string;
+  split?: boolean;
+};
 
 export type KiabanaMetrics = [DateTime, number][];

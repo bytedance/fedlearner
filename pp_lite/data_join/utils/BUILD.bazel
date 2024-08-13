@@ -1,0 +1,52 @@
+load("@rules_python//python:defs.bzl", "py_library", "py_test")
+
+py_library(
+    name = "utils",
+    srcs = [
+        "example_id_reader.py",
+        "example_id_writer.py",
+        "generators.py",
+        "partitioner.py",
+    ],
+    visibility = ["//pp_lite:pp_lite_package"],
+    deps = [
+        "//pp_lite/proto:py_proto",
+        "@common_cityhash//:pkg",
+        "@common_fsspec//:pkg",
+        "@common_pandas//:pkg",
+        "@common_pyarrow//:pkg",  # keep
+    ],
+)
+
+py_test(
+    name = "example_id_reader_test",
+    size = "small",
+    srcs = ["example_id_reader_test.py"],
+    visibility = ["//pp_lite:pp_lite_package"],
+    deps = [
+        ":utils",
+        "//pp_lite/testing",
+    ],
+)
+
+py_test(
+    name = "example_id_writer_test",
+    size = "small",
+    srcs = ["example_id_writer_test.py"],
+    visibility = ["//pp_lite:pp_lite_package"],
+    deps = [
+        ":utils",
+        "//pp_lite/testing",
+    ],
+)
+
+py_test(
+    name = "partitioner_test",
+    size = "medium",
+    srcs = ["partitioner_test.py"],
+    visibility = ["//pp_lite:pp_lite_package"],
+    deps = [
+        ":utils",
+        "//pp_lite/data_join/psi_ot",
+    ],
+)

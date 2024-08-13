@@ -1,0 +1,150 @@
+load("@rules_python//python:defs.bzl", "py_binary", "py_library")
+
+package(default_visibility = [":console_api_package"])
+
+package_group(
+    name = "console_api_package",
+    packages = ["//web_console_v2/api/..."],
+)
+
+filegroup(
+    name = "srcs",
+    srcs = [
+        "Makefile",
+        "README.md",
+    ],
+)
+
+py_library(
+    name = "checks_lib",
+    srcs = ["checks.py"],
+    imports = ["."],
+    deps = [":envs_lib"],
+)
+
+py_library(
+    name = "command_lib",
+    srcs = [
+        "command.py",
+        "es_configuration.py",
+    ],
+    imports = ["."],
+    deps = [
+        "//web_console_v2/api/fedlearner_webconsole:app_lib",
+        "//web_console_v2/api/fedlearner_webconsole:initial_db_lib",
+        "//web_console_v2/api/fedlearner_webconsole/utils:es_lib",
+        "//web_console_v2/api/tools:lib",
+        "@common_click//:pkg",
+        "@common_elasticsearch//:pkg",
+        "@common_flask_migrate//:pkg",
+        "@common_requests//:pkg",
+    ],
+)
+
+py_library(
+    name = "config_lib",
+    srcs = ["config.py"],
+    imports = ["."],
+    deps = [
+        ":envs_lib",
+        "//web_console_v2/api/fedlearner_webconsole:db_lib",
+    ],
+)
+
+py_library(
+    name = "envs_lib",
+    srcs = ["envs.py"],
+    imports = ["."],
+    deps = [
+        "//web_console_v2/api/fedlearner_webconsole/utils:const_lib",
+        "//web_console_v2/api/protocols/fedlearner_webconsole/proto:py_proto",
+        "@common_pytz//:pkg",
+    ],
+)
+
+py_test(
+    name = "envs_lib_test",
+    size = "small",
+    srcs = [
+        "envs_test.py",
+    ],
+    imports = [".."],
+    main = "envs_test.py",
+    deps = [
+        ":envs_lib",
+    ],
+)
+
+py_library(
+    name = "logging_config_lib",
+    srcs = ["logging_config.py"],
+    imports = ["."],
+    deps = [
+        ":envs_lib",
+        "//web_console_v2/api/fedlearner_webconsole/middleware:log_filter_lib",
+    ],
+)
+
+py_binary(
+    name = "rpc_server_bin",
+    srcs = ["rpc_server.py"],
+    imports = ["."],
+    main = "rpc_server.py",
+    deps = [
+        ":envs_lib",
+        "//web_console_v2/api/fedlearner_webconsole/rpc:server_lib",
+        "//web_console_v2/api/fedlearner_webconsole/utils:hooks_lib",
+    ],
+)
+
+py_binary(
+    name = "composer_bin",
+    srcs = ["composer.py"],
+    imports = ["."],
+    main = "composer.py",
+    deps = [
+        "//web_console_v2/api/fedlearner_webconsole:db_lib",
+        "//web_console_v2/api/fedlearner_webconsole/composer:composer_lib",
+        "//web_console_v2/api/fedlearner_webconsole/utils:hooks_lib",
+    ],
+)
+
+py_library(
+    name = "server_lib",
+    srcs = ["server.py"],
+    imports = ["."],
+    deps = [
+        ":checks_lib",
+        ":config_lib",
+        ":envs_lib",
+        "//web_console_v2/api/fedlearner_webconsole:app_lib",
+        "//web_console_v2/api/fedlearner_webconsole/middleware:middlewares_lib",
+        "//web_console_v2/api/fedlearner_webconsole/utils:hooks_lib",
+        "@common_flask//:pkg",
+        "@common_gunicorn//:pkg",
+    ],
+)
+
+filegroup(
+    name = "gunicorn_config",
+    srcs = [
+        "gunicorn_config.py",
+    ],
+)
+
+py_binary(
+    name = "entrypoint_bin",
+    srcs = ["entrypoint.py"],
+    imports = ["."],
+    main = "entrypoint.py",
+    deps = [
+        ":envs_lib",
+        ":server_lib",
+        "//web_console_v2/api/fedlearner_webconsole:db_lib",
+        "//web_console_v2/api/fedlearner_webconsole/composer:composer_lib",
+        "//web_console_v2/api/fedlearner_webconsole/rpc:server_lib",
+        "//web_console_v2/api/fedlearner_webconsole/utils:hooks_lib",
+        "@common_flask//:pkg",
+        "@common_gunicorn//:pkg",
+    ],
+)

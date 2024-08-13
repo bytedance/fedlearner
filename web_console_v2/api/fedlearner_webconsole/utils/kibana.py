@@ -1,4 +1,4 @@
-# Copyright 2021 The FedLearner Authors. All Rights Reserved.
+# Copyright 2023 The FedLearner Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the 'License');
 # you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
 # limitations under the License.
 
 # coding: utf-8
-# pylint: disable=invalid-string-quote
+# pylint: disable=invalid-string-quote,missing-type-doc,missing-return-type-doc,consider-using-f-string
 import hashlib
 import os
 import re
@@ -37,34 +37,22 @@ class Kibana(object):
     """
     TSVB = ('Rate', 'Ratio', 'Numeric')
     TIMELION = ('Time', 'Timer')
-    RISON_REPLACEMENT = {' ': '%20',
-                         '"': '%22',
-                         '#': '%23',
-                         '%': '%25',
-                         '&': '%26',
-                         '+': '%2B',
-                         '/': '%2F',
-                         '=': '%3D'}
-    TIMELION_QUERY_REPLACEMENT = {' and ': ' AND ',
-                                  ' or ': ' OR '}
+    RISON_REPLACEMENT = {' ': '%20', '"': '%22', '#': '%23', '%': '%25', '&': '%26', '+': '%2B', '/': '%2F', '=': '%3D'}
+    TIMELION_QUERY_REPLACEMENT = {' and ': ' AND ', ' or ': ' OR '}
     LOGICAL_PATTERN = re.compile(' and | or ', re.IGNORECASE)
-    TSVB_AGG_TYPE = {'Average': 'avg',
-                     'Sum': 'sum',
-                     'Max': 'max',
-                     'Min': 'min',
-                     'Variance': 'variance',
-                     'Std. Deviation': 'std_deviation',
-                     'Sum of Squares': 'sum_of_squares'}
-    TIMELION_AGG_TYPE = {'Average': 'avg',
-                         'Sum': 'sum',
-                         'Max': 'max',
-                         'Min': 'min'}
-    COLORS = ['#DA6E6E', '#FA8080', '#789DFF',
-              '#66D4FF', '#6EB518', '#9AF02E']
+    TSVB_AGG_TYPE = {
+        'Average': 'avg',
+        'Sum': 'sum',
+        'Max': 'max',
+        'Min': 'min',
+        'Variance': 'variance',
+        'Std. Deviation': 'std_deviation',
+        'Sum of Squares': 'sum_of_squares'
+    }
+    TIMELION_AGG_TYPE = {'Average': 'avg', 'Sum': 'sum', 'Max': 'max', 'Min': 'min'}
+    COLORS = ['#DA6E6E', '#FA8080', '#789DFF', '#66D4FF', '#6EB518', '#9AF02E']
     # metrics* for all other job types
-    JOB_INDEX = {JobType.RAW_DATA: 'raw_data',
-                 JobType.DATA_JOIN: 'data_join',
-                 JobType.PSI_DATA_JOIN: 'data_join'}
+    JOB_INDEX = {JobType.RAW_DATA: 'raw_data', JobType.DATA_JOIN: 'data_join', JobType.PSI_DATA_JOIN: 'data_join'}
     BASIC_QUERY = "app/kibana#/visualize/create" \
                   "?type={type}&_g=(refreshInterval:(pause:!t,value:0)," \
                   "time:(from:'{start_time}',to:'{end_time}'))&" \
@@ -83,17 +71,10 @@ class Kibana(object):
         if 'query' in args and args['query']:
             panel['filter']['query'] += ' and ({})'.format(args['query'])
         st, et = Kibana._parse_start_end_time(args, use_now=False)
-        req = {
-            'timerange': {
-                'timezone': Envs.TZ.zone,
-                'min': st,
-                'max': et
-            },
-            'panels': [panel]
-        }
-        res = requests.post(
-            os.path.join(Envs.KIBANA_SERVICE_ADDRESS, 'api/metrics/vis/data'),
-            json=req, headers={'kbn-xsrf': 'true'})
+        req = {'timerange': {'timezone': Envs.TZ.zone, 'min': st, 'max': et}, 'panels': [panel]}
+        res = requests.post(os.path.join(Envs.KIBANA_SERVICE_ADDRESS, 'api/metrics/vis/data'),
+                            json=req,
+                            headers={'kbn-xsrf': 'true'})
 
         try:
             res.raise_for_status()
@@ -102,18 +83,15 @@ class Kibana(object):
             data = list(map(lambda x: [x[0], x[1] or 0], data))
             return data
         except Exception as e:  # pylint: disable=broad-except
-            raise InternalException(repr(e))
+            raise InternalException(repr(e)) from e
 
     @staticmethod
     def _check_remote_args(args):
-        for arg in ('type', 'interval', 'x_axis_field',
-                    'start_time', 'end_time'):
+        for arg in ('type', 'interval', 'x_axis_field', 'start_time', 'end_time'):
             Kibana._check_present(args, arg)
 
         Kibana._check_authorization(args.get('query'))
-        Kibana._check_authorization(args['x_axis_field'],
-                                    extra_allowed={'tags.event_time',
-                                                   'tags.process_time'})
+        Kibana._check_authorization(args['x_axis_field'], extra_allowed={'tags.event_time', 'tags.process_time'})
 
         if args['type'] == 'Ratio':
             for arg in ('numerator', 'denominator'):
@@ -128,8 +106,7 @@ class Kibana(object):
     @staticmethod
     def _check_present(args, arg_name):
         if arg_name not in args or args[arg_name] is None:
-            raise InvalidArgumentException(
-                'Missing required argument [{}].'.format(arg_name))
+            raise InvalidArgumentException('Missing required argument [{}].'.format(arg_name))
 
     @staticmethod
     def _check_authorization(arg, extra_allowed: set = None):
@@ -140,8 +117,7 @@ class Kibana(object):
             if not query:
                 continue
             if query.split(':')[0] not in allowed_fields:
-                raise UnauthorizedException(
-                    'Query [{}] is not authorized.'.format(query))
+                raise UnauthorizedException('Query [{}] is not authorized.'.format(query))
 
     @staticmethod
     def create_tsvb(job, args):
@@ -163,17 +139,14 @@ class Kibana(object):
             vis_state['params']['filter']['query'] += \
                 ' and ({})'.format(args['query'])
         # rison-ify and replace
-        vis_state = Kibana._regex_process(
-            prison.dumps(vis_state), Kibana.RISON_REPLACEMENT
-        )
+        vis_state = Kibana._regex_process(prison.dumps(vis_state), Kibana.RISON_REPLACEMENT)
         start_time, end_time = Kibana._parse_start_end_time(args)
         # a single-item list
         return [
-            os.path.join(Envs.KIBANA_ADDRESS,
-                         Kibana.BASIC_QUERY.format(type='metrics',
-                                                   start_time=start_time,
-                                                   end_time=end_time,
-                                                   vis_state=vis_state))
+            os.path.join(
+                Envs.KIBANA_ADDRESS,
+                Kibana.BASIC_QUERY.format(type='metrics', start_time=start_time, end_time=end_time,
+                                          vis_state=vis_state))
         ]
 
     @staticmethod
@@ -190,16 +163,11 @@ class Kibana(object):
             vis_states, times = Kibana._create_timer_visualization(job, args)
 
         # a generator, rison-ify and replace
-        vis_states = (
-            Kibana._regex_process(vs, Kibana.RISON_REPLACEMENT)
-            for vs in map(prison.dumps, vis_states)
-        )
+        vis_states = (Kibana._regex_process(vs, Kibana.RISON_REPLACEMENT) for vs in map(prison.dumps, vis_states))
         return [
-            os.path.join(Envs.KIBANA_ADDRESS,
-                         Kibana.BASIC_QUERY.format(type='timelion',
-                                                   start_time=start,
-                                                   end_time=end,
-                                                   vis_state=vis_state))
+            os.path.join(
+                Envs.KIBANA_ADDRESS,
+                Kibana.BASIC_QUERY.format(type='timelion', start_time=start, end_time=end, vis_state=vis_state))
             for (start, end), vis_state in zip(times, vis_states)
         ]
 
@@ -210,15 +178,13 @@ class Kibana(object):
                 else Kibana._normalize_datetime(
                     datetime.now(tz=pytz.utc) - timedelta(days=365 * 5))
         else:
-            st = Kibana._normalize_datetime(
-                datetime.fromtimestamp(args['start_time'], tz=pytz.utc))
+            st = Kibana._normalize_datetime(datetime.fromtimestamp(args['start_time'], tz=pytz.utc))
 
         if args['end_time'] < 0:
             et = 'now' if use_now \
                 else Kibana._normalize_datetime(datetime.now(tz=pytz.utc))
         else:
-            et = Kibana._normalize_datetime(
-                datetime.fromtimestamp(args['end_time'], tz=pytz.utc))
+            et = Kibana._normalize_datetime(datetime.fromtimestamp(args['end_time'], tz=pytz.utc))
         return st, et
 
     @staticmethod
@@ -238,10 +204,7 @@ class Kibana(object):
         re_mode = re.IGNORECASE
         escaped_keys = map(re.escape, replacement)
         pattern = re.compile("|".join(escaped_keys), re_mode)
-        return pattern.sub(
-            lambda match: replacement[match.group(0).lower()],
-            string
-        )
+        return pattern.sub(lambda match: replacement[match.group(0).lower()], string)
 
     @staticmethod
     def _create_rate_visualization(job, args):
@@ -259,51 +222,46 @@ class Kibana(object):
         params = vis_state['params']
         # `w/`, `w/o` = `with`, `without`
         # Total w/ Fake series
-        twf = Kibana._tsvb_series(
-            label='Total w/ Fake',
-            metrics={'type': 'count'}
-        )
+        twf = Kibana._tsvb_series(label='Total w/ Fake', metrics={'type': 'count'})
         # Total w/o Fake series
         twof = Kibana._tsvb_series(
             labele='Total w/o Fake',
             metrics={'type': 'count'},
             # unjoined and normal joined
-            series_filter={'query': 'tags.joined: "-1" or tags.joined: 1'}
-        )
+            series_filter={'query': 'tags.joined: "-1" or tags.joined: 1'})
         # Joined w/ Fake series
         jwf = Kibana._tsvb_series(
             label='Joined w/ Fake',
             metrics={'type': 'count'},
             # faked joined and normal joined
-            series_filter={'query': 'tags.joined: 0 or tags.joined: 1'}
-        )
+            series_filter={'query': 'tags.joined: 0 or tags.joined: 1'})
         # Joined w/o Fake series
         jwof = Kibana._tsvb_series(
             label='Joined w/o Fake',
             metrics={'type': 'count'},
             # normal joined
-            series_filter={'query': 'tags.joined: 1'}
-        )
+            series_filter={'query': 'tags.joined: 1'})
         # Join Rate w/ Fake series
         jrwf = Kibana._tsvb_series(
             series_type='ratio',
             label='Join Rate w/ Fake',
-            metrics={'numerator': 'tags.joined: 1 or tags.joined: 0',
-                     'denominator': '*',  # joined == -1 or 0 or 1
-                     'type': 'filter_ratio'},
+            metrics={
+                'numerator': 'tags.joined: 1 or tags.joined: 0',
+                'denominator': '*',  # joined == -1 or 0 or 1
+                'type': 'filter_ratio'
+            },
             line_width='2',
-            fill='0'
-        )
+            fill='0')
         # Join Rate w/o Fake series
-        jrwof = Kibana._tsvb_series(
-            series_type='ratio',
-            label='Join Rate w/o Fake',
-            metrics={'numerator': 'tags.joined: 1',
-                     'denominator': 'tags.joined: 1 or tags.joined: "-1"',
-                     'type': 'filter_ratio'},
-            line_width='2',
-            fill='0'
-        )
+        jrwof = Kibana._tsvb_series(series_type='ratio',
+                                    label='Join Rate w/o Fake',
+                                    metrics={
+                                        'numerator': 'tags.joined: 1',
+                                        'denominator': 'tags.joined: 1 or tags.joined: "-1"',
+                                        'type': 'filter_ratio'
+                                    },
+                                    line_width='2',
+                                    fill='0')
         series = [twf, twof, jwf, jwof, jrwf, jrwof]
         for series_, color in zip(series, Kibana.COLORS):
             series_['color'] = color
@@ -323,37 +281,34 @@ class Kibana(object):
         Returns:
             dict. A Kibana vis state dict
 
+        Raises:
+            ValueError: if some args not exist
+
         This method will create 3 time series and stack them in vis state.
         """
         for k in ('numerator', 'denominator'):
             if k not in args or args[k] is None:
-                raise ValueError(
-                    '[{}] should be provided in Ratio visualization'.format(k)
-                )
+                raise ValueError('[{}] should be provided in Ratio visualization'.format(k))
         vis_state = Kibana._basic_tsvb_vis_state(job, args)
         params = vis_state['params']
         # Denominator series
-        denominator = Kibana._tsvb_series(
-            label=args['denominator'],
-            metrics={'type': 'count'},
-            series_filter={'query': args['denominator']}
-        )
+        denominator = Kibana._tsvb_series(label=args['denominator'],
+                                          metrics={'type': 'count'},
+                                          series_filter={'query': args['denominator']})
         # Numerator series
-        numerator = Kibana._tsvb_series(
-            label=args['numerator'],
-            metrics={'type': 'count'},
-            series_filter={'query': args['numerator']}
-        )
+        numerator = Kibana._tsvb_series(label=args['numerator'],
+                                        metrics={'type': 'count'},
+                                        series_filter={'query': args['numerator']})
         # Ratio series
-        ratio = Kibana._tsvb_series(
-            series_type='ratio',
-            label='Ratio',
-            metrics={'numerator': args['numerator'],
-                     'denominator': args['denominator'],
-                     'type': 'filter_ratio'},
-            line_width='2',
-            fill='0'
-        )
+        ratio = Kibana._tsvb_series(series_type='ratio',
+                                    label='Ratio',
+                                    metrics={
+                                        'numerator': args['numerator'],
+                                        'denominator': args['denominator'],
+                                        'type': 'filter_ratio'
+                                    },
+                                    line_width='2',
+                                    fill='0')
         series = [denominator, numerator, ratio]
         for series_, color in zip(series, Kibana.COLORS[1::2]):
             series_['color'] = color
@@ -371,6 +326,9 @@ class Kibana(object):
         Returns:
             dict. A Kibana vis state dict
 
+        Raises:
+            ValueError: if some args not exist
+
         This method will create 1 time series. The series will filter data
             further by `name: args['metric_name']`. Aggregation will be
             applied on data's `args['value_field']` field. Aggregation types
@@ -378,21 +336,17 @@ class Kibana(object):
         """
         for k in ('aggregator', 'value_field'):
             if k not in args or args[k] is None:
-                raise ValueError(
-                    '[{}] should be provided in Numeric visualization.'
-                        .format(k)
-                )
+                raise ValueError('[{}] should be provided in Numeric visualization.'.format(k))
         assert args['aggregator'] in Kibana.TSVB_AGG_TYPE
         vis_state = Kibana._basic_tsvb_vis_state(job, args)
         params = vis_state['params']
-        series = Kibana._tsvb_series(
-            label='{} of {}'.format(args['aggregator'],
-                                    args['value_field']),
-            metrics={'type': Kibana.TSVB_AGG_TYPE[args['aggregator']],
-                     'field': args['value_field']},
-            line_width=2,
-            fill='0.5'
-        )
+        series = Kibana._tsvb_series(label='{} of {}'.format(args['aggregator'], args['value_field']),
+                                     metrics={
+                                         'type': Kibana.TSVB_AGG_TYPE[args['aggregator']],
+                                         'field': args['value_field']
+                                     },
+                                     line_width=2,
+                                     fill='0.5')
         series['color'] = Kibana.COLORS[-2]
         params['series'] = [series]
         return vis_state
@@ -422,23 +376,14 @@ class Kibana(object):
         for t1, t2 in ((et, pt), (pt, et)):
             # t1 vs t2, max/min/median of t1 as Y axis, t2 as X axis
             # aggregate on t1 and histogram on t2
-            max_series = Kibana._timelion_series(
-                query=query, index=index,
-                metric='max:' + t1, timefield=t2
-            )
-            min_series = Kibana._timelion_series(
-                query=query, index=index,
-                metric='min:' + t1, timefield=t2
-            )
-            median_series = Kibana._timelion_series(
-                query=query, index=index,
-                metric='percentiles:' + t1 + ':50', timefield=t2
-            )
+            max_series = Kibana._timelion_series(query=query, index=index, metric='max:' + t1, timefield=t2)
+            min_series = Kibana._timelion_series(query=query, index=index, metric='min:' + t1, timefield=t2)
+            median_series = Kibana._timelion_series(query=query,
+                                                    index=index,
+                                                    metric='percentiles:' + t1 + ':50',
+                                                    timefield=t2)
             series = ','.join((max_series, min_series, median_series))
-            vis_state = {"type": "timelion",
-                         "params": {"expression": series,
-                                    "interval": interval},
-                         "aggs": []}
+            vis_state = {"type": "timelion", "params": {"expression": series, "interval": interval}, "aggs": []}
             vis_states.append(vis_state)
         by_pt_start = Kibana._get_start_from_job(job)
         by_pt_end = 'now'
@@ -451,12 +396,10 @@ class Kibana(object):
         if not names:
             return [], []
         # split by comma, strip whitespaces of each name, filter out empty ones
-        args['timer_names'] = [name for name in
-                               map(str.strip, names.split(',')) if name]
+        args['timer_names'] = [name for name in map(str.strip, names.split(',')) if name]
 
         if args['aggregator'] not in Kibana.TIMELION_AGG_TYPE:
-            raise TypeError('Aggregator [{}] is not supported in Timer '
-                            'visualization.'.format(args['aggregator']))
+            raise TypeError('Aggregator [{}] is not supported in Timer ' 'visualization.'.format(args['aggregator']))
         metric = '{}:value'.format(Kibana.TIMELION_AGG_TYPE[args['aggregator']])
 
         query = 'tags.application_id:{}'.format(job.name)
@@ -465,25 +408,29 @@ class Kibana(object):
         interval = args['interval'] if args['interval'] != '' else 'auto'
         series = []
         for timer in args['timer_names']:
-            s = Kibana._timelion_series(
-                query=query + ' AND name:{}'.format(timer), index='metrics*',
-                metric=metric, timefield='tags.process_time'
-            )
+            s = Kibana._timelion_series(query=query + ' AND name:{}'.format(timer),
+                                        index='metrics*',
+                                        metric=metric,
+                                        timefield='tags.process_time')
             series.append(s)
         if args['split']:
             # split series to different plots
             vis_states = [{
                 "type": "timelion",
-                "params": {"expression": s,
-                           "interval": interval},
+                "params": {
+                    "expression": s,
+                    "interval": interval
+                },
                 "aggs": []
             } for s in series]
         else:
             # multiple series in one plot, a single-item list
             vis_states = [{
                 "type": "timelion",
-                "params": {"expression": ','.join(series),
-                           "interval": interval},
+                "params": {
+                    "expression": ','.join(series),
+                    "interval": interval
+                },
                 "aggs": []
             }]
         start = Kibana._get_start_from_job(job)
@@ -508,27 +455,29 @@ class Kibana(object):
 
         """
         assert 'x_axis_field' in args and args['x_axis_field']
-        vis_state = {"aggs": [],
-                     "params": {"axis_formatter": "number",
-                                "axis_min": "",
-                                "axis_position": "left",
-                                "axis_scale": "normal",
-                                "default_index_pattern": "metrics*",
-                                "filter": {},
-                                "index_pattern": "",
-                                "interval": "",
-                                "isModelInvalid": False,
-                                "show_grid": 1,
-                                "show_legend": 1,
-                                "time_field": "",
-                                "type": "timeseries"}}
+        vis_state = {
+            "aggs": [],
+            "params": {
+                "axis_formatter": "number",
+                "axis_min": "",
+                "axis_position": "left",
+                "axis_scale": "normal",
+                "default_index_pattern": "metrics*",
+                "filter": {},
+                "index_pattern": "",
+                "interval": "",
+                "isModelInvalid": False,
+                "show_grid": 1,
+                "show_legend": 1,
+                "time_field": "",
+                "type": "timeseries"
+            }
+        }
         params = vis_state['params']
         params['interval'] = args.get('interval', '')
         params['index_pattern'] = Kibana.JOB_INDEX \
                                       .get(job.job_type, 'metrics') + '*'
-        params['filter'] = Kibana._filter_query(
-            'tags.application_id:"{}"'.format(job.name)
-        )
+        params['filter'] = Kibana._filter_query('tags.application_id:"{}"'.format(job.name))
         params['time_field'] = args['x_axis_field']
         return vis_state
 
@@ -547,7 +496,8 @@ class Kibana(object):
                 'series_filter': dict, additional filter on data,
                                  only applied on this series.
 
-        Returns: dict, a Kibana TSVB visualization time series definition
+        Returns:
+            dict, a Kibana TSVB visualization time series definition
 
         """
         # series_id is meaningless and arbitrary to us but necessary
@@ -576,9 +526,7 @@ class Kibana(object):
         }
         if 'series_filter' in kwargs and 'query' in kwargs['series_filter']:
             series['split_mode'] = 'filter'
-            series['filter'] = Kibana._filter_query(
-                kwargs['series_filter']['query']
-            )
+            series['filter'] = Kibana._filter_query(kwargs['series_filter']['query'])
         if series_type == 'ratio':
             # if this is a ratio series, split axis and set axis range
             series['separate_axis'] = 1
@@ -591,9 +539,7 @@ class Kibana(object):
         assert 'metric' in kwargs
         assert 'timefield' in kwargs
         # convert all logical `and` and `or` to `AND` and `OR`
-        query = Kibana._regex_process(
-            kwargs.get('query', '*'), Kibana.TIMELION_QUERY_REPLACEMENT
-        )
+        query = Kibana._regex_process(kwargs.get('query', '*'), Kibana.TIMELION_QUERY_REPLACEMENT)
         return ".es(q=\"{query}\", index={index}, " \
                "metric={metric}, timefield={timefield})" \
                ".legend(showTime=true)" \
@@ -602,8 +548,10 @@ class Kibana(object):
 
     @staticmethod
     def _filter_query(query):
-        return {'language': 'kuery',  # Kibana query
-                'query': query}
+        return {
+            'language': 'kuery',  # Kibana query
+            'query': query
+        }
 
     @staticmethod
     def _get_start_from_job(job):

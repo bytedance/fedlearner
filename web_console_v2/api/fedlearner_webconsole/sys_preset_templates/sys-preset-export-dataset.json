@@ -1,0 +1,277 @@
+{
+    "name": "sys-preset-export-dataset",
+    "group_alias": "sys_preset_export_dataset",
+    "config": {
+        "group_alias": "sys_preset_export_dataset",
+        "variables": [
+            {
+                "name": "dataset_path",
+                "access_mode": "PEER_READABLE",
+                "widget_schema": "{\"component\":\"Input\",\"required\":true,\"tooltip\":\"待倒出数据集路径\",\"hidden\":true,\"tag\":\"INPUT_PATH\"}",
+                "typed_value": "",
+                "tag": "INPUT_PATH",
+                "value": "",
+                "value_type": "STRING"
+            },
+            {
+                "name": "export_path",
+                "access_mode": "PEER_READABLE",
+                "widget_schema": "{\"component\":\"Input\",\"required\":true,\"tooltip\":\"导出路径\",\"hidden\":true,\"tag\":\"OUTPUT_PATH\"}",
+                "typed_value": "",
+                "tag": "OUTPUT_PATH",
+                "value": "",
+                "value_type": "STRING"
+            },
+            {
+                "name": "file_wildcard",
+                "value": "batch/**/**",
+                "access_mode": "PEER_READABLE",
+                "widget_schema": "{\"component\":\"Input\",\"required\":true,\"hidden\":true,\"tag\":\"INPUT_PATH\"}",
+                "typed_value": "batch/**/**",
+                "tag": "INPUT_PATH",
+                "value_type": "STRING"
+            },
+            {
+                "name": "driver_cores",
+                "value": "1",
+                "access_mode": "PEER_READABLE",
+                "widget_schema": "{\"component\":\"Input\",\"required\":true,\"hidden\":true,\"tag\":\"RESOURCE_ALLOCATION\"}",
+                "typed_value": "1",
+                "tag": "RESOURCE_ALLOCATION",
+                "value_type": "STRING"
+            },
+            {
+                "name": "driver_cores_limit",
+                "value": "4000m",
+                "access_mode": "PEER_READABLE",
+                "widget_schema": "{\"component\":\"Input\",\"required\":true,\"hidden\":true,\"tag\":\"RESOURCE_ALLOCATION\"}",
+                "typed_value": "4000m",
+                "tag": "RESOURCE_ALLOCATION",
+                "value_type": "STRING"
+            },
+            {
+                "name": "driver_mem",
+                "value": "4g",
+                "access_mode": "PEER_READABLE",
+                "widget_schema": "{\"component\":\"Input\",\"required\":true,\"hidden\":true,\"tag\":\"RESOURCE_ALLOCATION\"}",
+                "typed_value": "4g",
+                "tag": "RESOURCE_ALLOCATION",
+                "value_type": "STRING"
+            },
+            {
+                "name": "executor_cores",
+                "value": "2",
+                "access_mode": "PEER_READABLE",
+                "widget_schema": "{\"component\":\"Input\",\"required\":true,\"hidden\":false,\"tag\":\"RESOURCE_ALLOCATION\"}",
+                "typed_value": "2",
+                "tag": "RESOURCE_ALLOCATION",
+                "value_type": "STRING"
+            },
+            {
+                "name": "executor_mem",
+                "value": "4g",
+                "access_mode": "PEER_READABLE",
+                "widget_schema": "{\"component\":\"Input\",\"required\":true,\"hidden\":false,\"tag\":\"RESOURCE_ALLOCATION\"}",
+                "typed_value": "4g",
+                "tag": "RESOURCE_ALLOCATION",
+                "value_type": "STRING"
+            },
+            {
+                "name": "initial_executors",
+                "value": "2",
+                "access_mode": "PEER_READABLE",
+                "widget_schema": "{\"component\":\"Input\",\"required\":true,\"hidden\":false,\"tag\":\"RESOURCE_ALLOCATION\"}",
+                "typed_value": "2",
+                "tag": "RESOURCE_ALLOCATION",
+                "value_type": "STRING"
+            },
+            {
+                "name": "max_executors",
+                "value": "128",
+                "access_mode": "PEER_READABLE",
+                "widget_schema": "{\"component\":\"Input\",\"required\":true,\"hidden\":false,\"tag\":\"RESOURCE_ALLOCATION\"}",
+                "typed_value": "128",
+                "tag": "RESOURCE_ALLOCATION",
+                "value_type": "STRING"
+            },
+            {
+                "name": "min_executors",
+                "value": "2",
+                "access_mode": "PEER_READABLE",
+                "widget_schema": "{\"component\":\"Input\",\"required\":true,\"hidden\":false,\"tag\":\"RESOURCE_ALLOCATION\"}",
+                "typed_value": "2",
+                "tag": "RESOURCE_ALLOCATION",
+                "value_type": "STRING"
+            },
+            {
+                "name": "file_format",
+                "value": "tfrecords",
+                "access_mode": "PEER_READABLE",
+                "widget_schema": "{\"component\":\"Input\",\"required\":true,\"tag\":\"OPERATING_PARAM\",\"tooltip\":\"文件存储格式\"}",
+                "typed_value": "tfrecords",
+                "tag": "OPERATING_PARAM",
+                "value_type": "STRING"
+            },
+            {
+                "name": "batch_name",
+                "access_mode": "PEER_READABLE",
+                "widget_schema": "{\"component\":\"Input\",\"required\":true,\"tooltip\":\"数据批次名\",\"tag\":\"OPERATING_PARAM\"}",
+                "typed_value": "",
+                "tag": "OPERATING_PARAM",
+                "value": "",
+                "value_type": "STRING"
+            }
+        ],
+        "job_definitions": [
+            {
+                "name": "export-dataset",
+                "job_type": "TRANSFORMER",
+                "yaml_template": "{\n    \"apiVersion\": \"sparkoperator.k8s.io/v1beta2\",\n    \"kind\": \"SparkApplication\",\n    \"metadata\": {\n        \"name\": self.name,\n        \"namespace\": system.variables.namespace,\n        \"labels\": dict(system.variables.labels),\n        \"annotations\": {\n            \"queue\": \"fedlearner-spark\",\n            \"schedulerName\": \"batch\",\n        },\n    },\n    \"spec\": {\n        \"type\": \"Python\",\n        \"pythonVersion\": \"3\",\n        \"mode\": \"cluster\",\n        \"image\": (system.variables.get(\"spark_image_repo\") or str(system.variables.image_repo + \"/pp_data_inspection\")) + \":\" + system.version,\n        \"imagePullPolicy\": \"IfNotPresent\",\n        \"volumes\": list(system.variables.volumes_list),\n        \"mainApplicationFile\": \"/opt/spark/work-dir/export_dataset.py\",\n        \"arguments\": [\n            \"--data_path=\" + str(workflow.variables.dataset_path),\n            \"--file_wildcard=\" + str(workflow.variables.file_wildcard),\n            \"--export_path=\" + str(workflow.variables.export_path),\n            \"--batch_name=\" + str(workflow.variables.batch_name),\n            \"--file_format=\" + str(workflow.variables.file_format)\n        ],\n        \"sparkVersion\": \"3.0.0\",\n        \"restartPolicy\": {\n            \"type\": \"OnFailure\",\n            \"onFailureRetries\": 3,\n            \"onFailureRetryInterval\": 10,\n            \"onSubmissionFailureRetries\": 5,\n            \"onSubmissionFailureRetryInterval\": 20\n        },\n        \"driver\": {\n            \"cores\": int(workflow.variables.driver_cores),\n            \"coreLimit\": workflow.variables.driver_cores_limit,\n            \"memory\": workflow.variables.driver_mem,\n            \"labels\": {\n                \"version\": \"3.0.0\"\n            },\n            \"serviceAccount\": \"spark\",\n            \"volumeMounts\": list(system.variables.volume_mounts_list),\n            \"env\": system.variables.envs_list + []\n\n        },\n        \"executor\": {\n            \"cores\": int(workflow.variables.executor_cores),\n            \"instances\": int(workflow.variables.initial_executors),\n            \"memory\": workflow.variables.executor_mem,\n            \"labels\": {\n                \"version\": \"3.0.0\"\n            },\n            \"volumeMounts\": list(system.variables.volume_mounts_list),\n            \"env\": system.variables.envs_list + []\n        },\n        \"dynamicAllocation\": {\n            \"enabled\": True,\n            \"initialExecutors\": int(workflow.variables.initial_executors),\n            \"maxExecutors\": int(workflow.variables.max_executors),\n            \"minExecutors\": int(workflow.variables.min_executors)\n        }\n    }\n}\n",
+                "is_federated": false,
+                "variables": [],
+                "dependencies": [],
+                "easy_mode": false
+            }
+        ]
+    },
+    "editor_info": {
+        "yaml_editor_infos": {
+            "export-dataset": {
+                "slots": {
+                    "Slot_labels": {
+                        "reference": "system.variables.labels",
+                        "help": "建议不修改，格式： {}",
+                        "reference_type": "SYSTEM",
+                        "label": "FLAPP额外元信息",
+                        "default_value": {},
+                        "value_type": "OBJECT",
+                        "default": ""
+                    },
+                    "Slot_volumes": {
+                        "reference": "system.variables.volumes_list",
+                        "help": "建议不修改，数组类型，和volume_mounts一一对应",
+                        "reference_type": "SYSTEM",
+                        "label": "为Pod提供的卷",
+                        "default_value": [
+                            {
+                                "name": "data",
+                                "persistentVolumeClaim": {
+                                    "claimName": "pvc-fedlearner-default"
+                                }
+                            }
+                        ],
+                        "value_type": "LIST",
+                        "default": ""
+                    },
+                    "Slot_driver_cores": {
+                        "reference": "self.variables.undefined",
+                        "help": "driver核心数",
+                        "reference_type": "SELF",
+                        "label": "driver核心数",
+                        "default_value": "1000m",
+                        "default": "",
+                        "value_type": "STRING"
+                    },
+                    "Slot_configs": {
+                        "help": "使用特征选择组件",
+                        "label": "配置",
+                        "default_value": {},
+                        "value_type": "OBJECT",
+                        "reference": "",
+                        "default": "",
+                        "reference_type": "DEFAULT"
+                    },
+                    "Slot_executor_instances": {
+                        "reference": "self.variables.undefined",
+                        "help": "excutor实例数",
+                        "reference_type": "SELF",
+                        "label": "excutor实例数",
+                        "default_value": 1.0,
+                        "value_type": "INT",
+                        "default": ""
+                    },
+                    "Slot_executor_cores": {
+                        "reference": "self.variables.undefined",
+                        "help": "excutor核心数",
+                        "reference_type": "SELF",
+                        "label": "excutor核心数",
+                        "default_value": "1000m",
+                        "default": "",
+                        "value_type": "STRING"
+                    },
+                    "Slot_image": {
+                        "reference": "system.variables.spark_image",
+                        "help": "特征工程时选用的镜像",
+                        "reference_type": "SYSTEM",
+                        "label": "镜像",
+                        "default_value": "artifact.bytedance.com/tce/spark_tfrecords_base:a3b2965430074bce316b13ec98ba8856",
+                        "default": "",
+                        "value_type": "STRING"
+                    },
+                    "Slot_spark_transformer_file": {
+                        "label": "特征工程脚本文件",
+                        "default_value": "aaaaaa",
+                        "reference": "",
+                        "default": "",
+                        "help": "",
+                        "reference_type": "DEFAULT",
+                        "value_type": "STRING"
+                    },
+                    "Slot_driver_core_limit": {
+                        "reference": "self.variables.undefined",
+                        "help": "driver核心数限制",
+                        "reference_type": "SELF",
+                        "label": "driver核心数限制",
+                        "default_value": "1200m",
+                        "default": "",
+                        "value_type": "STRING"
+                    },
+                    "Slot_volume_mounts": {
+                        "reference": "system.variables.volume_mounts_list",
+                        "help": "建议不修改，容器中卷挂载的位置，数组类型",
+                        "reference_type": "SYSTEM",
+                        "label": "卷挂载位置",
+                        "default_value": [
+                            {
+                                "mountPath": "/data",
+                                "name": "data"
+                            }
+                        ],
+                        "value_type": "LIST",
+                        "default": ""
+                    },
+                    "Slot_dataset": {
+                        "label": "输入数据集",
+                        "default_value": "",
+                        "reference": "",
+                        "default": "",
+                        "help": "",
+                        "reference_type": "DEFAULT",
+                        "value_type": "STRING"
+                    },
+                    "Slot_driver_memory": {
+                        "reference": "self.variables.undefined",
+                        "help": "driver内存",
+                        "reference_type": "SELF",
+                        "label": "driver内存",
+                        "default_value": "1024m",
+                        "default": "",
+                        "value_type": "STRING"
+                    },
+                    "Slot_executor_memory": {
+                        "reference": "self.variables.undefined",
+                        "help": "excutor内存",
+                        "reference_type": "SELF",
+                        "label": "excutor内存",
+                        "default_value": "512m",
+                        "default": "",
+                        "value_type": "STRING"
+                    }
+                },
+                "meta_yaml": "{\n    \"apiVersion\": \"sparkoperator.k8s.io/v1beta2\",\n    \"kind\": \"SparkApplication\",\n    \"metadata\": {\n        \"name\": self.name,\n        \"namespace\": system.variables.namespace,\n        \"labels\": ${Slot_labels},\n        \"annotations\": {\n            \"queue\": \"fedlearner-spark\",\n            \"schedulerName\": \"batch\",\n        },\n    },\n    \"spec\": {\n        \"type\": \"Python\",\n        \"pythonVersion\": \"3\",\n        \"mode\": \"cluster\",\n        \"image\": ${Slot_image},\n        \"imagePullPolicy\": \"IfNotPresent\",\n        \"volumes\": ${Slot_volumes},\n        \"mainApplicationFile\": ${Slot_spark_transformer_file},\n        \"arguments\": [\n            ${Slot_dataset},\n            \"rds/**\",\n            str(${Slot_configs})\n        ],\n        \"sparkVersion\": \"3.0.0\",\n        \"restartPolicy\": {\n            \"type\": \"OnFailure\",\n            \"onFailureRetries\": 3,\n            \"onFailureRetryInterval\": 10,\n            \"onSubmissionFailureRetries\": 5,\n            \"onSubmissionFailureRetryInterval\": 20\n        },\n        \"driver\": {\n            \"cores\": ${Slot_driver_cores},\n            \"coreLimit\": ${Slot_driver_core_limit},\n            \"memory\": ${Slot_driver_memory},\n            \"labels\": {\n                \"version\": \"3.0.0\"\n            },\n            \"serviceAccount\": \"spark\",\n            \"volumeMounts\": ${Slot_volume_mounts}\n        },\n        \"executor\": {\n            \"cores\": ${Slot_executor_cores},\n            \"instances\": ${Slot_executor_instances},\n            \"memory\": ${Slot_executor_memory},\n            \"labels\": {\n                \"version\": \"3.0.0\"\n            },\n            \"volumeMounts\": ${Slot_volume_mounts}\n        }\n    }\n}\n",
+                "variables": []
+            }
+        }
+    },
+    "comment": ""
+}

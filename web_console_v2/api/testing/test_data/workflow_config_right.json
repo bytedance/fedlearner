@@ -1,0 +1,57 @@
+{
+    "group_alias": "test_workflow",
+    "variables": [
+        {
+            "name": "v1",
+            "value": "value1",
+            "access_mode": "PRIVATE",
+            "widget_schema": ""
+        },
+        {
+            "name": "v2",
+            "value": "value2",
+            "access_mode": "PEER_READABLE",
+            "widget_schema": ""
+        },
+        {
+            "name": "v3",
+            "value": "value3",
+            "access_mode": "PEER_WRITABLE",
+            "widget_schema": ""
+        }
+    ],
+    "job_definitions": [
+        {
+            "name": "data-import",
+            "job_type": "RAW_DATA",
+            "is_federated": false,
+            "yaml_template": "data-import-yaml",
+            "variables": [],
+            "dependencies": []
+        },
+        {
+            "name": "data-join",
+            "job_type": "PSI_DATA_JOIN",
+            "is_federated": true,
+            "yaml_template": "data-join-yaml",
+            "variables": [],
+            "dependencies": [
+                {
+                    "source": "data-import"
+                }
+            ]
+        },
+        {
+            "name": "training",
+            "job_type": "TREE_MODEL_TRAINING",
+            "is_federated": true,
+            "yaml_template": "training-yaml",
+            "variables": [],
+            "dependencies": [
+                {
+                    "source": "data-join"
+                }
+            ]
+        }
+    ]
+}

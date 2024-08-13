@@ -1,19 +1,29 @@
-import React, { FC } from 'react';
+/* istanbul ignore file */
+
+import React, { FC, useMemo } from 'react';
 import styled from 'styled-components';
-import { Tooltip, Tag } from 'antd';
-import { QuestionCircleOutlined } from '@ant-design/icons';
+import i18n from 'i18n';
+
+import { Tooltip, Tag, Button } from '@arco-design/web-react';
+import { IconQuestionCircle } from '@arco-design/web-react/icon';
+import { InfoCircle } from 'components/IconPark';
+import MoreActions from 'components/MoreActions';
+
+import { TooltipProps } from '@arco-design/web-react/es/Tooltip';
+import { TagProps } from '@arco-design/web-react/es/Tag';
 
 const Container = styled.div`
   display: flex;
   align-items: center;
-  font-size: 13px;
-  line-height: 1;
+  font-size: var(--textFontSizePrimary);
+  line-height: 16px;
   white-space: nowrap;
 
   &::before {
     content: '●';
     margin-right: 6px;
     font-size: 20px;
+    line-height: inherit;
     color: var(--color, var(--custom-color, #e0e0e0));
   }
 
@@ -21,22 +31,26 @@ const Container = styled.div`
     --color: var(--backgroundColorGray);
   }
   &[color='success'] {
-    --color: #00bab2;
+    --color: rgb(var(--green-6));
   }
   &[color='warning'] {
-    --color: var(--orange6);
+    --color: rgb(var(--orange-6));
   }
-  &[color='error'] {
-    --color: #fd5165;
+  &[color='error'],
+  &[color='deleted'] {
+    --color: rgb(var(--red-6));
+  }
+  &[color='pending_accept'] {
+    --color: #fa9600;
   }
   &[color='processing'] {
-    --color: var(--primaryColor);
+    --color: rgb(var(--arcoblue-6));
   }
   &[color='gold'] {
-    --color: var(--darkGold6);
+    --color: rgb(var(--gold-6));
   }
   &[color='lime'] {
-    --color: var(--darkLime6);
+    --color: rgb(var(--lime-6));
   }
 `;
 const Text = styled.span`
@@ -45,11 +59,18 @@ const Text = styled.span`
 const Help = styled.div`
   cursor: help;
 `;
-const QuestionMark = styled(QuestionCircleOutlined)`
-  width: 12px;
-  height: 12px;
-  color: var(--gray6);
+
+const StyledAfterButton = styled(Button)`
+  padding: 0 2px;
+  height: 20px;
+  font-size: 12px;
 `;
+export interface ActionItem {
+  /** Display label */
+  label: string;
+  onClick?: () => void;
+  isLoading?: boolean;
+}
 
 export type StateTypes =
   | 'processing'
@@ -58,32 +79,119 @@ export type StateTypes =
   | 'error'
   | 'default'
   | 'gold'
-  | 'lime';
+  | 'lime'
+  | 'unknown'
+  | 'pending_accept'
+  | 'deleted';
+
+export type ProgressType = 'success' | 'warning' | 'error' | 'normal' | undefined;
 
 type Props = {
-  tip?: string;
+  /** State Type, it control color */
   type: StateTypes;
+  /** Display text */
   text: string;
+  /** Tooptip tip */
+  tip?: string;
+  /** Enable tag mode */
   tag?: boolean;
+  /** Arco component <Tag/> props  */
+  tagProps?: TagProps;
+  /** <MoreAction/> actionList props */
+  actionList?: ActionItem[];
+  /** Container style */
+  containerStyle?: React.CSSProperties;
+  /** Custom render after text layout, if you pass a string, it will render a button */
+  afterText?: React.ReactNode;
+  /** Only work if afterText is string type */
+  onAfterTextClick?: () => void;
+  /** Tooptip tip position */
+  position?: TooltipProps['position'];
 };
 
-const StateIndicator: FC<Props> = ({ text, type = 'default', tip, tag }) => {
-  let Wrapper = tag ? Tag : Container;
+type LightClientTypeProps = {
+  isLightClient: boolean;
+};
 
+const stateTypeToColorMap = {
+  default: undefined,
+  unknown: 'gray',
+  success: 'green',
+  warning: 'orange',
+  error: 'red',
+  deleted: 'red',
+  pending_accept: 'orange',
+  processing: 'blue',
+  gold: 'gold',
+  lime: 'lime',
+};
+
+const StateIndicator: FC<Props> & {
+  LigthClientType: FC<LightClientTypeProps>;
+} = ({
+  text,
+  type = 'default',
+  tip,
+  position = 'top',
+  tag,
+  tagProps,
+  actionList,
+  containerStyle,
+  afterText,
+  onAfterTextClick,
+}) => {
+  const Wrapper = tag ? Tag : Container;
+
+  const afterJsx = useMemo(() => {
+    if (typeof afterText === 'string') {
+      return (
+        <StyledAfterButton type="text" size="small" onClick={onAfterTextClick}>
+          {afterText}
+        </StyledAfterButton>
+      );
+    }
+
+    return afterText;
+  }, [afterText, onAfterTextClick]);
+
+  if (actionList && actionList.length > 0) {
+    return (
+      <Wrapper color={type} style={containerStyle}>
+        <Text>{text}</Text>
+        {afterJsx}
+        <MoreActions actionList={actionList} trigger="hover">
+          <InfoCircle />
+        </MoreActions>
+      </Wrapper>
+    );
+  }
   if (tag) {
-    return <Tag color={type}>{text}</Tag>;
+    return (
+      <Tooltip content={tip} position={position}>
+        <Tag
+          id="workflow-state"
+          bordered
+          color={stateTypeToColorMap[type || 'defualt']}
+          style={containerStyle}
+          {...tagProps}
+        >
+          {text}
+        </Tag>
+      </Tooltip>
+    );
   }
 
   const Content = (
-    <Wrapper color={type}>
+    <Wrapper color={type} style={containerStyle}>
       <Text>{text}</Text>
-      {tip && <QuestionMark />}
+      {tip && <IconQuestionCircle />}
+      {afterJsx}
     </Wrapper>
   );
 
   if (tip?.trim()) {
     return (
-      <Tooltip title={tip}>
+      <Tooltip content={tip}>
         <Help>{Content}</Help>
       </Tooltip>
     );
@@ -91,5 +199,19 @@ const StateIndicator: FC<Props> = ({ text, type = 'default', tip, tag }) => {
 
   return Content;
 };
+
+const LigthClientType: FC<LightClientTypeProps> = ({ isLightClient }) => (
+  <StateIndicator
+    type={isLightClient ? 'processing' : 'default'}
+    text={
+      isLightClient
+        ? i18n.t('project.label_type_light_client')
+        : i18n.t('project.label_type_platform')
+    }
+    tag
+  />
+);
+
+StateIndicator.LigthClientType = LigthClientType;
 
 export default StateIndicator;

@@ -7,7 +7,7 @@ import DisabledSwitch from './DisabledSwitch';
 import PubSub from 'pubsub-js';
 import { QuestionCircle } from 'components/IconPark';
 import { useTranslation } from 'react-i18next';
-import { Tooltip } from 'antd';
+import { Tooltip } from '@arco-design/web-react';
 
 const ConfigJobNode: FC<JobNodeProps> = ({ data, id }) => {
   const { t } = useTranslation();
@@ -24,7 +24,7 @@ const ConfigJobNode: FC<JobNodeProps> = ({ data, id }) => {
       <DisabledSwitch size="small" checked={!isDisabled} onChange={onDisabledChange} />
 
       {isDisabled ? (
-        <Tooltip title={t('workflow.msg_diable_job_will_cause')} placement="bottomLeft">
+        <Tooltip content={t('workflow.msg_diable_job_will_cause')} position="bl">
           <GridRow gap="4" style={{ fontSize: '11px' }}>
             <JobStatusText>{t('workflow.job_node_disabled')}</JobStatusText>
             <QuestionCircle />

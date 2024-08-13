@@ -1,0 +1,48 @@
+@import '~styles/mixins.less';
+.detail_container {
+  padding: 20px 20px 0;
+  border-bottom: 1px solid var(--lineColor);
+  h3 {
+    margin-top: 0;
+    margin-bottom: -3px;
+    font-size: 16px;
+    font-weight: 600;
+    line-height: 24px;
+  }
+  .detail_comment_space {
+    font-size: 12px;
+    color: var(--textColorSecondary);
+  }
+  .detail_header_col {
+    margin-top: 9px;
+    text-align: right;
+  }
+}
+
+.detail_content {
+  padding: 0 20px;
+  .round_tag {
+    border-radius: 32px;
+  }
+  .table_header {
+    display: flex;
+    margin-top: 14px;
+    margin-bottom: 20px;
+    justify-content: space-between;
+  }
+}
+.detail_comment {
+  .MixinEllipsis(400px);
+}
+
+.model_progress_container {
+  width: 100px;
+}
+
+.algorithm_popover_padding {
+  width: 400px;
+  max-width: 400px !important;
+  :global(.arco-popover-content) {
+    padding: 0;
+  }
+}

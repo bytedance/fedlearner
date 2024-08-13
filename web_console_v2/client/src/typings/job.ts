@@ -4,7 +4,7 @@ export enum JobState {
   INVALID = 'INVALID',
   NEW = 'NEW',
   WAITING = 'WAITING',
-  /** @deprecated RUNNING changes to STARTED*/
+  /** @deprecated RUNNING changes to STARTED */
   RUNNING = 'RUNNING',
   STARTED = 'STARTED',
   COMPLETED = 'COMPLETED',
@@ -18,9 +18,11 @@ export enum JobType {
   DATA_JOIN = 'DATA_JOIN',
   PSI_DATA_JOIN = 'PSI_DATA_JOIN',
   NN_MODEL_TRANINING = 'NN_MODEL_TRANINING',
-  TREE_MODEL_TRAINING = 'TREE_MODEL_TRAINING',
   NN_MODEL_EVALUATION = 'NN_MODEL_EVALUATION',
+  TREE_MODEL_TRAINING = 'TREE_MODEL_TRAINING',
   TREE_MODEL_EVALUATION = 'TREE_MODEL_EVALUATION',
+  TRANSFORMER = 'TRANSFORMER', // debug
+  ANALYZER = 'ANALYZER',
 }
 
 export interface JobDependency {
@@ -34,10 +36,10 @@ export interface Job {
   is_federated: boolean;
   variables: Variable[];
   dependencies: JobDependency[];
+  /** If not under easy_mode, you MUST pass yaml_template manually */
+  easy_mode?: boolean;
   yaml_template?: string;
 }
-
-export type JobDefinitionForm = Omit<Job, 'dependencies'>;
 
 export enum PodState {
   RUNNING = 'RUNNING',
@@ -64,6 +66,7 @@ export interface Pod {
   name: string;
   pod_ip: string;
   state: PodState;
+  creation_timestamp: DateTime;
   /** @deprecated */
   status?: PodState;
   pod_type: string;
@@ -77,6 +80,11 @@ export enum CreateJobFlag {
   DISABLED = 3,
 }
 
+export interface ErrorMessage {
+  app: string;
+  pods: any;
+}
+
 export interface JobExecutionDetalis {
   id: number;
   name: string;
@@ -88,7 +96,8 @@ export interface JobExecutionDetalis {
   created_at: number;
   updated_at: number;
   deleted_at: number;
-  error_message?: string;
+  error_message?: ErrorMessage;
   completed_at?: number;
   yaml_template?: string;
+  start_at?: number;
 }

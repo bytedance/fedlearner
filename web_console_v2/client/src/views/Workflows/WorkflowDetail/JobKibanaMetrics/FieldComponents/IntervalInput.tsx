@@ -1,6 +1,6 @@
-import React, { ChangeEvent, FC, useState } from 'react';
+import React, { FC, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Input, Select } from 'antd';
+import { Input, Select } from '@arco-design/web-react';
 
 const { Option } = Select;
 
@@ -21,7 +21,7 @@ const IntervalInput: FC<Props> = ({ value, onChange }) => {
       placeholder={t('workflow.placeholder_interval')}
       defaultValue={n}
       onChange={onInputChange}
-      addonAfter={
+      addAfter={
         <Select defaultValue={unit} onChange={onSelectChange} style={{ width: '66px' }}>
           <Option value="m">分</Option>
           <Option value="h">小时</Option>
@@ -33,15 +33,14 @@ const IntervalInput: FC<Props> = ({ value, onChange }) => {
       }
     />
   );
-  function onInputChange(evt: ChangeEvent<HTMLInputElement>) {
-    const val = evt.target.value;
-    setN(val);
+  function onInputChange(value: string) {
+    setN(value);
 
     if (!localUnit) {
       onChange && onChange(undefined);
       return;
     }
-    onChange && onChange(val + localUnit);
+    onChange && onChange(value + localUnit);
   }
   function onSelectChange(value: string) {
     setUnit(value);

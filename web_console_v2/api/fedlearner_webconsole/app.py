@@ -1,4 +1,4 @@
-# Copyright 2021 The FedLearner Authors. All Rights Reserved.
+# Copyright 2023 The FedLearner Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,40 +16,66 @@
 # pylint: disable=wrong-import-position, global-statement
 import logging
 import logging.config
-import os
-import traceback
 
 from http import HTTPStatus
+from json import load
+from pathlib import Path
+
+from apispec.ext.marshmallow import MarshmallowPlugin
+from apispec_webframeworks.flask import FlaskPlugin
+from flasgger import APISpec, Swagger
 from flask import Flask, jsonify
 from flask_restful import Api
-from flask_jwt_extended import JWTManager
+from marshmallow import ValidationError
+from sqlalchemy import inspect
+from sqlalchemy.orm import Session
+from webargs.flaskparser import parser
+
 from envs import Envs
-from fedlearner_webconsole.utils import metrics
-
-jwt = JWTManager()
-
+from fedlearner_webconsole.utils.hooks import pre_start_hook
+from fedlearner_webconsole.composer.apis import initialize_composer_apis
+from fedlearner_webconsole.cleanup.apis import initialize_cleanup_apis
+from fedlearner_webconsole.audit.apis import initialize_audit_apis
+from fedlearner_webconsole.auth.services import UserService
+from fedlearner_webconsole.e2e.apis import initialize_e2e_apis
+from fedlearner_webconsole.flag.apis import initialize_flags_apis
+from fedlearner_webconsole.iam.apis import initialize_iams_apis
+from fedlearner_webconsole.iam.client import create_iams_for_user
+from fedlearner_webconsole.middleware.middlewares import flask_middlewares
+from fedlearner_webconsole.setting.service import SettingService
+from fedlearner_webconsole.swagger.models import schema_manager
+from fedlearner_webconsole.utils import metrics, const
 from fedlearner_webconsole.auth.apis import initialize_auth_apis
 from fedlearner_webconsole.project.apis import initialize_project_apis
-from fedlearner_webconsole.workflow_template.apis \
-    import initialize_workflow_template_apis
+from fedlearner_webconsole.participant.apis import initialize_participant_apis
+from fedlearner_webconsole.utils.decorators.pp_flask import parser as custom_parser
+from fedlearner_webconsole.utils.swagger import normalize_schema
+from fedlearner_webconsole.workflow_template.apis import initialize_workflow_template_apis
 from fedlearner_webconsole.workflow.apis import initialize_workflow_apis
 from fedlearner_webconsole.dataset.apis import initialize_dataset_apis
 from fedlearner_webconsole.job.apis import initialize_job_apis
 from fedlearner_webconsole.setting.apis import initialize_setting_apis
-from fedlearner_webconsole.mmgr.apis import initialize_mmgr_apis
+from fedlearner_webconsole.mmgr.model_apis import initialize_mmgr_model_apis
+from fedlearner_webconsole.mmgr.model_job_apis import initialize_mmgr_model_job_apis
+from fedlearner_webconsole.mmgr.model_job_group_apis import initialize_mmgr_model_job_group_apis
+from fedlearner_webconsole.algorithm.apis import initialize_algorithm_apis
 from fedlearner_webconsole.debug.apis import initialize_debug_apis
+from fedlearner_webconsole.serving.apis import initialize_serving_services_apis
 from fedlearner_webconsole.sparkapp.apis import initialize_sparkapps_apis
-from fedlearner_webconsole.rpc.server import rpc_server
+from fedlearner_webconsole.file.apis import initialize_files_apis
+from fedlearner_webconsole.tee.apis import initialize_tee_apis
 from fedlearner_webconsole.db import db
-from fedlearner_webconsole.exceptions import (make_response,
-                                              WebConsoleApiException,
-                                              InvalidArgumentException,
-                                              NotFoundException)
+from fedlearner_webconsole.exceptions import make_response, WebConsoleApiException, InvalidArgumentException
 from fedlearner_webconsole.scheduler.scheduler import scheduler
-from fedlearner_webconsole.utils.k8s_watcher import k8s_watcher
-from fedlearner_webconsole.auth.models import User, Session
-from fedlearner_webconsole.composer.composer import composer
-from logging_config import LOGGING_CONFIG
+from fedlearner_webconsole.k8s.k8s_watcher import k8s_watcher
+from logging_config import get_logging_config
+from werkzeug.exceptions import HTTPException
+
+
+@custom_parser.error_handler
+@parser.error_handler
+def handle_request_parsing_error(validation_error: ValidationError, *args, **kwargs):
+    raise InvalidArgumentException(details=validation_error.messages)
 
 
 def _handle_bad_request(error):
@@ -63,17 +89,19 @@ def _handle_bad_request(error):
     return error
 
 
-def _handle_not_found(error):
-    """Handles the not found exception raised by framework"""
-    if not isinstance(error, WebConsoleApiException):
-        return make_response(NotFoundException())
-    return error
+def _handle_wsgi_exception(error: HTTPException):
+    logging.exception('Wsgi exception: %s', str(error))
+    response = jsonify(
+        code=error.code,
+        msg=str(error),
+    )
+    response.status_code = error.code
+    return response
 
 
 def _handle_uncaught_exception(error):
     """A fallback catcher for all exceptions."""
-    logging.error('Uncaught exception %s, stack trace:\n %s', str(error),
-                  traceback.format_exc())
+    logging.exception('Uncaught exception %s', str(error))
     response = jsonify(
         code=500,
         msg='Unknown error',
@@ -82,71 +110,82 @@ def _handle_uncaught_exception(error):
     return response
 
 
-@jwt.unauthorized_loader
-def _handle_unauthorized_request(reason):
-    response = jsonify(code=HTTPStatus.UNAUTHORIZED, msg=reason)
-    return response, HTTPStatus.UNAUTHORIZED
+def _initial_iams_for_users(session: Session):
+    inspector = inspect(db.engine)
+    if inspector.has_table('users_v2'):
+        try:
+            users = UserService(session).get_all_users()
+            for u in users:
+                create_iams_for_user(u)
+        except Exception as e:  # pylint: disable=broad-except
+            logging.warning('Initial iams failed, will be OK after db migration.')
 
 
-@jwt.invalid_token_loader
-def _handle_invalid_jwt_request(reason):
-    response = jsonify(code=HTTPStatus.UNPROCESSABLE_ENTITY, msg=reason)
-    return response, HTTPStatus.UNPROCESSABLE_ENTITY
-
-
-@jwt.expired_token_loader
-def _handle_token_expired_request(expired_token):
-    response = jsonify(code=HTTPStatus.UNAUTHORIZED, msg='Token has expired')
-    return response, HTTPStatus.UNAUTHORIZED
-
-
-@jwt.user_lookup_loader
-def user_lookup_callback(jwt_header, jwt_data):
-    del jwt_header  # Unused by user load.
-
-    identity = jwt_data['sub']
-    return User.query.filter_by(username=identity).one_or_none()
-
-
-@jwt.token_in_blocklist_loader
-def check_if_token_invalid(jwt_header, jwt_data):
-    del jwt_header  # unused by check_if_token_invalid
-
-    jti = jwt_data['jti']
-    session = Session.query.filter_by(jti=jti).first()
-    return session is None
+def _init_swagger(app: Flask):
+    openapi_version = '3.0.3'
+    spec = APISpec(title='FedLearner WebConsole API Documentation',
+                   version=SettingService.get_application_version().version.version,
+                   openapi_version=openapi_version,
+                   plugins=[FlaskPlugin(), MarshmallowPlugin()])
+    schemas = schema_manager.get_schemas()
+    template = spec.to_flasgger(app, definitions=schemas, paths=[*app.view_functions.values()])
+    app.config['SWAGGER'] = {'title': 'FedLearner WebConsole API Documentation', 'uiversion': 3}
+    for path in (Path(__file__).parent / 'proto' / 'jsonschemas').glob('**/*.json'):
+        with open(path, mode='r', encoding='utf-8') as file:
+            definitions = load(file)['definitions']
+            definitions = normalize_schema(definitions, Path(path))
+            template['components']['schemas'] = {**template['components']['schemas'], **definitions}
+    template['definitions'] = template['components']['schemas']
+    Swagger(app,
+            template=template,
+            config={
+                'url_prefix': Envs.SWAGGER_URL_PREFIX,
+                'openapi': openapi_version
+            },
+            merge=True)
 
 
 def create_app(config):
+    pre_start_hook()
     # format logging
-    logging.config.dictConfig(LOGGING_CONFIG)
+    logging.config.dictConfig(get_logging_config())
 
-    app = Flask('fedlearner_webconsole')
+    app = Flask('fedlearner_webconsole', root_path=Envs.BASE_DIR)
     app.config.from_object(config)
-
-    jwt.init_app(app)
 
     # Error handlers
     app.register_error_handler(400, _handle_bad_request)
-    app.register_error_handler(404, _handle_not_found)
     app.register_error_handler(WebConsoleApiException, make_response)
+    app.register_error_handler(HTTPException, _handle_wsgi_exception)
     app.register_error_handler(Exception, _handle_uncaught_exception)
-
-    # TODO(wangsen.0914): This will be removed sooner!
-    db.init_app(app)
-
-    api = Api(prefix='/api/v2')
+    # TODO(xiangyuxuan.prs): Initial iams for all existed users, remove when not using memory-iams
+    with db.session_scope() as session:
+        _initial_iams_for_users(session)
+    api = Api(prefix=const.API_VERSION)
+    initialize_composer_apis(api)
+    initialize_cleanup_apis(api)
     initialize_auth_apis(api)
     initialize_project_apis(api)
+    initialize_participant_apis(api)
     initialize_workflow_template_apis(api)
     initialize_workflow_apis(api)
     initialize_job_apis(api)
     initialize_dataset_apis(api)
     initialize_setting_apis(api)
-    initialize_mmgr_apis(api)
+    initialize_mmgr_model_apis(api)
+    initialize_mmgr_model_job_apis(api)
+    initialize_mmgr_model_job_group_apis(api)
+    initialize_algorithm_apis(api)
     initialize_sparkapps_apis(api)
-    if os.environ.get('FLASK_ENV') != 'production' or Envs.DEBUG:
+    initialize_files_apis(api)
+    initialize_flags_apis(api)
+    initialize_serving_services_apis(api)
+    initialize_iams_apis(api)
+    initialize_e2e_apis(api)
+    initialize_tee_apis(api)
+    if Envs.FLASK_ENV != 'production' or Envs.DEBUG:
         initialize_debug_apis(api)
+    initialize_audit_apis(api)
     # A hack that use our customized error handlers
     # Ref: https://github.com/flask-restful/flask-restful/issues/280
     handle_exception = app.handle_exception
@@ -154,21 +193,16 @@ def create_app(config):
     api.init_app(app)
     app.handle_exception = handle_exception
     app.handle_user_exception = handle_user_exception
-
+    if Envs.FLASK_ENV != 'production' or Envs.DEBUG:
+        _init_swagger(app)
     # Inits k8s related stuff first since something in composer
     # may depend on it
-    if Envs.FLASK_ENV == 'production' or Envs.K8S_CONFIG_PATH is not None:
+    if app.config.get('START_K8S_WATCHER', True):
         k8s_watcher.start()
-
-    if app.config.get('START_GRPC_SERVER', True):
-        rpc_server.stop()
-        rpc_server.start(app)
     if app.config.get('START_SCHEDULER', True):
         scheduler.stop()
-        scheduler.start(app)
-    if app.config.get('START_COMPOSER', True):
-        with app.app_context():
-            composer.run(db_engine=db.get_engine())
+        scheduler.start()
 
-    metrics.emit_counter('create_app', 1)
+    metrics.emit_store('create_app', 1)
+    app = flask_middlewares.init_app(app)
     return app

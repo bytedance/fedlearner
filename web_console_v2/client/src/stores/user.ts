@@ -3,7 +3,7 @@ import store from 'store2';
 import { atom, selector } from 'recoil';
 import { fetchUserInfo } from 'services/user';
 import LOCAL_STORAGE_KEYS from 'shared/localStorageKeys';
-import { isNil } from 'lodash';
+import { isNil } from 'lodash-es';
 import { FedRoles, FedUserInfo } from 'typings/auth';
 
 export const userInfoState = atom<FedUserInfo>({

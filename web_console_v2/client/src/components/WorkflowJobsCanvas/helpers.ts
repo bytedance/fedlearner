@@ -1,7 +1,7 @@
 import { XYPosition, Edge } from 'react-flow-renderer';
 import { Job, JobState } from 'typings/job';
 import { isHead, isLast } from 'shared/array';
-import { Dictionary, head, isEmpty, isNil, last } from 'lodash';
+import { head, isEmpty, isNil, last } from 'lodash-es';
 import { Variable } from 'typings/variable';
 import i18n from 'i18n';
 import {
@@ -25,7 +25,7 @@ export type ConvertParams = {
   /** a.k.a. worlflow global settings */
   variables: Variable[];
   /** Extra data pass to react-flow node data */
-  data: Dictionary<any>;
+  data: Record<string, any>;
 };
 
 export type NodeOptions = {

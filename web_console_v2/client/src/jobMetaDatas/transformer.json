@@ -1,0 +1,108 @@
+
+{
+  "Slot_image": {
+    "reference": "system.variables.spark_image",
+    "value_type": "STRING",
+    "default_value": "",
+    "help": "镜像地址,建议不填写,默认会使用system.variables.image_repo + '/pp_data_inspection:' + system.version",
+    "reference_type": "DEFAULT",
+    "label": "镜像"
+  },
+  "Slot_labels": {
+    "reference": "system.variables.labels",
+    "value_type": "OBJECT",
+    "default_value": {},
+    "help": "建议不修改，格式： {}",
+    "reference_type": "SYSTEM",
+    "label": "FLAPP额外元信息"
+  },
+  "Slot_spark_transformer_file": {
+    "reference": "",
+    "value_type": "STRING",
+    "default_value": "transformer.py",
+    "help": "特征工程的脚本",
+    "reference_type": "DEFAULT",
+    "label": "特征工程脚本文件"
+  },
+  "Slot_dataset": {
+    "reference": "",
+    "value_type": "STRING",
+    "default_value": "",
+    "help": "",
+    "reference_type": "DEFAULT",
+    "label": "输入数据集"
+  },
+  "Slot_configs": {
+    "reference": "",
+    "value_type": "OBJECT",
+    "default_value": {},
+    "help": "使用特征选择组件",
+    "reference_type": "DEFAULT",
+    "label": "配置"
+  },
+  "Slot_driver_cores": {
+    "reference": "",
+    "value_type": "STRING",
+    "default_value": "1000m",
+    "help": "driver核心数",
+    "reference_type": "DEFAULT",
+    "label": "driver核心数"
+  },
+  "Slot_driver_core_limit": {
+    "reference": "",
+    "value_type": "STRING",
+    "default_value": "1200m",
+    "help": "driver核心数限制",
+    "reference_type": "DEFAULT",
+    "label": "driver核心数限制"
+  },
+  "Slot_driver_memory": {
+    "reference": "",
+    "value_type": "STRING",
+    "default_value": "1024m",
+    "help": "driver内存",
+    "reference_type": "DEFAULT",
+    "label": "driver内存"
+  },
+  "Slot_executor_cores": {
+    "reference": "",
+    "value_type": "STRING",
+    "default_value": "1000m",
+    "help": "excutor核心数",
+    "reference_type": "DEFAULT",
+    "label": "excutor核心数"
+  },
+  "Slot_executor_instances": {
+    "reference": "",
+    "value_type": "INT",
+    "default_value": 1,
+    "help": "excutor实例数",
+    "reference_type": "DEFAULT",
+    "label": "excutor实例数"
+  },
+  "Slot_executor_memory": {
+    "reference": "",
+    "value_type": "STRING",
+    "default_value": "512m",
+    "help": "excutor内存",
+    "reference_type": "DEFAULT",
+    "label": "excutor内存"
+  },
+
+  "Slot_volumes": {
+    "reference": "system.variables.volumes_list",
+    "value_type": "LIST",
+    "default_value": [{"persistentVolumeClaim": {"claimName": "pvc-fedlearner-default"},"name": "data"}],
+    "help": "建议不修改，数组类型，和volume_mounts一一对应",
+    "reference_type": "SYSTEM",
+    "label": "为Pod提供的卷"
+  },
+  "Slot_volume_mounts": {
+    "reference": "system.variables.volume_mounts_list",
+    "value_type": "LIST",
+    "default_value": [{"mountPath": "/data","name": "data"}],
+    "help": "建议不修改，容器中卷挂载的位置，数组类型",
+    "reference_type": "SYSTEM",
+    "label": "卷挂载位置"
+  }
+}

@@ -1,0 +1,31 @@
+load("@rules_proto//proto:defs.bzl", "proto_library")
+load("@com_github_grpc_grpc//bazel:python_rules.bzl", "py_grpc_library", "py_proto_library")
+
+# gazelle:ignore otherwise gazellel will generate self in deps
+proto_library(
+    name = "proto",
+    srcs = [
+        "arguments.proto",
+        "common.proto",
+        "data_join_control_service.proto",
+        "data_join_service.proto",
+        "hashed_data_join.proto",
+    ],
+    visibility = ["//pp_lite:pp_lite_package"],
+    deps = [
+        "@com_google_protobuf//:empty_proto",
+    ],
+)
+
+py_proto_library(
+    name = "py_proto",
+    visibility = ["//pp_lite:pp_lite_package"],
+    deps = [":proto"],
+)
+
+py_grpc_library(
+    name = "py_grpc",
+    srcs = [":proto"],
+    visibility = ["//pp_lite:pp_lite_package"],
+    deps = [":py_proto"],
+)

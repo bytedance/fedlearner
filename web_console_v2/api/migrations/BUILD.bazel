@@ -1,0 +1,6 @@
+package(default_visibility = ["//web_console_v2/api:console_api_package"])
+
+filegroup(
+    name = "migrations",
+    srcs = glob(["**/*"]),
+)

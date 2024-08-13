@@ -12,7 +12,8 @@ process.on('unhandledRejection', (err) => {
 // Ensure environment variables are read.
 require('../config/env');
 
-require('./lessVarsTransform');
+require('./multiLessVarsTransform');
+require('./generateDefaultThemeIndexFile');
 
 const fs = require('fs');
 const chalk = require('react-dev-utils/chalk');
@@ -108,7 +109,7 @@ checkBrowsers(paths.appPath, isInteractive)
       if (err) {
         return console.log(err);
       }
-      if (isInteractive) {
+      if (isInteractive && !process.env.DEBUG_CONSOLE) {
         clearConsole();
       }
 

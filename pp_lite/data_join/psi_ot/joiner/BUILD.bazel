@@ -1,0 +1,43 @@
+load("@rules_python//python:defs.bzl", "py_library", "py_test")
+
+py_library(
+    name = "joiner",
+    srcs = [
+        "hashed_data_join_servicer.py",
+        "hashed_data_joiner.py",
+        "joiner_interface.py",
+        "ot_psi_joiner.py",
+        "utils.py",
+    ],
+    visibility = ["//pp_lite:pp_lite_package"],
+    deps = [
+        "//pp_lite/data_join:envs",
+        "//pp_lite/proto:py_grpc",
+        "//pp_lite/proto:py_proto",
+        "//pp_lite/rpc",
+        "@common_cityhash//:pkg",
+        "@common_fsspec//:pkg",
+        "@common_pyarrow//:pkg",  # keep
+    ],
+)
+
+py_test(
+    name = "ot_psi_joiner_test",
+    size = "small",
+    srcs = ["ot_psi_joiner_test.py"],
+    visibility = ["//pp_lite:pp_lite_package"],
+    deps = [
+        ":joiner",
+        "//pp_lite/data_join:envs",
+    ],
+)
+
+py_test(
+    name = "utils_test",
+    size = "small",
+    srcs = ["utils_test.py"],
+    visibility = ["//pp_lite:pp_lite_package"],
+    deps = [
+        ":joiner",
+    ],
+)

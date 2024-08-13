@@ -3,8 +3,13 @@ import { useParams } from 'react-router-dom';
 import { fetchJobEvents, fetchPeerJobEvents } from 'services/workflow';
 import PrintLogs from 'components/PrintLogs';
 
-const PodLogs: FC = () => {
-  const params = useParams<{ side: string; jobIdOrK8sName: string; uuid?: string }>();
+const JobEvents: FC = () => {
+  const params = useParams<{
+    side: string;
+    jobIdOrK8sName: string;
+    uuid?: string;
+    participantId?: string;
+  }>();
 
   const isPeerSide = params.side === 'peer';
 
@@ -16,25 +21,25 @@ const PodLogs: FC = () => {
     />
   );
 
-  async function getLogs() {
+  async function getLogs(maxLines = 5000) {
     if (!params.jobIdOrK8sName) {
       return { data: ['Job ID or Name invalid!'] };
     }
 
     if (isPeerSide) {
-      return fetchPeerJobEvents(params.uuid!, params.jobIdOrK8sName, {
-        maxLines: 500,
+      return fetchPeerJobEvents(params.uuid!, params.jobIdOrK8sName, params?.participantId ?? 0, {
+        maxLines,
       }).catch((error) => ({
         data: [error.message],
       }));
     }
 
     return fetchJobEvents(params.jobIdOrK8sName, {
-      maxLines: 500,
+      maxLines,
     }).catch((error) => ({
       data: [error.message],
     }));
   }
 };
 
-export default PodLogs;
+export default JobEvents;

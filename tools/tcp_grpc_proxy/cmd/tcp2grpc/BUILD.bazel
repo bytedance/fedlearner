@@ -1,0 +1,15 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library")
+
+go_library(
+    name = "tcp2grpc_lib",
+    srcs = ["main.go"],
+    importpath = "fedlearner.net/tools/tcp_grpc_proxy/cmd/tcp2grpc",
+    visibility = ["//tools:tools_package"],
+    deps = ["//tools/tcp_grpc_proxy/pkg/proxy"],
+)
+
+go_binary(
+    name = "tcp2grpc",
+    embed = [":tcp2grpc_lib"],
+    visibility = ["//tools:tools_package"],
+)

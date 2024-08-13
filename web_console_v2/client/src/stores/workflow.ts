@@ -12,10 +12,9 @@ import {
 
 export type CreateWorkflowBasicForm = {
   _templateSelected?: string;
+  _revisionSelected?: string;
   _keepUsingOriginalTemplate?: boolean;
-} & Partial<
-  Pick<WorkflowInitiatePayload, 'name' | 'forkable' | 'project_id' | 'batch_update_interval'>
->;
+} & Partial<Pick<WorkflowInitiatePayload, 'name' | 'forkable' | 'project_id' | 'cron_config'>>;
 
 export type CreateTemplateForm = WorkflowTemplatePayload;
 
@@ -25,12 +24,13 @@ export const workflowBasicForm = atom<CreateWorkflowBasicForm>({
     // Fields start with underscore are solely UI releated things,
     // will not pass to backend on submit
     _templateSelected: undefined,
+    _revisionSelected: undefined,
     _keepUsingOriginalTemplate: true,
 
     name: '',
     project_id: undefined,
     forkable: true,
-    batch_update_interval: -1,
+    cron_config: '',
   },
 });
 
@@ -81,6 +81,7 @@ export const forkWorkflowForm = atom<WorkflowForkPayload>({
   default: {
     name: '',
     project_id: '',
+    is_local: false,
     forkable: true,
     config: null as any,
     fork_proposal_config: null as any,
@@ -88,5 +89,6 @@ export const forkWorkflowForm = atom<WorkflowForkPayload>({
     forked_from: '',
     create_job_flags: [] as CreateJobFlag[],
     peer_create_job_flags: [] as CreateJobFlag[],
+    template_id: undefined,
   },
 });

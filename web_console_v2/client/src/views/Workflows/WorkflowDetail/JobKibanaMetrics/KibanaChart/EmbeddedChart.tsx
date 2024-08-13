@@ -1,19 +1,9 @@
 import React, { FC, useContext, useEffect, useRef } from 'react';
-import styled from 'styled-components';
+import styled from './EmbeddedChart.module.less';
 import { useToggle } from 'react-use';
 import { JobExecutionDetailsContext } from '../../JobExecutionDetailsDrawer';
 import { ControlButton } from 'styles/elements';
-import { ControlsContainer } from '../elements';
-import { Pen, ShareInternal } from 'components/IconPark';
-
-const EmbeddedFrame = styled.iframe`
-  width: 200%;
-  height: 600px;
-  border: none;
-  flex-shrink: 0;
-  transform: scale(0.5);
-  transform-origin: 0 0;
-`;
+import { IconPen, IconShareInternal } from '@arco-design/web-react/icon';
 
 type Props = { src?: string; isFill?: boolean; onEditParams: any; onOpenNewWindow: any };
 
@@ -29,21 +19,24 @@ const KibanaEmbeddedChart: FC<Props> = ({ src, isFill, onEditParams, onOpenNewWi
 
   return (
     <div style={{ width: '100%' }}>
-      <EmbeddedFrame
+      <iframe
+        title="kibana-iframe"
+        className={styled.embedded_frame}
+        // eslint-disable-next-line jsx-a11y/aria-role
         role="kibana-iframe"
         ref={(el) => (iframeRef.current = el)}
         src={src ? `${src}&embed=true` : undefined}
         onLoad={onLoaded}
       />
       {isFill && (
-        <ControlsContainer>
+        <div className={styled.controls_container}>
           <ControlButton onClick={onEditParams}>
-            <Pen />
+            <IconPen />
           </ControlButton>
           <ControlButton onClick={() => onOpenNewWindow(src)}>
-            <ShareInternal />
+            <IconShareInternal />
           </ControlButton>
-        </ControlsContainer>
+        </div>
       )}
     </div>
   );

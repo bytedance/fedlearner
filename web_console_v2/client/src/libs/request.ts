@@ -1,10 +1,17 @@
-import axios, { AxiosInstance } from 'axios';
-import { getRequestMockState, setRequestMockState } from 'components/_base/MockDevtools/utils';
+import axios, { AxiosInstance, Method } from 'axios';
+import {
+  getRequestMockState,
+  isThisRequestMockEnabled,
+  setRequestMockState,
+} from 'components/MockDevtools/utils';
 import i18n from 'i18n';
 import LOCAL_STORAGE_KEYS from 'shared/localStorageKeys';
 import { removeFalsy, transformKeysToSnakeCase, binarizeBoolean } from 'shared/object';
 import store from 'store2';
 import { ErrorCodes } from 'typings/app';
+import PubSub from 'pubsub-js';
+import qs from 'qs';
+import { getJWTHeaders, saveBlob } from 'shared/helpers';
 
 declare module 'axios' {
   interface AxiosRequestConfig {
@@ -12,6 +19,10 @@ declare module 'axios' {
     removeFalsy?: boolean;
     snake_case?: boolean;
     _id?: ID;
+    disableExtractResponseData?: boolean;
+  }
+  interface AxiosInstance {
+    download(url: string, method?: Method, filename?: string): Promise<string | undefined>;
   }
 
   // AxiosResponse has a struct like { data: YourRealResponse, status, config },
@@ -37,13 +48,24 @@ export const BASE_URL = '/api';
 
 let request: AxiosInstance;
 
+const errorCodeToErrorMessageMap: {
+  [code: number]: string;
+} = {
+  [ErrorCodes.TokenExpired]: i18n.t('error.token_expired'),
+  [ErrorCodes.Unauthorized]: i18n.t('error.unauthorized'),
+};
+
 if (process.env.NODE_ENV === 'development' || process.env.REACT_APP_ENABLE_FULLY_MOCK) {
   // NOTE: DEAD CODES HERE
   // will be removed during prod building
 
   request = axios.create({
-    adapter: require('./mockAdapter').default,
     baseURL: BASE_URL,
+    paramsSerializer: function (params) {
+      return qs.stringify(params, {
+        arrayFormat: 'repeat',
+      });
+    },
   });
 
   // Mock controlling
@@ -61,9 +83,22 @@ if (process.env.NODE_ENV === 'development' || process.env.REACT_APP_ENABLE_FULLY
 
     return config;
   });
+
+  request.interceptors.request.use((config) => {
+    if (isThisRequestMockEnabled(config) || process.env.REACT_APP_ENABLE_FULLY_MOCK === 'true') {
+      config.url = '/mock/20021' + config.url;
+      config.baseURL = '';
+    }
+    return config;
+  });
 } else {
   request = axios.create({
     baseURL: BASE_URL,
+    paramsSerializer: function (params) {
+      return qs.stringify(params, {
+        arrayFormat: 'repeat',
+      });
+    },
   });
 }
 
@@ -71,10 +106,7 @@ if (process.env.NODE_ENV === 'development' || process.env.REACT_APP_ENABLE_FULLY
  * Authorization interceptor
  */
 request.interceptors.request.use((config) => {
-  const token = store.get(LOCAL_STORAGE_KEYS.current_user)?.access_token;
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
+  config.headers = { ...config.headers, ...getJWTHeaders() };
   return config;
 });
 
@@ -102,31 +134,77 @@ request.interceptors.request.use((config) => {
  */
 request.interceptors.response.use(
   (response) => {
+    if (response?.config?.disableExtractResponseData) {
+      return response;
+    }
     return response.data;
   },
   (error) => {
-    const response = error.response.data;
+    return new Promise((resolve, reject) => {
+      const response = error.response.data;
 
-    // Access token expired due to time fly or server reboot
-    if (response.code === ErrorCodes.TokenExpired) {
-      return Promise.reject(
-        new ServerError(i18n.t('error.token_expired'), ErrorCodes.TokenExpired),
-      );
-    }
-    // Common errors handle
-    if (response && typeof response === 'object') {
-      const { data } = error.response;
-      const { details } = data;
+      // Access token expired due to time fly or server reboot
+      if (response.code === ErrorCodes.TokenExpired || response.code === ErrorCodes.Unauthorized) {
+        const errorMessage = response.message || errorCodeToErrorMessageMap[response.code];
+        store.remove(LOCAL_STORAGE_KEYS.current_user);
+        store.remove(LOCAL_STORAGE_KEYS.sso_info);
+        // Trigger logout event
+        PubSub.publish('logout', {
+          message: errorMessage,
+        });
+        return reject(new ServerError(errorMessage, response.code));
+      }
 
-      const serverError = new ServerError(
-        typeof details === 'object' ? JSON.stringify(details) : details || data.message || data.msg,
-        error.satus,
-      );
+      if (
+        error.response &&
+        error.response.config.responseType === 'blob' &&
+        response.type === 'application/json'
+      ) {
+        const { data, status, statusText } = error.response;
 
-      return Promise.reject(serverError);
-    }
+        // Parse response(Blob) as JSON
+        const reader = new FileReader();
+        reader.addEventListener('abort', reject);
+        reader.addEventListener('error', reject);
+        reader.addEventListener('loadend', () => {
+          try {
+            const resp = JSON.parse(reader.result as string);
+            const { details } = resp;
 
-    return Promise.reject(error);
+            const serverError = new ServerError(
+              typeof details === 'object'
+                ? JSON.stringify(details)
+                : details || resp.message || resp.msg || statusText,
+              status,
+              resp,
+            );
+
+            return reject(serverError);
+          } catch (error) {
+            return reject(error);
+          }
+        });
+        reader.readAsText(data);
+      } else {
+        // Common errors handle
+        if (response && typeof response === 'object') {
+          const { data, status, statusText } = error.response;
+          const { details } = data;
+
+          const serverError = new ServerError(
+            typeof details === 'object'
+              ? JSON.stringify(details)
+              : details || data.message || data.msg || statusText,
+            status,
+            data,
+          );
+
+          return reject(serverError);
+        }
+
+        return reject(error);
+      }
+    });
   },
 );
 
@@ -163,5 +241,21 @@ request.interceptors.response.use(
     return Promise.reject(error);
   },
 );
+
+request.download = async function (url, method = 'GET', filename = '') {
+  const { headers, data, status } = await request(url, {
+    method,
+    responseType: 'blob',
+    disableExtractResponseData: true,
+  });
+  if (status === 204) {
+    return i18n.t('message_no_file');
+  }
+
+  const contentDisposition =
+    headers?.['content-disposition'] ?? headers?.['Content-Disposition'] ?? '';
+  const finalFilename = filename || (contentDisposition?.split('filename=')[1] ?? '');
+  saveBlob(data, finalFilename);
+};
 
 export default request;

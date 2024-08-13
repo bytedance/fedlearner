@@ -1,20 +1,25 @@
+/* istanbul ignore file */
+
 import React, { FC, useCallback, useEffect, useRef, useState } from 'react';
 import { QueryKey, useQuery } from 'react-query';
 import styled from 'styled-components';
 import { Refresh, Expand, Pause, CaretRight, ArrowDown } from 'components/IconPark';
 import { convertToUnit } from 'shared/helpers';
-import { ScrollDown } from 'styles/animations';
+import { Suspense } from 'styles/animations';
 import { useToggle } from 'react-use';
-import { Tooltip } from 'antd';
-import { last, debounce } from 'lodash';
+import { Tooltip, Message } from '@arco-design/web-react';
+import { last, debounce } from 'lodash-es';
 import i18n from 'i18n';
 import { ControlButton } from 'styles/elements';
+import { Download } from 'components/IconPark';
+import { saveBlob } from 'shared/helpers';
 
 const Container = styled.div`
   position: relative;
   width: ${(props: Props) => convertToUnit(props.width || '100%')};
   height: ${(props: Props) => convertToUnit(props.height || '100%')};
   background-color: #292238;
+  border-radius: 4px;
 `;
 const Pre = styled.pre`
   width: 100%;
@@ -48,7 +53,7 @@ const ScrollButton = styled(ControlButton)`
   }
 `;
 const AnimatedArrowDown = styled(ArrowDown)`
-  animation: ${ScrollDown} 1.2s linear infinite;
+  animation: ${Suspense} 1.2s linear infinite;
 `;
 
 type Props = {
@@ -78,7 +83,7 @@ const PrintLogs: FC<Props> = (props) => {
   const [isFirstTimeResult, setFirstTime] = useState(true);
   const [lastestLog, setLastLog] = useState<string | undefined>('');
 
-  const logsQuery = useQuery(queryKey, logsFetcher, {
+  const logsQuery = useQuery(queryKey, () => logsFetcher(), {
     refetchOnWindowFocus: true,
     retry: 2,
     refetchInterval: refetchInterval || 5000,
@@ -141,7 +146,7 @@ const PrintLogs: FC<Props> = (props) => {
       <ControlsContainer>
         {fullscreenVisible && Boolean(onFullscreenClick) && (
           <ControlButton onClick={onFullscreenClick}>
-            <Tooltip title={i18n.t('workflow.btn_full_screen')} placement="left">
+            <Tooltip content={i18n.t('workflow.btn_full_screen')} position="left">
               <Expand />
             </Tooltip>
           </ControlButton>
@@ -149,14 +154,19 @@ const PrintLogs: FC<Props> = (props) => {
 
         <ControlButton onClick={() => togglePaused()}>
           <Tooltip
-            placement="left"
-            title={
+            position="left"
+            content={
               paused
                 ? i18n.t('workflow.btn_auto_refresh_logs')
                 : i18n.t('workflow.btn_pause_auto_refresh')
             }
           >
             {paused ? <CaretRight /> : <Pause />}
+          </Tooltip>
+        </ControlButton>
+        <ControlButton onClick={() => onDownload()}>
+          <Tooltip position="left" content={i18n.t('workflow.action_download_log')}>
+            <Download />
           </Tooltip>
         </ControlButton>
       </ControlsContainer>
@@ -193,6 +203,19 @@ const PrintLogs: FC<Props> = (props) => {
   function onPreScroll(event: any) {
     if (isAtButt(event.target)) {
       setScroll2Butt(false);
+    }
+  }
+  async function onDownload() {
+    try {
+      const data = await logsFetcher(5000);
+      if (data.data) {
+        const blob = new Blob([JSON.stringify(data.data, null, 2)], {
+          type: 'application/json',
+        });
+        saveBlob(blob, `log.json`);
+      }
+    } catch (error) {
+      Message.error(error.message);
     }
   }
 };

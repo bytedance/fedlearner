@@ -1,0 +1,152 @@
+load("@rules_python//python:defs.bzl", "py_library")
+
+package(default_visibility = ["//web_console_v2/api:console_api_package"])
+
+py_library(
+    name = "auth_lib",
+    srcs = ["auth.py"],
+    imports = ["../.."],
+)
+
+py_test(
+    name = "auth_lib_test",
+    srcs = [
+        "auth_test.py",
+    ],
+    imports = ["../../.."],
+    main = "auth_test.py",
+    deps = [
+        ":auth_lib",
+    ],
+)
+
+py_library(
+    name = "client_interceptor_lib",
+    srcs = ["client_interceptor.py"],
+    imports = ["../.."],
+    deps = [
+        "//web_console_v2/api/fedlearner_webconsole/middleware:request_id_lib",
+        "@com_github_grpc_grpc//src/python/grpcio/grpc:grpcio",
+    ],
+)
+
+py_library(
+    name = "client_lib",
+    srcs = ["client.py"],
+    imports = ["../.."],
+    deps = [
+        ":client_interceptor_lib",
+        "//web_console_v2/api:envs_lib",
+        "//web_console_v2/api/fedlearner_webconsole:exceptions_lib",
+        "//web_console_v2/api/fedlearner_webconsole/rpc/v2:client_base_lib",
+        "//web_console_v2/api/fedlearner_webconsole/utils/decorators:decorators_lib",
+        "//web_console_v2/api/protocols/fedlearner_webconsole/proto:py_proto",
+        "@com_github_grpc_grpc//src/python/grpcio/grpc:grpcio",
+        "@com_google_protobuf//:protobuf_python",
+    ],
+)
+
+py_test(
+    name = "client_lib_test",
+    # TODO(liuhehan): change it back to small when dataset model lightweight enough.
+    size = "medium",
+    srcs = [
+        "client_test.py",
+    ],
+    imports = ["../../.."],
+    main = "client_test.py",
+    deps = [
+        ":client_lib",
+        "//web_console_v2/api/fedlearner_webconsole/dataset:models_lib",
+        "//web_console_v2/api/fedlearner_webconsole/job:models_lib",
+        "//web_console_v2/api/fedlearner_webconsole/middleware:request_id_lib",
+        "//web_console_v2/api/fedlearner_webconsole/participant:models_lib",
+        "//web_console_v2/api/fedlearner_webconsole/project:models_lib",
+        "//web_console_v2/api/fedlearner_webconsole/utils:pp_datetime_lib",
+        "//web_console_v2/api/protocols/fedlearner_webconsole/proto:py_proto",
+        "//web_console_v2/api/testing:fake_lib",
+        "//web_console_v2/api/testing/rpc:client_lib",
+        "@com_github_grpc_grpc//src/python/grpcio/grpc:grpcio",
+        "@com_google_protobuf//:protobuf_python",
+    ],
+)
+
+py_library(
+    name = "server_lib",
+    srcs = ["server.py"],
+    imports = ["../.."],
+    deps = [
+        ":auth_lib",
+        "//web_console_v2/api:envs_lib",
+        "//web_console_v2/api/fedlearner_webconsole:db_lib",
+        "//web_console_v2/api/fedlearner_webconsole:exceptions_lib",
+        "//web_console_v2/api/fedlearner_webconsole/audit:decorators_lib",
+        "//web_console_v2/api/fedlearner_webconsole/dataset:models_lib",
+        "//web_console_v2/api/fedlearner_webconsole/dataset:services_lib",
+        "//web_console_v2/api/fedlearner_webconsole/dataset/job_configer",
+        "//web_console_v2/api/fedlearner_webconsole/flag:models_lib",
+        "//web_console_v2/api/fedlearner_webconsole/job:metrics_lib",
+        "//web_console_v2/api/fedlearner_webconsole/job:models_lib",
+        "//web_console_v2/api/fedlearner_webconsole/job:service_lib",
+        "//web_console_v2/api/fedlearner_webconsole/middleware:request_id_lib",
+        "//web_console_v2/api/fedlearner_webconsole/mmgr:models_lib",
+        "//web_console_v2/api/fedlearner_webconsole/mmgr:service_lib",
+        "//web_console_v2/api/fedlearner_webconsole/participant:models_lib",
+        "//web_console_v2/api/fedlearner_webconsole/participant:services_lib",
+        "//web_console_v2/api/fedlearner_webconsole/project:models_lib",
+        "//web_console_v2/api/fedlearner_webconsole/review:ticket_helper_lib",
+        "//web_console_v2/api/fedlearner_webconsole/rpc/v2:auth_server_interceptor_lib",
+        "//web_console_v2/api/fedlearner_webconsole/rpc/v2:job_service_server_lib",
+        "//web_console_v2/api/fedlearner_webconsole/rpc/v2:project_service_server_lib",
+        "//web_console_v2/api/fedlearner_webconsole/rpc/v2:resource_service_server_lib",
+        "//web_console_v2/api/fedlearner_webconsole/rpc/v2:system_service_server_lib",
+        "//web_console_v2/api/fedlearner_webconsole/serving:services_lib",
+        "//web_console_v2/api/fedlearner_webconsole/setting:service_lib",
+        "//web_console_v2/api/fedlearner_webconsole/two_pc:handlers_lib",
+        "//web_console_v2/api/fedlearner_webconsole/utils:domain_name_lib",
+        "//web_console_v2/api/fedlearner_webconsole/utils:es_lib",
+        "//web_console_v2/api/fedlearner_webconsole/utils:kibana_lib",
+        "//web_console_v2/api/fedlearner_webconsole/utils:pp_datetime_lib",
+        "//web_console_v2/api/fedlearner_webconsole/utils:proto_lib",
+        "//web_console_v2/api/fedlearner_webconsole/utils/base_model:base_model_lib",
+        "//web_console_v2/api/fedlearner_webconsole/workflow:models_lib",
+        "//web_console_v2/api/fedlearner_webconsole/workflow:resource_manager_lib",
+        "//web_console_v2/api/fedlearner_webconsole/workflow:service_lib",
+        "//web_console_v2/api/fedlearner_webconsole/workflow:workflow_controller_lib",
+        "//web_console_v2/api/protocols/fedlearner_webconsole/proto:py_proto",
+        "//web_console_v2/api/protocols/fedlearner_webconsole/proto/rpc/v2:py_proto",
+        "@com_github_grpc_grpc//src/python/grpcio/grpc:grpcio",
+        "@com_google_protobuf//:protobuf_python",
+        "@common_grpcio_reflection//:pkg",
+    ],
+)
+
+py_test(
+    name = "server_lib_test",
+    size = "small",
+    srcs = [
+        "server_test.py",
+    ],
+    imports = ["../../.."],
+    main = "server_test.py",
+    deps = [
+        ":auth_lib",
+        ":server_lib",
+        "//web_console_v2/api/fedlearner_webconsole/auth:models_lib",
+        "//web_console_v2/api/fedlearner_webconsole/dataset:models_lib",
+        "//web_console_v2/api/fedlearner_webconsole/job:models_lib",
+        "//web_console_v2/api/fedlearner_webconsole/middleware:request_id_lib",
+        "//web_console_v2/api/fedlearner_webconsole/mmgr:models_lib",
+        "//web_console_v2/api/fedlearner_webconsole/participant:models_lib",
+        "//web_console_v2/api/fedlearner_webconsole/project:models_lib",
+        "//web_console_v2/api/fedlearner_webconsole/utils:pp_datetime_lib",
+        "//web_console_v2/api/fedlearner_webconsole/utils/base_model:base_model_lib",
+        "//web_console_v2/api/fedlearner_webconsole/workflow:models_lib",
+        "//web_console_v2/api/protocols/fedlearner_webconsole/proto:py_proto",
+        "//web_console_v2/api/protocols/fedlearner_webconsole/proto/rpc/v2:py_proto",
+        "//web_console_v2/api/testing:fake_lib",
+        "//web_console_v2/api/testing:no_web_server_test_case_lib",
+        "@com_github_grpc_grpc//src/python/grpcio/grpc:grpcio",
+        "@com_google_protobuf//:protobuf_python",
+    ],
+)

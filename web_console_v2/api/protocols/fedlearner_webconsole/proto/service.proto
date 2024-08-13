@@ -1,4 +1,4 @@
-/* Copyright 2021 The FedLearner Authors. All Rights Reserved.
+/* Copyright 2023 The FedLearner Authors. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,8 +15,14 @@
 
 syntax = "proto3";
 
+import "google/protobuf/struct.proto";
+import "google/protobuf/empty.proto";
+import "google/protobuf/wrappers.proto";
 import "fedlearner_webconsole/proto/common.proto";
+import "fedlearner_webconsole/proto/two_pc.proto";
 import "fedlearner_webconsole/proto/workflow_definition.proto";
+import "fedlearner_webconsole/proto/serving.proto";
+import "fedlearner_webconsole/proto/dataset.proto";
 package fedlearner_webconsole.proto;
 
 
@@ -25,10 +31,13 @@ message ProjAuthInfo {
     string target_domain = 2;
     string auth_token = 3;
 }
+
 message JobDetail{
     string name = 1;
     string state = 2;
     string pods = 3;
+    // Timestamp in second
+    int64 created_at = 4;
 }
 
 message CheckConnectionRequest {
@@ -39,11 +48,11 @@ message CheckConnectionResponse {
     Status status = 1;
 }
 
-message PingRequest {}
+message CheckPeerConnectionRequest {}
 
-message PingResponse {
+message CheckPeerConnectionResponse {
     Status status = 1;
-    string  msg = 2;
+    ApplicationVersion application_version = 2;
 }
 
 message UpdateWorkflowStateRequest {
@@ -65,9 +74,20 @@ message UpdateWorkflowStateResponse {
     int64 transaction_state = 4;
 }
 
+message InvalidateWorkflowRequest {
+    ProjAuthInfo auth_info = 1;
+    string workflow_uuid = 2;
+}
+
+message InvalidateWorkflowResponse {
+    Status status = 1;
+    bool succeeded = 2;
+}
+
 message GetWorkflowRequest {
     ProjAuthInfo auth_info = 1;
-    string workflow_name = 2;
+    string workflow_name = 2 [deprecated=true];
+    string workflow_uuid = 3;
 }
 
 message GetWorkflowResponse{
@@ -87,18 +107,22 @@ message GetWorkflowResponse{
     WorkflowDefinition fork_proposal_config = 12;
     string uuid = 13;
     bool metric_is_public = 14;
+    // True, when all jobs of workflow are completed.
+    bool is_finished = 15;
 }
 
 message UpdateWorkflowRequest {
     ProjAuthInfo auth_info = 1;
-    string workflow_name = 2;
+    string workflow_name = 2 [deprecated=true];
     WorkflowDefinition config = 3;
+    string workflow_uuid = 4;
 }
 
 message UpdateWorkflowResponse {
     Status status = 1;
-    string workflow_name = 2;
+    string workflow_name = 2 [deprecated=true];
     WorkflowDefinition config = 3;
+    string workflow_uuid =4;
 }
 
 message GetJobMetricsRequest {
@@ -147,14 +171,164 @@ message GetJobKibanaResponse {
     string metrics = 2;
 }
 
+message TwoPcRequest {
+    ProjAuthInfo auth_info = 1;
+    string transaction_uuid = 2;
+    TwoPcType type = 3;
+    TwoPcAction action = 4;
+    TransactionData data = 5;
+}
+
+message TwoPcResponse {
+    Status status = 1;
+    string transaction_uuid = 2;
+    TwoPcType type = 3;
+    TwoPcAction action = 4;
+    bool succeeded = 5;
+    string message = 6;
+}
+
+message ServingServiceRequest {
+    ProjAuthInfo auth_info = 1;
+    ServingServiceType operation_type = 2;
+    string serving_model_uuid = 3;
+    // same uuid among participants
+    string model_uuid = 4;
+    string serving_model_name = 5;
+    bool is_auto_update = 6;
+    bool is_manual_triggered = 7;
+}
+
+message ServingServiceResponse {
+    Status status = 1;
+    ServingServiceResultCode code = 2;
+    string msg = 3;
+}
+
+message ServingServiceInferenceRequest {
+    ProjAuthInfo auth_info = 1;
+    string serving_model_uuid = 2;
+    string example_id = 3;
+    // e.g. "act1_f"
+    repeated string expected_output = 4;
+}
+
+message ServingServiceInferenceResponse {
+    Status status = 1;
+    ServingServiceResultCode code = 2;
+    string msg = 3;
+    // data["act1_f"]: tensorflow_serving.apis.predict_pb2.PredictResponse
+    google.protobuf.Struct data = 4;
+}
+
+message SendDataRequest {
+    ProjAuthInfo auth_info = 1;
+    PayloadType type = 2;
+    Payload data = 3;
+}
+
+message SendDataResponse {
+    bool succeeded = 1;
+    string message = 2;
+}
+
+message ClientHeartBeatRequest {
+    string domain_name = 1;
+    string message = 2;
+}
+
+message ClientHeartBeatResponse {
+    bool succeeded = 1;
+}
+
+message ListParticipantDatasetsRequest {
+    ProjAuthInfo auth_info = 1;
+    string kind = 2;
+    string uuid = 3;
+}
+
+message ListParticipantDatasetsResponse {
+    repeated ParticipantDatasetRef participant_datasets = 1;
+}
+
+message GetModelJobRequest {
+    ProjAuthInfo auth_info = 1;
+    string uuid = 2;
+    bool need_metrics = 3;
+}
+
+message GetModelJobResponse {
+    string name = 1;
+    string uuid = 2;
+    string algorithm_type = 3;
+    string model_job_type = 4;
+    string state = 5;
+    string group_uuid = 6;
+    WorkflowDefinition config = 7;
+    string metrics = 8;
+    google.protobuf.BoolValue metric_is_public = 9;
+}
+
+message GetModelJobGroupRequest {
+    ProjAuthInfo auth_info = 1;
+    string uuid = 2;
+}
+
+message GetModelJobGroupResponse {
+    string name = 1;
+    string uuid = 2;
+    string role = 3;
+    bool authorized = 4;
+    string algorithm_type = 5;
+    WorkflowDefinition config = 6;
+}
+
+message UpdateModelJobGroupRequest {
+    ProjAuthInfo auth_info = 1;
+    string uuid = 2;
+    WorkflowDefinition config = 3;
+}
+
+message UpdateModelJobGroupResponse {
+    string uuid = 1;
+    WorkflowDefinition config = 2;
+}
+
+message GetDatasetJobRequest {
+    ProjAuthInfo auth_info = 1;
+    string uuid = 2;
+}
+
+message GetDatasetJobResponse {
+    DatasetJob dataset_job = 1;
+}
+
+message CreateDatasetJobRequest {
+    ProjAuthInfo auth_info = 1;
+    DatasetJob dataset_job = 2;
+    string ticket_uuid = 3;
+    Dataset dataset = 4; 
+}
+
 service WebConsoleV2Service {
     rpc CheckConnection (CheckConnectionRequest) returns (CheckConnectionResponse) {}
-    rpc Ping (PingRequest) returns (PingResponse) {}
+    rpc CheckPeerConnection (CheckPeerConnectionRequest) returns (CheckPeerConnectionResponse) {}
     rpc UpdateWorkflowState (UpdateWorkflowStateRequest) returns (UpdateWorkflowStateResponse) {}
+    rpc InvalidateWorkflow (InvalidateWorkflowRequest) returns (InvalidateWorkflowResponse) {}
     rpc GetWorkflow (GetWorkflowRequest) returns (GetWorkflowResponse) {}
     rpc UpdateWorkflow(UpdateWorkflowRequest) returns (UpdateWorkflowResponse) {}
     rpc GetJobMetrics (GetJobMetricsRequest) returns (GetJobMetricsResponse) {}
     rpc GetJobEvents (GetJobEventsRequest) returns (GetJobEventsResponse) {}
     rpc CheckJobReady (CheckJobReadyRequest) returns (CheckJobReadyResponse) {}
     rpc GetJobKibana (GetJobKibanaRequest) returns (GetJobKibanaResponse) {}
+    rpc Run2Pc (TwoPcRequest) returns (TwoPcResponse) {}
+    rpc ServingServiceManagement (ServingServiceRequest) returns (ServingServiceResponse) {}
+    rpc ServingServiceInference (ServingServiceInferenceRequest) returns (ServingServiceInferenceResponse) {}
+    rpc ClientHeartBeat (ClientHeartBeatRequest) returns (ClientHeartBeatResponse) {}
+    rpc ListParticipantDatasets (ListParticipantDatasetsRequest) returns (ListParticipantDatasetsResponse) {}
+    rpc GetModelJob(GetModelJobRequest) returns (GetModelJobResponse) {}
+    rpc GetModelJobGroup (GetModelJobGroupRequest) returns (GetModelJobGroupResponse) {}
+    rpc UpdateModelJobGroup (UpdateModelJobGroupRequest) returns (UpdateModelJobGroupResponse) {}
+    rpc GetDatasetJob(GetDatasetJobRequest) returns (GetDatasetJobResponse) {}
+    rpc CreateDatasetJob(CreateDatasetJobRequest) returns (google.protobuf.Empty) {}
 }

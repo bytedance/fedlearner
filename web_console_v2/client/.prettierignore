@@ -1,0 +1,7 @@
+.vscode-test/
+node_modules/
+build/
+dumi/src/.umi/
+dumi/src/.umi-production/
+public/
+coverage/

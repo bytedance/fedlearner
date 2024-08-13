@@ -1,0 +1,93 @@
+/* Copyright 2023 The FedLearner Authors. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+syntax = "proto3";
+
+package fedlearner_webconsole.proto;
+
+import "fedlearner_webconsole/proto/auth.proto";
+
+message Event {
+    enum ResourceType {
+        UNKNOWN_RESOURCE_TYPE = 0;
+        IAM = 1;
+        WORKSPACE = 2;
+        TEMPLATE = 3;
+        WORKFLOW = 4;
+        DATASET = 5;
+        MODEL = 6;
+        MODEL_JOB_GROUP = 7;
+        MODEL_JOB = 8;
+        USER = 9;
+        SYSTEM = 10;
+        PARTICIPANT = 11;
+        SERVING_SERVICE = 12;
+        ALGORITHM = 13;
+        ALGORITHM_PROJECT = 14;
+        PRESET_ALGORITHM = 15;
+        TRUSTED_JOB_GROUP = 16;
+        TRUSTED_JOB = 17;
+        DATASET_JOB = 18;
+        DATASET_JOB_STAGE = 19;
+        PENDING_PROJECT = 20;
+        PROJECT = 21;
+        TRUSTED_EXPORT_JOB = 22;
+    }
+
+    enum OperationType {
+        UNKNOWN_OPERATION_TYPE = 0;
+        CREATE = 1;
+        DELETE = 2;
+        UPDATE = 3;
+        INVALIDATE = 4;
+        UPDATE_STATE = 5;
+        STOP = 6;
+        OPERATE = 7;
+        INFERENCE = 8;
+        INFORM = 9;
+        CONTROL_STATE = 10;
+        LAUNCH = 11;
+    }
+
+    enum Result {
+        UNKNOWN_RESULT = 0;
+        SUCCESS = 1;
+        FAILURE = 2;
+    }
+
+    enum Source {
+        UNKNOWN_SOURCE = 0;
+        UI = 1;
+        API = 2;
+        RPC = 3;
+    }
+
+    int64 user_id = 1;
+    ResourceType resource_type = 2;
+    string resource_name = 3;
+    OperationType op_type = 4;
+    Result result = 5;
+    Source source = 6;
+    string name = 7;
+    string extra = 8;
+    User user = 9;
+    int64 event_id = 10;
+    string uuid = 11;
+    int64 created_at = 12; 
+    // ref: grpc StatusCode
+    string result_code= 13; 
+    string coordinator_pure_domain_name = 14;
+    int64 project_id = 15;
+}

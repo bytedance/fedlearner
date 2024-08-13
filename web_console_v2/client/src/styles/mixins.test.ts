@@ -1,5 +1,5 @@
 import { MixinCommonTransition, MixinSquare, MixinCircle } from './mixins';
-import defaultTheme from './_theme';
+import defaultTheme from './theme';
 
 describe('Square and Circle', () => {
   it('Should works fine', () => {

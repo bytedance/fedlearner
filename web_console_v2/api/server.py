@@ -1,4 +1,4 @@
-# Copyright 2021 The FedLearner Authors. All Rights Reserved.
+# Copyright 2023 The FedLearner Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,12 +13,18 @@
 # limitations under the License.
 
 # coding: utf-8
-from config import Config
-from fedlearner_webconsole.app import create_app
-from fedlearner_webconsole.utils import middlewares
-from fedlearner_webconsole.utils.hooks import pre_start_hook
+import logging
 
-pre_start_hook()
+from checks import validity_check
+from config import Config
+
+from fedlearner_webconsole.app import create_app
+from fedlearner_webconsole.middleware.middlewares import wsgi_middlewares
+
+logging.info('Initializing WebConsole Api...')
 app = create_app(Config())
+
 # Middlewares
-app = middlewares.init_app(app)
+app = wsgi_middlewares.init_app(app)
+validity_check()
+logging.info('Initializing WebConsole Api... [DONE]')

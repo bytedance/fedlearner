@@ -1,7 +1,7 @@
 import { separateLng } from 'i18n/helpers';
 
 const term = {
-  project: { zh: '项目', en: 'Project' },
+  project: { zh: '工作区', en: 'Workspace' },
   coordinator: { zh: '发起方', en: 'Coordinator' },
   participant: { zh: '合作方', en: 'Participant' },
   workflow: { zh: '工作流', en: 'Workflow' },

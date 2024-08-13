@@ -1,6 +1,6 @@
 import React, { FC } from 'react';
-import styled from 'styled-components';
-import { Form, Button, Input, Card, Radio } from 'antd';
+import styled from './index.module.less';
+import { Form, Button, Input, Card, Radio } from '@arco-design/web-react';
 import { useTranslation } from 'react-i18next';
 import { forkWorkflowForm } from 'stores/workflow';
 import { useHistory, useParams } from 'react-router-dom';
@@ -9,21 +9,23 @@ import GridRow from 'components/_base/GridRow';
 import { useQuery } from 'react-query';
 import { getWorkflowDetailById } from 'services/workflow';
 import WhichProject from 'components/WhichProject';
-
-const Container = styled(Card)`
-  padding-top: 20px;
-  min-height: 100%;
-`;
-const StyledForm = styled(Form)`
-  width: 500px;
-  margin: 0 auto;
-`;
+import FormLabel from 'components/FormLabel';
+import ScheduledWorkflowRunning, {
+  scheduleIntervalValidator,
+} from 'views/Workflows/ScheduledWorkflowRunning';
+import { validNamePattern, isWorkflowNameUniqWithDebounce } from 'shared/validator';
+import { useIsFormValueChange } from 'hooks';
+import ButtonWithModalConfirm from 'components/ButtonWithModalConfirm';
 
 type Props = {
   onSuccess: any;
+  onFormValueChange?: () => void;
 };
 
-const WorkflowForkStepOneBaic: FC<Props> = ({ onSuccess }) => {
+const WorkflowForkStepOneBaic: FC<Props> = ({
+  onSuccess,
+  onFormValueChange: onFormValueChangeFromProps,
+}) => {
   const { t } = useTranslation();
   const history = useHistory();
   const params = useParams<{ id: string }>();
@@ -32,13 +34,19 @@ const WorkflowForkStepOneBaic: FC<Props> = ({ onSuccess }) => {
 
   const [formData, setFormData] = useRecoilState(forkWorkflowForm);
 
+  const { isFormValueChanged, onFormValueChange } = useIsFormValueChange(onFormChange);
+
   const workflowQuery = useQuery(['getWorkflow', params.id], getWorkflowDetail, {
     enabled: Boolean(params.id),
     refetchOnWindowFocus: false,
     onSuccess(workflow) {
       const newName = workflow.name + '-copy';
 
-      formInstance.setFieldsValue({ name: newName, forkable: workflow.forkable });
+      formInstance.setFieldsValue({
+        name: newName,
+        forkable: workflow.forkable,
+        cron_config: workflow.cron_config,
+      });
 
       setFormData({
         ...formData,
@@ -48,24 +56,30 @@ const WorkflowForkStepOneBaic: FC<Props> = ({ onSuccess }) => {
       });
     },
   });
-  // TODO: if peer workflow unforable, redirect user back !
+
+  const isLocalWorkflow = workflowQuery.data?.is_local;
 
   return (
-    <Container bordered={false}>
-      <StyledForm
+    <Card bordered={false} className={styled.container}>
+      <Form
+        className={styled.styled_form}
         labelCol={{ span: 6 }}
         wrapperCol={{ span: 18 }}
         form={formInstance}
-        onFinish={onFinish}
-        onValuesChange={onFormChange as any}
+        onSubmit={onFinish}
+        onValuesChange={onFormValueChange}
       >
         <Form.Item
-          name="name"
+          field="name"
           hasFeedback
           label={t('workflow.label_name')}
           rules={[
             { required: true, message: t('workflow.msg_name_required') },
             { max: 255, message: t('workflow.msg_workflow_name_invalid') },
+            { match: validNamePattern, message: t('valid_error.name_invalid') },
+            {
+              validator: isWorkflowNameUniqWithDebounce,
+            },
           ]}
         >
           <Input placeholder={t('workflow.placeholder_name')} disabled={workflowQuery.isFetching} />
@@ -75,15 +89,36 @@ const WorkflowForkStepOneBaic: FC<Props> = ({ onSuccess }) => {
           <WhichProject id={workflowQuery.data?.project_id} loading={workflowQuery.isFetching} />
         </Form.Item>
 
-        <Form.Item label={t('workflow.label_template_name')}>
+        <Form.Item label={t('workflow.label_template_group')}>
           {workflowQuery.data?.config?.group_alias}
         </Form.Item>
 
-        <Form.Item name="forkable" label={t('workflow.label_peer_forkable')}>
-          <Radio.Group>
-            <Radio.Button value={true}>{t(`workflow.label_allow`)}</Radio.Button>
-            <Radio.Button value={false}>{t(`workflow.label_not_allow`)}</Radio.Button>
-          </Radio.Group>
+        {!isLocalWorkflow && (
+          <Form.Item field="forkable" label={t('workflow.label_peer_forkable')}>
+            <Radio.Group type="button">
+              <Radio value={true}>{t(`workflow.label_allow`)}</Radio>
+              <Radio value={false}>{t(`workflow.label_not_allow`)}</Radio>
+            </Radio.Group>
+          </Form.Item>
+        )}
+
+        <Form.Item
+          field="cron_config"
+          label={
+            <FormLabel
+              label={t('workflow.label_enable_batch_update_interval')}
+              tooltip={t('workflow.msg_schduled_run')}
+            />
+          }
+          rules={[
+            {
+              validator: scheduleIntervalValidator,
+              message: t('workflow.msg_time_required'),
+              validateTrigger: 'onSubmit',
+            },
+          ]}
+        >
+          <ScheduledWorkflowRunning />
         </Form.Item>
 
         <Form.Item wrapperCol={{ offset: 6 }}>
@@ -92,20 +127,23 @@ const WorkflowForkStepOneBaic: FC<Props> = ({ onSuccess }) => {
               {t('next_step')}
             </Button>
 
-            <Button onClick={backToList}>{t('cancel')}</Button>
+            <ButtonWithModalConfirm onClick={backToList} isShowConfirmModal={isFormValueChanged}>
+              {t('cancel')}
+            </ButtonWithModalConfirm>
           </GridRow>
         </Form.Item>
-      </StyledForm>
-    </Container>
+      </Form>
+    </Card>
   );
 
   function backToList() {
-    history.push('/workflows');
+    history.push('/workflow-center/workflows');
   }
-  function onFormChange(_: any, values: { name: string }) {
+  function onFormChange(_: any, values: { name: string; cron_config?: string }) {
+    onFormValueChangeFromProps?.();
     setFormData({
       ...formData,
-      name: values.name,
+      ...values,
     });
   }
   async function getWorkflowDetail() {
@@ -116,7 +154,7 @@ const WorkflowForkStepOneBaic: FC<Props> = ({ onSuccess }) => {
   function onFinish() {
     onSuccess();
 
-    history.push(`/workflows/fork/config/${params.id}`);
+    history.push(`/workflow-center/workflows/fork/config/${params.id}`);
   }
 };
 

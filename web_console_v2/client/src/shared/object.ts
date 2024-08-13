@@ -1,4 +1,4 @@
-import { isNil, isUndefined, omitBy, snakeCase } from 'lodash';
+import { isNil, isUndefined, omitBy, snakeCase } from 'lodash-es';
 
 /* istanbul ignore next */
 export function removeUndefined(values: object) {
@@ -38,4 +38,11 @@ export function binarizeBoolean(values: object) {
 
     return ret;
   }, {} as Record<string, any>);
+}
+
+export function record<O = Object, V = any>(obj: O, targetValue: V): Record<keyof O, V> {
+  return Object.entries(obj).reduce((ret, [key, val]) => {
+    ret[key] = targetValue;
+    return ret;
+  }, {} as any);
 }

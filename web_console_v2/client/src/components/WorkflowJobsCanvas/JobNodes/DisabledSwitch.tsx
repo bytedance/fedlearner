@@ -1,6 +1,6 @@
 import React, { FC } from 'react';
 import styled from 'styled-components';
-import { Switch, SwitchProps, Tooltip } from 'antd';
+import { Switch, SwitchProps, Tooltip } from '@arco-design/web-react';
 import { useTranslation } from 'react-i18next';
 
 const Container = styled.div`
@@ -15,7 +15,7 @@ const DisabledSwitch: FC<SwitchProps> = (props) => {
 
   return (
     <Container onClick={(e) => e.stopPropagation()}>
-      <Tooltip title={t('workflow.msg_toggle_job_disabled')}>
+      <Tooltip content={t('workflow.msg_toggle_job_disabled')}>
         <Switch {...props} />
       </Tooltip>
     </Container>

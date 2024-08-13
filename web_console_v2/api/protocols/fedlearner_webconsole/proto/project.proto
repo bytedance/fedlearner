@@ -1,4 +1,4 @@
-/* Copyright 2021 The FedLearner Authors. All Rights Reserved.
+/* Copyright 2023 The FedLearner Authors. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,31 +16,105 @@
 syntax = "proto3";
 
 import "fedlearner_webconsole/proto/common.proto";
+import "fedlearner_webconsole/proto/participant.proto";
 
 package fedlearner_webconsole.proto;
 
-message CertificateStorage {
-    message Certificate {
-        // key is file name, e.g. client/client.pem
-        // value is the content of certificate
-        map<string, string> certs = 1;
-    }
-    map<string, Certificate> domain_name_to_cert = 1;
-}
-
-message Participant {
-    string name = 1;
-    string domain_name = 2;
-    // participant's address
-    // e.g. 127.0.0.1:32443, localhost:32443
-    string url = 3;
-    repeated Variable variables = 4;
-    GrpcSpec grpc_spec = 5;
+message ProjectRef {
+    int64 id = 1;
+    string name = 2;
+    string participant_type = 3;
+    // Username of creator
+    string creator = 4;
+    // Timestamp in seconds
+    int64 created_at = 5;
+    // Related workflow count in the project
+    int64 num_workflow = 6;
+    // NOTE: this kind of proto should not be added into Ref proto,
+    // this is not a good practice, but we need this for compatible reason.
+    repeated Participant participants = 7;
+    ParticipantsInfo participants_info = 8;
+    // ref: ProjectRole
+    string role = 9;
 }
 
 message Project {
-    string name = 1;
-    string token = 2;
-    repeated Participant participants = 3;
+    int64 id = 1;
+    string name = 2;
+    string token = 3;
+    string comment = 4;
+    string participant_type = 5;
+    // Username of creator
+    string creator = 6;
+    // Timestamp in seconds
+    int64 created_at = 7;
+    // Timestamp in seconds
+    int64 updated_at = 8;
+    repeated Variable variables = 9;
+    repeated Participant participants = 10;
+    ParticipantsInfo participants_info = 11;
+    ProjectConfig config = 12;
+    // ref: ProjectRole
+    string role = 13;
+}
+
+message ProjectConfig {
+    enum ProjectAbilityType {
+        ID_ALIGNMENT = 0;
+        HORIZONTAL_FL = 1;
+        VERTICAL_FL = 3;
+        TEE = 4;
+    }
+    enum AuthorizationRule {
+        ALWAYS_ALLOW = 0;
+        ONCE = 1;
+        MANUAL = 2;
+        ALWAYS_REFUSE = 3;
+    }
+    reserved 1, 2, 3;
     repeated Variable variables = 4;
+    repeated ProjectAbilityType abilities = 5;
+    // key ref: Action
+    map<string, AuthorizationRule> action_rules = 6;
+    bool support_blockchain = 7;
+}
+
+message ParticipantsInfo {
+    // key is the pure domain name of participant
+    map<string, ParticipantInfo> participants_map = 1;
+}
+
+message ParticipantInfo {
+    string name = 1;
+    // ref: PendingProjectState
+    string state = 2;
+    // ref: ProjectRole
+    string role = 3;
+    // Ref to enum ParticipantType
+    string type = 4;
+    // ref: AuthStatus
+    string auth_status = 5;
+}
+
+message PendingProjectPb {
+    int64 id = 1;
+    string name = 2;
+    string uuid = 3;
+    ProjectConfig config = 4;
+    // ref: PendingProjectState
+    string state = 5;
+    ParticipantsInfo participants_info = 6;
+    // ref: ProjectRole
+    string role = 7;
+    string comment = 8;
+    // Username of creator
+    string creator_username = 9;
+    // Timestamp in seconds
+    int64 created_at = 10;
+    // Timestamp in seconds
+    int64 updated_at = 11;
+    // ref: TicketStatus
+    string ticket_status = 12;
+    string ticket_uuid = 13;
+    string participant_type = 14;
 }
