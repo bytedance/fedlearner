@@ -129,7 +129,7 @@
     "etcd3": "1.0.2",
     "husky": "4.3.0",
     "lint-staged": "10.4.2",
-    "mocha": "6.2.3",
+    "mocha": "10.2.0",
     "nodemon": "2.0.6",
     "nyc": "15.1.0",
     "sequelize-cli": "6.2.0",
