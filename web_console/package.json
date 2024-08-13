@@ -84,7 +84,7 @@
   },
   "dependencies": {
     "@geist-ui/react-icons": "1.0.0",
-    "@grpc/grpc-js": "1.1.7",
+    "@grpc/grpc-js": "1.1.8",
     "@grpc/proto-loader": "0.5.5",
     "@koa/router": "8.0.8",
     "@zeit-ui/react": "1.8.1",
