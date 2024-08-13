@@ -32,7 +32,7 @@
     },
     {
       "name": "data-join",
-      "job_type": "PSI_DATA_JOIN",
+      "job_type": "DATA_JOIN",
       "is_federated": true,
       "yaml_template": "data-join-yaml",
       "variables": [],

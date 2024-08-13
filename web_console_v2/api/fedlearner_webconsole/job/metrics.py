@@ -35,7 +35,7 @@ class JobMetricsBuilder(object):
         if self._job.job_type == JobType.DATA_JOIN:
             metrics = self.plot_data_join_metrics(num_buckets)
         elif self._job.job_type in [
-                JobType.NN_MODEL_TRANINING, JobType.NN_MODEL_EVALUATION]:
+                JobType.NN_MODEL_TRAINING, JobType.NN_MODEL_EVALUATION]:
             metrics = self.plot_nn_metrics(num_buckets)
         elif self._job.job_type in [JobType.TREE_MODEL_TRAINING,
                                     JobType.TREE_MODEL_EVALUATION]:

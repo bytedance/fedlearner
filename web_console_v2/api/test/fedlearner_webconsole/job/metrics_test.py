@@ -44,7 +44,7 @@ class JobMetricsBuilderTest(BaseTestCase):
     def test_nn_metrics(self):
         job = Job(
             name='automl-2782410011',
-            job_type=JobType.NN_MODEL_TRANINING)
+            job_type=JobType.NN_MODEL_TRAINING)
         print(JobMetricsBuilder(job).plot_metrics())
 
     def test_peer_metrics(self):
@@ -86,7 +86,7 @@ class JobMetricsBuilderTest(BaseTestCase):
         db.session.add(workflow)
         job = Job(
             name='automl-2782410011',
-            job_type=JobType.NN_MODEL_TRANINING,
+            job_type=JobType.NN_MODEL_TRAINING,
             workflow_id=1,
             project_id=1,
             config=workflow_definition_pb2.JobDefinition(
