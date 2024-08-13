@@ -18,7 +18,7 @@ elasticsearch==7.11.0
 flatten-dict==0.3.0
 pymysql==1.0.2
 setuptools==41.0.0
-tensorflow==1.15.2
+tensorflow==2.9.3
 pyopenssl==20.0.1
 mpld3==0.5.2
 python-slugify==4.0.1
