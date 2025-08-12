@@ -253,6 +253,35 @@ def convert_time_string_to_datetime(value):
     return date_time
 
 
+def get_process_dates(start_date, end_date=None, fmt='%Y%m%d'):
+    today = datetime.date.today()
+    today_date = datetime.datetime(today.year, today.month, today.day)
+    if end_date is None or end_date > today_date:
+        end_date = today_date
+    if start_date > end_date:
+        raise ValueError("start_date should be less than or equal to end_date")
+    process_dates = []
+    current_date = start_date
+    while current_date <= end_date:
+        process_dates.append(current_date.strftime(fmt))
+        current_date += datetime.timedelta(days=1)
+    return process_dates
+
+
+def end_with_valid_date(path: str) -> bool:
+    last_field = path.rstrip('/').split('/')[-1]
+
+    def is_valid_date(date_str: str) -> bool:
+        for fmt in ('%Y-%m-%d', '%Y%m%d', '%Y/%m/%d', '%Y.%m.%d'):
+            try:
+                datetime.strptime(date_str, fmt)
+                return True
+            except ValueError:
+                continue
+        return False
+    return is_valid_date(last_field)
+
+
 def set_logger():
     verbosity = int(os.environ.get('VERBOSITY', 1))
     if verbosity == 0:
