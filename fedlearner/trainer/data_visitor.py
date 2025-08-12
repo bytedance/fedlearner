@@ -30,6 +30,8 @@ import tensorflow.compat.v1 as tf
 from fedlearner.common import fl_logging
 from fedlearner.common import trainer_master_service_pb2 as tm_pb
 from fedlearner.common.common import convert_time_string_to_datetime
+from fedlearner.common.common import end_with_valid_date
+from fedlearner.common.common import get_process_dates
 from fedlearner.data_join.data_block_visitor import DataBlockVisitor
 from fedlearner.trainer.utils import match_date
 
@@ -351,22 +353,41 @@ class DataPathVisitor(_DataVisitor):
         if end_date:
             end_date = convert_time_string_to_datetime(str(end_date))
         datablocks = []
-        for dirname, _, filenames in tf.io.gfile.walk(data_path):
-            for filename in filenames:
-                if not fnmatch(os.path.join(dirname, filename), wildcard):
+        if start_date and not end_with_valid_date(data_path):
+            process_dates = get_process_dates(start_date, end_date)
+            miss_dates = []
+            for process_date in process_dates:
+                dir_path = os.path.join(data_path, process_date)
+                if not tf.io.gfile.exists(dir_path):
+                    miss_dates.append(process_date)
                     continue
-                subdirname = os.path.relpath(dirname, data_path)
-                try:
-                    cur_date = datetime.strptime(subdirname, '%Y%m%d')
-                    if not match_date(cur_date, start_date, end_date):
+                for _, _, filenames in tf.io.gfile.walk(dir_path):
+                    for filename in filenames:
+                        if not fnmatch(os.path.join(dir_path, filename), wildcard):
+                            continue
+                        block_id = os.path.join(process_date, filename)
+                        datablock = _RawDataBlock(
+                            id=block_id, data_path=os.path.join(dir_path, filename),
+                            start_time=None, end_time=None, type=tm_pb.JOINED)
+                        datablocks.append(datablock)
+            fl_logging.info('miss_dates: [%s]', ",".join(miss_dates))
+        else:
+            for dirname, _, filenames in tf.io.gfile.walk(data_path):
+                for filename in filenames:
+                    if not fnmatch(os.path.join(dirname, filename), wildcard):
                         continue
-                except Exception:
-                    fl_logging.info('subdirname is not the format of time')
-                block_id = os.path.join(subdirname, filename)
-                datablock = _RawDataBlock(
-                    id=block_id, data_path=os.path.join(dirname, filename),
-                    start_time=None, end_time=None, type=tm_pb.JOINED)
-                datablocks.append(datablock)
+                    subdirname = os.path.relpath(dirname, data_path)
+                    try:
+                        cur_date = datetime.strptime(subdirname, '%Y%m%d')
+                        if not match_date(cur_date, start_date, end_date):
+                            continue
+                    except Exception:
+                        fl_logging.info('subdirname is not the format of time')
+                    block_id = os.path.join(subdirname, filename)
+                    datablock = _RawDataBlock(
+                        id=block_id, data_path=os.path.join(dirname, filename),
+                        start_time=None, end_time=None, type=tm_pb.JOINED)
+                    datablocks.append(datablock)
         datablocks.sort(key=lambda x: x.id)
 
         fl_logging.info("create DataVisitor by local_data_path: %s",
