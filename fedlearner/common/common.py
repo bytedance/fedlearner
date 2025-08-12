@@ -279,7 +279,6 @@ def end_with_valid_date(path: str) -> bool:
             except ValueError:
                 continue
         return False
-
     return is_valid_date(last_field)
 
 
