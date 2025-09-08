@@ -102,7 +102,7 @@
     "ky-universal": "0.8.2",
     "lodash": "4.17.20",
     "mysql2": "2.2.5",
-    "next": "9.4.4",
+    "next": "14.2.32",
     "react": "16.13.1",
     "react-dom": "16.13.1",
     "react-toastify": "6.0.9",
