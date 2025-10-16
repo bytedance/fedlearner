@@ -14,7 +14,7 @@ jobs:
       matrix:
         # As long as we need Python 3.6 here in the test, we can only use up to Ubuntu 20.
         # https://github.com/actions/setup-python/issues/544
-        os: [ubuntu-22.04]
+        os: [ubuntu-20.04]
     runs-on: ${{ matrix.os }}
     name: CI tests
     steps:
