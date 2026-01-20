@@ -2,10 +2,10 @@ import React, { FC, memo, useMemo } from 'react';
 import { Line } from 'react-chartjs-2';
 import { KiabanaMetrics } from 'typings/kibana';
 import { formatTimestamp } from 'shared/date';
-import defaultTheme from 'styles/_theme';
-import { ControlsContainer } from '../elements';
-import { Pen } from 'components/IconPark';
+import { IconPen } from '@arco-design/web-react/icon';
 import { ControlButton } from 'styles/elements';
+import defaultTheme from 'styles/theme';
+import styled from './LineChart.module.less';
 
 type Props = {
   metrics: KiabanaMetrics;
@@ -44,24 +44,17 @@ const KibanaLineChart: FC<Props> = memo(({ metrics, label, isFill, onEditParams 
        * we give two size of chart on purpose for different size of container
        */}
       {isFill ? (
-        <Line key="fullscreen" type="line" data={data} options={OPTIONS} width={900} height={300} />
+        <Line key="fullscreen" data={data} options={OPTIONS} width={900} height={300} />
       ) : (
-        <Line
-          key="non-fullscreen"
-          type="line"
-          data={data}
-          options={OPTIONS}
-          width={435}
-          height={300}
-        />
+        <Line key="non-fullscreen" data={data} options={OPTIONS} width={435} height={300} />
       )}
 
       {isFill && (
-        <ControlsContainer>
+        <div className={styled.controls_container}>
           <ControlButton onClick={() => onEditParams()}>
-            <Pen />
+            <IconPen />
           </ControlButton>
-        </ControlsContainer>
+        </div>
       )}
     </div>
   );

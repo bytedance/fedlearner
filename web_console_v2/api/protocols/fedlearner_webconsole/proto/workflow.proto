@@ -1,0 +1,79 @@
+/* Copyright 2023 The FedLearner Authors. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+syntax = "proto3";
+
+import "google/protobuf/struct.proto";
+
+import "fedlearner_webconsole/proto/workflow_definition.proto";
+
+import "fedlearner_webconsole/proto/job.proto";
+
+package fedlearner_webconsole.proto;
+
+// Lite version of workflow.
+message WorkflowRef {
+  int64 id = 1;
+  string name = 2;
+  string uuid = 3;
+  int64 project_id = 4;
+  string state = 5;
+  // Timestamp in int
+  int64 created_at = 6;
+  bool forkable = 7;
+  // Whether the metric is public for peers or not.
+  bool metric_is_public = 8;
+  // Extra info in json format.
+  string extra = 9 [deprecated = true];
+  bool favour = 10;
+}
+
+
+message WorkflowPb {
+  message TemplateInfo {
+    int64 id = 1;
+    bool is_modified = 2;
+    string name = 3;
+    int64 revision_index = 4;
+  }
+  int64 id = 1;
+  string name = 2;
+  string uuid = 3;
+  int64 project_id = 4;
+  string state = 5;
+  // Timestamp in int
+  int64 created_at = 6;
+  bool forkable = 7;
+  // Whether the metric is public for peers or not.
+  bool metric_is_public = 8;
+  bool favour = 10;
+  int64 template_revision_id = 11;
+  WorkflowDefinition config = 12;
+  WorkflowTemplateEditorInfo editor_info = 13;
+  int64 template_id = 14;
+  string comment = 15;
+  repeated int64 job_ids = 16;
+  repeated int64 create_job_flags = 17;
+  bool is_local = 18;
+  int64 forked_from = 19;
+  repeated int64 peer_create_job_flags = 20;
+  int64 start_at = 21;
+  int64 stop_at = 22;
+  int64 updated_at = 23;
+  string cron_config = 24;
+  string creator = 25;
+  TemplateInfo template_info = 26;
+  repeated JobPb jobs = 27;
+}

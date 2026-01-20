@@ -1,3 +1,18 @@
+# Copyright 2023 The FedLearner Authors. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
 from __future__ import with_statement
 
 import logging
@@ -20,9 +35,7 @@ logger = logging.getLogger('alembic.env')
 # for 'autogenerate' support
 # from myapp import mymodel
 # target_metadata = mymodel.Base.metadata
-config.set_main_option(
-    'sqlalchemy.url',
-    str(current_app.extensions['migrate'].db.engine.url).replace('%', '%%'))
+config.set_main_option('sqlalchemy.url', str(current_app.extensions['migrate'].db.engine.url).replace('%', '%%'))
 target_metadata = current_app.extensions['migrate'].db.metadata
 
 # other values from the config, defined by the needs of env.py,
@@ -30,7 +43,8 @@ target_metadata = current_app.extensions['migrate'].db.metadata
 # my_important_option = config.get_main_option("my_important_option")
 # ... etc.
 
-BLOCK_AUTOGENERATE_LIST = ['models_v2']
+BLOCK_AUTOGENERATE_LIST = []
+
 
 def include_object(object, name, type_, reflected, compare_to):
     if type_ == 'table' and name in BLOCK_AUTOGENERATE_LIST:
@@ -52,10 +66,7 @@ def run_migrations_offline():
 
     """
     url = config.get_main_option("sqlalchemy.url")
-    context.configure(url=url,
-                      target_metadata=target_metadata,
-                      literal_binds=True,
-                      include_object=include_object)
+    context.configure(url=url, target_metadata=target_metadata, literal_binds=True, include_object=include_object)
 
     with context.begin_transaction():
         context.run_migrations()
@@ -82,12 +93,11 @@ def run_migrations_online():
     connectable = current_app.extensions['migrate'].db.engine
 
     with connectable.connect() as connection:
-        context.configure(
-            connection=connection,
-            target_metadata=target_metadata,
-            include_object=include_object,
-            process_revision_directives=process_revision_directives,
-            **current_app.extensions['migrate'].configure_args)
+        context.configure(connection=connection,
+                          target_metadata=target_metadata,
+                          include_object=include_object,
+                          process_revision_directives=process_revision_directives,
+                          **current_app.extensions['migrate'].configure_args)
 
         with context.begin_transaction():
             context.run_migrations()

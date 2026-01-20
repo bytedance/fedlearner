@@ -1,6 +1,8 @@
+/* istanbul ignore file */
+
 import { keyframes } from 'styled-components';
 
-export const ScrollDown = keyframes`
+export const Suspense = keyframes`
   0% {
     transform: translateY(0);
   }
@@ -12,5 +14,20 @@ export const ScrollDown = keyframes`
   }
   100% {
     transform: translateY(0);
+  }
+`;
+
+export const HighlightedWave = keyframes`
+  0% {
+    box-shadow: 0 0 0 2px var(--primaryColor);
+  }
+  33% {
+    box-shadow: 0 0 0 2px var(--primaryColor), 0 0 0 5px var(--blue2);
+  }
+  66% {
+    box-shadow: 0 0 0 2px var(--primaryColor), 0 0 0 10px transparent;
+  }
+  100% {
+    box-shadow: 0 0 0 2px var(--primaryColor);
   }
 `;

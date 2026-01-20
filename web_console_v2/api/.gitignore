@@ -4,6 +4,7 @@
 # Generated proto python code
 fedlearner_webconsole/proto/*.py
 fedlearner_webconsole/proto/*.pyi
+fedlearner_webconsole/proto/testing/
 
 # Coverage generated
 .coverage_html_report/

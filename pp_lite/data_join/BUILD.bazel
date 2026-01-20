@@ -1,0 +1,7 @@
+load("@rules_python//python:defs.bzl", "py_library")
+
+py_library(
+    name = "envs",
+    srcs = ["envs.py"],
+    visibility = ["//pp_lite:pp_lite_package"],
+)

@@ -1,0 +1,205 @@
+{
+    "comment": "",
+    "config": {
+        "group_alias": "hash-data-join",
+        "job_definitions": [
+            {
+                "dependencies": [],
+                "easy_mode": false,
+                "is_federated": false,
+                "job_type": "TRANSFORMER",
+                "name": "partition-job",
+                "variables": [],
+                "yaml_template": "{\n    \"apiVersion\": \"sparkoperator.k8s.io/v1beta2\",\n    \"kind\": \"SparkApplication\",\n    \"metadata\": {\n        \"name\": self.name,\n        \"namespace\": system.variables.namespace,\n        \"labels\": dict(system.variables.labels),\n        \"annotations\": {\n            \"queue\": \"fedlearner-spark\",\n            \"schedulerName\": \"batch\",\n        },\n    },\n    \"spec\": {\n        \"type\": \"Python\",\n        \"pythonVersion\": \"3\",\n        \"mode\": \"cluster\",\n        \"image\": (system.variables.get(\"spark_image_repo\") or str(system.variables.image_repo + \"/pp_data_inspection\")) + \":\" + system.version,\n        \"imagePullPolicy\": \"IfNotPresent\",\n        \"volumes\": list(system.variables.volumes_list),\n        \"mainApplicationFile\": \"/opt/spark/work-dir/partition.py\",\n        \"arguments\": [\n            \"--input_path=\" + workflow.variables.input_batch_path + '/' + 'part*',\n            \"--file_format=\" + 'tfrecords',\n            \"--part_key=\" + workflow.variables.part_key,\n            \"--part_num=\" + workflow.variables.part_num,\n            \"--output_file_format=\" + 'tfrecords',\n            \"--output_dir=\" + workflow.variables.output_dataset_path + '/side_output/' + workflow.variables.output_batch_path.split('/')[-1]\n        ],\n        \"sparkVersion\": \"3.0.0\",\n        \"restartPolicy\": {\n            \"type\": \"OnFailure\",\n            \"onFailureRetries\": 3,\n            \"onFailureRetryInterval\": 10,\n            \"onSubmissionFailureRetries\": 5,\n            \"onSubmissionFailureRetryInterval\": 20\n        },\n        \"driver\": {\n            \"cores\": 2,\n            \"memory\": \"4g\",\n            \"labels\": {\n                \"version\": \"3.0.0\"\n            },\n            \"serviceAccount\": \"spark\",\n            \"volumeMounts\": list(system.variables.volume_mounts_list),\n            \"env\": system.variables.envs_list + [],\n        },\n        \"executor\": {\n            \"cores\": int(workflow.variables.executor_cores),\n            \"instances\": 1,\n            \"memory\": workflow.variables.executor_mem,\n            \"labels\": {\n                \"version\": \"3.0.0\"\n            },\n            \"volumeMounts\": list(system.variables.volume_mounts_list),\n            \"env\": system.variables.envs_list + []\n        },\n        \"dynamicAllocation\": {\n            \"enabled\": True,\n            \"initialExecutors\": int(workflow.variables.initial_executor_num),\n            \"minExecutors\": int(workflow.variables.min_executor_num),\n            \"maxExecutors\": int(workflow.variables.max_executor_num)\n        }\n    }\n}\n"
+            },
+            {
+                "dependencies": [
+                    {
+                        "source": "partition-job"
+                    }
+                ],
+                "easy_mode": false,
+                "is_federated": true,
+                "job_type": "PSI_DATA_JOIN",
+                "name": "hash-data-join",
+                "variables": [],
+                "yaml_template": "{\n    \"apiVersion\": \"fedlearner.k8s.io/v1alpha1\",\n    \"kind\": \"FedApp\",\n    \"metadata\": {\n    \"name\": self.name,\n    \"namespace\": system.variables.namespace,\n    \"labels\": dict(system.variables.labels)\n    },\n    \"spec\": {\n        \"fedReplicaSpecs\": {\n            \"Worker\": {\n                \"backoffLimit\": 5,\n                \"port\": {\n                    \"containerPort\": 32443,\n                    \"name\": \"flapp-port\"\n                },\n                \"template\": {\n                    \"spec\": {\n                        \"containers\": [\n                            {\n                                \"name\": \"psi\",\n                                \"image\": system.variables.image_repo + \"/pp_lite:\" + system.version,\n                                \"env\": system.basic_envs_list + [\n                                    {\n                                        \"name\": \"ROLE\",\n                                        \"value\": workflow.variables.role\n                                    },\n                                    {\n                                        \"name\": \"JOB_TYPE\",\n                                        \"value\": \"psi-hash\"\n                                    },\n                                    {\n                                        \"name\": \"PEER_URL\",\n                                        \"value\": \"fedlearner-stack-ingress-nginx-controller.default.svc:80\"\n                                    },\n                                    {\n                                        \"name\": \"AUTHORITY\",\n                                        \"value\": project.participants[0].egress_host\n                                    },\n                                    {\n                                        \"name\": \"PEER_DOMAIN\",\n                                        \"value\": project.participants[0].egress_domain\n                                    },\n                                    {\n                                        \"name\": \"INPUT_PATH\",\n                                        \"value\": workflow.variables.output_dataset_path + '/side_output/' + workflow.variables.output_batch_path.split('/')[-1] + '/ids'\n                                    },\n                                    {\n                                        \"name\": \"OUTPUT_PATH\",\n                                        \"value\": workflow.variables.output_dataset_path + '/side_output/' + workflow.variables.output_batch_path.split('/')[-1] + '/joined'\n                                    },\n                                    {\n                                        \"name\": \"KEY_COLUMN\",\n                                        \"value\": workflow.variables.part_key\n                                    }\n                                ],\n                                \"volumeMounts\": list(system.variables.volume_mounts_list),\n                                \"resources\": {\n                                    \"limits\": {\n                                        \"cpu\": workflow.variables.worker_cpu,\n                                        \"memory\": workflow.variables.worker_mem\n                                    },\n                                    \"requests\": {\n                                        \"cpu\": workflow.variables.worker_cpu,\n                                        \"memory\": workflow.variables.worker_mem\n                                    }\n                                },\n                                \"ports\": [\n                                    {\n                                        \"containerPort\": 32443,\n                                        \"name\": \"flapp-port\",\n                                        \"protocol\": \"TCP\"\n                                    },\n                                    {\n                                        \"containerPort\": 50051,\n                                        \"name\": \"server-port\",\n                                        \"protocol\": \"TCP\"\n                                    },\n                                    {\n                                        \"containerPort\": 50052,\n                                        \"name\": \"tunnel-port\",\n                                        \"protocol\": \"TCP\"\n                                    },\n                                    {\n                                        \"containerPort\": 1212,\n                                        \"name\": \"joiner-port\",\n                                        \"protocol\": \"TCP\"\n                                    }\n                                ],\n                            }\n                        ],\n                        \"imagePullSecrets\": [\n                            {\n                                \"name\": \"regcred\"\n                            }\n                        ],\n                        \"volumes\": list(system.variables.volumes_list),\n                    }\n                },\n                \"pair\": True,\n                \"replicas\": int(workflow.variables.replicas)\n            }\n        }\n    }\n}\n"
+            },
+            {
+                "dependencies": [
+                    {
+                        "source": "hash-data-join"
+                    }
+                ],
+                "easy_mode": false,
+                "is_federated": false,
+                "job_type": "TRANSFORMER",
+                "name": "feature-extraction",
+                "variables": [],
+                "yaml_template": "{\n    \"apiVersion\": \"sparkoperator.k8s.io/v1beta2\",\n    \"kind\": \"SparkApplication\",\n    \"metadata\": {\n        \"name\": self.name,\n        \"namespace\": system.variables.namespace,\n        \"labels\": dict(system.variables.labels),\n        \"annotations\": {\n            \"queue\": \"fedlearner-spark\",\n            \"schedulerName\": \"batch\",\n        },\n    },\n    \"spec\": {\n        \"type\": \"Python\",\n        \"pythonVersion\": \"3\",\n        \"mode\": \"cluster\",\n        \"image\": (system.variables.get(\"spark_image_repo\") or str(system.variables.image_repo + \"/pp_data_inspection\")) + \":\" + system.version,\n        \"imagePullPolicy\": \"IfNotPresent\",\n        \"volumes\": list(system.variables.volumes_list),\n        \"mainApplicationFile\": \"/opt/spark/work-dir/feature_extraction_v2.py\",\n        \"arguments\": [\n            \"--original_data_path=\" + workflow.variables.output_dataset_path + '/side_output/' + workflow.variables.output_batch_path.split('/')[-1] + '/raw',\n            \"--joined_data_path=\" + workflow.variables.output_dataset_path + '/side_output/' + workflow.variables.output_batch_path.split('/')[-1] + '/joined',\n            \"--part_key=\" + workflow.variables.part_key,\n            \"--part_num=\" + workflow.variables.part_num,\n            \"--file_format=\" + 'tfrecords',\n            \"--output_file_format=\" + 'tfrecords',\n            \"--output_batch_name=\" + workflow.variables.output_batch_path.split('/')[-1],\n            \"--output_dataset_path=\" + workflow.variables.output_dataset_path\n        ],\n        \"sparkVersion\": \"3.0.0\",\n        \"restartPolicy\": {\n            \"type\": \"OnFailure\",\n            \"onFailureRetries\": 3,\n            \"onFailureRetryInterval\": 10,\n            \"onSubmissionFailureRetries\": 5,\n            \"onSubmissionFailureRetryInterval\": 20\n        },\n        \"driver\": {\n            \"cores\": 2,\n            \"memory\": '4g',\n            \"labels\": {\n                \"version\": \"3.0.0\"\n            },\n            \"serviceAccount\": \"spark\",\n            \"volumeMounts\": list(system.variables.volume_mounts_list),\n            \"env\": system.variables.envs_list + [],\n        },\n        \"executor\": {\n            \"cores\": int(workflow.variables.executor_cores),\n            \"instances\": 1,\n            \"memory\": workflow.variables.executor_mem,\n            \"labels\": {\n                \"version\": \"3.0.0\"\n            },\n            \"volumeMounts\": list(system.variables.volume_mounts_list),\n            \"env\": system.variables.envs_list + []\n        },\n        \"dynamicAllocation\": {\n            \"enabled\": True,\n            \"initialExecutors\": int(workflow.variables.initial_executor_num),\n            \"minExecutors\": int(workflow.variables.min_executor_num),\n            \"maxExecutors\": int(workflow.variables.max_executor_num)\n        }\n    }\n}\n"
+            },
+            {
+                "dependencies": [
+                    {
+                        "source": "feature-extraction"
+                    }
+                ],
+                "easy_mode": false,
+                "is_federated": false,
+                "job_type": "ANALYZER",
+                "name": "analyzer",
+                "variables": [],
+                "yaml_template": "{\n    \"apiVersion\": \"sparkoperator.k8s.io/v1beta2\",\n    \"kind\": \"SparkApplication\",\n    \"metadata\": {\n        \"name\": self.name,\n        \"namespace\": system.variables.namespace,\n        \"labels\": dict(system.variables.labels),\n        \"annotations\": {\n            \"queue\": \"fedlearner-spark\",\n            \"schedulerName\": \"batch\",\n        },\n    },\n    \"spec\": {\n        \"type\": \"Python\",\n        \"pythonVersion\": \"3\",\n        \"mode\": \"cluster\",\n        \"image\": (system.variables.get(\"spark_image_repo\") or str(system.variables.image_repo + \"/pp_data_inspection\")) + \":\" + system.version,\n        \"imagePullPolicy\": \"IfNotPresent\",\n        \"volumes\": list(system.variables.volumes_list),\n        \"mainApplicationFile\": \"/opt/spark/work-dir/analyzer_v2.py\",\n        \"arguments\": [\n            \"tabular\",\n            \"--data_path=\"+ (str(workflow.variables.output_dataset_path) or str(project.variables.storage_root_path) + \"/\" + \"dataset\" + \"/\" + \"\"),\n            \"--file_wildcard=\" + \"batch/**/**\",\n            \"--buckets_num=\" + str(10),\n            \"--thumbnail_path=\" + \"\",\n            \"--batch_name=\" + str(workflow.variables.output_batch_name),\n        ],\n        \"sparkVersion\": \"3.0.0\",\n        \"restartPolicy\": {\n            \"type\": \"OnFailure\",\n            \"onFailureRetries\": 3,\n            \"onFailureRetryInterval\": 10,\n            \"onSubmissionFailureRetries\": 5,\n            \"onSubmissionFailureRetryInterval\": 20\n        },\n        \"driver\": {\n            \"cores\": 1,\n            \"coreLimit\": \"1200m\",\n            \"memory\": \"4g\",\n            \"labels\": {\n                \"version\": \"3.0.0\"\n            },\n            \"serviceAccount\": \"spark\",\n            \"volumeMounts\": list(system.variables.volume_mounts_list),\n            \"env\": system.basic_envs_list + system.variables.envs_list + []\n        },\n        \"executor\": {\n            \"cores\": int(workflow.variables.executor_cores),\n            \"instances\": 1,\n            \"memory\": workflow.variables.executor_mem,\n            \"labels\": {\n                \"version\": \"3.0.0\"\n            },\n            \"volumeMounts\": list(system.variables.volume_mounts_list),\n            \"env\": system.variables.envs_list + []\n        },\n        \"dynamicAllocation\": {\n            \"enabled\": True,\n            \"initialExecutors\": int(workflow.variables.initial_executor_num),\n            \"minExecutors\": int(workflow.variables.min_executor_num),\n            \"maxExecutors\": int(workflow.variables.max_executor_num)\n        }\n    }\n}\n"
+            }
+        ],
+        "variables": [
+            {
+                "access_mode": "PEER_READABLE",
+                "name": "input_dataset_path",
+                "tag": "INPUT_PATH",
+                "typed_value": "undefined",
+                "value": "undefined",
+                "value_type": "STRING",
+                "widget_schema": "{\"component\":\"DatasetPath\",\"required\":true,\"tooltip\":\"输入数据地址\",\"tag\":\"INPUT_PATH\"}"
+            },
+            {
+                "access_mode": "PEER_WRITABLE",
+                "name": "part_key",
+                "tag": "INPUT_PARAM",
+                "typed_value": "raw_id",
+                "value": "raw_id",
+                "value_type": "STRING",
+                "widget_schema": "{\"component\":\"Input\",\"required\":true,\"tooltip\":\"求交的key\",\"tag\":\"INPUT_PARAM\"}"
+            },
+            {
+                "access_mode": "PEER_WRITABLE",
+                "name": "part_num",
+                "tag": "INPUT_PARAM",
+                "typed_value": "10",
+                "value": "10",
+                "value_type": "STRING",
+                "widget_schema": "{\"component\":\"Input\",\"required\":true,\"tooltip\":\"分区数量\",\"tag\":\"INPUT_PARAM\"}"
+            },
+            {
+                "access_mode": "PEER_READABLE",
+                "name": "output_batch_path",
+                "tag": "OUTPUT_PATH",
+                "typed_value": "",
+                "value": "",
+                "value_type": "STRING",
+                "widget_schema": "{\"component\":\"Input\",\"required\":true,\"tooltip\":\"输出数据batch地址\",\"tag\":\"OUTPUT_PATH\"}"
+            },
+            {
+                "access_mode": "PEER_READABLE",
+                "name": "output_dataset_path",
+                "tag": "OUTPUT_PATH",
+                "typed_value": "",
+                "value": "",
+                "value_type": "STRING",
+                "widget_schema": "{\"component\":\"Input\",\"required\":true,\"tooltip\":\"输出数据集地址\",\"tag\":\"OUTPUT_PATH\"}"
+            },
+            {
+                "access_mode": "PEER_WRITABLE",
+                "name": "role",
+                "tag": "OPERATING_PARAM",
+                "typed_value": "undefined",
+                "value": "undefined",
+                "value_type": "STRING",
+                "widget_schema": "{\"component\":\"Select\",\"required\":true,\"tooltip\":\"OtPsi角色\",\"enum\":[\"client\",\"server\"],\"hidden\":false,\"tag\":\"OPERATING_PARAM\"}"
+            },
+            {
+                "access_mode": "PEER_WRITABLE",
+                "name": "replicas",
+                "tag": "RESOURCE_ALLOCATION",
+                "typed_value": "10",
+                "value": "10",
+                "value_type": "STRING",
+                "widget_schema": "{\"component\":\"Input\",\"required\":true,\"tooltip\":\"求交worker数量\",\"tag\":\"RESOURCE_ALLOCATION\"}"
+            },
+            {
+                "access_mode": "PEER_WRITABLE",
+                "name": "worker_cpu",
+                "tag": "RESOURCE_ALLOCATION",
+                "typed_value": "2000m",
+                "value": "2000m",
+                "value_type": "STRING",
+                "widget_schema": "{\"component\":\"Input\",\"required\":true,\"tag\":\"RESOURCE_ALLOCATION\"}"
+            },
+            {
+                "access_mode": "PEER_WRITABLE",
+                "name": "worker_mem",
+                "tag": "RESOURCE_ALLOCATION",
+                "typed_value": "4Gi",
+                "value": "4Gi",
+                "value_type": "STRING",
+                "widget_schema": "{\"component\":\"Input\",\"required\":true,\"tag\":\"RESOURCE_ALLOCATION\"}"
+            },
+            {
+                "access_mode": "PEER_READABLE",
+                "name": "input_batch_path",
+                "tag": "INPUT_PATH",
+                "typed_value": "",
+                "value": "",
+                "value_type": "STRING",
+                "widget_schema": "{\"component\":\"Input\",\"required\":true,\"tooltip\":\"输入batch地址\",\"tag\":\"INPUT_PATH\"}"
+            },
+            {
+                "access_mode": "PEER_WRITABLE",
+                "name": "executor_cores",
+                "tag": "RESOURCE_ALLOCATION",
+                "typed_value": "2",
+                "value": "2",
+                "value_type": "STRING",
+                "widget_schema": "{\"component\":\"Input\",\"required\":true,\"tooltip\":\"executor核数\",\"tag\":\"RESOURCE_ALLOCATION\"}"
+            },
+            {
+                "access_mode": "PEER_WRITABLE",
+                "name": "executor_mem",
+                "tag": "RESOURCE_ALLOCATION",
+                "typed_value": "4g",
+                "value": "4g",
+                "value_type": "STRING",
+                "widget_schema": "{\"component\":\"Input\",\"required\":true,\"tooltip\":\"executor内存\",\"tag\":\"RESOURCE_ALLOCATION\"}"
+            },
+            {
+                "access_mode": "PEER_WRITABLE",
+                "name": "initial_executor_num",
+                "tag": "RESOURCE_ALLOCATION",
+                "typed_value": "2",
+                "value": "2",
+                "value_type": "STRING",
+                "widget_schema": "{\"component\":\"Input\",\"required\":true,\"tooltip\":\"spark任务初始化executor数量\",\"tag\":\"RESOURCE_ALLOCATION\"}"
+            },
+            {
+                "access_mode": "PEER_WRITABLE",
+                "name": "min_executor_num",
+                "tag": "RESOURCE_ALLOCATION",
+                "typed_value": "2",
+                "value": "2",
+                "value_type": "STRING",
+                "widget_schema": "{\"component\":\"Input\",\"required\":true,\"tooltip\":\"spark任务最小executor数量\",\"tag\":\"RESOURCE_ALLOCATION\"}"
+            },
+            {
+                "access_mode": "PEER_WRITABLE",
+                "name": "max_executor_num",
+                "tag": "RESOURCE_ALLOCATION",
+                "typed_value": "64",
+                "value": "64",
+                "value_type": "STRING",
+                "widget_schema": "{\"component\":\"Input\",\"required\":true,\"tooltip\":\"spark任务最大executor数量\",\"tag\":\"RESOURCE_ALLOCATION\"}"
+            },
+            {
+                "access_mode": "PEER_WRITABLE",
+                "name": "output_batch_name",
+                "tag": "OUTPUT_PATH",
+                "typed_value": "",
+                "value": "",
+                "value_type": "STRING",
+                "widget_schema": "{\"component\":\"Input\",\"required\":true,\"hidden\":true,\"tag\":\"OUTPUT_PATH\"}"
+            }
+        ]
+    },
+    "editor_info": {},
+    "group_alias": "hash-data-join",
+    "name": "sys-preset-hash-data-join-analyzer"
+}

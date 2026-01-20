@@ -5,6 +5,7 @@ import { Variable } from 'typings/variable';
 export enum ChartNodeStatus {
   Pending,
   Processing,
+  Validating,
   Warning,
   Success,
   Error,

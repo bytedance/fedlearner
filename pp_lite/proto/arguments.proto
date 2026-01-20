@@ -1,0 +1,76 @@
+/* Copyright 2023 The FedLearner Authors. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+syntax = "proto3";
+package pp_lite.proto;
+import "pp_lite/proto/common.proto";
+
+message ClusterSpec {
+  // service name and port of workers
+  repeated string workers = 1;
+}
+
+message Arguments {
+  string input_path = 1;
+  string output_path = 2;
+  string key_column = 3;
+  DataJoinType data_join_type = 4;
+  int32 server_port = 5;
+  // 0-based worker rank
+  int32 worker_rank = 6;
+  ClusterSpec cluster_spec = 7;
+  int32 num_workers = 8;
+  int32 joiner_port = 9;
+  bool partitioned = 10;
+}
+
+message TrainerArguments {
+  string input_path = 1 [deprecated=true];
+  string output_path = 2 [deprecated=true];
+  // listen port for server-side gRpc server.
+  int32 server_port = 3; 
+  // cluster_spec for TensorFlow gRpc server. Default: '{"clusterSpec": {"server": ["localhost:51001"], \
+  // "master": ["localhost:50101"], "ps": ["localhost:50102"], "worker": ["localhost:50103"]}}'.
+  string cluster_spec = 4; 
+  // which model version to load if the pre-trained model exists. Default: 0.
+  int32 model_version = 5; 
+  // the maximum number of model checkpoints to save. Default: 5.
+  int32 model_max_to_keep = 6; 
+  // the tolerated number of the stale version compared to the current version for the 
+  // model aggregation on the server. Default: 0.
+  int32 tolerated_version_gap = 7; 
+  // the number of local steps for each client epoch. Default: 100.
+  int32 local_steps = 8; 
+  // local training batch size. Default: 10.
+  int32 batch_size = 9; 
+  // address for client-side master gRpc server.
+  string master_addr = 10; 
+  int32 worker_rank = 11; 
+  int32 ps_rank = 12; 
+  // task mode for client. Default: 'local'. Range: ['local', 'master', 'ps', 'worker'].
+  string task_mode = 13; 
+  // listen port for server-side tensorflow gRpc server.
+  int32 tf_port = 14; 
+  // total number of clients.
+  int32 num_clients = 15; 
+  // export server model per save_version_gap.
+  int32 save_version_gap = 16; 
+  // initial weight for aggregating the client model.
+  float client_model_weight = 17;
+  string data_path = 18;
+  string export_path = 19;
+  // filter out tfrecord files we want to use
+  string file_wildcard = 20;
+}

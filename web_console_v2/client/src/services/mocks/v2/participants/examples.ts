@@ -1,0 +1,68 @@
+import { Participant } from 'typings/participant';
+
+export const participantList: Participant[] = [
+  {
+    id: 1,
+    name: 'bytedance',
+    domain_name: 'fl-bytedance.com',
+    pure_domain_name: 'fl-byteddance',
+    host: '101.200.236.203',
+    port: 32443,
+    comment: 'migrate from projectconnection_test2',
+    extra: {
+      is_manual_configured: false,
+    },
+    created_at: 1631519868,
+    updated_at: 1631519868,
+    num_project: 25,
+    type: 'PLATFORM',
+  },
+  {
+    id: 2,
+    name: 'bytedance-test',
+    domain_name: 'fl-bytedance-test.com',
+    pure_domain_name: 'fl-bytedance-test',
+    host: 'xxx',
+    port: 443,
+    comment: 'migrate from projectxyx-test',
+    extra: {
+      is_manual_configured: false,
+    },
+    created_at: 1631519868,
+    updated_at: 1631519868,
+    num_project: 1,
+    type: 'PLATFORM',
+  },
+  {
+    id: 3,
+    name: 'Demo-test',
+    domain_name: 'fl-demo-test.com',
+    pure_domain_name: 'fl-demo-test',
+    host: 'xxx',
+    port: 443,
+    comment: 'migrate from projectDemo1',
+    extra: {
+      is_manual_configured: false,
+    },
+    created_at: 1631519868,
+    updated_at: 1631785500,
+    num_project: 1,
+    type: 'PLATFORM',
+  },
+  {
+    id: 4,
+    name: 'aliyun-test1',
+    domain_name: 'fl-aliyun-test.com',
+    pure_domain_name: 'fl-aliyun-test',
+    host: '11.11.11.11',
+    port: 443,
+    comment: null,
+    extra: {
+      is_manual_configured: false,
+    },
+    created_at: 1632469805,
+    updated_at: 1632469805,
+    num_project: 1,
+    type: 'PLATFORM',
+  },
+];

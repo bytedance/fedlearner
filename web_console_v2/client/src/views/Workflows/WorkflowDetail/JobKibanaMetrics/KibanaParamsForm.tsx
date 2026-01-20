@@ -1,7 +1,7 @@
 import React, { FC, useContext, useState } from 'react';
 import styled from 'styled-components';
 import { useTranslation } from 'react-i18next';
-import { Form, Select, Input, Row, Col, Button, Switch } from 'antd';
+import { Form, Select, Input, Grid, Button, Switch } from '@arco-design/web-react';
 import { KibanaChartType, KibanaQueryFields, KibanaQueryParams } from 'typings/kibana';
 import { JobType } from 'typings/job';
 import IntervalInput from './FieldComponents/IntervalInput';
@@ -12,8 +12,11 @@ import TimerNameInput from './FieldComponents/TimerNameInput';
 import AggregatorSelect from './FieldComponents/AggregatorSelect';
 import GridRow from 'components/_base/GridRow';
 import FormLabel from 'components/FormLabel';
-import { ShareInternal } from 'components/IconPark';
+import { IconShareInternal } from '@arco-design/web-react/icon';
 import { JobExecutionDetailsContext } from '../JobExecutionDetailsDrawer';
+
+const Row = Grid.Row;
+const Col = Grid.Col;
 
 const Container = styled.div``;
 
@@ -134,12 +137,12 @@ const KibanaParamsForm: FC<Props> = ({ types, onPreview, onNewWindowPreview, onC
         form={formInstance}
         layout="vertical"
         initialValues={initialValues}
-        onFinish={onFinish}
+        onSubmit={onFinish}
         onValuesChange={onValuesChange}
       >
         <Row gutter={20}>
           <Col span={12}>
-            <Form.Item label="Type" name="type">
+            <Form.Item label="Type" field="type">
               <Select>
                 {types.map((type) => (
                   <Select.Option key={type} value={type}>
@@ -152,12 +155,11 @@ const KibanaParamsForm: FC<Props> = ({ types, onPreview, onNewWindowPreview, onC
           {fieldsConfig &&
             fieldsConfig.fields.map((field) => {
               const Component = FieldToComponentMap[field]?.use || Input;
-
               return (
                 <Col key={field} span={12}>
                   <Form.Item
                     label={<FormLabel label={field} tooltip={FieldToComponentMap[field]?.help} />}
-                    name={field}
+                    field={field}
                   >
                     <Component type={chartType} />
                   </Form.Item>
@@ -169,13 +171,13 @@ const KibanaParamsForm: FC<Props> = ({ types, onPreview, onNewWindowPreview, onC
         <Form.Item>
           <GridRow gap={16} top="12" justify="end">
             {!isPeerSide && (
-              <Button type="link" icon={<ShareInternal />} onClick={onNewWindowPreviewClick}>
+              <Button type="text" icon={<IconShareInternal />} onClick={onNewWindowPreviewClick}>
                 {t('workflow.btn_preview_kibana_fullscreen')}
               </Button>
             )}
 
             <Button onClick={onPreviewClick}>{t('workflow.btn_preview_kibana')}</Button>
-            <Button type="primary" htmlType="submit" size="middle">
+            <Button type="primary" htmlType="submit" size="small">
               {t('confirm')}
             </Button>
           </GridRow>
@@ -191,10 +193,10 @@ const KibanaParamsForm: FC<Props> = ({ types, onPreview, onNewWindowPreview, onC
     setFormData(values);
   }
   function onPreviewClick() {
-    onPreview(formInstance.getFieldsValue(true));
+    onPreview(formInstance.getFieldsValue());
   }
   function onNewWindowPreviewClick() {
-    onNewWindowPreview(formInstance.getFieldsValue(true));
+    onNewWindowPreview(formInstance.getFieldsValue());
   }
 };
 

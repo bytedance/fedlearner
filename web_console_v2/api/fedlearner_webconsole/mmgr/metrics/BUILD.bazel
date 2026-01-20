@@ -1,0 +1,30 @@
+load("@rules_python//python:defs.bzl", "py_library")
+
+package(default_visibility = ["//web_console_v2/api:console_api_package"])
+
+py_library(
+    name = "metrics_lib",
+    srcs = ["metrics_inquirer.py"],
+    imports = ["../../.."],
+    deps = [
+        "//web_console_v2/api/fedlearner_webconsole/job:models_lib",
+        "//web_console_v2/api/fedlearner_webconsole/utils:es_lib",
+        "//web_console_v2/api/fedlearner_webconsole/utils:job_metrics_lib",
+        "//web_console_v2/api/protocols/fedlearner_webconsole/proto:py_proto",
+    ],
+)
+
+py_test(
+    name = "metrics_lib_test",
+    size = "small",
+    srcs = [
+        "metrics_inquirer_test.py",
+    ],
+    imports = ["../../.."],
+    main = "metrics_inquirer_test.py",
+    deps = [
+        ":metrics_lib",
+        "//web_console_v2/api/testing:common_lib",
+        "//web_console_v2/api/testing/test_data:test_data_lib",
+    ],
+)

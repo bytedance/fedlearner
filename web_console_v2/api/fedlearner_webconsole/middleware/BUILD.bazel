@@ -1,0 +1,80 @@
+load("@rules_python//python:defs.bzl", "py_library")
+
+package(default_visibility = ["//web_console_v2/api:console_api_package"])
+
+py_library(
+    name = "api_latency_lib",
+    srcs = ["api_latency.py"],
+    imports = ["../.."],
+    deps = [
+        "@common_flask//:pkg",
+        "@common_opentelemetry_instrumentation_flask//:pkg",
+    ],
+)
+
+py_test(
+    name = "api_latency_test",
+    srcs = [
+        "api_latency_test.py",
+    ],
+    imports = ["../.."],
+    main = "api_latency_test.py",
+    deps = [
+        ":api_latency_lib",
+        "@common_flask//:pkg",
+        "@common_flask_testing//:pkg",
+        "@common_opentelemetry_sdk//:pkg",
+    ],
+)
+
+py_library(
+    name = "log_filter_lib",
+    srcs = ["log_filter.py"],
+    imports = ["../.."],
+    deps = [
+        ":middlewares_lib",
+        ":request_id_lib",
+    ],
+)
+
+py_test(
+    name = "log_filter_test",
+    srcs = [
+        "log_filter_test.py",
+    ],
+    imports = ["../.."],
+    main = "log_filter_test.py",
+    deps = [
+        ":log_filter_lib",
+    ],
+)
+
+py_library(
+    name = "middlewares_lib",
+    srcs = ["middlewares.py"],
+    imports = ["../.."],
+    visibility = ["//visibility:public"],
+)
+
+py_library(
+    name = "request_id_lib",
+    srcs = ["request_id.py"],
+    imports = ["../.."],
+    deps = [
+        "@com_github_grpc_grpc//src/python/grpcio/grpc:grpcio",
+        "@common_flask//:pkg",
+    ],
+)
+
+py_test(
+    name = "request_id_test",
+    srcs = [
+        "request_id_test.py",
+    ],
+    imports = ["../.."],
+    main = "request_id_test.py",
+    deps = [
+        ":request_id_lib",
+        "//web_console_v2/api/testing:common_lib",
+    ],
+)

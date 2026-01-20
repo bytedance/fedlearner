@@ -1,0 +1,37 @@
+load("@rules_python//python:defs.bzl", "py_library")
+
+package(default_visibility = ["//web_console_v2/api:console_api_package"])
+
+py_library(
+    name = "apis_lib",
+    srcs = ["apis.py"],
+    imports = ["../.."],
+    deps = [
+        "//web_console_v2/api/fedlearner_webconsole:db_lib",
+        "//web_console_v2/api/fedlearner_webconsole:exceptions_lib",
+        "//web_console_v2/api/fedlearner_webconsole/composer:common_lib",
+        "//web_console_v2/api/fedlearner_webconsole/composer:composer_service_lib",
+        "//web_console_v2/api/fedlearner_webconsole/k8s:k8s_cache_lib",
+        "//web_console_v2/api/fedlearner_webconsole/k8s:k8s_client_lib",
+        "//web_console_v2/api/fedlearner_webconsole/utils:tfrecords_reader_lib",
+        "@common_flask_restful//:pkg",
+        "@common_pyyaml//:pkg",
+        "@common_tensorflow//:pkg",
+    ],
+)
+
+py_test(
+    name = "apis_lib_test",
+    size = "medium",
+    srcs = [
+        "apis_test.py",
+    ],
+    imports = ["../.."],
+    main = "apis_test.py",
+    deps = [
+        ":apis_lib",
+        "//web_console_v2/api/fedlearner_webconsole:db_lib",
+        "//web_console_v2/api/fedlearner_webconsole/composer:common_lib",
+        "//web_console_v2/api/testing:common_lib",
+    ],
+)

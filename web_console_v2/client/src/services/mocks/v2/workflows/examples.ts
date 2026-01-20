@@ -1,27 +1,21 @@
-import { cloneDeep, sample } from 'lodash';
+import { cloneDeep, sample } from 'lodash-es';
 import { JobExecutionDetalis, JobState, JobType, Pod, PodState } from 'typings/job';
-import {
-  WorkflowState,
-  TransactionState,
-  WorkflowExecutionDetails,
-  Workflow,
-} from 'typings/workflow';
+import { WorkflowState, WorkflowExecutionDetails, Workflow } from 'typings/workflow';
 import { VariableAccessMode } from 'typings/variable';
 import { normalTemplate } from '../workflow_templates/examples';
 
 const uuid_1 = '9d73398659927';
-export const pendingAcceptAndConfig = {
+export const pendingAcceptAndConfig: Workflow = {
   id: 1,
   uuid: uuid_1,
   name: 'Await-configure',
   project_id: 1,
   config: null,
+  is_local: false,
   forkable: true,
+  favour: false,
   comment: null,
-  state: WorkflowState.NEW,
-  target_state: WorkflowState.READY,
-  transaction_state: TransactionState.PARTICIPANT_PREPARE,
-  transaction_err: null,
+  state: WorkflowState.PENDING_ACCEPT,
   created_at: 1610238602,
   updated_at: 1610238602,
 };
@@ -32,9 +26,10 @@ export const newlyCreated: Workflow = {
   uuid: uuid_2,
   name: 'Newly-created',
   project_id: 1,
+  is_local: true,
+  cron_config: '9 23 * * ?',
   config: {
     group_alias: 'test-2',
-    is_left: true,
     job_definitions: [
       {
         name: 'Initiative',
@@ -98,13 +93,12 @@ export const newlyCreated: Workflow = {
     ],
   },
   forkable: true,
+  favour: true,
   comment: null,
-  state: WorkflowState.NEW,
-  target_state: WorkflowState.READY,
-  transaction_state: TransactionState.COORDINATOR_COMMITTABLE,
-  transaction_err: null,
+  state: WorkflowState.PARTICIPANT_CONFIGURING,
   created_at: 1610239831,
   updated_at: 1610239831,
+  template_info: { id: 1, name: 'a-very-complete-template', is_modified: true },
 };
 
 const uuid_3 = '7d73398659927';
@@ -119,16 +113,15 @@ export const withExecutionDetail: WorkflowExecutionDetails = {
 
 const uuid_4 = '67d7339865992';
 
-export const completed = {
+export const completed: WorkflowExecutionDetails = {
   ...cloneDeep(withExecutionDetail),
   id: 3,
   uuid: uuid_4,
   name: 'All-completed',
   config: normalTemplate.config as any,
   state: WorkflowState.COMPLETED,
-  target_state: WorkflowState.INVALID,
-  transaction_state: TransactionState.ABORTED,
   jobs: _generateJobExecutionDetails(uuid_4),
+  template_info: { id: 1, name: 'test_tpl', is_modified: true },
 };
 
 function _generateJobExecutionDetails(UUID: string): JobExecutionDetalis[] {

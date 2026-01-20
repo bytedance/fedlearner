@@ -6,6 +6,7 @@ const ignoredFiles = require('react-dev-utils/ignoredFiles');
 const redirectServedPath = require('react-dev-utils/redirectServedPathMiddleware');
 const paths = require('./paths');
 const getHttpsConfig = require('./getHttpsConfig');
+const { createProxyMiddleware } = require('http-proxy-middleware');
 
 const host = process.env.HOST || '0.0.0.0';
 const sockHost = process.env.WDS_SOCKET_HOST;
@@ -111,6 +112,14 @@ module.exports = function (proxy, allowedHost) {
         // This registers user provided middleware for proxy reasons
         require(paths.proxySetup)(app);
       }
+
+      app.use(
+        '/mock/20021',
+        createProxyMiddleware({
+          target: 'xxx',
+          changeOrigin: true,
+        }),
+      );
     },
     after(app) {
       // Redirect to `PUBLIC_URL` or `homepage` from `package.json` if url not match

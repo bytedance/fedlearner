@@ -1,0 +1,12 @@
+syntax = "proto3";
+
+package proto;
+option go_package = "proxy/proto";
+
+service TunnelService {
+    rpc Tunnel (stream Chunk) returns (stream Chunk);
+}
+
+message Chunk {
+    bytes data = 1;
+}

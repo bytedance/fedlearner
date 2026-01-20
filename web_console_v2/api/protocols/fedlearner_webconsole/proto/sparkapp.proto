@@ -1,0 +1,88 @@
+/* Copyright 2023 The FedLearner Authors. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+syntax = "proto3";
+package fedlearner_webconsole.proto;
+
+//ref: https://github.com/GoogleCloudPlatform/spark-on-k8s-operator/blob/master/manifest/crds/sparkoperator.k8s.io_sparkapplications.yaml#L1043
+message VolumeMount {
+    string mount_path = 1;
+    string name = 2;
+    bool read_only = 3;
+    string sub_path = 4;
+}
+
+//ref: https://github.com/GoogleCloudPlatform/spark-on-k8s-operator/blob/master/manifest/crds/sparkoperator.k8s.io_sparkapplications.yaml#L3744
+message Volume {
+    message HostPath {
+        string path = 1;
+        string type = 2;
+    }
+    message PersistentVolumeClaim {
+        string claim_name = 1;
+        bool ready_only = 2;
+    }
+    string name = 1;
+    HostPath host_path = 2;
+    PersistentVolumeClaim persistent_volume_claim = 3;
+}
+
+message Env {
+    string name = 1;
+    string value = 2;
+}
+
+message SparkPodConfig {
+    uint32 cores = 1;
+    string memory = 2;
+    uint32 instances = 3;
+    string core_limit = 4;
+    repeated VolumeMount volume_mounts = 5;
+    repeated Env env = 6;
+}
+
+message DynamicAllocation {
+    bool enabled = 1;
+    uint32 initial_executors = 2;
+    uint32 min_executors = 3;
+    uint32 max_executors = 4;
+
+}
+
+message SparkAppConfig {
+    string name = 1;
+    string files_path = 2;
+    string image_url = 3;
+    repeated Volume volumes = 4;
+    SparkPodConfig driver_config = 5;
+    SparkPodConfig executor_config = 6;
+    repeated string py_files = 7;
+    repeated string command = 8;
+    string main_application = 9;
+    DynamicAllocation dynamic_allocation = 10;
+}
+
+message SparkAppInfo {
+    string name = 1;
+    string state = 2;
+    string namespace = 3;
+    repeated string command = 4;
+    SparkPodConfig driver = 5;
+    SparkPodConfig executor = 6;
+    string image_url = 7;
+    string main_application = 8;
+    string spark_version = 9;
+    string type = 10;
+}

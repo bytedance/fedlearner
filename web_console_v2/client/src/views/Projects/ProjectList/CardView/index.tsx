@@ -1,47 +1,34 @@
 import React, { ReactElement } from 'react';
-import styled from 'styled-components';
-import { Project } from 'typings/project';
+import { Project, ProjectListType } from 'typings/project';
 import ProjectCard from './ProjectCard';
 
-const Container = styled.div`
-  --cols: 4;
-
-  display: grid;
-  grid-template-columns: repeat(var(--cols), 1fr);
-  align-items: start;
-  justify-content: space-between;
-  grid-gap: 24px 20px;
-  width: 100%;
-
-  @media screen and (min-width: 1920px) and (max-width: 2560px) {
-    --cols: 5;
-  }
-
-  @media screen and (max-width: 1440px) {
-    --cols: 3;
-  }
-
-  @media screen and (max-width: 1200px) {
-    --cols: 2;
-  }
-
-  @media screen and (max-width: 750px) {
-    --cols: 1;
-  }
-`;
+import styles from './index.module.less';
 
 interface CardListProps {
   list: Project[];
   onViewDetail: (project: Project) => void;
+  projectListType: ProjectListType;
+  onDeleteProject: (projectId: ID, projectListType: ProjectListType) => void;
 }
 
-function CardList({ list, onViewDetail }: CardListProps): ReactElement {
+function CardList({
+  list,
+  onViewDetail,
+  projectListType,
+  onDeleteProject,
+}: CardListProps): ReactElement {
   return (
-    <Container>
+    <div className={styles.card_container}>
       {list.map((item, index) => (
-        <ProjectCard item={item} key={'p-' + index} onViewDetail={onViewDetail} />
+        <ProjectCard
+          item={item}
+          key={item.id}
+          onViewDetail={onViewDetail}
+          projectListType={projectListType}
+          onDeleteProject={onDeleteProject}
+        />
       ))}
-    </Container>
+    </div>
   );
 }
 

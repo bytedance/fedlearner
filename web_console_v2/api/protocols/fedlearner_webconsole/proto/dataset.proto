@@ -1,4 +1,4 @@
-/* Copyright 2021 The FedLearner Authors. All Rights Reserved.
+/* Copyright 2023 The FedLearner Authors. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,25 +15,359 @@
 
 syntax = "proto3";
 
+import "fedlearner_webconsole/proto/workflow_definition.proto";
+import "fedlearner_webconsole/proto/common.proto";
+import "fedlearner_webconsole/proto/bcs_transaction.proto";
+import "fedlearner_webconsole/proto/project.proto";
+
 package fedlearner_webconsole.proto;
 
-message File {
-    enum State {
-        UNSPECIFIED = 0;
-        COMPLETED = 1;
-        FAILED = 2;
-    }
-    // Absolute path
-    string source_path = 1;
-    string destination_path = 2;
-    // If the file is moved/copied
-    State state = 3;
-    // File size in byte
-    int64 size = 4;
-    // This will be populated if the file is failed to move/copy
-    string error_message = 5;
+enum CronType {
+    DAILY = 0;
+    HOURLY = 1;
+}
+
+message DataSource {
+    string name = 1;
+    // ref: DataSourceType
+    string type = 2;
+    // url like: hdfs:///home/
+    string url = 3;
+    int64 created_at = 4;
+    int64 project_id = 5;
+    int64 id = 6;
+    bool is_user_upload = 7;
+    bool is_user_export = 8;
+    string creator_username = 9;
+    // ref: DatasetFormat
+    string dataset_format = 10;
+    // ref: StoreFormat
+    string store_format = 11;
+    // ref: DatasetType
+    string dataset_type = 12;
+    string uuid = 13;
+    string comment = 14;
+}
+
+message DatasetParameter {
+    string name = 1;
+    string type = 2;
+    string comment = 3;
+    int64 project_id = 4;
+    string path = 5;
+    string kind = 6;
+    string format = 7;
+    string uuid = 8;
+    bool is_published = 9;
+    // need publish after create raw_dataset
+    bool need_publish = 10;
+    // dataset value per use, unit point
+    int64 value = 11;
+    // ref: DatasetSchemaChecker
+    repeated string schema_checkers = 12;
+    // ref: StoreFormat
+    string store_format = 13;
+    // ref: ImportType
+    string import_type = 14;
+    // ref: AuthStatus
+    string auth_status = 15;
+    string creator_username = 16;
+}
+
+message BatchParameter {
+    reserved 4, 5, 6;
+    int64 dataset_id = 1;
+    string comment = 2;
+    string path = 3;
+    string file_format = 7;
+    int64 data_source_id = 8;
+    int64 event_time = 9;
+    // used to decide batch folder name type is YYYYMMDD or YYYYMMDD-HH
+    CronType cron_type = 10;
 }
 
 message DataBatch {
-    repeated File files = 1;
+    reserved 13;
+    int64 id = 1;
+    int64 dataset_id = 2;
+    string path = 3;
+    int64 file_size = 4;
+    int64 num_example = 5;
+    int64 num_feature = 6;
+    string comment = 7;
+    // Timestamp in seconds
+    int64 created_at = 8;
+    // Timestamp in seconds
+    int64 updated_at = 9;
+    string name = 10;
+    // ref: ResourceState
+    string state = 11;
+    int64 event_time = 12;
+    int64 latest_parent_dataset_job_stage_id = 14;
+    int64 latest_analyzer_dataset_job_stage_id = 15;
+}
+
+message DatasetRef {
+    reserved 5, 14, 17;
+    int64 id = 1;
+    int64 project_id = 2;
+    string name = 3;
+    // Timestamp in seconds
+    int64 created_at = 4;
+    int64 file_size = 6;
+    string path = 7;
+    string dataset_format = 8;
+    string comment = 9;
+    bool is_published = 10;
+    string state_frontend = 11;
+    int64 num_example = 12;
+    string uuid = 13;
+    string dataset_kind = 15;
+    string data_source = 16 [deprecated=true];
+    // dataset total value, unit point
+    int64 total_value = 18;
+    string creator_username = 19;
+    // ref: StoreFormat
+    string store_format = 20;
+    // ref: DatasetType
+    string dataset_type = 21;
+    // ref: ImportType
+    string import_type = 22;
+    // ref: PublishFrontendState
+    string publish_frontend_state = 23;
+    // frontend auth status for all participants
+    // ref: AuthFrontendState
+    string auth_frontend_state = 24;
+    // auth status for local dataset
+    // ref: AuthStatus
+    string local_auth_status = 25;
+    // frontend auth status details
+    ParticipantsInfo participants_info = 26;
+}
+
+// this is for comptiable reason
+// TODO(wangsen.0914): refactor in the near future
+message Dataset {
+    reserved 5, 7, 9, 10, 11, 19, 20;
+    int64 id = 1;
+    int64 project_id = 2;
+    string name = 3;
+    int64 workflow_id = 4;
+    string path = 6;
+    // Timestamp in seconds
+    int64 created_at = 8;
+    // data_source is userd for adapting fedlearner dataset_path
+    string data_source = 12 [deprecated=true];
+    int64 file_size = 13;
+    int64 num_example = 14;
+    string comment = 15;
+    int64 num_feature = 16;
+    // Timestamp in seconds
+    int64 updated_at = 17;
+    // Timestamp in seconds
+    int64 deleted_at = 18;
+    // the dataset job that produced this dataset
+    int64 parent_dataset_job_id = 21;
+    string dataset_format = 22;
+    // ref: ResourceState
+    string state_frontend= 23;
+    string uuid = 24;
+    bool is_published = 25;
+    string dataset_kind = 26;
+    // dataset value per use, unit point
+    int64 value = 27;
+    // ref: DatasetSchemaChecker
+    repeated string schema_checkers = 28;
+    string creator_username = 29;
+    // ref: ImportType
+    string import_type = 30;
+    // ref: DatasetType
+    string dataset_type = 31;
+    // ref: StoreFormat
+    string store_format = 32;
+    int64 analyzer_dataset_job_id = 33;
+    // ref: PublishFrontendState
+    string publish_frontend_state = 34;
+    // frontend auth status for all participants
+    // ref: AuthFrontendState
+    string auth_frontend_state = 35;
+    // auth status for local dataset
+    // ref: AuthStatus
+    string local_auth_status = 36;
+    // frontend auth status details
+    ParticipantsInfo participants_info = 37;
+}
+
+message DatasetLedger {
+    // dataset total value, unit point
+    int64 total_value = 1;
+    repeated Transaction transactions = 2;
+}
+
+message DatasetMetaInfo {
+    reserved 1;
+    // for datasource
+    string datasource_type = 2;
+    // is_user_upload:  True: datasource is created by system when user local upload
+    //                  False: not user local upload datasource
+    bool is_user_upload = 3;
+    // is_user_export:  True: datasource is created by system when user export dataset
+    //                  False: not user export datasource
+    bool is_user_export = 4;
+    // dataset value per use, unit point
+    int64 value = 5;
+    // need publish after create raw_dataset
+    bool need_publish = 6;
+    // ref: DatasetSchemaChecker
+    repeated string schema_checkers = 7;
+}
+
+message ParticipantDatasetRef {
+    // same between participants
+    string uuid = 1;
+    int64 project_id = 2;
+    string name = 3;
+    int64 participant_id = 4;
+    // choices: tabuler and image
+    string format = 5;
+    int64 file_size = 6;
+    // Timestamp in seconds
+    int64 updated_at = 7;
+    // dataset value per use, unit point
+    int64 value = 8;
+    // ref: DatasetKindV2
+    string dataset_kind = 9;
+    // ref: DatasetType
+    string dataset_type = 10;
+    // ref: AuthStatus
+    string auth_status = 11;
+}
+
+message DatasetJobConfig {
+    // Every dataset has uuid, but is_published is decided by other info.
+    string dataset_uuid = 1;
+    repeated Variable variables = 2;
+}
+
+message DatasetJobGlobalConfigs {
+    // key: domain_name value: DatasetJobConfig
+    // If this job runs locally, there's only one pair inside the map
+    map<string, DatasetJobConfig> global_configs = 1;
+}
+
+// for datasetjob rpc response and datasetjob api response
+message DatasetJob {
+    string uuid = 1;
+    int64 project_id = 2;
+    // ref: DatasetJobKind
+    string kind = 3;
+    DatasetJobGlobalConfigs global_configs = 4;
+    WorkflowDefinition workflow_definition = 5;
+    string result_dataset_uuid = 6;
+    string result_dataset_name = 7;
+    // whether participant dataset_job is ready to start
+    bool is_ready = 8;
+    int64 input_data_batch_num_example = 9;
+    int64 output_data_batch_num_example = 10;
+    int64 id = 11;
+    // ref: DatasetJobState
+    string state = 12;
+    int64 coordinator_id = 13;
+    int64 workflow_id = 14;
+    int64 created_at = 15;
+    int64 finished_at = 16;
+    int64 updated_at = 17;
+    int64 started_at = 18;
+    string name = 19;
+    // if a dataset_job support dataset_job_stage, has_stages = True
+    bool has_stages = 20;
+    string creator_username = 21;
+    // ref: DatasetJobSchedulerState
+    string scheduler_state = 22;
+    TimeRange time_range = 23;
+    string scheduler_message = 24;
+}
+
+// for datasetjobs api response
+message DatasetJobRef {
+    string uuid = 1;
+    int64 project_id = 2;
+    // ref: DatasetJobKind
+    string kind = 3;
+    int64 result_dataset_id = 4;
+    // ref: DatasetJobState
+    string state = 5;
+    int64 created_at = 6;
+    string result_dataset_name = 7;
+    int64 id = 8;
+    int64 coordinator_id = 9;
+    string name = 10;
+    // if a dataset_job support dataset_job_stage, has_stages = True
+    bool has_stages = 11;
+    string creator_username = 12;
+}
+
+message DatasetJobContext {
+    // Name for batch stats scheduler item.
+    string batch_stats_item_name = 1 [deprecated=true];
+    int64 input_data_batch_num_example = 2 [deprecated=true];
+    int64 output_data_batch_num_example = 3 [deprecated=true];
+    // if a dataset_job support dataset_job_stage, we set has_stages = True
+    bool has_stages = 4;
+    bool need_create_stage = 5;
+    string scheduler_message = 6;
+}
+
+message DatasetJobStageContext {
+    // Name for batch stats scheduler item.
+    string batch_stats_item_name = 1;
+    int64 input_data_batch_num_example = 2;
+    int64 output_data_batch_num_example = 3;
+    string scheduler_message = 4;
+}
+
+// for datasetjobstage rpc response and datasetjobstage api response
+message DatasetJobStage {
+    int64 id = 1;
+    string name = 2;
+    string uuid = 3;
+    string dataset_job_uuid = 4;
+    int64 dataset_job_id = 5;
+    int64 output_data_batch_id = 6;
+    int64 workflow_id = 7;
+    int64 project_id = 8;
+    // ref: DatasetJobState
+    string state = 9;
+    int64 event_time = 10;
+    DatasetJobGlobalConfigs global_configs = 11;
+    int64 created_at = 12;
+    int64 updated_at = 13;
+    int64 started_at = 14;
+    int64 finished_at = 15;
+    bool is_ready = 16;
+    WorkflowDefinition workflow_definition = 17;
+    // ref: DatasetJobKind
+    string kind = 18;
+    int64 input_data_batch_num_example = 19;
+    int64 output_data_batch_num_example = 20;
+    string scheduler_message = 21;
+}
+
+// for datasetjobstages api response
+message DatasetJobStageRef {
+    int64 id = 1;
+    string name = 2;
+    int64 dataset_job_id = 3;
+    int64 output_data_batch_id = 4;
+    int64 project_id = 5;
+    // ref: DatasetJobState
+    string state = 6;
+    int64 created_at = 7;
+    // ref: DatasetJobKind
+    string kind = 8;
+}
+
+message TimeRange {
+    int32 days = 1;
+    int32 hours = 2;
 }

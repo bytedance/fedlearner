@@ -1,4 +1,4 @@
-import { message, Switch } from 'antd';
+import { Message, Switch } from '@arco-design/web-react';
 import React, { FC } from 'react';
 import { useToggle } from 'react-use';
 import { to } from 'shared/helpers';
@@ -8,7 +8,7 @@ const AccessSwitch: FC<{
   workflow: Workflow;
   keyOfSource: keyof Workflow;
   onSuccess: any;
-  patcher: (id: ID, val: boolean) => any;
+  patcher: (id: ID, val: boolean, projectId: ID) => any;
 }> = ({ workflow, onSuccess, patcher, keyOfSource }) => {
   // Q: Why is there a copy of workflow.forkable locally
   // A: After the swicthing, there would be a noticable delay reflect the workflow.forkable change
@@ -27,13 +27,13 @@ const AccessSwitch: FC<{
 
   async function onForkableChange(val: boolean) {
     toggle(true);
-    const [res, error] = await to(patcher(workflow.id, val));
+    const [res, error] = await to(patcher(workflow.id, val, workflow.project_id));
     toggle(false);
 
     if (error) {
       toggleUseLocal(false);
 
-      message.error(error.message);
+      Message.error(error.message);
       return;
     }
 

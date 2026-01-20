@@ -1,4 +1,4 @@
-# Copyright 2021 The FedLearner Authors. All Rights Reserved.
+# Copyright 2023 The FedLearner Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -19,20 +19,38 @@ from abc import ABCMeta, abstractmethod
 import enum
 from typing import Tuple
 
-from fedlearner_webconsole.composer.models import Context, RunnerStatus
+from fedlearner_webconsole.composer.context import RunnerContext
+from fedlearner_webconsole.composer.models import RunnerStatus
+
+from fedlearner_webconsole.proto.composer_pb2 import RunnerOutput
 
 
 # NOTE: remember to register new item in `global_runner_fn` \
 # which defined in `runner.py`
 class ItemType(enum.Enum):
     TASK = 'task'  # test only
-    MEMORY = 'memory'
-    WORKFLOW_CRON_JOB = 'workflow_cron_job'
-    DATA_PIPELINE = 'data_pipeline'
+    WORKFLOW_CRON_JOB = 'workflow_cron_job'  # v2
+    BATCH_STATS = 'batch_stats'  # v2
+    SERVING_SERVICE_PARSE_SIGNATURE = 'serving_service_parse_signature'  # v2
+    SERVING_SERVICE_QUERY_PARTICIPANT_STATUS = 'serving_service_query_participant_status'  # v2
+    SERVING_SERVICE_UPDATE_MODEL = 'serving_service_update_model'  # v2
+    SCHEDULE_WORKFLOW = 'schedule_workflow'  # v2
+    SCHEDULE_JOB = 'schedule_job'  # v2
+    CLEANUP_CRON_JOB = 'cleanup_cron_job'  # v2
+    MODEL_TRAINING_CRON_JOB = 'model_training_cron_job'  # v2
+    TEE_CREATE_RUNNER = 'tee_create_runner'  # v2
+    TEE_RESOURCE_CHECK_RUNNER = 'tee_resource_check_runner'  # v2
+    SCHEDULE_PROJECT = 'schedule_project'  # v2
+    DATASET_LONG_PERIOD_SCHEDULER = 'dataset_long_period_scheduler'  # v2
+    DATASET_SHORT_PERIOD_SCHEDULER = 'dataset_short_period_scheduler'  # v2
+    SCHEDULE_MODEL_JOB = 'schedule_model_job'  # v2
+    SCHEDULE_MODEL_JOB_GROUP = 'schedule_model_job_group'  # v2
+    SCHEDULE_LONG_PERIOD_MODEL_JOB_GROUP = 'schedule_long_period_model_job_group'  # v2
 
 
 # item interface
 class IItem(metaclass=ABCMeta):
+
     @abstractmethod
     def type(self) -> ItemType:
         pass
@@ -42,27 +60,16 @@ class IItem(metaclass=ABCMeta):
         pass
 
 
-# runner interface
-class IRunner(metaclass=ABCMeta):
-    @abstractmethod
-    def start(self, context: Context):
-        """Start runner
-
-        Args:
-            context: shared in runner. Don't write data to context in this
-            method. Only can read data via `context.data`.
-        """
+class IRunnerV2(metaclass=ABCMeta):
 
     @abstractmethod
-    def result(self, context: Context) -> Tuple[RunnerStatus, dict]:
-        """Check runner result
+    def run(self, context: RunnerContext) -> Tuple[RunnerStatus, RunnerOutput]:
+        """Runs the runner.
 
-        NOTE: You could check runner if is timeout in this method. If it's
-            timeout, return `RunnerStatus.FAILED`. Since runners executed by
-            `ThreadPoolExecutor` may have some common resources, it's better to
-            stop the runner by user instead of `composer`.
+        The implementation should be light, as runners will be executed by `ThreadPoolExecutor`.
 
         Args:
-            context: shared in runner. In this method, data can be
-               read or written to context via `context.data`.
+            context: immutable context in the runner.
+        Returns:
+            status and the output.
         """

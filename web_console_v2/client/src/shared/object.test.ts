@@ -4,6 +4,7 @@ import {
   removePrivate,
   transformKeysToSnakeCase,
   binarizeBoolean,
+  record,
 } from './object';
 
 describe('Object helpers', () => {
@@ -85,6 +86,52 @@ describe('Object helpers', () => {
 
     cases.forEach(({ i, o }) => {
       expect(binarizeBoolean(i)).toEqual(o);
+    });
+  });
+  it('Record', () => {
+    expect(
+      record(
+        {
+          a: 1,
+          b: 2,
+          c: 3,
+        },
+        1,
+      ),
+    ).toEqual({
+      a: 1,
+      b: 1,
+      c: 1,
+    });
+
+    expect(
+      record(
+        {
+          a: 1,
+          b: 2,
+          c: 3,
+        },
+        false,
+      ),
+    ).toEqual({
+      a: false,
+      b: false,
+      c: false,
+    });
+
+    expect(
+      record(
+        {
+          a: 1,
+          b: 2,
+          c: 3,
+        },
+        undefined,
+      ),
+    ).toEqual({
+      a: undefined,
+      b: undefined,
+      c: undefined,
     });
   });
 });

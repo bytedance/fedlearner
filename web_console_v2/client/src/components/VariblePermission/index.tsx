@@ -1,3 +1,5 @@
+/* istanbul ignore file */
+
 import i18n from 'i18n';
 import React, { FunctionComponent } from 'react';
 import styled from 'styled-components';
@@ -43,21 +45,67 @@ const PrivateShape = styled(Container)`
 `;
 
 type Props = {
+  /**
+   * Enable desc
+   * @default false
+   */
   desc?: boolean;
+  /** Desc prefix */
+  prefix?: string;
+  /** Container style */
+  style?: React.CSSProperties;
 };
 
 const Writable: FunctionComponent<Props> = (props) => {
-  return <WritableShape {...props} data-desc={i18n.t('workflow.var_auth_write')} />;
+  return (
+    <WritableShape
+      {...props}
+      data-desc={i18n.t('workflow.var_auth_write', { prefix: props.prefix })}
+    />
+  );
 };
 
 const Readable: FunctionComponent<Props> = (props) => {
-  return <ReadableShape {...props} data-desc={i18n.t('workflow.var_auth_read')} />;
+  return (
+    <ReadableShape
+      {...props}
+      data-desc={i18n.t('workflow.var_auth_read', { prefix: props.prefix })}
+    />
+  );
 };
 
 const Private: FunctionComponent<Props> = (props) => {
-  return <PrivateShape {...props} data-desc={i18n.t('workflow.var_auth_private')} />;
+  return (
+    <PrivateShape
+      {...props}
+      data-desc={i18n.t('workflow.var_auth_private', { prefix: props.prefix })}
+    />
+  );
 };
 
 const VariablePermission = { Writable, Readable, Private };
+
+const LegendContainer = styled.div`
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  padding: 7px 16px;
+  border-radius: 2px;
+  background-color: rgb(var(--gray-1));
+
+  > div:not(:last-of-type) {
+    margin-right: 30px;
+  }
+`;
+
+export const VariablePermissionLegend: FunctionComponent<Props> = ({ style, ...restProps }) => {
+  return (
+    <LegendContainer style={style}>
+      <Writable {...restProps} />
+      <Readable {...restProps} />
+      <Private {...restProps} />
+    </LegendContainer>
+  );
+};
 
 export default VariablePermission;

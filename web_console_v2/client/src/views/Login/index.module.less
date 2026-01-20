@@ -1,0 +1,133 @@
+@import '~styles/mixins.less';
+
+.login_layout{
+  display: grid;
+  grid-template-areas: 'left right';
+  grid-template-columns: 520px 1fr;
+  min-width: 500px;
+  height: 100vh;
+  min-height: 500px;
+  background-color: #fff;
+
+  @media screen and (max-width: 1000px) {
+    grid-template-columns: 0 1fr;
+  }
+}
+
+.login_left_block{
+  position: relative;
+  height: 100%;
+  grid-area: left;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+  background-position: 20px 20px, center;
+  background-repeat: no-repeat;
+  background-color: var(--primaryColor);
+  background-size: 140px auto, 80% auto;
+
+  > * {
+    transform: translateY(-9vh);
+  }
+}
+.login_right_block{
+  .MixinFlexAlignCenter();
+  position: relative;
+  height: 100%;
+  display: flex;
+  background-color: white;
+  grid-area: right;
+  flex-direction: column;
+  @media screen and (max-width: 1000px) {
+    background: url('~assets/images/logo-black.png') top 24px left 32px no-repeat;
+    background-size: 160px;
+  }
+}
+
+.login_bioland_right_block{
+  display: flex;
+  .MixinFlexAlignCenter();
+  position: relative;
+  height: 100%;
+  background-color: white;
+  grid-area: right;
+  flex-direction: column;
+  @media screen and (max-width: 1000px) {
+    background: url('~assets/icons/logo-bioland-colorful.svg') top 24px left 32px no-repeat;
+    background-size: 160px;
+  }
+}
+
+.login_form{
+  width: 360px !important;
+  :global{
+    .arco-form-item{
+      margin-bottom: 32px;
+    }
+    .arco-input-inner-wrapper{
+      height: 48px;
+    }
+    .arco-col{
+      flex: 1;
+    }
+    .checkboxItem {
+      margin-bottom: 0;
+    }
+    .arco-checkbox-text{
+      color: #7a8499;
+    }
+  }
+  .form_title {
+    margin-bottom: 24px;
+    font-size: 27px;
+    line-height: 36px;
+  }
+  .login_button{
+    width: 100%;
+    height: 48px;
+  }
+}
+
+.no_account {
+  margin-top: 16px;
+  color: var(--textColorSecondary);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.login_way_layout{
+  display: flex;
+  justify-content: flex-start;
+  flex-wrap: wrap;
+}
+
+.login_way_item{
+  text-align: center;
+  cursor: pointer;
+  flex: 0 0 33%;
+  word-break: break-all;
+  margin-bottom: 16px;
+  img {
+    display: inline-block;
+    width: 46px;
+    height: 46px;
+  }
+  div {
+    font-size: 14px;
+    color: var(--textColorStrong);
+  }
+}
+
+.other_login_way_text{
+  display: inline-block;
+  font-size: 14px;
+  color: var(--primaryColor);
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+  position: relative;
+  top: -20px;
+}
+
+

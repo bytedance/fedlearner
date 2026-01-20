@@ -1,0 +1,592 @@
+{
+    "name": "sys-preset-tree-model",
+    "group_alias": "sys_preset_tree_model",
+    "config": {
+        "group_alias": "sys_preset_tree_model",
+        "job_definitions": [
+            {
+                "name": "tree-model",
+                "job_type": "TREE_MODEL_TRAINING",
+                "is_federated": true,
+                "variables": [
+                    {
+                        "name": "image_version",
+                        "value": "50a6945",
+                        "access_mode": "PEER_WRITABLE",
+                        "widget_schema": "{\"component\":\"Input\",\"required\":true,\"tooltip\":\"镜像版本\",\"tag\":\"INPUT_PARAM\"}",
+                        "typed_value": "50a6945",
+                        "tag": "INPUT_PARAM",
+                        "value_type": "STRING"
+                    },
+                    {
+                        "name": "mode",
+                        "value": "train",
+                        "access_mode": "PEER_WRITABLE",
+                        "widget_schema": "{\"component\":\"Select\",\"required\":true,\"enum\":[\"train\",\"eval\"],\"tag\":\"OPERATING_PARAM\"}",
+                        "typed_value": "train",
+                        "tag": "OPERATING_PARAM",
+                        "value_type": "STRING"
+                    },
+                    {
+                        "name": "data_source",
+                        "access_mode": "PEER_WRITABLE",
+                        "widget_schema": "{\"component\":\"Input\",\"required\":false,\"tooltip\":\"求交数据集名称\",\"tag\":\"INPUT_PATH\"}",
+                        "typed_value": "",
+                        "tag": "INPUT_PATH",
+                        "value": "",
+                        "value_type": "STRING"
+                    },
+                    {
+                        "name": "validation_data_path",
+                        "access_mode": "PEER_WRITABLE",
+                        "widget_schema": "{\"component\":\"Input\",\"required\":false,\"tag\":\"INPUT_PARAM\"}",
+                        "typed_value": "",
+                        "tag": "INPUT_PARAM",
+                        "value": "",
+                        "value_type": "STRING"
+                    },
+                    {
+                        "name": "file_type",
+                        "value": "tfrecord",
+                        "access_mode": "PEER_WRITABLE",
+                        "widget_schema": "{\"component\":\"Select\",\"required\":true,\"enum\":[\"csv\",\"tfrecord\"],\"tooltip\":\"文件类型，csv或tfrecord\",\"tag\":\"INPUT_PATH\"}",
+                        "typed_value": "tfrecord",
+                        "tag": "INPUT_PATH",
+                        "value_type": "STRING"
+                    },
+                    {
+                        "name": "load_model_path",
+                        "access_mode": "PEER_WRITABLE",
+                        "widget_schema": "{\"component\":\"Input\",\"required\":false,\"tooltip\":\"模型文件地址\",\"tag\":\"INPUT_PATH\"}",
+                        "typed_value": "",
+                        "tag": "INPUT_PATH",
+                        "value": "",
+                        "value_type": "STRING"
+                    },
+                    {
+                        "name": "loss_type",
+                        "value": "logistic",
+                        "access_mode": "PEER_WRITABLE",
+                        "widget_schema": "{\"component\":\"Select\",\"required\":false,\"enum\":[\"logistic\",\"mse\"],\"tooltip\":\"损失函数类型，logistic或mse，默认logistic\",\"tag\":\"INPUT_PARAM\"}",
+                        "typed_value": "logistic",
+                        "tag": "INPUT_PARAM",
+                        "value_type": "STRING"
+                    },
+                    {
+                        "name": "learning_rate",
+                        "value": "0.3",
+                        "access_mode": "PEER_WRITABLE",
+                        "widget_schema": "{\"component\":\"Input\",\"required\":false,\"tag\":\"INPUT_PARAM\"}",
+                        "typed_value": "0.3",
+                        "tag": "INPUT_PARAM",
+                        "value_type": "STRING"
+                    },
+                    {
+                        "name": "max_iters",
+                        "value": "10",
+                        "access_mode": "PEER_WRITABLE",
+                        "widget_schema": "{\"component\":\"Input\",\"required\":false,\"tooltip\":\"树的数量\",\"tag\":\"INPUT_PARAM\"}",
+                        "typed_value": "10",
+                        "tag": "INPUT_PARAM",
+                        "value_type": "STRING"
+                    },
+                    {
+                        "name": "max_depth",
+                        "value": "5",
+                        "access_mode": "PEER_WRITABLE",
+                        "widget_schema": "{\"component\":\"Input\",\"required\":false,\"tag\":\"INPUT_PARAM\"}",
+                        "typed_value": "5",
+                        "tag": "INPUT_PARAM",
+                        "value_type": "STRING"
+                    },
+                    {
+                        "name": "max_bins",
+                        "value": "33",
+                        "access_mode": "PEER_WRITABLE",
+                        "widget_schema": "{\"component\":\"Input\",\"required\":false,\"tooltip\":\"最大分箱数\",\"tag\":\"INPUT_PARAM\"}",
+                        "typed_value": "33",
+                        "tag": "INPUT_PARAM",
+                        "value_type": "STRING"
+                    },
+                    {
+                        "name": "l2_regularization",
+                        "value": "1",
+                        "access_mode": "PEER_WRITABLE",
+                        "widget_schema": "{\"component\":\"Input\",\"required\":false,\"tooltip\":\"L2惩罚系数\",\"tag\":\"INPUT_PARAM\"}",
+                        "typed_value": "1",
+                        "tag": "INPUT_PARAM",
+                        "value_type": "STRING"
+                    },
+                    {
+                        "name": "num_parallel",
+                        "value": "5",
+                        "access_mode": "PEER_WRITABLE",
+                        "widget_schema": "{\"component\":\"Input\",\"required\":false,\"tooltip\":\"进程数量\",\"tag\":\"INPUT_PARAM\"}",
+                        "typed_value": "5",
+                        "tag": "INPUT_PARAM",
+                        "value_type": "STRING"
+                    },
+                    {
+                        "name": "enable_packing",
+                        "value": "true",
+                        "access_mode": "PEER_WRITABLE",
+                        "widget_schema": "{\"component\":\"Select\",\"required\":false,\"enum\":[\"true\",\"false\"],\"tooltip\":\"是否开启优化\",\"tag\":\"INPUT_PARAM\"}",
+                        "typed_value": "true",
+                        "tag": "INPUT_PARAM",
+                        "value_type": "STRING"
+                    },
+                    {
+                        "name": "ignore_fields",
+                        "access_mode": "PEER_WRITABLE",
+                        "widget_schema": "{\"component\":\"Input\",\"required\":false,\"tooltip\":\"不入模特征，以逗号分隔如：name,age,sex\",\"tag\":\"INPUT_PARAM\"}",
+                        "typed_value": "",
+                        "tag": "INPUT_PARAM",
+                        "value": "",
+                        "value_type": "STRING"
+                    },
+                    {
+                        "name": "cat_fields",
+                        "access_mode": "PEER_WRITABLE",
+                        "widget_schema": "{\"component\":\"Input\",\"required\":false,\"tooltip\":\"类别类型特征，特征的值需要是非负整数。以逗号分隔如：alive,country,sex\",\"tag\":\"INPUT_PARAM\"}",
+                        "typed_value": "",
+                        "tag": "INPUT_PARAM",
+                        "value": "",
+                        "value_type": "STRING"
+                    },
+                    {
+                        "name": "verify_example_ids",
+                        "value": "false",
+                        "access_mode": "PEER_WRITABLE",
+                        "widget_schema": "{\"component\":\"Select\",\"required\":false,\"tooltip\":\"是否检查example_id对齐 If set to true, the first column of the data will be treated as example ids that must match between leader and follower\",\"enum\":[\"false\",\"true\"],\"tag\":\"INPUT_PARAM\"}",
+                        "typed_value": "false",
+                        "tag": "INPUT_PARAM",
+                        "value_type": "STRING"
+                    },
+                    {
+                        "name": "verbosity",
+                        "value": "1",
+                        "access_mode": "PEER_WRITABLE",
+                        "widget_schema": "{\"component\":\"Select\",\"required\":false,\"enum\":[\"0\",\"1\",\"2\"],\"tooltip\":\"日志输出等级\",\"tag\":\"INPUT_PARAM\"}",
+                        "typed_value": "1",
+                        "tag": "INPUT_PARAM",
+                        "value_type": "STRING"
+                    },
+                    {
+                        "name": "no_data",
+                        "value": "false",
+                        "access_mode": "PEER_WRITABLE",
+                        "widget_schema": "{\"component\":\"Select\",\"required\":false,\"tooltip\":\"Leader是否没数据，不建议乱用\",\"enum\":[\"false\",\"true\"],\"tag\":\"INPUT_PARAM\"}",
+                        "typed_value": "false",
+                        "tag": "INPUT_PARAM",
+                        "value_type": "STRING"
+                    },
+                    {
+                        "name": "worker_cpu",
+                        "value": "8000m",
+                        "access_mode": "PEER_WRITABLE",
+                        "widget_schema": "{\"component\":\"Input\",\"required\":true,\"tag\":\"RESOURCE_ALLOCATION\"}",
+                        "typed_value": "8000m",
+                        "tag": "RESOURCE_ALLOCATION",
+                        "value_type": "STRING"
+                    },
+                    {
+                        "name": "worker_mem",
+                        "value": "16Gi",
+                        "access_mode": "PEER_WRITABLE",
+                        "widget_schema": "{\"component\":\"Input\",\"required\":true,\"tag\":\"RESOURCE_ALLOCATION\"}",
+                        "typed_value": "16Gi",
+                        "tag": "RESOURCE_ALLOCATION",
+                        "value_type": "STRING"
+                    },
+                    {
+                        "name": "role",
+                        "access_mode": "PEER_WRITABLE",
+                        "widget_schema": "{\"component\":\"Select\",\"required\":true,\"enum\":[\"Leader\",\"Follower\"],\"tag\":\"INPUT_PARAM\"}",
+                        "typed_value": "",
+                        "tag": "INPUT_PARAM",
+                        "value": "",
+                        "value_type": "STRING"
+                    },
+                    {
+                        "name": "label_field",
+                        "value": "label",
+                        "access_mode": "PEER_WRITABLE",
+                        "widget_schema": "{\"component\":\"Input\",\"required\":false,\"tooltip\":\"label特征名\",\"tag\":\"INPUT_PARAM\"}",
+                        "typed_value": "label",
+                        "tag": "INPUT_PARAM",
+                        "value_type": "STRING"
+                    },
+                    {
+                        "name": "load_model_name",
+                        "access_mode": "PEER_WRITABLE",
+                        "widget_schema": "{\"component\":\"Input\",\"required\":false,\"tooltip\":\"按任务名称加载模型，{STORAGE_ROOT_PATH}/job_output/{LOAD_MODEL_NAME}/exported_models\",\"tag\":\"INPUT_PATH\"}",
+                        "typed_value": "",
+                        "tag": "INPUT_PATH",
+                        "value": "",
+                        "value_type": "STRING"
+                    },
+                    {
+                        "name": "data_path",
+                        "access_mode": "PEER_WRITABLE",
+                        "widget_schema": "{\"component\":\"Input\",\"required\":false,\"tag\":\"INPUT_PATH\"}",
+                        "typed_value": "",
+                        "tag": "INPUT_PATH",
+                        "value": "",
+                        "value_type": "STRING"
+                    },
+                    {
+                        "name": "file_wildcard",
+                        "access_mode": "PEER_WRITABLE",
+                        "widget_schema": "{\"component\":\"Input\",\"required\":true,\"tag\":\"INPUT_PATH\",\"tooltip\":\"*.data或**/part*\"}",
+                        "typed_value": "",
+                        "tag": "INPUT_PATH",
+                        "value": "",
+                        "value_type": "STRING"
+                    },
+                    {
+                        "name": "fedapp_active_ttl",
+                        "value": "86400",
+                        "access_mode": "PEER_WRITABLE",
+                        "widget_schema": "{\"component\":\"Input\",\"required\":true}",
+                        "typed_value": "86400",
+                        "value_type": "STRING",
+                        "tag": ""
+                    }
+                ],
+                "yaml_template": "{\n  \"apiVersion\": \"fedlearner.k8s.io/v1alpha1\",\n  \"kind\": \"FedApp\",\n  \"metadata\": {\n    \"name\": self.name,\n    \"namespace\": system.variables.namespace,\n    \"labels\": dict(system.variables.labels),\n    \"annotations\":  {\n      \"queue\": \"fedlearner\",\n      \"schedulerName\": \"batch\",\n      \"min-member\": \"1\",\n      \"resource-cpu\": str(self.variables.worker_cpu),\n      \"resource-mem\": str(self.variables.worker_mem),\n    },\n  },\n  \"spec\": {\n      \"activeDeadlineSeconds\": int(self.variables.fedapp_active_ttl),\n      \"fedReplicaSpecs\": {\n          \"Worker\": {\n            \"backoffLimit\": 6,\n            \"port\":                  # 可以没有，没有就是{containerPort: 50051, name: flapp-port, protocol: TCP}\n                { \n                    \"containerPort\": 50051,\n                    \"name\": \"flapp-port\"\n                },\n              \"template\": {\n                  \"spec\": {\n                      \"containers\": [\n                          {\n                              \"env\": system.basic_envs_list + [\n                                  {\n                                      \"name\": \"STORAGE_ROOT_PATH\",\n                                      \"value\": str(project.variables.storage_root_path)\n                                  },\n                                  {\n                                      \"name\": \"ROLE\",\n                                      \"value\": str(self.variables.role).lower()\n                                  },\n                                  {\n                                      \"name\": \"APPLICATION_ID\",\n                                      \"value\": self.name\n                                  },\n                                  {\n                                      \"name\": \"OUTPUT_BASE_DIR\",\n                                      \"value\": str(project.variables.storage_root_path) + \"/job_output/\" + self.name\n                                  },\n                                  {\n                                      \"name\": \"EGRESS_URL\",\n                                      \"value\": \"fedlearner-stack-ingress-nginx-controller.default.svc:80\"\n                                  },\n                                  {\n                                      \"name\": \"EGRESS_HOST\",\n                                      \"value\": project.participants[0].egress_host\n                                  },\n                                  {\n                                      \"name\": \"EGRESS_DOMAIN\",\n                                      \"value\": project.participants[0].egress_domain\n                                  },\n                                  {\n                                      \"name\": \"MODE\",\n                                      \"value\": str(self.variables.mode)\n                                  },\n                                  {\n                                      \"name\": \"LOSS_TYPE\",\n                                      \"value\": str(self.variables.loss_type)\n                                  },\n                                  {\n                                      \"name\": \"DATA_SOURCE\",\n                                      \"value\": str(self.variables.data_source)\n                                  },\n                                  {\n                                      \"name\": \"DATA_PATH\",\n                                      \"value\": str(self.variables.data_path)\n                                  },\n                                  {\n                                      \"name\": \"VALIDATION_DATA_PATH\",\n                                      \"value\": str(self.variables.validation_data_path)\n                                  },\n                                  {\n                                      \"name\": \"NO_DATA\",\n                                      \"value\": str(bool(self.variables.no_data))\n                                  },\n                                  {\n                                      \"name\": \"FILE_WILDCARD\",\n                                      \"value\": str(self.variables.file_wildcard)\n                                  },\n                                  {\n                                      \"name\": \"FILE_TYPE\",\n                                      \"value\": str(self.variables.file_type)\n                                  },\n                                  {\n                                      \"name\": \"LOAD_MODEL_PATH\",\n                                      \"value\": str(self.variables.load_model_path)\n                                  },\n                                  {\n                                      \"name\": \"LOAD_MODEL_NAME\",\n                                      \"value\": str(self.variables.load_model_name)\n                                  },\n                                  {\n                                      \"name\": \"VERBOSITY\",\n                                      \"value\": str(int(self.variables.verbosity))\n                                  },\n                                  {\n                                      \"name\": \"LEARNING_RATE\",\n                                      \"value\": str(float(self.variables.learning_rate))\n                                  },\n                                  {\n                                      \"name\": \"MAX_ITERS\",\n                                      \"value\": str(int(self.variables.max_iters))\n                                  },\n                                  {\n                                      \"name\": \"MAX_DEPTH\",\n                                      \"value\": str(int(self.variables.max_depth))\n                                  },\n                                  {\n                                      \"name\": \"MAX_BINS\",\n                                      \"value\": str(int(self.variables.max_bins))\n                                  },\n                                  {\n                                      \"name\": \"L2_REGULARIZATION\",\n                                      \"value\": str(float(self.variables.l2_regularization))\n                                  },\n                                  {\n                                      \"name\": \"NUM_PARALLEL\",\n                                      \"value\": str(int(self.variables.num_parallel))\n                                  },\n                                  {\n                                      \"name\": \"VERIFY_EXAMPLE_IDS\",\n                                      \"value\": str(bool(self.variables.verify_example_ids))\n                                  },\n                                  {\n                                      \"name\": \"IGNORE_FIELDS\",\n                                      \"value\": str(self.variables.ignore_fields)\n                                  },\n                                  {\n                                      \"name\": \"CAT_FIELDS\",\n                                      \"value\": str(self.variables.cat_fields)\n                                  },\n                                  {\n                                      \"name\": \"LABEL_FIELD\",\n                                      \"value\": str(self.variables.label_field)\n                                  },\n                                  {\n                                      \"name\": \"SEND_SCORES_TO_FOLLOWER\",\n                                      \"value\": str(False)\n                                  },\n                                  {\n                                      \"name\": \"SEND_METRICS_TO_FOLLOWER\",\n                                      \"value\": str(False)\n                                  },\n                                  {\n                                      \"name\": \"ENABLE_PACKING\",\n                                      \"value\": str(bool(self.variables.enable_packing))\n                                  },\n                                  {\n                                      \"name\": \"ES_BATCH_SIZE\",\n                                      \"value\": str(10)\n                                  },\n                                  {\n                                      \"name\": \"METRIC_COLLECTOR_ENABLE\",\n                                      \"value\": str(True)\n                                  },\n                                  {\n                                      \"name\": \"METRIC_COLLECTOR_SERVICE_NAME\",\n                                      \"value\": \"fedlearner_model\"\n                                  }\n                              ] + [],\n                              \"imagePullPolicy\": \"IfNotPresent\",\n                              \"name\": \"tensorflow\",\n                              \"volumeMounts\": list(system.variables.volume_mounts_list),\n                              \"image\": system.variables.image_repo + \"/fedlearner:\" + str(self.variables.image_version),\n                              \"ports\": [\n                                  {\n                                      \"containerPort\": 50051,\n                                      \"name\": \"flapp-port\",\n                                      \"protocol\": \"TCP\"\n                                  },\n                                  {\n                                      \"containerPort\": 50052,\n                                      \"name\": \"tf-port\",\n                                      \"protocol\": \"TCP\"\n                                  }\n                              ],\n                                \"command\":[\"/bin/bash\",\"-c\"],\n                                \"args\": [\"export WORKER_RANK=$$INDEX && export PEER_ADDR=$$SERVICE_ID && /app/deploy/scripts/trainer/run_tree_worker.sh\"],\n                              \"resources\": {\n                                  \"limits\": {\n                                      \"cpu\": str(self.variables.worker_cpu),\n                                      \"memory\": str(self.variables.worker_mem)\n                                  },\n                                  \"requests\": {\n                                      \"cpu\": str(self.variables.worker_cpu),\n                                      \"memory\": str(self.variables.worker_mem)\n                                  }\n                              }\n                          }\n                      ],\n                      \"imagePullSecrets\": [\n                            {\n                                \"name\": \"regcred\"\n                            }\n                        ],\n                      \"volumes\": list(system.variables.volumes_list)\n                  }\n              },\n              \"replicas\": 1\n          }\n      }\n  }\n}\n",
+                "dependencies": [],
+                "easy_mode": false
+            }
+        ],
+        "variables": []
+    },
+    "editor_info": {
+        "yaml_editor_infos": {
+            "tree-model": {
+                "slots": {
+                    "Slot_send_scores_to_follower": {
+                        "help": "是否发送结果到follower",
+                        "label": "是否发送结果到follower",
+                        "default_value": false,
+                        "value_type": "BOOL",
+                        "reference": "",
+                        "default": "",
+                        "reference_type": "DEFAULT"
+                    },
+                    "Slot_l2_regularization": {
+                        "reference": "self.variables.l2_regularization",
+                        "help": "L2惩罚系数",
+                        "reference_type": "SELF",
+                        "label": "L2惩罚系数",
+                        "default_value": 1.0,
+                        "value_type": "NUMBER",
+                        "default": ""
+                    },
+                    "Slot_verify_example_ids": {
+                        "reference": "self.variables.verify_example_ids",
+                        "help": "是否检查example_id对齐 If set to true, the first column of the data will be treated as example ids that must match between leader and follower",
+                        "reference_type": "SELF",
+                        "label": "是否检查example_id对齐",
+                        "default_value": false,
+                        "value_type": "BOOL",
+                        "default": ""
+                    },
+                    "Slot_max_iters": {
+                        "reference": "self.variables.max_iters",
+                        "help": "树的数量",
+                        "reference_type": "SELF",
+                        "label": "迭代数",
+                        "default_value": 5.0,
+                        "value_type": "INT",
+                        "default": ""
+                    },
+                    "Slot_file_type": {
+                        "reference": "self.variables.file_type",
+                        "help": "文件类型，csv或tfrecord",
+                        "reference_type": "SELF",
+                        "label": "文件类型，csv或tfrecord",
+                        "default_value": "tfrecord",
+                        "default": "",
+                        "value_type": "STRING"
+                    },
+                    "Slot_load_model_name": {
+                        "reference": "self.variables.load_model_name",
+                        "help": "按任务名称加载模型，{STORAGE_ROOT_PATH}/job_output/{LOAD_MODEL_NAME}/exported_models",
+                        "reference_type": "SELF",
+                        "label": "模型任务名称",
+                        "default_value": "",
+                        "default": "",
+                        "value_type": "STRING"
+                    },
+                    "Slot_verbosity": {
+                        "reference": "self.variables.verbosity",
+                        "help": "日志输出等级",
+                        "reference_type": "SELF",
+                        "label": "日志输出等级",
+                        "default_value": 1.0,
+                        "value_type": "INT",
+                        "default": ""
+                    },
+                    "Slot_load_model_path": {
+                        "reference": "self.variables.load_model_path",
+                        "help": "模型文件地址",
+                        "reference_type": "SELF",
+                        "label": "模型文件地址",
+                        "default_value": "",
+                        "default": "",
+                        "value_type": "STRING"
+                    },
+                    "Slot_max_bins": {
+                        "reference": "self.variables.max_bins",
+                        "help": "最大分箱数",
+                        "reference_type": "SELF",
+                        "label": "最大分箱数",
+                        "default_value": 33.0,
+                        "value_type": "INT",
+                        "default": ""
+                    },
+                    "Slot_data_path": {
+                        "help": "数据存放位置",
+                        "label": "数据存放位置",
+                        "default_value": "",
+                        "reference": "",
+                        "default": "",
+                        "reference_type": "DEFAULT",
+                        "value_type": "STRING"
+                    },
+                    "Slot_no_data": {
+                        "reference": "self.variables.no_data",
+                        "help": "Leader是否没数据",
+                        "reference_type": "SELF",
+                        "label": "Leader是否没数据",
+                        "default_value": false,
+                        "value_type": "BOOL",
+                        "default": ""
+                    },
+                    "Slot_file_ext": {
+                        "reference": "self.variables.undefined",
+                        "help": "文件后缀",
+                        "reference_type": "SELF",
+                        "label": "文件后缀",
+                        "default_value": ".data",
+                        "default": "",
+                        "value_type": "STRING"
+                    },
+                    "Slot_label_field": {
+                        "reference": "self.variables.label_field",
+                        "help": "label特征名",
+                        "reference_type": "SELF",
+                        "label": "label特征名",
+                        "default_value": "label",
+                        "default": "",
+                        "value_type": "STRING"
+                    },
+                    "Slot_labels": {
+                        "reference": "system.variables.labels",
+                        "help": "建议不修改，格式： {}",
+                        "reference_type": "SYSTEM",
+                        "label": "FLAPP额外元信息",
+                        "default_value": {},
+                        "value_type": "OBJECT",
+                        "default": ""
+                    },
+                    "Slot_loss_type": {
+                        "reference": "self.variables.loss_type",
+                        "help": "损失函数类型，logistic或mse，默认logistic",
+                        "reference_type": "SELF",
+                        "label": "损失函数类型",
+                        "default_value": "logistic",
+                        "default": "",
+                        "value_type": "STRING"
+                    },
+                    "Slot_enable_packing": {
+                        "reference": "self.variables.enable_packing",
+                        "help": "是否开启优化",
+                        "reference_type": "SELF",
+                        "label": "是否开启优化",
+                        "default_value": true,
+                        "value_type": "BOOL",
+                        "default": ""
+                    },
+                    "Slot_worker_cpu": {
+                        "reference": "self.variables.worker_cpu",
+                        "help": "所需CPU",
+                        "reference_type": "SELF",
+                        "label": "所需CPU",
+                        "default_value": "8000m",
+                        "default": "",
+                        "value_type": "STRING"
+                    },
+                    "Slot_ignore_fields": {
+                        "reference": "self.variables.ignore_fields",
+                        "help": "以逗号分隔如：name,age,sex",
+                        "reference_type": "SELF",
+                        "label": "不入模的特征",
+                        "default_value": "",
+                        "default": "",
+                        "value_type": "STRING"
+                    },
+                    "Slot_image_version": {
+                        "reference": "self.variables.image_version",
+                        "help": "建议不修改，指定Pod中运行的容器镜像版本，前缀为system.variables.image_repo + '/fedlearner:'",
+                        "reference_type": "SELF",
+                        "label": "容器镜像版本",
+                        "default_value": "882310f",
+                        "default": "",
+                        "value_type": "STRING"
+                    },
+                    "Slot_storage_root_path": {
+                        "reference": "project.variables.storage_root_path",
+                        "help": "联邦学习中任务存储根目录",
+                        "reference_type": "PROJECT",
+                        "label": "存储根目录",
+                        "default_value": "/data",
+                        "default": "",
+                        "value_type": "STRING"
+                    },
+                    "Slot_num_parallel": {
+                        "reference": "self.variables.num_parallel",
+                        "help": "进程数量",
+                        "reference_type": "SELF",
+                        "label": "进程数量",
+                        "default_value": 1.0,
+                        "value_type": "INT",
+                        "default": ""
+                    },
+                    "Slot_validation_data_path": {
+                        "reference": "self.variables.validation_data_path",
+                        "help": "验证数据集地址",
+                        "reference_type": "SELF",
+                        "label": "验证数据集地址",
+                        "default_value": "",
+                        "default": "",
+                        "value_type": "STRING"
+                    },
+                    "Slot_worker_envs": {
+                        "help": "数组类型，worker pod额外的环境变量",
+                        "label": "Worker额外环境变量",
+                        "default_value": [],
+                        "value_type": "LIST",
+                        "reference": "",
+                        "default": "",
+                        "reference_type": "DEFAULT"
+                    },
+                    "Slot_send_metrics_to_follower": {
+                        "help": "是否发送指标到follower",
+                        "label": "是否发送指标到follower",
+                        "default_value": false,
+                        "value_type": "BOOL",
+                        "reference": "",
+                        "default": "",
+                        "reference_type": "DEFAULT"
+                    },
+                    "Slot_max_depth": {
+                        "reference": "self.variables.max_depth",
+                        "help": "最大深度",
+                        "reference_type": "SELF",
+                        "label": "最大深度",
+                        "default_value": 3.0,
+                        "value_type": "INT",
+                        "default": ""
+                    },
+                    "Slot_volume_mounts": {
+                        "reference": "system.variables.volume_mounts_list",
+                        "help": "建议不修改，容器中卷挂载的位置，数组类型",
+                        "reference_type": "SYSTEM",
+                        "label": "卷挂载位置",
+                        "default_value": [
+                            {
+                                "name": "data",
+                                "mountPath": "/data"
+                            }
+                        ],
+                        "value_type": "LIST",
+                        "default": ""
+                    },
+                    "Slot_mode": {
+                        "reference": "self.variables.mode",
+                        "help": "任务类型，train或eval",
+                        "reference_type": "SELF",
+                        "label": "任务类型，train或eval",
+                        "default_value": "train",
+                        "default": "",
+                        "value_type": "STRING"
+                    },
+                    "Slot_learning_rate": {
+                        "reference": "self.variables.learning_rate",
+                        "help": "学习率",
+                        "reference_type": "SELF",
+                        "label": "学习率",
+                        "default_value": 0.3,
+                        "value_type": "NUMBER",
+                        "default": ""
+                    },
+                    "Slot_worker_mem": {
+                        "reference": "self.variables.worker_mem",
+                        "help": "所需内存",
+                        "reference_type": "SELF",
+                        "label": "所需内存",
+                        "default_value": "16Gi",
+                        "default": "",
+                        "value_type": "STRING"
+                    },
+                    "Slot_es_batch_size": {
+                        "help": "ES_BATCH_SIZE",
+                        "label": "ES_BATCH_SIZE",
+                        "default_value": 10.0,
+                        "value_type": "INT",
+                        "reference": "",
+                        "default": "",
+                        "reference_type": "DEFAULT"
+                    },
+                    "Slot_data_source": {
+                        "reference": "self.variables.data_source",
+                        "help": "求交数据集名称",
+                        "reference_type": "SELF",
+                        "label": "求交数据集名称",
+                        "default_value": "",
+                        "default": "",
+                        "value_type": "STRING"
+                    },
+                    "Slot_role": {
+                        "reference": "self.variables.role",
+                        "help": "Flapp 通讯时的角色 Leader 或 Follower",
+                        "reference_type": "SELF",
+                        "label": "Flapp通讯时角色",
+                        "default_value": "Leader",
+                        "default": "",
+                        "value_type": "STRING"
+                    },
+                    "Slot_volumes": {
+                        "reference": "system.variables.volumes_list",
+                        "help": "建议不修改，数组类型，和volume_mounts一一对应",
+                        "reference_type": "SYSTEM",
+                        "label": "为Pod提供的卷",
+                        "default_value": [
+                            {
+                                "name": "data",
+                                "persistentVolumeClaim": {
+                                    "claimName": "pvc-fedlearner-default"
+                                }
+                            }
+                        ],
+                        "value_type": "LIST",
+                        "default": ""
+                    },
+                    "Slot_cat_fields": {
+                        "reference": "self.variables.cat_fields",
+                        "help": "类别类型特征，特征的值需要是非负整数。以逗号分隔如：alive,country,sex",
+                        "reference_type": "SELF",
+                        "label": "类别类型特征",
+                        "default_value": "",
+                        "default": "",
+                        "value_type": "STRING"
+                    }
+                },
+                "meta_yaml": "{\n  \"apiVersion\": \"fedlearner.k8s.io/v1alpha1\",\n  \"kind\": \"FLApp\",\n  \"metadata\": {\n      \"name\": self.name,\n      \"namespace\": system.variables.namespace,\n      \"annotations\":{\n          \"queue\": \"fedlearner\",\n          \"schedulerName\": \"batch\"\n      },\n    \"labels\": ${Slot_labels}\n  },\n  \"spec\": {\n      \"role\": ${Slot_role},\n      \"cleanPodPolicy\": \"All\",\n      \"peerSpecs\": {\n          \"Leader\" if ${Slot_role}==\"Follower\" else \"Follower\": {\n              \"peerURL\": \"fedlearner-stack-ingress-nginx-controller.default.svc:80\",\n              \"authority\": project.participants[0].egress_host,\n              \"extraHeaders\": {\n                  \"x-host\": \"fedlearner-operator.\" + project.participants[0].egress_domain\n              }\n          }\n      },\n      \"flReplicaSpecs\": {\n          \"Worker\": {\n              \"template\": {\n                  \"spec\": {\n                      \"restartPolicy\": \"Never\",\n                      \"containers\": [\n                          {\n                              \"env\": system.basic_envs_list + [\n                                  {\n                                      \"name\": \"STORAGE_ROOT_PATH\",\n                                      \"value\": ${Slot_storage_root_path}\n                                  },\n                                  {\n                                      \"name\": \"ROLE\",\n                                      \"value\": ${Slot_role}.lower()\n                                  },\n                                  {\n                                      \"name\": \"APPLICATION_ID\",\n                                      \"value\": self.name\n                                  },\n                                  {\n                                      \"name\": \"OUTPUT_BASE_DIR\",\n                                      \"value\": ${Slot_storage_root_path} + \"/job_output/\" + self.name\n                                  },\n                                  {\n                                      \"name\": \"EGRESS_URL\",\n                                      \"value\": \"fedlearner-stack-ingress-nginx-controller.default.svc:80\"\n                                  },\n                                  {\n                                      \"name\": \"EGRESS_HOST\",\n                                      \"value\": project.participants[0].egress_host\n                                  },\n                                  {\n                                      \"name\": \"EGRESS_DOMAIN\",\n                                      \"value\": project.participants[0].egress_domain\n                                  },\n                                  {\n                                      \"name\": \"MODE\",\n                                      \"value\": ${Slot_mode}\n                                  },\n                                  {\n                                      \"name\": \"LOSS_TYPE\",\n                                      \"value\": ${Slot_loss_type}\n                                  },\n                                  {\n                                      \"name\": \"DATA_SOURCE\",\n                                      \"value\": ${Slot_data_source}\n                                  },\n                                  {\n                                      \"name\": \"DATA_PATH\",\n                                      \"value\": ${Slot_data_path}\n                                  },\n                                  {\n                                      \"name\": \"VALIDATION_DATA_PATH\",\n                                      \"value\": ${Slot_validation_data_path}\n                                  },\n                                  {\n                                      \"name\": \"NO_DATA\",\n                                      \"value\": str(${Slot_no_data})\n                                  },\n                                  {\n                                      \"name\": \"FILE_EXT\",\n                                      \"value\": ${Slot_file_ext}\n                                  },\n                                  {\n                                      \"name\": \"FILE_TYPE\",\n                                      \"value\": ${Slot_file_type}\n                                  },\n                                  {\n                                      \"name\": \"LOAD_MODEL_PATH\",\n                                      \"value\": ${Slot_load_model_path}\n                                  },\n                                  {\n                                      \"name\": \"LOAD_MODEL_NAME\",\n                                      \"value\": ${Slot_load_model_name}\n                                  },\n                                  {\n                                      \"name\": \"VERBOSITY\",\n                                      \"value\": str(${Slot_verbosity})\n                                  },\n                                  {\n                                      \"name\": \"LEARNING_RATE\",\n                                      \"value\": str(${Slot_learning_rate})\n                                  },\n                                  {\n                                      \"name\": \"MAX_ITERS\",\n                                      \"value\": str(${Slot_max_iters})\n                                  },\n                                  {\n                                      \"name\": \"MAX_DEPTH\",\n                                      \"value\": str(${Slot_max_depth})\n                                  },\n                                  {\n                                      \"name\": \"MAX_BINS\",\n                                      \"value\": str(${Slot_max_bins})\n                                  },\n                                  {\n                                      \"name\": \"L2_REGULARIZATION\",\n                                      \"value\": str(${Slot_l2_regularization})\n                                  },\n                                  {\n                                      \"name\": \"NUM_PARALLEL\",\n                                      \"value\": str(${Slot_num_parallel})\n                                  },\n                                  {\n                                      \"name\": \"VERIFY_EXAMPLE_IDS\",\n                                      \"value\": str(${Slot_verify_example_ids})\n                                  },\n                                  {\n                                      \"name\": \"IGNORE_FIELDS\",\n                                      \"value\": ${Slot_ignore_fields}\n                                  },\n                                  {\n                                      \"name\": \"CAT_FIELDS\",\n                                      \"value\": ${Slot_cat_fields}\n                                  },\n                                  {\n                                      \"name\": \"LABEL_FIELD\",\n                                      \"value\": ${Slot_label_field}\n                                  },\n                                  {\n                                      \"name\": \"SEND_SCORES_TO_FOLLOWER\",\n                                      \"value\": str(${Slot_send_scores_to_follower})\n                                  },\n                                  {\n                                      \"name\": \"SEND_METRICS_TO_FOLLOWER\",\n                                      \"value\": str(${Slot_send_metrics_to_follower})\n                                  },\n                                  {\n                                      \"name\": \"ENABLE_PACKING\",\n                                      \"value\": str(${Slot_enable_packing})\n                                  },\n                                  {\n                                      \"name\": \"ES_BATCH_SIZE\",\n                                      \"value\": str(${Slot_es_batch_size})\n                                  }\n                              ] + ${Slot_worker_envs},\n                              \"imagePullPolicy\": \"IfNotPresent\",\n                              \"name\": \"tensorflow\",\n                              \"volumeMounts\": ${Slot_volume_mounts},\n                              \"image\": system.variables.image_repo + \"/fedlearner:\" + ${Slot_image_version},\n                              \"ports\": [\n                                  {\n                                      \"containerPort\": 50051,\n                                      \"name\": \"flapp-port\",\n                                      \"protocol\": \"TCP\"\n                                  },\n                                  {\n                                      \"containerPort\": 50052,\n                                      \"name\": \"tf-port\",\n                                      \"protocol\": \"TCP\"\n                                  }\n                              ],\n                              \"command\": [\n                                  \"/app/deploy/scripts/wait4pair_wrapper.sh\"\n                              ],\n                              \"args\": [\n                                  \"/app/deploy/scripts/trainer/run_tree_worker.sh\"\n                              ],\n                              \"resources\": {\n                                  \"limits\": {\n                                      \"cpu\": ${Slot_worker_cpu},\n                                      \"memory\": ${Slot_worker_mem}\n                                  },\n                                  \"requests\": {\n                                      \"cpu\": ${Slot_worker_cpu},\n                                      \"memory\": ${Slot_worker_mem}\n                                  }\n                              }\n                          }\n                      ],\n                      \"volumes\": ${Slot_volumes}\n                  }\n              },\n              \"pair\": True,\n              \"replicas\": 1\n          }\n      }\n  }\n}\n",
+                "variables": []
+            }
+        }
+    },
+    "comment": ""
+}

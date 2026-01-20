@@ -1,23 +1,17 @@
 import React, { FC, useMemo, useRef, useState } from 'react';
-import styled from 'styled-components';
-import {
-  ReactFlowProvider,
-  useStoreState,
-  useStoreActions,
-  ReactFlowState,
-} from 'react-flow-renderer';
+import styled from './index.module.less';
+import { ReactFlowProvider } from 'react-flow-renderer';
 import { useToggle } from 'react-use';
 import JobFormDrawer, { JobFormDrawerExposedRef } from '../../JobFormDrawer';
 import WorkflowJobsCanvas, { ChartExposedRef } from 'components/WorkflowJobsCanvas';
 import {
   ChartNode,
-  ChartNodes,
   ChartNodeStatus,
   JobNodeRawData,
   NodeData,
 } from 'components/WorkflowJobsCanvas/types';
 import GridRow from 'components/_base/GridRow';
-import { Button, message, Modal, Spin } from 'antd';
+import { Button, Message, Spin, Grid } from '@arco-design/web-react';
 import { Redirect, useHistory, useParams } from 'react-router-dom';
 import { useRecoilValue, useRecoilState } from 'recoil';
 import {
@@ -25,67 +19,52 @@ import {
   workflowBasicForm,
   peerConfigInPairing,
   workflowInEditing,
+  templateInUsing,
 } from 'stores/workflow';
 import { useTranslation } from 'react-i18next';
 import i18n from 'i18n';
-import ErrorBoundary from 'antd/lib/alert/ErrorBoundary';
-import { patchWorkflow } from 'services/workflow';
+import ErrorBoundary from 'components/ErrorBoundary';
+import { patchWorkflow, patchPeerWorkflow } from 'services/workflow';
 import { to } from 'shared/helpers';
 import { WorkflowAcceptPayload } from 'typings/workflow';
-import { Variable } from 'typings/variable';
 import InspectPeerConfigs from '../../InspectPeerConfig';
-import { ExclamationCircle } from 'components/IconPark';
-import { Z_INDEX_GREATER_THAN_HEADER } from 'components/Header';
+import Modal from 'components/Modal';
 import { stringifyComplexDictField } from 'shared/formSchema';
-import { cloneDeep, Dictionary } from 'lodash';
+import { cloneDeep } from 'lodash-es';
 import { useSubscribe } from 'hooks';
 import { WORKFLOW_JOB_NODE_CHANNELS } from 'components/WorkflowJobsCanvas/JobNodes/shared';
 import { CreateJobFlag } from 'typings/job';
+import { hydrate } from 'views/Workflows/shared';
+import LocalWorkflowNote from 'views/Workflows/LocalWorkflowNote';
+import { Side } from 'typings/app';
+import { Variable } from 'typings/variable';
 
-const Container = styled.section`
-  height: 100%;
-`;
-const ChartHeader = styled.header`
-  height: 48px;
-  padding: 13px 20px;
-  font-size: 14px;
-  line-height: 22px;
-  background-color: white;
-`;
-const Footer = styled.footer`
-  position: sticky;
-  bottom: 0;
-  z-index: 5; // just above react-flow' z-index
-  padding: 15px 36px;
-  background-color: white;
-`;
-const ChartTitle = styled.h3`
-  margin-bottom: 0;
-`;
+const Row = Grid.Row;
 
-const CanvasAndForm: FC = () => {
+const WorkflowEditStepTwoConfig: FC = () => {
   const history = useHistory();
   const params = useParams<{ id: string }>();
   const { t } = useTranslation();
   const drawerRef = useRef<JobFormDrawerExposedRef>();
-  const chartRef = useRef<ChartExposedRef>();
+  const selfConfigChartRef = useRef<ChartExposedRef>();
+  const peerConfigChartRef = useRef<ChartExposedRef>();
+  const [side, setSide] = useState<Side>('self');
   const [submitting, setSubmitting] = useToggle(false);
   const [drawerVisible, toggleDrawerVisible] = useToggle(false);
   const [peerCfgVisible, togglePeerCfgVisible] = useToggle(false);
   const [currNode, setCurrNode] = useState<ChartNode>();
-  /**
-   * Here we could use react-flow hooks is because we
-   * wrap CanvasAndForm with ReactFlowProvider in lines at the bottom
-   */
-  const jobNodes = useStoreState((store: ReactFlowState) => store.nodes as ChartNodes);
-  const setSelectedElements = useStoreActions((actions) => actions.setSelectedElements);
+  const isChangedPeerConfigValue = useRef(false);
 
-  const workflow = useRecoilValue(workflowInEditing);
+  const [workflow, setWorkflow] = useRecoilState(workflowInEditing);
   const [configValue, setConfigValue] = useRecoilState(workflowConfigForm);
+  const [peerConfigValue, setPeerConfigValue] = useRecoilState(peerConfigInPairing);
   const basicPayload = useRecoilValue(workflowBasicForm);
-  const peerConfig = useRecoilValue(peerConfigInPairing);
+  const template = useRecoilValue(templateInUsing);
 
   useSubscribe(WORKFLOW_JOB_NODE_CHANNELS.disable_job, onNodeDisabledChange);
+
+  const targetConfigValueState = getConfigValueState(side);
+  const targetChartRef = getChartRef(side);
 
   const processedConfig = useMemo(() => {
     // When using original template, we have the flags tell jobs' reuse/disable status
@@ -100,83 +79,131 @@ const CanvasAndForm: FC = () => {
   }, [workflow?.create_job_flags]);
 
   if (!workflow) {
-    const redirectTo = `/workflows/edit/basic/${params.id}`;
+    const redirectTo = `/workflow-center/workflows/edit/basic/${params.id}`;
     return <Redirect to={redirectTo} />;
   }
 
   const currNodeVars =
     currNode?.type === 'global'
-      ? configValue.variables
-      : configValue.job_definitions.find((item) => item.name === currNode?.id)?.variables;
+      ? targetConfigValueState[0].variables
+      : targetConfigValueState[0].job_definitions.find((item) => item.name === currNode?.id)
+          ?.variables;
 
   const isDisabled = { disabled: submitting };
   const isCurrNodeReused = currNode && (currNode.data.raw as JobNodeRawData).reused;
+  const isLocalWorkflow = workflow.is_local;
 
   return (
     <ErrorBoundary>
-      <Container>
-        <Spin spinning={submitting}>
-          <ChartHeader>
-            <ChartTitle>{t('workflow.our_config')}</ChartTitle>
-          </ChartHeader>
-        </Spin>
+      <section className={styled.container}>
+        <div className={styled.chart_container}>
+          <Spin loading={submitting}>
+            <Row className={styled.chart_header} justify="space-between" align="center">
+              <h3 className={styled.chart_title}>{t('workflow.our_config')}</h3>
+              {isLocalWorkflow && <LocalWorkflowNote />}
+            </Row>
+          </Spin>
+          <ReactFlowProvider>
+            <WorkflowJobsCanvas
+              ref={selfConfigChartRef as any}
+              nodeType="edit"
+              nodeInitialStatus={
+                basicPayload._keepUsingOriginalTemplate
+                  ? ChartNodeStatus.Success
+                  : ChartNodeStatus.Pending
+              }
+              workflowConfig={processedConfig}
+              onJobClick={(node) => selectNode(node, 'self')}
+              onCanvasClick={onCanvasClick}
+            />
+          </ReactFlowProvider>
+        </div>
 
-        <WorkflowJobsCanvas
-          ref={chartRef as any}
-          nodeType="edit"
-          nodeInitialStatus={
-            basicPayload._keepUsingOriginalTemplate
-              ? ChartNodeStatus.Success
-              : ChartNodeStatus.Pending
-          }
-          workflowConfig={processedConfig}
-          onJobClick={selectNode}
-          onCanvasClick={onCanvasClick}
-        />
+        {!workflow.is_local && Boolean(peerConfigValue) && (
+          <div className={styled.chart_container}>
+            <Spin loading={submitting}>
+              <Row className={styled.chart_header} justify="space-between" align="center">
+                <h3 className={styled.chart_header}>{t('workflow.peer_config')}</h3>
+              </Row>
+            </Spin>
 
-        <JobFormDrawer
-          ref={drawerRef as any}
-          visible={drawerVisible}
-          // Reused job cannot edit any variables
-          readonly={isCurrNodeReused}
-          message={isCurrNodeReused ? t('workflow.msg_resued_job_cannot_edit') : ''}
-          toggleVisible={toggleDrawerVisible}
-          showPeerConfigButton={Boolean(peerConfig)}
-          currentIdx={currNode?.data.index}
-          nodesCount={jobNodes.length}
-          jobDefinition={currNode?.data.raw}
-          initialValues={currNodeVars}
-          onGoNextJob={onGoNextJob}
-          onCloseDrawer={onCloseDrawer}
-          onViewPeerConfigClick={onViewPeerConfigClick}
-        />
+            <ReactFlowProvider>
+              <WorkflowJobsCanvas
+                ref={peerConfigChartRef}
+                side="peer"
+                nodeType="edit"
+                nodeInitialStatus={
+                  basicPayload._keepUsingOriginalTemplate
+                    ? ChartNodeStatus.Success
+                    : ChartNodeStatus.Pending
+                }
+                workflowConfig={peerConfigValue as any}
+                onCanvasClick={onCanvasClick}
+                onJobClick={(node) => selectNode(node, 'peer')}
+              />
+            </ReactFlowProvider>
+          </div>
+        )}
+      </section>
 
-        <InspectPeerConfigs
-          config={peerConfig}
-          visible={peerCfgVisible}
-          toggleVisible={togglePeerCfgVisible}
-        />
+      <JobFormDrawer
+        ref={drawerRef as any}
+        visible={drawerVisible}
+        isPeerSide={side !== 'self'}
+        // Reused job cannot edit any variables
+        readonly={isCurrNodeReused}
+        message={isCurrNodeReused ? t('workflow.msg_resued_job_cannot_edit') : ''}
+        toggleVisible={toggleDrawerVisible}
+        showPeerConfigButton={side === 'self' && !workflow.is_local && Boolean(peerConfigValue)}
+        currentIdx={currNode?.data.index}
+        nodesCount={targetChartRef?.nodes.length || 0}
+        jobDefinition={currNode?.data.raw}
+        initialValues={currNodeVars}
+        onGoNextJob={onGoNextJob}
+        onCloseDrawer={onCloseDrawer}
+        onViewPeerConfigClick={onViewPeerConfigClick}
+      />
 
-        <Footer>
-          <GridRow gap="12">
-            <Button type="primary" loading={submitting} onClick={submitToPatch}>
-              {t('workflow.btn_submit_edit')}
-            </Button>
-            <Button onClick={onPrevStepClick} {...isDisabled}>
-              {t('previous_step')}
-            </Button>
-            <Button onClick={onCancelEditClick} {...isDisabled}>
-              {t('cancel')}
-            </Button>
-          </GridRow>
-        </Footer>
-      </Container>
+      <InspectPeerConfigs
+        config={peerConfigValue}
+        visible={peerCfgVisible}
+        toggleVisible={togglePeerCfgVisible}
+      />
+
+      <footer className={styled.footer}>
+        <GridRow gap="12">
+          <Button type="primary" loading={submitting} onClick={submitToPatch}>
+            {t('workflow.btn_submit_edit')}
+          </Button>
+          <Button onClick={onPrevStepClick} {...isDisabled}>
+            {t('previous_step')}
+          </Button>
+          <Button onClick={onCancelEditClick} {...isDisabled}>
+            {t('cancel')}
+          </Button>
+        </GridRow>
+      </footer>
     </ErrorBoundary>
   );
 
   // --------- Methods ---------------
+  function getConfigValueState(side: Side) {
+    return ({
+      self: [configValue, setConfigValue],
+      peer: [peerConfigValue, setPeerConfigValue],
+    } as const)[side];
+  }
+  function getChartRef(side: Side) {
+    return ({
+      self: selfConfigChartRef.current,
+      peer: peerConfigChartRef.current,
+    } as const)[side];
+  }
   function checkIfAllJobConfigCompleted() {
-    const isAllCompleted = jobNodes.every((node: ChartNode) => {
+    const allNodes =
+      selfConfigChartRef.current?.nodes.concat(peerConfigChartRef.current?.nodes || []) || [];
+
+    const isAllCompleted = allNodes.every((node: ChartNode) => {
       // Whether a node has Success status or it's been disabled
       // we recognize it as complete!
       return node.data.status === ChartNodeStatus.Success || node.data.disabled;
@@ -188,27 +215,33 @@ const CanvasAndForm: FC = () => {
   async function saveCurrentValues() {
     const values = await drawerRef.current?.getFormValues();
 
-    let nextValue = cloneDeep(configValue);
+    const [innerConfigValue, setInnerConfigValue] = getConfigValueState(side);
+
+    const nextValue = cloneDeep(innerConfigValue);
 
     if (currNode?.type === 'global') {
       // Hydrate values to workflow global variables
-      nextValue.variables = _hydrate(nextValue.variables, values);
+      nextValue.variables = hydrate(nextValue.variables, values) as Variable[];
     }
 
     if (currNode?.type === 'edit') {
       // Hydrate values to target job
       const targetJob = nextValue.job_definitions.find((job) => job.name === currNode.id);
       if (targetJob) {
-        targetJob.variables = _hydrate(targetJob.variables, values);
+        targetJob.variables = hydrate(targetJob.variables, values) as Variable[];
       }
     }
 
-    setConfigValue(nextValue);
+    setInnerConfigValue(nextValue as any);
+
+    if (side === 'peer') {
+      isChangedPeerConfigValue.current = true;
+    }
   }
   async function validateCurrentValues() {
     if (!currNode) return;
     const isValid = await drawerRef.current?.validateCurrentForm();
-    chartRef.current?.updateNodeStatusById({
+    targetChartRef?.updateNodeStatusById({
       id: currNode.id,
       status: isValid ? ChartNodeStatus.Success : ChartNodeStatus.Warning,
     });
@@ -216,31 +249,54 @@ const CanvasAndForm: FC = () => {
   /** 🚀 Initiate patch request */
   async function submitToPatch() {
     if (!checkIfAllJobConfigCompleted()) {
-      return message.warn(i18n.t('workflow.msg_config_unfinished'));
+      return Message.warning(i18n.t('workflow.msg_config_unfinished'));
     }
 
     toggleDrawerVisible(false);
     setSubmitting(true);
 
+    if (isChangedPeerConfigValue.current) {
+      const peerPayload = stringifyComplexDictField({
+        config: peerConfigValue,
+      } as WorkflowAcceptPayload);
+
+      const [, error] = await to(
+        patchPeerWorkflow(params.id, peerPayload as any, workflow.project_id),
+      );
+
+      if (error) {
+        Message.error(error.message);
+      }
+    }
+
     const payload = stringifyComplexDictField({
       config: configValue,
       forkable: basicPayload.forkable!,
-      batch_update_interval: basicPayload.batch_update_interval!,
+      cron_config: basicPayload.cron_config!,
     } as WorkflowAcceptPayload);
 
-    payload.create_job_flags = _mapJobFlags(chartRef.current?.nodes);
+    payload.template_id = template?.id || workflow.template_info?.id;
 
-    const [, error] = await to(patchWorkflow(params.id, payload));
+    payload.template_revision_id = template?.revision_id;
+
+    const [, error] = await to(patchWorkflow(params.id, payload, workflow.project_id));
 
     setSubmitting(false);
 
     if (!error) {
-      history.push('/workflows');
+      setWorkflow(null as any);
+      history.push('/workflow-center/workflows');
     } else {
-      message.error(error.message);
+      Message.error(error.message);
     }
   }
-  async function selectNode(nextNode: ChartNode) {
+  async function selectNode(nextNode: ChartNode, nextSide: Side) {
+    // If change one-side's job chart to another-side deselect current side's ndoe firstly
+    targetChartRef?.setSelectedNodes([]);
+
+    // Since setState is Asynchronous, we need manually get the targetRef instead of using predefined one
+    const nextTargetChartRef = getChartRef(nextSide);
+
     const prevNode = currNode;
     if (currNode && prevNode) {
       // Validate & Save current form before go another job
@@ -249,12 +305,19 @@ const CanvasAndForm: FC = () => {
     }
 
     // Turn target node status to configuring
-    chartRef.current?.updateNodeStatusById({ id: nextNode.id, status: ChartNodeStatus.Processing });
+    nextTargetChartRef?.updateNodeStatusById({
+      id: nextNode.id,
+      status: ChartNodeStatus.Processing,
+    });
 
     setCurrNode(nextNode);
-    setSelectedElements([nextNode]);
+
+    nextTargetChartRef?.setSelectedNodes([nextNode]);
 
     toggleDrawerVisible(true);
+
+    // Put setSide at the end to prevent previous codes from being confused by side-state
+    setSide(nextSide);
   }
 
   // ---------- Handlers ----------------
@@ -267,15 +330,15 @@ const CanvasAndForm: FC = () => {
   async function onCloseDrawer() {
     await validateCurrentValues();
     saveCurrentValues();
-    setSelectedElements([]);
+    targetChartRef?.setSelectedNodes([]);
   }
   function onGoNextJob() {
     if (!currNode) return;
 
-    const nextNodeToSelect = jobNodes.find(
+    const nextNodeToSelect = targetChartRef?.nodes.find(
       (node: ChartNode) => node.data.index === currNode.data.index + 1,
     );
-    nextNodeToSelect && selectNode(nextNodeToSelect);
+    nextNodeToSelect && selectNode(nextNodeToSelect, side);
   }
   function onPrevStepClick() {
     history.goBack();
@@ -285,20 +348,25 @@ const CanvasAndForm: FC = () => {
     _: string,
     { data, ...payload }: { id: string; data: NodeData; disabled: boolean },
   ) {
-    chartRef.current?.updateNodeDisabledById(payload);
+    const sideOfNode = data.side as Side;
+    if (!sideOfNode) {
+      console.error('[WorkflowEditStepTwoConfig]: assign a `side` prop to chart under forking');
+      return;
+    }
+    getChartRef(sideOfNode)?.updateNodeDisabledById(payload);
   }
 
   function onCancelEditClick() {
     Modal.confirm({
       title: i18n.t('workflow.msg_sure_2_cancel_edit'),
-      icon: <ExclamationCircle />,
-      zIndex: Z_INDEX_GREATER_THAN_HEADER,
       content: i18n.t('workflow.msg_sure_2_exist_edit'),
-      style: {
-        top: '30%',
-      },
       onOk() {
-        history.push('/workflows');
+        // if new tab only open this page，no other page has been opened，then go to workflows list page
+        if (history.length <= 3) {
+          history.push('/workflow-center/workflows');
+          return;
+        }
+        history.go(-2);
       },
     });
   }
@@ -306,35 +374,6 @@ const CanvasAndForm: FC = () => {
     togglePeerCfgVisible(true);
   }
 };
-
-/**
- * @param variableShells Variable defintions without any user input value
- * @param formValues User inputs
- */
-function _hydrate(variableShells: Variable[], formValues?: Dictionary<any>): Variable[] {
-  if (!formValues) return [];
-
-  return variableShells.map((item) => {
-    return {
-      ...item,
-      value: formValues[item.name],
-    };
-  });
-}
-
-function _mapJobFlags(nodes?: ChartNodes) {
-  if (!nodes) return [];
-
-  return nodes
-    .filter((node) => node.type !== 'global')
-    .map((node) => {
-      if (node.data.disabled) {
-        return CreateJobFlag.DISABLED;
-      }
-
-      return CreateJobFlag.NEW;
-    });
-}
 
 function _markJobFlags(jobs: JobNodeRawData[], flags: CreateJobFlag[] = []) {
   if (!flags) return jobs;
@@ -351,12 +390,4 @@ function _markJobFlags(jobs: JobNodeRawData[], flags: CreateJobFlag[] = []) {
   });
 }
 
-const WorkflowsEditStepTwo: FC = () => {
-  return (
-    <ReactFlowProvider>
-      <CanvasAndForm />
-    </ReactFlowProvider>
-  );
-};
-
-export default WorkflowsEditStepTwo;
+export default WorkflowEditStepTwoConfig;

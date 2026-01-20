@@ -1,0 +1,72 @@
+@import '~styles/mixins.less';
+
+.chart_section {
+  --marginBottom: 12px;
+  display: flex;
+  margin-bottom: var(--marginBottom);
+}
+
+.chart_container {
+  --chartHeaderHeight: 48px;
+  height: calc(var(--contentMinHeight) - var(--chartHeaderHeight) + var(--marginBottom));
+  flex: 1;
+
+  & + & {
+    margin-left: 16px;
+  }
+}
+
+.header_card {
+  width: 100%;
+  padding: 8px;
+}
+
+.header_row {
+  margin-bottom: 15px;
+
+  &[data-forked='true'] {
+    margin-bottom: 25px;
+  }
+}
+
+.name {
+  .MixinEllipsis();
+
+  max-width: 400px;
+  margin-bottom: 0;
+  font-size: 20px;
+}
+
+.forked_form {
+  margin-top: -20px;
+  font-size: 12px;
+}
+
+.origin_workflow_link {
+  margin-left: 5px;
+}
+
+.no_jobs {
+  display: flex;
+  height: calc(100% - 48px);
+  background-color: rgb(var(--gray-1));
+}
+
+.chart_header {
+  height: var(--chartHeaderHeight);
+  padding: 0 20px;
+  font-size: 14px;
+  line-height: 22px;
+  background-color: white;
+}
+
+.chart_title {
+  margin-bottom: 0;
+
+  &::after {
+    margin-left: 25px;
+    content: attr(data-note);
+    font-size: 12px;
+    color: rgb(var(--gray-6));
+  }
+}

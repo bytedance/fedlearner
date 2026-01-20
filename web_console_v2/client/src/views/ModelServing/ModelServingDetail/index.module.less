@@ -1,0 +1,52 @@
+@import '~styles/mixins.less';
+.avatar_container{
+  .MixinSquare(44px);
+  background-color: #5360d8;
+  color: white;
+  border-radius: 4px;
+  font-size: 18px;
+  text-align: center;
+
+  &::before {
+    display: inline-block;
+    width: 100%;
+    height: 100%;
+    content: '';
+    background: url(../../../assets/icons/atom.svg) no-repeat;
+    background-size: contain;
+  }
+}
+.padding_container{
+  padding: 20px 20px 0;
+}
+.name{
+  margin-bottom: 0;
+  font-size: 16px;
+  height: 24px;
+  font-weight: 600;
+}
+.comment{
+  .MixinEllipsis(400px);
+  display: block;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--textColorSecondary);
+}
+.change_button{
+  margin-right: 20px ;
+}
+
+.title{
+  margin-top: 20px;
+  margin-bottom: 10px;
+  font-weight: bold;
+  color: rgb(var(--gray-10));
+}
+.inference_hidden_info{
+  height: 36px;
+  border-radius: 2px;
+  color: rgb(var(--gray-7));
+  text-align: center;
+  line-height: 36px;
+  background: rgb(var(--gray-1));
+}

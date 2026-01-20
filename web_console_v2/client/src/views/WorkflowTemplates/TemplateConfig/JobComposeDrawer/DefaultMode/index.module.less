@@ -1,0 +1,41 @@
+.form_section {
+  margin-bottom: 20px;
+  padding-top: 24px;
+  &:not([data-fill-width]) {
+    padding-right: 60px;
+  }
+  > .section_heading {
+    background-color: white;
+    padding: 10px 0;
+    margin-bottom: 6px;
+    font-size: 14px;
+    color: var(--textColorStrong);
+  }
+}
+
+.perspective_tab {
+  --error-icon-display: none;
+
+  width: 150px;
+  text-align: center;
+
+  > img[alt='error-icon'] {
+    display: var(--error-icon-display);
+  }
+
+  &[data-has-error='true'] {
+    --error-icon-display: inline-block;
+    color: var(--errorColor);
+  }
+}
+
+.has_error_icon {
+  width: 12px;
+  margin-right: 4px;
+}
+
+.perspective_container {
+  &[data-hidden='true'] {
+    display: none;
+  }
+}

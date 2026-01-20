@@ -1,0 +1,49 @@
+.compose_drawer {
+  :global(.arco-drawer-content) {
+    padding-top: 0;
+    padding-bottom: 200px;
+  }
+}
+
+.drawer_header {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background-color: #fff;
+  margin: 0 -24px 0;
+  padding: 20px 16px 20px 24px;
+  background-color: white;
+  border-bottom: 1px solid var(--lineColor);
+}
+
+.drawer_title {
+  position: relative;
+  margin-bottom: 0;
+  margin-right: 10px;
+}
+
+.form_section {
+  margin-bottom: 20px;
+  padding-top: 24px;
+  &:not([data-fill-width]) {
+    padding-right: 60px;
+  }
+  > .section_heading {
+    background-color: white;
+    padding: 10px 0;
+    margin-bottom: 6px;
+    font-size: 14px;
+    color: var(--textColorStrong);
+  }
+}
+
+.button_grid_row {
+  position: fixed;
+  z-index: 1;
+  bottom: 0;
+  width: 100%;
+  padding: 20px 24px;
+  margin-left: -16px;
+  background-color: white;
+  border-top: 1px solid var(--lineColor);
+}

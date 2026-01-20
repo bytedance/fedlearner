@@ -1,0 +1,32 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "proxy",
+    srcs = [
+        "grpc2tcp.go",
+        "tcp2grpc.go",
+    ],
+    importpath = "fedlearner.net/tools/tcp_grpc_proxy/pkg/proxy",
+    visibility = ["//tools:tools_package"],
+    deps = [
+        "//tools/tcp_grpc_proxy/pkg/proto",
+        "@com_github_sirupsen_logrus//:logrus",
+        "@org_golang_google_grpc//:go_default_library",
+    ],
+)
+
+go_test(
+    name = "proxy_test",
+    srcs = [
+        "grpc2tcp_test.go",
+        "tcp2grpc_test.go",
+    ],
+    embed = [":proxy"],
+    visibility = ["//tools:tools_package"],
+    deps = [
+        "//tools/tcp_grpc_proxy/pkg/proto",
+        "@com_github_sirupsen_logrus//:logrus",
+        "@com_github_stretchr_testify//assert",
+        "@org_golang_google_grpc//:go_default_library",
+    ],
+)

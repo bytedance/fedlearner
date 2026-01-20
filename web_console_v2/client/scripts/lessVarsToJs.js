@@ -1,13 +1,15 @@
 // Code modified from https://github.com/michaeltaranto/less-vars-to-js/blob/master/src/index.js
 
 const stripComments = require('strip-json-comments');
-const camelCase = require('lodash/camelCase');
+const { camelCase } = require('./utils');
 
-const varRgx = /^[@$]/;
+const varRgx = /@[a-zA-Z0-9-_]*/g;
 const followVar = (value, lessVars, dictionary) => {
   if (varRgx.test(value)) {
     // value is a variable
-    return followVar(lessVars[value] || dictionary[value.replace(varRgx, '')]);
+    return value.replace(varRgx, (cur) => {
+      return followVar(lessVars[cur] || dictionary[cur.replace(varRgx, '')]);
+    });
   }
   return value;
 };

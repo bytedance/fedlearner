@@ -19,9 +19,22 @@ describe('decode base64', () => {
         i: 'JUU0JUJEJUEwJUU1JUE1JUJEJTIwd29ybGQh',
         o: '你好 world!',
       },
+      {
+        i: '',
+        o: '',
+      },
     ];
     cases.forEach(({ i, o }) => {
       expect(decodeBase64(i)).toBe(o);
     });
+
+    // Mock fake error
+    const decodeURIComponentSpy = jest
+      .spyOn(window, 'decodeURIComponent')
+      .mockImplementation(() => {
+        throw new Error('fake error');
+      });
+    expect(decodeBase64('aGVsbG8gd29ybGQh')).toBe('');
+    decodeURIComponentSpy.mockRestore();
   });
 });

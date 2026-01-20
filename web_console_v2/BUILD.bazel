@@ -1,0 +1,13 @@
+filegroup(
+    name = "srcs",
+    srcs = [
+        ".dockerignore",
+        ".gitignore",
+        "Dockerfile",
+        "README.md",
+        "nginx.conf",
+        "run_dev.sh",
+        "run_prod.sh",
+    ],
+    visibility = ["//visibility:public"],
+)

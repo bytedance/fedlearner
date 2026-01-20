@@ -1,0 +1,218 @@
+/* Copyright 2023 The FedLearner Authors. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+syntax = "proto3";
+
+package fedlearner_webconsole.proto;
+
+import "fedlearner_webconsole/proto/common/extension.proto";
+import "fedlearner_webconsole/proto/common.proto";
+import "fedlearner_webconsole/proto/algorithm.proto";
+import "fedlearner_webconsole/proto/workflow_definition.proto";
+import "fedlearner_webconsole/proto/project.proto";
+
+
+// Put in web API response, get list
+message ModelJobRef {
+  int64 id = 1;
+  string name = 2;
+  string uuid = 3;
+  string role = 4;
+  // ref: ModelJobType
+  string model_job_type = 5;
+  string algorithm_type = 6;
+  string state = 7 [deprecated=true];
+  bool configured = 8;
+  string creator_username = 9;
+  int64 coordinator_id = 10;
+  int64 created_at = 11;
+  int64 updated_at = 12;
+  int64 version = 13;
+  int64 project_id = 14;
+  int64 group_id = 15;
+  int64 started_at = 16;
+  int64 stopped_at = 17;
+  bool metric_is_public = 18;
+  int64 algorithm_id = 19;
+  // ref: AuthStatus
+  string auth_status = 20;
+  bool auto_update = 21;
+  // ref: ModelJobStatus
+  string status = 22;
+  // ref: ModelJobAuthFrontendStatus
+  string auth_frontend_status = 23;
+  ParticipantsInfo participants_info = 24;
+}
+
+
+// Put in web API response, get one
+message ModelJobPb {
+  int64 id = 1;
+  string name = 2;
+  string uuid = 3;
+  string role = 4;
+  // ref: ModelJobType
+  string model_job_type = 5;
+  // ref: AlgorithmType
+  string algorithm_type = 6;
+  int64 algorithm_id = 7;
+  int64 group_id = 8;
+  int64 project_id = 9;
+  string state = 10;
+  bool configured = 11;
+  // the model used for evaluation, prediction or retraining.
+  int64 model_id = 12;
+  string model_name = 13;
+  int64 job_id = 14;
+  int64 workflow_id = 15;
+  int64 dataset_id = 16;
+  string dataset_name = 17;
+  string creator_username = 18 [(fedlearner_webconsole.proto.secret) = true];
+  int64 coordinator_id = 19;
+  // the generated model
+  string output_model_name = 20;
+  WorkflowDefinition config = 21;
+  // timestamp in seconds
+  int64 created_at = 22;
+  int64 updated_at = 23;
+  int64 started_at = 24;
+  int64 stopped_at = 25;
+  string comment = 26;
+  int64 version = 27;
+  repeated ModelPb output_models = 28 [deprecated=true];
+  // the name of associated job in workflow
+  string job_name = 29;
+  bool metric_is_public = 30;
+  // ref: AuthStatus
+  string auth_status = 31;
+  // ref: ModelJobStatus
+  string status = 32;
+  // error message during creating, configuring and starting model job
+  string error_message = 33;
+  bool auto_update = 34;
+  int64 data_batch_id = 35;
+  ModelJobGlobalConfig global_config = 36;
+  // ref: ModelJobAuthFrontendStatus
+  string auth_frontend_status = 37;
+  ParticipantsInfo participants_info = 38;
+}
+
+
+// Put in web API response, get list
+message ModelJobGroupRef {
+  int64 id = 1;
+  string name = 2;
+  string uuid = 3;
+  string role = 4;
+  int64 project_id = 5;
+  bool authorized = 6;
+  string algorithm_type = 7;
+  bool configured = 8;
+  string creator_username = 9;
+  int64 coordinator_id = 10;
+  string latest_job_state = 11;
+  int64 latest_version = 12;
+  int64 created_at = 13;
+  int64 updated_at = 14;
+  string auth_frontend_status = 15;
+  string auth_status = 16;
+  ParticipantsInfo participants_info = 17;
+}
+
+
+// Put in web API response, get one
+message ModelJobGroupPb {
+  int64 id = 1;
+  string name = 2;
+  string uuid = 3;
+  string role = 4;
+  int64 project_id = 5;
+  bool authorized = 6;
+  int64 dataset_id = 7;
+  string algorithm_type = 8;
+  int64 algorithm_project_id = 9;
+  int64 algorithm_id = 10;
+  WorkflowDefinition config = 11;
+  bool configured = 12;
+  string creator_username = 13 [(fedlearner_webconsole.proto.secret) = true];
+  int64 coordinator_id = 14;
+  string cron_config = 15;
+  string latest_job_state = 16;
+  int64 latest_version = 17;
+  int64 created_at = 18;
+  int64 updated_at = 19;
+  string comment = 20;
+  repeated ModelJobRef model_jobs = 21 [deprecated=true];
+  string auth_frontend_status = 22;
+  string auth_status = 23;
+  ParticipantsInfo participants_info = 24;
+  // ref: GroupAutoUpdateStatus
+  string auto_update_status = 25;
+  int64 start_data_batch_id = 26;
+  AlgorithmProjectList algorithm_project_uuid_list = 27;
+}
+
+message ModelPb {
+  int64 id = 1;
+  string name = 2;
+  string uuid = 3;
+  string algorithm_type = 4;
+  int64 group_id = 5;
+  int64 project_id = 6;
+  int64 model_job_id = 7;
+  string model_job_name = 8;
+  int64 job_id = 9;
+  string job_name = 10;
+  int64 workflow_id = 11;
+  string workflow_name = 12;
+  int64 version = 13;
+  int64 created_at = 14;
+  int64 updated_at = 15;
+  string comment = 16;
+  string model_path = 17;
+}
+
+message PeerModelJobPb{
+  string name = 1;
+  string uuid = 2;
+  string algorithm_type = 3;
+  string model_job_type = 4;
+  string state = 5;
+  string group_uuid = 6;
+  WorkflowDefinition config = 7;
+  bool metric_is_public = 8;
+}
+
+message ModelJobConfig {
+  string algorithm_uuid = 1;
+  AlgorithmParameter algorithm_parameter = 2;
+  repeated Variable variables = 3;
+}
+
+message AlgorithmProjectList {
+  // key is the pure domain name, value is the uuid of algorithm project
+  map<string, string> algorithm_projects = 1;
+}
+
+// provide enough information when configuring template
+message ModelJobGlobalConfig {
+  // key is the domain name
+  map<string, ModelJobConfig> global_config = 1;
+  string dataset_uuid = 2;
+  string model_uuid = 3;
+  bool auto_update = 4;
+  // for auto update jobs, use latest job stage uuid to get target data_batch
+  string dataset_job_stage_uuid = 5;
+}

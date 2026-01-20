@@ -1,4 +1,4 @@
-# Copyright 2021 The FedLearner Authors. All Rights Reserved.
+# Copyright 2023 The FedLearner Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,29 +15,28 @@
 # coding: utf-8
 import os
 from contextlib import contextmanager
-from typing import ContextManager, Callable
-
+from typing import ContextManager
+from pymysql.constants.CLIENT import FOUND_ROWS
 import sqlalchemy as sa
-
+from sqlalchemy import orm, event, null
 from sqlalchemy.engine import Engine, create_engine
-from sqlalchemy.ext.declarative.api import DeclarativeMeta, declarative_base
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, DeclarativeMeta, declarative_base
 from sqlalchemy.orm.session import Session
-from flask_sqlalchemy import SQLAlchemy
 
 from envs import Envs
+from fedlearner_webconsole.utils.base_model.softdelete_model import SoftDeleteModel
+
 BASE_DIR = Envs.BASE_DIR
 
 # Explicitly set autocommit and autoflush
 # Disables autocommit to make developers to commit manually
 # Enables autoflush to make changes visible in the same session
 # Disable expire_on_commit to make it possible that object can detach
-SESSION_OPTIONS = {
-    'autocommit': False,
-    'autoflush': True,
-    'expire_on_commit': False
-}
-ENGINE_OPTIONS = {}
+SESSION_OPTIONS = {'autocommit': False, 'autoflush': True, 'expire_on_commit': False}
+# Add flag FOUND_ROWS to make update statement return matched rows but not changed rows.
+# When use Sqlalchemy, must set this flag to make update statement validation bug free.
+MYSQL_OPTIONS = {'connect_args': {'client_flag': FOUND_ROWS}}
+SQLITE_OPTIONS = {}
 
 
 def default_table_args(comment: str) -> dict:
@@ -48,7 +47,22 @@ def default_table_args(comment: str) -> dict:
     }
 
 
-def _turn_db_timezone_to_utc(original_uri: str) -> str:
+# an option is added to all SELECT statements that will limit all queries against Dataset to filter on deleted == null
+# global WHERE/ON criteria eg: https://docs.sqlalchemy.org/en/14/_modules/examples/extending_query/filter_public.html
+# normal orm execution wont get the soft-deleted data, eg: session.query(A).get(1)
+# use options can get the soft-deleted data eg: session.query(A).execution_options(include_deleted=True).get(1)
+@event.listens_for(Session, 'do_orm_execute')
+def _add_filtering_criteria(execute_state):
+    if (not execute_state.is_column_load and not execute_state.execution_options.get('include_deleted', False)):
+        execute_state.statement = execute_state.statement.options(
+            orm.with_loader_criteria(
+                SoftDeleteModel,
+                lambda cls: cls.deleted_at == null(),
+                include_aliases=True,
+            ))
+
+
+def turn_db_timezone_to_utc(original_uri: str) -> str:
     """ string operator that make any db into utc timezone
 
     Args:
@@ -101,17 +115,15 @@ def get_database_uri() -> str:
     Returns:
         str: database uri with utc timezone
     """
-    uri = ''
-    if 'SQLALCHEMY_DATABASE_URI' in os.environ:
-        uri = os.getenv('SQLALCHEMY_DATABASE_URI')
-    else:
-        uri = 'sqlite:///{}?check_same_thread=False'.format(
-            os.path.join(BASE_DIR, 'app.db'))
-    return _turn_db_timezone_to_utc(uri)
+    uri = Envs.SQLALCHEMY_DATABASE_URI
+    if not uri:
+        db_path = os.path.join(BASE_DIR, 'app.db')
+        uri = f'sqlite:///{db_path}?check_same_thread=False'
+    return turn_db_timezone_to_utc(uri)
 
 
-def get_engine(database_uri: str) -> Engine:
-    """get engine according to database uri
+def _get_engine(database_uri: str) -> Engine:
+    """Gets engine according to database uri.
 
     Args:
         database_uri (str): database uri used for create engine
@@ -119,7 +131,12 @@ def get_engine(database_uri: str) -> Engine:
     Returns:
         Engine: engine used for managing connections
     """
-    return create_engine(database_uri, **ENGINE_OPTIONS)
+    engine_options = {}
+    if database_uri.startswith('mysql'):
+        engine_options = MYSQL_OPTIONS
+    elif database_uri.startswith('sqlite'):
+        engine_options = SQLITE_OPTIONS
+    return create_engine(database_uri, **engine_options)
 
 
 @contextmanager
@@ -133,8 +150,8 @@ def get_session(db_engine: Engine) -> ContextManager[Session]:
     """
     try:
         session: Session = sessionmaker(bind=db_engine, **SESSION_OPTIONS)()
-    except Exception:
-        raise Exception('unknown db engine')
+    except Exception as e:
+        raise Exception('unknown db engine') from e
 
     try:
         yield session
@@ -145,40 +162,12 @@ def get_session(db_engine: Engine) -> ContextManager[Session]:
         session.close()
 
 
-def make_session_context() -> Callable[[], ContextManager[Session]]:
-    """A functional closure that will store engine
-        Call it n times if you want to n connection pools
-
-    Returns:
-        Callable[[], Callable[[], ContextManager[Session]]]
-            a function that return a contextmanager
-
-
-    Examples:
-        # First initialize a connection pool,
-        # when you want to a new connetion pool
-        session_context = make_session_context()
-        ...
-        # You use it multiple times as follows.
-        with session_context() as session:
-            session.query(SomeMapperClass).filter_by(id=1).one()
-    """
-    engine = None
-
-    def wrapper_get_session():
-        nonlocal engine
-        if engine is None:
-            engine = get_engine(get_database_uri())
-        return get_session(engine)
-
-    return wrapper_get_session
-
-
 class DBHandler(object):
+
     def __init__(self) -> None:
         super().__init__()
 
-        self.engine: Engine = get_engine(get_database_uri())
+        self.engine: Engine = _get_engine(get_database_uri())
         self.Model: DeclarativeMeta = declarative_base(bind=self.engine)
         for module in sa, sa.orm:
             for key in module.__all__:
@@ -193,7 +182,7 @@ class DBHandler(object):
         return self.Model.metadata
 
     def rebind(self, database_uri: str):
-        self.engine = get_engine(database_uri)
+        self.engine = _get_engine(database_uri)
         self.Model = declarative_base(bind=self.engine, metadata=self.metadata)
 
     def create_all(self):
@@ -203,9 +192,6 @@ class DBHandler(object):
         return self.metadata.drop_all()
 
 
-# now db_handler and db are alive at the same time
-# db will be replaced by db_handler in the near future
-db_handler = DBHandler()
-db = SQLAlchemy(session_options=SESSION_OPTIONS,
-                engine_options=ENGINE_OPTIONS,
-                metadata=db_handler.metadata)
+# now db and db are alive at the same time
+# db will be replaced by db in the near future
+db = DBHandler()

@@ -5,14 +5,17 @@ import { executionStatusText, JobNodeProps, statusIcons } from './shared';
 import GridRow from 'components/_base/GridRow';
 import classNames from 'classnames';
 import { useTranslation } from 'react-i18next';
-import { Tooltip } from 'antd';
+import { Tooltip } from '@arco-design/web-react';
 import { ChartNodeStatus } from '../types';
 
 const ExecutionJobNode: FC<JobNodeProps> = ({ data, id }) => {
-  const hasError = Boolean(data.raw.error_message);
+  const hasError =
+    Boolean(data.raw?.error_message) &&
+    (data.raw.error_message?.app !== '' || JSON.stringify(data.raw.error_message?.pods) !== '{}');
   const isDisabled = Boolean(data.raw.disabled);
 
   const { t } = useTranslation();
+  const errorText = JSON.stringify(data.raw.error_message);
   const icon = statusIcons[hasError ? ChartNodeStatus.Error : data.status];
   const text = executionStatusText[data.status];
 
@@ -35,8 +38,8 @@ const ExecutionJobNode: FC<JobNodeProps> = ({ data, id }) => {
           {icon && <StatusIcon src={icon} />}
           <JobStatusText>
             {hasError ? (
-              <Tooltip className="error-message" title={data.raw.error_message} placement="topLeft">
-                {data.raw.error_message}
+              <Tooltip className="error-message" content={errorText} position="tl">
+                {errorText}
               </Tooltip>
             ) : (
               text
@@ -44,7 +47,7 @@ const ExecutionJobNode: FC<JobNodeProps> = ({ data, id }) => {
           </JobStatusText>
 
           {data.raw.reused && (
-            <Tooltip title={t('workflow.msg_resued_job')} placement="bottom">
+            <Tooltip content={t('workflow.msg_resued_job')} position="bottom">
               <InheritedTag color="orange">{t('workflow.job_node_reused')}</InheritedTag>
             </Tooltip>
           )}

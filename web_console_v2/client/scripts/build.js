@@ -11,6 +11,7 @@ process.on('unhandledRejection', (err) => {
 
 // Ensure environment variables are read.
 require('../config/env');
+require('./generateDefaultThemeIndexFile');
 
 const path = require('path');
 const chalk = require('react-dev-utils/chalk');
@@ -113,6 +114,9 @@ checkBrowsers(paths.appPath, isInteractive)
       }
     },
   )
+  .then(() => {
+    copyMonacoFileToStatic();
+  })
   .catch((err) => {
     if (err && err.message) {
       console.log(err.message);
@@ -193,5 +197,14 @@ function copyPublicFolder() {
   fs.copySync(paths.appPublic, paths.appBuild, {
     dereference: true,
     filter: (file) => file !== paths.appHtml,
+  });
+}
+
+function copyMonacoFileToStatic() {
+  const fileNames = ['editor.worker.js', 'json.worker.js'];
+  fileNames.forEach((fileName) => {
+    const filePath = path.join(paths.appBuild, fileName);
+    const targetFilePath = path.join(paths.appBuild, '/v2/static/js/', fileName);
+    fs.renameSync(filePath, targetFilePath);
   });
 }

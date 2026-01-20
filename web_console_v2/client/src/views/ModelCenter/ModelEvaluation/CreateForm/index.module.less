@@ -1,0 +1,36 @@
+.page_section_card {
+  position: relative;
+  :global(.arco-card-body) {
+    min-height: calc(
+      100vh - var(--pageHeaderHeight) - var(--headerHeight) - var(--contentOuterPadding) * 2
+    );
+    background-color: inherit;
+  }
+}
+.title_text_large {
+  .title_text(16px, 0px, 0px);
+}
+.title_text_small {
+  .title_text(14px, 40px, 10px);
+}
+.title_text(@fontSize: 14px,@marginTop: 0px,@marginBottom: 0px) {
+  margin-top: @marginTop;
+  margin-bottom: @marginBottom;
+  padding-right: 16px;
+  text-align: right;
+  font-weight: 600;
+  font-size: @fontSize;
+  color: var(--color-text-1);
+}
+.small_text {
+  font-size: 12px;
+  color: var(--color-text-2);
+}
+.form_container {
+  width: 600px;
+  margin: 0 auto;
+  font-size: 12px;
+}
+.submit_btn_container {
+  width: 140px;
+}

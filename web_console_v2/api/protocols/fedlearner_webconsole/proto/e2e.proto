@@ -1,0 +1,50 @@
+/* Copyright 2023 The FedLearner Authors. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+syntax = "proto3";
+
+package fedlearner_webconsole.proto;
+
+message E2eJob {
+  string project_name = 1;
+  // the path of the Python script to be run relative to e2e_test folder;
+  // e.g. workflow_test/test_local_workflow.py
+  string script_path = 2;
+  // the image of FLApp/FedApp to be used for federated learning;
+  // e.g. artifact.bytedance.com/fedlearner/fedlearner:90d9257
+  string fedlearner_image_uri = 3;
+  // the e2e image to be used;
+  // e.g. artifact.bytedance.com/fedlearner/fedlearner_e2e:2.2.3.2
+  string e2e_image_uri = 4;
+  string job_name = 5;
+  string platform_endpoint = 6;
+  // a string used to generate names for federated workflows
+  string name_prefix = 7;
+}
+
+message InitiateE2eJobsParameter {
+  // coordinator vs. participant
+  string role = 1;
+  // a string used to generate names for federated workflows
+  string name_prefix = 2;
+  string project_name = 3;
+  // e2e image URI
+  // e.g. artifact.bytedance.com/fedlearner/fedlearner_e2e:2.2.3.2
+  string e2e_image_uri = 4;
+  // FedLearner image URI
+  // e.g. artifact.bytedance.com/fedlearner/fedlearner:90d9257
+  string fedlearner_image_uri = 5;
+  string platform_endpoint = 6;
+}

@@ -3,24 +3,24 @@ import { useParams } from 'react-router-dom';
 import { fetchJobLogs } from 'services/workflow';
 import PrintLogs from 'components/PrintLogs';
 
-const PodLogs: FC = () => {
+const JobLogs: FC = () => {
   const params = useParams<{ jobId: string }>();
 
   return (
     <PrintLogs logsFetcher={getLogs} refetchInterval={4000} queryKey={['getJob', params.jobId]} />
   );
 
-  async function getLogs() {
+  async function getLogs(maxLines = 5000) {
     if (!params.jobId) {
       return { data: ['Job ID invalid!'] };
     }
 
     return fetchJobLogs(params.jobId, {
-      maxLines: 500,
+      maxLines,
     }).catch((error) => ({
       data: [error.message],
     }));
   }
 };
 
-export default PodLogs;
+export default JobLogs;

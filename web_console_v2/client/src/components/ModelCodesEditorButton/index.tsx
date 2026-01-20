@@ -1,57 +1,77 @@
-import { Button, Drawer, Row, Col } from 'antd';
-import React, { FC, useState } from 'react';
-import styled from 'styled-components';
-import { CodeOutlined } from '@ant-design/icons';
+/* istanbul ignore file */
+
+import { Button, Drawer, Grid } from '@arco-design/web-react';
+import React, { FC, useState, useMemo } from 'react';
+import { IconCodeSquare } from '@arco-design/web-react/icon';
 import { useToggle } from 'react-use';
-import CodeEditor, { VS_DARK_COLOR } from 'components/CodeEditor';
+import CodeEditor from 'components/CodeEditor';
+
 import FileExplorer from './FileExplorer';
-import { isEmpty } from 'lodash';
+import { isEmpty } from 'lodash-es';
+
+import { BaseButtonProps } from '@arco-design/web-react/es/Button/interface';
+
+import styles from './index.module.less';
+
+const { Row, Col } = Grid;
 
 const DEFAULT_MAIN_FILE = 'main.py';
 
-const Container = styled.div``;
-
-const StyledDrawer = styled(Drawer)`
-  top: 60px;
-
-  .ant-drawer-body {
-    padding: 10px 0 0;
-    height: 100%;
-    background-color: ${VS_DARK_COLOR};
-  }
-`;
 type MultiPathCodes = { [path: string]: string };
 type Props = {
   value?: MultiPathCodes;
   onChange?: (val?: MultiPathCodes) => any;
+  disabled?: boolean;
+  buttonText?: string;
+  buttonType?: BaseButtonProps['type'];
+  buttonIcon?: React.ReactNode;
+  buttonStyle?: React.CSSProperties;
+  renderButton?: (onClick: any) => React.ReactNode;
 };
 
 let __onChangeTimer: number;
 
-const CodeEditorButton: FC<Props> = ({ value, onChange }) => {
-  let data: MultiPathCodes = value!;
+const CodeEditorButton: FC<Props> = ({
+  value,
+  onChange,
+  disabled,
+  buttonText = '打开代码编辑器',
+  buttonType = 'default',
+  buttonIcon = <IconCodeSquare />,
+  buttonStyle = {},
+  renderButton,
+}) => {
+  const data = useMemo<MultiPathCodes>(() => {
+    let tempData;
+    if (typeof value === 'string' || isEmpty(value)) {
+      tempData = { [DEFAULT_MAIN_FILE]: '' };
+    } else {
+      tempData = { ...value };
+    }
 
-  if (typeof data === 'string' || isEmpty(data)) {
-    data = { [DEFAULT_MAIN_FILE]: '' };
-  }
+    return tempData;
+  }, [value]);
 
   const files = Object.keys(data || {});
-
   const [visible, toggleVisible] = useToggle(false);
   const [activeFile, setActive] = useState<string>(files[0]);
 
   return (
-    <Container>
-      <Button icon={<CodeOutlined />} onClick={onButtonClick}>
-        打开模型代码编辑器
-      </Button>
+    <div>
+      {renderButton ? (
+        renderButton(onButtonClick)
+      ) : (
+        <Button icon={buttonIcon} onClick={onButtonClick} style={buttonStyle} type={buttonType}>
+          {buttonText}
+        </Button>
+      )}
 
-      <StyledDrawer
-        getContainer="#app-content"
+      <Drawer
+        className={styles.drawer_container}
         placement="left"
         width={window.innerWidth - 250}
         visible={visible}
-        contentWrapperStyle={{
+        style={{
           contain: 'paint',
         }}
         bodyStyle={{
@@ -60,18 +80,20 @@ const CodeEditorButton: FC<Props> = ({ value, onChange }) => {
         headerStyle={{
           display: 'none',
         }}
+        footer={null}
         maskStyle={{ backdropFilter: 'blur(3px)' }}
-        onClose={toggleVisible}
+        onCancel={toggleVisible}
       >
-        <Row style={{ height: '100%' }} wrap={false}>
+        <Row style={{ height: '100%', flexWrap: 'nowrap' }}>
           <FileExplorer
             files={files}
             active={activeFile}
             onSelect={onFileSelect}
             onCreate={onFileCreate}
             onDelete={onFileDelete}
+            isReadOnly={disabled}
           />
-          <Col flex="1">
+          <Col flex="1" style={{ height: '100%' }}>
             <CodeEditor
               path={activeFile}
               value={data[activeFile]}
@@ -79,11 +101,12 @@ const CodeEditorButton: FC<Props> = ({ value, onChange }) => {
               defaultPath={activeFile}
               language="python"
               onChange={onCodeChange}
+              isReadOnly={disabled}
             />
           </Col>
         </Row>
-      </StyledDrawer>
-    </Container>
+      </Drawer>
+    </div>
   );
 
   function onButtonClick() {
@@ -104,13 +127,19 @@ const CodeEditorButton: FC<Props> = ({ value, onChange }) => {
 
     setActive(newPath);
   }
-  function onFileDelete() {
-    if (data[activeFile]) {
-      delete data[activeFile];
+  function onFileDelete(path: string) {
+    if (Object.prototype.hasOwnProperty.call(data, path)) {
+      delete data[path];
     }
+    if (path === activeFile) {
+      const tempFiles = files.filter((fileKey) => fileKey !== path);
+
+      // replace active file
+      setActive(tempFiles.length > 0 ? tempFiles[0] : '');
+    }
+
     onChange && onChange(data);
   }
-
   function updateValue(val: MultiPathCodes) {
     clearTimeout(__onChangeTimer);
 

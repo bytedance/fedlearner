@@ -1,0 +1,57 @@
+@import '~styles/mixins.less';
+
+.data_source_detail_padding_box{
+    padding: 20px;
+    padding-bottom: 0;
+    :global(.arco-spin) {
+        width: 100%;
+    }
+}
+
+.data_source_detail_avatar{
+    .MixinSquare(44px);
+    background-color: var(--primaryColor);
+    color: white;
+    border-radius: 2px;
+    font-size: 18px;
+    text-align: center;
+
+    &::before {
+      content: attr(data-name);
+      line-height: 44px;
+      font-weight: bold;
+    }
+}
+
+.data_source_name_container{
+    display: flex;
+    align-items: center;
+}
+
+.data_source_name{
+    .MixinEllipsis('40vw');
+    display: inline-block;
+    margin-bottom: 0;
+    margin-right: 7px;
+    font-size: 16px;
+    height: 24px;
+    font-weight: 600;
+}
+
+.comment{
+    font-size: 12px;
+    line-height: 18px;
+    color: var(--textColorSecondary);
+}
+
+.data_source_text{
+    .MixinEllipsis();
+}
+
+.data_source_detail_tab_pane{
+    display: grid;
+}
+
+.data_detail_tab{
+    margin-bottom: 0 !important;
+}

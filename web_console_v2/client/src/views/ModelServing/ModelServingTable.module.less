@@ -1,0 +1,23 @@
+.edit_text_container{
+  display: inline-block;
+  max-width: 100%;
+  line-height: inherit;
+  font-size: 13px;
+  color: var(--primaryColor);
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: top;
+  &[data-is-disabled='true'] {
+    color: rgb(var(--gray-6));
+    cursor: not-allowed;
+  }
+}
+.tag_container{
+  &.arco-tag {
+    border: none;
+    color: rgb(var(--gray-10));
+  }
+}
+

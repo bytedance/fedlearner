@@ -1,0 +1,100 @@
+package(default_visibility = ["//web_console_v2/api:console_api_package"])
+
+py_binary(
+    name = "flask_cli_bin",
+    srcs = [
+        "flask_cli.py",
+    ],
+    data = [
+        "//web_console_v2/api/migrations",
+    ],
+    main = "flask_cli.py",
+    deps = [
+        # THIS IS A HACK!!!
+        # Although `//web_console_v2/api:command_lib` is not directly used in `flask_cli.py`, we have to `deps` it for discovering python dependencies at runtime.
+        "//web_console_v2/api:command_lib",
+        "@common_flask//:pkg",
+    ],
+)
+
+py_binary(
+    name = "gunicorn_cli_bin",
+    srcs = [
+        "gunicorn_cli.py",
+    ],
+    data = [
+        "//web_console_v2/api:gunicorn_config",
+    ],
+    main = "gunicorn_cli.py",
+    deps = [
+        # THIS IS A HACK!!!
+        # Although `//web_console_v2/api:server_lib"` is not directly used in `gunicorn_cli.py`, we have to `deps` it for discovering python dependencies at runtime.
+        "//web_console_v2/api:server_lib",
+        "@common_gunicorn//:pkg",
+    ],
+)
+
+py_binary(
+    name = "supervisorctl_cli_bin",
+    srcs = [
+        "supervisorctl_cli.py",
+    ],
+    data = [
+        "supervisord.conf",
+    ],
+    main = "supervisorctl_cli.py",
+    deps = [
+        "@common_supervisor//:pkg",
+    ],
+)
+
+py_binary(
+    name = "supervisord_cli_bin",
+    srcs = [
+        "supervisord_cli.py",
+    ],
+    data = [
+        "supervisord.conf",
+    ],
+    main = "supervisord_cli.py",
+    deps = [
+        "@common_supervisor//:pkg",
+    ],
+)
+
+filegroup(
+    name = "runtime_env",
+    srcs = [
+        "runtime_env.sh",
+    ],
+)
+
+sh_binary(
+    name = "run_prod",
+    srcs = [
+        "run_prod.sh",
+    ],
+    data = [
+        ":flask_cli_bin",
+        ":gunicorn_cli_bin",
+        ":runtime_env",
+        ":supervisorctl_cli_bin",
+        ":supervisord_cli_bin",
+        "//web_console_v2/api:entrypoint_bin",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+sh_binary(
+    name = "run_dev",
+    srcs = [
+        "run_dev.sh",
+    ],
+    data = [
+        "supervisord_dev.conf",
+        ":runtime_env",
+        "//web_console_v2/api:entrypoint_bin",
+        "//web_console_v2/api/cmds:flask_cli_bin",
+        "//web_console_v2/api/cmds:supervisord_cli_bin",
+    ],
+)

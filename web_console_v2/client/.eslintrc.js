@@ -33,6 +33,13 @@ module.exports = {
     '@typescript-eslint/semi': 'off',
     '@typescript-eslint/explicit-module-boundary-types': 'off',
     'prettier/prettier': ['warn', {}, { usePrettierrc: true }],
+    'prefer-const': [
+      'error',
+      {
+        destructuring: 'any',
+        ignoreReadBeforeAssign: false,
+      },
+    ],
   },
   overrides: [
     {

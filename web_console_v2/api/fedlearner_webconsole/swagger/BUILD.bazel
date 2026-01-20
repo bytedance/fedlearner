@@ -1,0 +1,12 @@
+load("@rules_python//python:defs.bzl", "py_library")
+
+package(default_visibility = ["//web_console_v2/api:console_api_package"])
+
+py_library(
+    name = "models_lib",
+    srcs = ["models.py"],
+    imports = ["../.."],
+    deps = [
+        "@common_marshmallow//:pkg",
+    ],
+)

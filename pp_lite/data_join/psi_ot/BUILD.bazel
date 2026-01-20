@@ -1,0 +1,47 @@
+load("@rules_python//python:defs.bzl", "py_library", "py_test")
+
+py_library(
+    name = "psi_ot",
+    srcs = [
+        "arguments.py",
+        "client.py",
+        "data_join_control_servicer.py",
+        "data_join_manager.py",
+        "data_join_server.py",
+        "server.py",
+    ],
+    visibility = ["//pp_lite:pp_lite_package"],
+    deps = [
+        "//pp_lite/data_join:envs",
+        "//pp_lite/data_join/psi_ot/joiner",
+        "//pp_lite/data_join/utils",
+        "//pp_lite/proto:py_grpc",
+        "//pp_lite/proto:py_proto",
+        "//pp_lite/rpc",
+        "//pp_lite/utils",
+        "//py_libs:metrics_lib",
+        "//web_console_v2/inspection:error_code_lib",
+    ],
+)
+
+py_test(
+    name = "data_join_server_test",
+    size = "small",
+    srcs = ["data_join_server_test.py"],
+    visibility = ["//pp_lite:pp_lite_package"],
+    deps = [
+        ":psi_ot",
+        "//pp_lite/testing",
+    ],
+)
+
+py_test(
+    name = "arguments_test",
+    size = "small",
+    srcs = ["arguments_test.py"],
+    visibility = ["//pp_lite:pp_lite_package"],
+    deps = [
+        ":psi_ot",
+        "//pp_lite/testing",
+    ],
+)

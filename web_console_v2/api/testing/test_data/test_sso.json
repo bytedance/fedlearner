@@ -1,0 +1,30 @@
+[
+  {
+    "name": "test",
+    "icon_url": "",
+    "display_name": "test",
+    "protocol_type": "oauth",
+    "oauth": {
+      "client_id": "test_client_id",
+      "authorize_url": "authorize_url",
+      "access_token_url": "access_token_url",
+      "user_info_url": "user_info_url",
+      "logout_url": "logout_url",
+      "secret": "secret",
+      "username_key": "username",
+      "email_key": "email"
+    }
+  },
+  {
+    "name": "test_cas",
+    "display_name": "test",
+    "icon_url": "",
+    "protocol_type": "cas",
+    "cas": {
+      "cas_server_url": "https://test-sso.asdf.net/cas",
+      "service_url": "https://fl-v2-test.asdf.net/v2/sso-callback/test_cas",
+      "login_route": "/login",
+      "validate_route": "/serviceValidate"
+    }
+  }
+]

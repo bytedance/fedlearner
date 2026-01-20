@@ -1,0 +1,42 @@
+@import '~styles/mixins.less';
+.avatar_container{
+  .MixinSquare(44px);
+  background-color: var(--primaryColor);
+  color: white;
+  border-radius: 4px;
+  font-size: 18px;
+  text-align: center;
+
+  &::before {
+    content: attr(data-name);
+    line-height: 44px;
+    font-weight: bold;
+  }
+}
+.project_name{
+  margin-bottom: 0;
+  font-size: 16px;
+  height: 24px;
+  font-weight: 600;
+}
+.comment{
+  display: block;
+  font-size: 12px;
+  line-height: 18px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  max-width: 400px;
+  color: var(--textColorSecondary);
+}
+.popover_table {
+  margin: -12px -16px !important;
+}
+.project_progress{
+  width: 60px;
+}
+.variables_color{
+  color: rgb(var(--primary-6));
+  cursor: pointer;
+}
+

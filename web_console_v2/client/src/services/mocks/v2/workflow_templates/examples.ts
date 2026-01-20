@@ -2,13 +2,12 @@ import { WorkflowTemplate } from 'typings/workflow';
 import { JobType } from 'typings/job';
 import { VariableAccessMode, VariableComponent, VariableValueType } from 'typings/variable';
 import { DeepPartial } from 'utility-types';
-import { gloabalVariables } from '../variables/examples';
+import { gloabalVariables, stringInput, objectInput, listInput } from '../variables/examples';
 
 export const normalTemplate: DeepPartial<WorkflowTemplate> = {
-  id: 2,
+  id: 1,
   name: 'Test template',
   group_alias: 'foo group',
-  is_left: true,
   config: {
     group_alias: 'foo group',
     variables: gloabalVariables,
@@ -192,10 +191,9 @@ export const normalTemplate: DeepPartial<WorkflowTemplate> = {
 };
 
 export const complexDepsTemplate: DeepPartial<WorkflowTemplate> = {
-  id: 10,
+  id: 2,
   name: 'Complex deps template',
   group_alias: 'c-group',
-  is_left: true,
   config: {
     group_alias: 'c-group',
     variables: [],
@@ -314,10 +312,10 @@ export const complexDepsTemplate: DeepPartial<WorkflowTemplate> = {
 };
 
 export const xShapeTemplate: DeepPartial<WorkflowTemplate> = {
-  id: 10,
+  id: 3,
   name: 'X Shape template',
   group_alias: 'x-group',
-  is_left: true,
+  is_local: true,
   config: {
     group_alias: 'x-group',
     variables: [],
@@ -347,6 +345,122 @@ export const xShapeTemplate: DeepPartial<WorkflowTemplate> = {
         is_federated: true,
         dependencies: [{ source: '1-1' }],
         variables: [],
+      },
+    ],
+  },
+};
+
+export const localTpl = {
+  id: 4,
+  name: 'local template',
+  comment: 'Comment here',
+  is_local: true,
+  group_alias: 'test-2',
+  config: {
+    group_alias: 'test-2',
+    job_definitions: [
+      {
+        name: 'Initiative',
+        type: 'RAW_DATA',
+        is_federated: true,
+        variables: [
+          {
+            name: 'job_name',
+            access_mode: 'PEER_WRITABLE',
+            widget_schema: '{"component":"Input","type":"string","required":true}',
+            value: '',
+          },
+        ],
+        dependencies: [],
+        yaml_template: '',
+      },
+      {
+        name: 'Raw data upload',
+        type: 'RAW_DATA',
+        is_federated: true,
+        variables: [
+          {
+            name: 'job_name2',
+            access_mode: 'PEER_WRITABLE',
+            widget_schema: '{"component":"Input","type":"string"}',
+            value: '',
+          },
+          {
+            name: 'comment2',
+            access_mode: 'PRIVATE',
+            widget_schema: '{"component":"TextArea","rows":4,"type":"string","required":true}',
+            value: '',
+          },
+        ],
+        dependencies: [
+          {
+            source: 'Initiative',
+            type: 3,
+          },
+        ],
+        yaml_template: '',
+      },
+      {
+        name: 'Training',
+        type: 'RAW_DATA',
+        is_federated: true,
+        variables: [
+          {
+            name: 'job_name2',
+            access_mode: 'PEER_READABLE',
+            widget_schema: '{"component":"Input","type":"string"}',
+            value: '',
+          },
+        ],
+        dependencies: [
+          {
+            source: 'Raw data upload',
+            type: 'ON_COMPLETE',
+          },
+        ],
+        yaml_template: '',
+      },
+    ],
+  },
+};
+
+export const withTypedValueTemplate: DeepPartial<WorkflowTemplate> = {
+  id: 5,
+  name: 'with typed value template',
+  group_alias: 'typed value group',
+  config: {
+    group_alias: 'typed value group',
+    variables: gloabalVariables,
+    job_definitions: [
+      {
+        name: 'Initiative',
+        job_type: JobType.RAW_DATA,
+        is_federated: true,
+        dependencies: [],
+        variables: [stringInput, objectInput, listInput],
+      },
+    ],
+  },
+};
+
+export const noTypedValueTemplate: DeepPartial<WorkflowTemplate> = {
+  id: 6,
+  name: 'no typed value template',
+  group_alias: 'typed value group',
+  config: {
+    group_alias: 'typed value group',
+    variables: [],
+    job_definitions: [
+      {
+        name: 'Initiative',
+        job_type: JobType.RAW_DATA,
+        is_federated: true,
+        dependencies: [],
+        variables: [
+          { ...stringInput, typed_value: undefined },
+          { ...objectInput, typed_value: undefined },
+          { ...listInput, typed_value: undefined },
+        ],
       },
     ],
   },

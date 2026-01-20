@@ -1,0 +1,86 @@
+load("@rules_python//python:defs.bzl", "py_library", "py_test")
+
+package(default_visibility = ["//web_console_v2/api:console_api_package"])
+
+py_library(
+    name = "common_lib",
+    srcs = [
+        "common.py",
+    ],
+    imports = ["../.."],
+    deps = [
+        "//web_console_v2/api/fedlearner_webconsole/dataset:models_lib",
+        "//web_console_v2/api/fedlearner_webconsole/mmgr:models_lib",
+        "//web_console_v2/api/fedlearner_webconsole/participant:models_lib",
+        "//web_console_v2/api/fedlearner_webconsole/project:models_lib",
+        "//web_console_v2/api/fedlearner_webconsole/tee:models_lib",
+        "//web_console_v2/api/protocols/fedlearner_webconsole/proto:py_proto",
+    ],
+)
+
+py_library(
+    name = "ticket_helper_lib",
+    srcs = [
+        "ticket_helper.py",
+    ],
+    imports = ["../.."],
+    deps = [
+        ":common_lib",
+        "//web_console_v2/api/fedlearner_webconsole:db_lib",
+        "//web_console_v2/api/fedlearner_webconsole:exceptions_lib",
+        "//web_console_v2/api/fedlearner_webconsole/flag:models_lib",
+        "//web_console_v2/api/fedlearner_webconsole/rpc/v2:review_service_client_lib",
+        "//web_console_v2/api/fedlearner_webconsole/utils:flask_utils_lib",
+        "//web_console_v2/api/protocols/fedlearner_webconsole/proto:py_proto",
+        "@common_sqlalchemy//:pkg",
+    ],
+)
+
+py_test(
+    name = "ticket_helper_lib_test",
+    srcs = [
+        "ticket_helper_test.py",
+    ],
+    imports = ["../.."],
+    main = "ticket_helper_test.py",
+    deps = [
+        ":ticket_helper_lib",
+        "//web_console_v2/api/fedlearner_webconsole/auth:models_lib",
+        "//web_console_v2/api/fedlearner_webconsole/utils/base_model:base_model_lib",
+        "//web_console_v2/api/testing:common_lib",
+    ],
+)
+
+py_library(
+    name = "runners_lib",
+    srcs = [
+        "runners.py",
+    ],
+    imports = ["../.."],
+    deps = [
+        ":common_lib",
+        "//web_console_v2/api/fedlearner_webconsole:db_lib",
+        "//web_console_v2/api/fedlearner_webconsole/composer:common_lib",
+        "//web_console_v2/api/fedlearner_webconsole/rpc/v2:review_service_client_lib",
+        "//web_console_v2/api/fedlearner_webconsole/utils/base_model:base_model_lib",
+        "//web_console_v2/api/protocols/fedlearner_webconsole/proto:py_proto",
+    ],
+)
+
+py_test(
+    name = "runners_test",
+    size = "small",
+    srcs = [
+        "runners_test.py",
+    ],
+    imports = ["../.."],
+    deps = [
+        ":runners_lib",
+        "//web_console_v2/api/fedlearner_webconsole:db_lib",
+        "//web_console_v2/api/fedlearner_webconsole/composer:common_lib",
+        "//web_console_v2/api/fedlearner_webconsole/participant:models_lib",
+        "//web_console_v2/api/fedlearner_webconsole/utils/base_model:base_model_lib",
+        "//web_console_v2/api/protocols/fedlearner_webconsole/proto:py_proto",
+        "//web_console_v2/api/testing:no_web_server_test_case_lib",
+    ],
+)

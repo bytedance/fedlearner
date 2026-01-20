@@ -1,6 +1,6 @@
 import React, { FC, useState } from 'react';
-import styled from 'styled-components';
-import { Steps, Row, Card } from 'antd';
+import styled from './index.module.less';
+import { Steps, Grid, Card } from '@arco-design/web-react';
 import { Route, useParams, useHistory } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useUnmount } from 'react-use';
@@ -11,14 +11,7 @@ import SharedPageLayout from 'components/SharedPageLayout';
 import BackButton from 'components/BackButton';
 
 const { Step } = Steps;
-
-const StepContainer = styled.div`
-  width: 350px;
-`;
-const FormArea = styled.section`
-  flex: 1;
-  margin-top: 12px;
-`;
+const Row = Grid.Row;
 
 enum ForkSteps {
   basic,
@@ -29,7 +22,9 @@ const ForkWorkflow: FC = () => {
   const { t } = useTranslation();
   const history = useHistory();
   const params = useParams<{ step: keyof typeof ForkSteps; id?: string }>();
-  const [currentStep, setStep] = useState(ForkSteps[params.step || 'basic']);
+  const [currentStep, setStep] = useState(ForkSteps[params.step || 'basic'] + 1);
+  const [isFormValueChanged, setIsFormValueChanged] = useState(false);
+
   const reset = useResetForkForms();
 
   useUnmount(() => {
@@ -39,33 +34,55 @@ const ForkWorkflow: FC = () => {
 
   return (
     <SharedPageLayout
-      title={<BackButton onClick={() => history.goBack()}>{t('menu.label_workflow')}</BackButton>}
+      title={
+        <BackButton
+          onClick={() => history.replace(`/workflow-center/workflows`)}
+          isShowConfirmModal={isFormValueChanged}
+        >
+          {t('menu.label_workflow')}
+        </BackButton>
+      }
       contentWrapByCard={false}
     >
       <Card>
         <Row justify="center">
-          <StepContainer>
+          <div className={styled.step_container}>
             <Steps current={currentStep}>
               <Step title={t('workflow.step_basic')} />
               <Step title={t('workflow.step_config')} />
             </Steps>
-          </StepContainer>
+          </div>
         </Row>
       </Card>
 
-      <FormArea>
+      <section className={styled.form_area}>
         <Route
-          path={`/workflows/fork/basic/:id`}
+          path={`/workflow-center/workflows/fork/basic/:id`}
           exact
-          render={(props) => <StepOneBasic onSuccess={setToConfigStep} {...props} />}
+          render={(props) => (
+            <StepOneBasic
+              onSuccess={setToConfigStep}
+              onFormValueChange={onFormValueChange}
+              {...props}
+            />
+          )}
         />
-        <Route path={`/workflows/fork/config/:id`} exact component={StepTwoConfig} />
-      </FormArea>
+        <Route
+          path={`/workflow-center/workflows/fork/config/:id`}
+          exact
+          component={StepTwoConfig}
+        />
+      </section>
     </SharedPageLayout>
   );
 
   function setToConfigStep() {
-    setStep(ForkSteps.config);
+    setStep(ForkSteps['config'] + 1);
+  }
+  function onFormValueChange() {
+    if (!isFormValueChanged) {
+      setIsFormValueChanged(true);
+    }
   }
 };
 

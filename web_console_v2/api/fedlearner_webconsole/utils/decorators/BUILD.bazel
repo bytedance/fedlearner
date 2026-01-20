@@ -1,0 +1,62 @@
+package(default_visibility = ["//web_console_v2/api:console_api_package"])
+
+py_library(
+    name = "decorators_lib",
+    srcs = [
+        "lru_cache.py",
+        "pp_flask.py",
+        "retry.py",
+    ],
+    imports = ["../../.."],
+    deps = [
+        "//web_console_v2/api/fedlearner_webconsole:exceptions_lib",
+        "//web_console_v2/api/fedlearner_webconsole/auth:models_lib",
+        "//web_console_v2/api/fedlearner_webconsole/utils:flask_utils_lib",
+        "@common_flask//:pkg",
+        "@common_marshmallow//:pkg",
+        "@common_webargs//:pkg",
+    ],
+)
+
+py_test(
+    name = "lru_cache_test",
+    srcs = [
+        "lru_cache_test.py",
+    ],
+    imports = ["../../.."],
+    main = "lru_cache_test.py",
+    deps = [
+        ":decorators_lib",
+    ],
+)
+
+py_test(
+    name = "pp_flask_test",
+    size = "medium",
+    srcs = [
+        "pp_flask_test.py",
+    ],
+    imports = ["../../.."],
+    main = "pp_flask_test.py",
+    deps = [
+        ":decorators_lib",
+        "//web_console_v2/api/fedlearner_webconsole:exceptions_lib",
+        "//web_console_v2/api/fedlearner_webconsole/auth:models_lib",
+        "//web_console_v2/api/fedlearner_webconsole/utils:flask_utils_lib",
+        "//web_console_v2/api/testing:common_lib",
+        "@common_flask//:pkg",
+        "@common_marshmallow//:pkg",
+    ],
+)
+
+py_test(
+    name = "retry_test",
+    srcs = [
+        "retry_test.py",
+    ],
+    imports = ["../../.."],
+    main = "retry_test.py",
+    deps = [
+        ":decorators_lib",
+    ],
+)

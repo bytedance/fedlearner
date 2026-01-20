@@ -1,43 +1,22 @@
 import React, { FC, useEffect, useMemo, useRef } from 'react';
-import styled from 'styled-components';
+import styled from './index.module.less';
 import { useTranslation } from 'react-i18next';
-import { Button, ButtonProps, Dropdown, Menu, Tooltip } from 'antd';
-import ErrorBoundary from 'antd/lib/alert/ErrorBoundary';
+import { Button, ButtonProps, Dropdown, Tooltip } from '@arco-design/web-react';
+import ErrorBoundary from 'components/ErrorBoundary';
 import AccessSwitch from './AccessSwitch';
 import { Workflow } from 'typings/workflow';
 import { useToggle } from 'react-use';
 import { toggleMetricsPublic, toggleWofklowForkable } from 'services/workflow';
 import { giveWeakRandomKey } from 'shared/helpers';
-import { QuestionCircle } from 'components/IconPark';
+import { IconQuestionCircle } from '@arco-design/web-react/icon';
 import GridRow from 'components/_base/GridRow';
+import PrettyMenu, { PrettyMenuItem } from 'components/PrettyMenu';
 
-const StyledMenu = styled(Menu)`
-  width: 250px;
-  padding: 8px 5px;
-  background-color: #edeeee;
-  border-radius: 5px;
-`;
-
-const ControlItem = styled(Menu.Item)`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  height: 38px;
-  padding: 0 13px;
-  border-radius: 5px;
-
-  &:hover {
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-  }
-`;
-
-const ResourceName = styled.strong`
-  font-size: 14px;
-`;
-
-const WorkflowAccessControl: FC<ButtonProps & { workflow: Workflow; onSuccess?: any }> = (
-  props,
-) => {
+const WorkflowAccessControl: FC<ButtonProps & { workflow: Workflow; onSuccess?: any }> = ({
+  onSuccess,
+  workflow,
+  ...restProps
+}) => {
   const uuid = useMemo(() => giveWeakRandomKey(), []);
   const { t } = useTranslation();
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -64,38 +43,39 @@ const WorkflowAccessControl: FC<ButtonProps & { workflow: Workflow; onSuccess?: 
   return (
     <ErrorBoundary>
       <Dropdown
-        visible={visible}
-        overlay={
-          <StyledMenu id={uuid}>
-            <ControlItem>
-              <ResourceName>{t('workflow.label_forkable')}</ResourceName>
+        popupVisible={visible}
+        droplist={
+          <PrettyMenu id={uuid}>
+            <PrettyMenuItem key="forkable">
+              <strong className={styled.resource_name}>{t('workflow.label_forkable')}</strong>
               <AccessSwitch
                 keyOfSource="forkable"
                 patcher={toggleWofklowForkable}
-                workflow={props.workflow}
+                workflow={workflow}
                 onSuccess={onAccessChange}
               />
-            </ControlItem>
-            <Menu.Divider />
-            <ControlItem>
+            </PrettyMenuItem>
+            <PrettyMenuItem key="metric">
               <GridRow gap="5">
-                <ResourceName>{t('workflow.label_metric_public')}</ResourceName>
-                <Tooltip title={t('workflow.msg_metric_public')}>
-                  <QuestionCircle style={{ fontSize: '12px' }} />
+                <strong className={styled.resource_name}>
+                  {t('workflow.label_metric_public')}
+                </strong>
+                <Tooltip content={t('workflow.msg_metric_public')}>
+                  <IconQuestionCircle style={{ fontSize: '12px' }} />
                 </Tooltip>
               </GridRow>
               <AccessSwitch
                 keyOfSource="metric_is_public"
                 patcher={toggleMetricsPublic}
-                workflow={props.workflow}
+                workflow={workflow}
                 onSuccess={onAccessChange}
               />
-            </ControlItem>
-          </StyledMenu>
+            </PrettyMenuItem>
+          </PrettyMenu>
         }
-        placement="bottomCenter"
+        position="bottom"
       >
-        <Button ref={buttonRef} {...props} onClick={() => toggleVisible()}>
+        <Button ref={buttonRef} {...restProps} onClick={() => toggleVisible()}>
           {t('workflow.btn_access_ctrl')}
         </Button>
       </Dropdown>
@@ -103,7 +83,7 @@ const WorkflowAccessControl: FC<ButtonProps & { workflow: Workflow; onSuccess?: 
   );
 
   function onAccessChange() {
-    props.onSuccess && props.onSuccess();
+    onSuccess?.();
   }
 };
 

@@ -1,0 +1,89 @@
+load("@rules_python//python:defs.bzl", "py_library", "py_test")
+
+package(default_visibility = ["//web_console_v2/api:console_api_package"])
+
+py_library(
+    name = "schema_lib",
+    srcs = ["schema.py"],
+    imports = ["../.."],
+    deps = [
+        "//web_console_v2/api/fedlearner_webconsole:db_lib",
+        "//web_console_v2/api/fedlearner_webconsole/setting:service_lib",
+        "//web_console_v2/api/fedlearner_webconsole/utils:images_lib",
+        "//web_console_v2/api/protocols/fedlearner_webconsole/proto:py_proto",
+        "@com_google_protobuf//:protobuf_python",
+    ],
+)
+
+py_test(
+    name = "schema_lib_test",
+    srcs = ["schema_test.py"],
+    imports = ["../.."],
+    main = "schema_test.py",
+    deps = [
+        ":schema_lib",
+        "//web_console_v2/api/protocols/fedlearner_webconsole/proto:py_proto",
+        "//web_console_v2/api/testing:common_lib",
+    ],
+)
+
+py_library(
+    name = "service_lib",
+    srcs = ["service.py"],
+    imports = ["../.."],
+    deps = [
+        ":schema_lib",
+        "//web_console_v2/api:envs_lib",
+        "//web_console_v2/api/fedlearner_webconsole/k8s:k8s_client_lib",
+        "//web_console_v2/api/fedlearner_webconsole/utils:file_lib",
+        "//web_console_v2/api/protocols/fedlearner_webconsole/proto:py_proto",
+    ],
+)
+
+py_test(
+    name = "service_lib_test",
+    srcs = ["service_test.py"],
+    data = [
+        "//web_console_v2/api/testing/test_data",
+    ],
+    imports = ["../.."],
+    main = "service_test.py",
+    deps = [
+        ":schema_lib",
+        ":service_lib",
+        "//web_console_v2/api:envs_lib",
+        "//web_console_v2/api/testing:common_lib",
+    ],
+)
+
+py_library(
+    name = "apis_lib",
+    srcs = ["apis.py"],
+    imports = ["../.."],
+    deps = [
+        ":schema_lib",
+        ":service_lib",
+        "//web_console_v2/api/fedlearner_webconsole:exceptions_lib",
+        "//web_console_v2/api/fedlearner_webconsole/auth:third_party_sso_lib",
+        "//web_console_v2/api/fedlearner_webconsole/swagger:models_lib",
+        "//web_console_v2/api/fedlearner_webconsole/utils:flask_utils_lib",
+        "@common_flask_restful//:pkg",
+        "@common_marshmallow//:pkg",
+        "@common_webargs//:pkg",
+    ],
+)
+
+py_test(
+    name = "apis_lib_test",
+    srcs = ["apis_test.py"],
+    data = [
+        "//web_console_v2/api/testing/test_data",
+    ],
+    imports = ["../.."],
+    main = "apis_test.py",
+    deps = [
+        "//web_console_v2/api:envs_lib",
+        "//web_console_v2/api/protocols/fedlearner_webconsole/proto:py_proto",
+        "//web_console_v2/api/testing:common_lib",
+    ],
+)

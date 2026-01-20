@@ -1,0 +1,78 @@
+.styled_container {
+  font-size: 12px;
+}
+
+.styled_button {
+  margin-left: -5px;
+  padding-left: 5px;
+  padding-right: 5px;
+  font-size: 12px;
+  &.arco-btn-text:not(.arco-btn-disabled):not(.arco-btn-loading):hover {
+    background: transparent;
+  }
+}
+
+.styled_required_text {
+  --height: 28px;
+  display: block;
+  position: relative;
+  height: var(--height);
+  line-height: var(--height);
+}
+
+.styled_row_with_border {
+  --rightSpaceWidth: 30px;
+  position: relative;
+  margin-bottom: 7px;
+  padding-right: var(--rightSpaceWidth);
+  line-height: 28px;
+  &::after {
+    position: absolute;
+    left: 5px;
+    right: calc(var(--rightSpaceWidth) + 5px);
+    bottom: 0;
+    height: 1px;
+    background: var(--color-neutral-3);
+    content: '';
+  }
+}
+
+.styled_row_without_border {
+  --rightSpaceWidth: 30px;
+  position: relative;
+  margin-bottom: 6px;
+  padding-right: var(--rightSpaceWidth);
+  line-height: 28px;
+  &::after {
+    display: none;
+    position: absolute;
+    left: 5px;
+    right: calc(var(--rightSpaceWidth) + 5px);
+    bottom: 0;
+    height: 1px;
+    background: var(--color-neutral-3);
+    content: '';
+  }
+}
+
+.styled_radio_group {
+  display: flex;
+  width: 100%;
+  :global(.arco-radio-button) {
+    flex: 1;
+  }
+  :global(.arco-radio-button-inner) {
+    width: 100%;
+    text-align: center;
+  }
+}
+
+.styled_delete_button {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 30px;
+  &:not(.arco-btn-disabled) {
+    color: var(--color-text-1);
+  }
+}

@@ -1,0 +1,37 @@
+load("@rules_proto//proto:defs.bzl", "proto_library")
+load("@com_github_grpc_grpc//bazel:python_rules.bzl", "py_proto_library")
+load("@io_bazel_rules_go//proto:def.bzl", "go_proto_library")
+
+proto_library(
+    name = "proto",
+    srcs = [
+        "extension.proto",
+    ],
+    strip_import_prefix = "/web_console_v2/api/protocols",
+    visibility = ["//visibility:public"],
+    deps = [
+        "@com_google_protobuf//:descriptor_proto",
+    ],
+)
+
+py_proto_library(
+    name = "py_proto_internal",
+    visibility = ["//visibility:private"],
+    deps = [":proto"],
+)
+
+py_library(
+    name = "py_proto",
+    imports = ["../../.."],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":py_proto_internal",
+    ],
+)
+
+go_proto_library(
+    name = "go_proto",
+    importpath = "fedlearner.net/proto/console/common",
+    protos = [":proto"],
+    visibility = ["//visibility:public"],
+)

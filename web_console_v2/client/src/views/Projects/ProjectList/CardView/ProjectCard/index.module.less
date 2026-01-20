@@ -1,0 +1,72 @@
+@import '~styles/mixins.less';
+.card_container{
+  transition: box-shadow 0.4s cubic-bezier(0.4, 0, 0.2, 1) 0s;
+  border: 0px;
+  border-radius: 4px;
+  overflow: hidden; // Prevent card from expanding grid
+  background-color: #ffffff;
+  padding: 10px 20px;
+
+  &:hover {
+    box-shadow: 0px 4px 10px rgb(var(--gray-6));
+  }
+}
+.card_header{
+  display: flex;
+  height: 40px;
+  justify-content: space-between;
+  cursor: pointer;
+  @supports (gap: 10px) {
+    gap: 10px;
+  }
+  .card_header_left{
+    .MixinEllipsis();
+    display: flex;
+    align-items: center;
+  }
+}
+.card_main{
+  display: flex;
+  cursor: pointer;
+  font-size: 12px;
+  margin: 10px 0px;
+}
+
+.card_footer{
+  margin: 10px 0px;
+  .card_footer_left{
+    font-size: 12px;
+    line-height: 22px;
+    color: rgb(var(--gray-7));
+    padding-left: 6px;
+
+  }
+  .card_footer_right {
+    padding-right: 0px !important;
+    display:flex;
+    align-items: center;
+    justify-content: space-between;
+
+  }
+  .progress_name{
+    display: block;
+    margin-bottom: -10px;
+    font-weight: 400;
+    font-size: 12px;
+    line-height: 20px;
+    color: #1D2129;
+
+  }
+  .participant_name{
+    font-weight: 400;
+    font-size: 12px;
+    line-height: 20px;
+    color: var(--gray-7);
+    overflow: hidden;
+    flex-shrink:1;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
+  }
+}

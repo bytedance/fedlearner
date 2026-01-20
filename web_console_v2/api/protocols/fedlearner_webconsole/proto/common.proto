@@ -1,4 +1,4 @@
-/* Copyright 2021 The FedLearner Authors. All Rights Reserved.
+/* Copyright 2023 The FedLearner Authors. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,7 +14,8 @@
  */
 
 syntax = "proto3";
-
+import "google/protobuf/struct.proto";
+import "fedlearner_webconsole/proto/algorithm.proto";
 package fedlearner_webconsole.proto;
 
 enum StatusCode {
@@ -40,18 +41,28 @@ message Variable {
   enum ValueType {
     STRING = 0;
     CODE = 1;
+    NUMBER = 2;
+    LIST = 3;
+    OBJECT = 4;
+    BOOL = 5;
   }
   string name = 1;
-  string value = 2;
+  string value = 2 [deprecated = true];
 
   AccessMode access_mode = 3;
   string widget_schema = 4;
   ValueType value_type = 5;
+
+  google.protobuf.Value typed_value = 6;
+
+  // used for frontend to group variables
+  string tag = 7;
+
 }
 
 message GrpcSpec {
+  reserved 2;
   string authority = 1;
-  map<string, string> extra_headers = 2;
 }
 
 enum MethodType{
@@ -75,4 +86,49 @@ enum CreateJobFlag {
     NEW = 1;
     REUSE = 2;
     DISABLED = 3;
+}
+
+// Message representing the set of files uploaded to fedlearner.
+message UploadedFiles {
+  repeated UploadedFile uploaded_files = 1;
+}
+
+// Message representing the file uploaded to fedlearner.
+message UploadedFile {
+  // File display name with folder displayed in code editor. folders are
+  // included as part of file name. Examples:
+  // "test/test.py".
+  // "syslib.bin"
+  string display_file_name = 1;
+
+  // Internal store location for uploaded file.
+  string internal_path = 2;
+
+  // File content that will be visible and editable for users.
+  // Applicable only to human-readable text files.
+  string content = 3;
+
+  // Internal store parent directory for upload file.
+  string internal_directory = 4;
+}
+
+message ApplicationVersion {
+    // Release time, e.g. Fri Jul 16 12:23:19 CST 2021
+    string pub_date = 1;
+    // Hash of the image, e.g. f09d681b4eda01f053cc1a645fa6fc0775852a48
+    string revision = 2;
+    // Corresponding branch name on gitlab, e.g. release-2.0.1
+    string branch_name = 3;
+    // Version number, e.g. 2.0.1.5
+    string version = 4;
+}
+
+enum PayloadType {
+  ALGORITHM = 0;
+}
+
+message Payload {
+  oneof data {
+    AlgorithmData algorithm_data = 1;
+  }
 }

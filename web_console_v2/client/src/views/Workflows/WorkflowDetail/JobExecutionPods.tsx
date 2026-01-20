@@ -1,67 +1,26 @@
 import React, { FC } from 'react';
-import styled from 'styled-components';
-import { Table } from 'antd';
-import { Pod, PodState } from 'typings/job';
+import styled from './JobExecutionPods.module.less';
+import { Table, Button } from '@arco-design/web-react';
+import { JobExecutionDetalis, Pod, PodState } from 'typings/job';
 import i18n from 'i18n';
-import { Button } from 'antd';
-import StateIndicator, { StateTypes } from 'components/StateIndicator';
+import StateIndicator from 'components/StateIndicator';
 import { useTranslation } from 'react-i18next';
-import { JobNodeRawData } from 'components/WorkflowJobsCanvas/types';
 import ClickToCopy from 'components/ClickToCopy';
-
-const Container = styled.div`
-  margin-top: 30px;
-`;
-
-const stateType: { [key: string]: StateTypes } = {
-  [PodState.SUCCEEDED]: 'success',
-  [PodState.RUNNING]: 'processing',
-  [PodState.FAILED]: 'error',
-  [PodState.PENDING]: 'warning',
-  [PodState.UNKNOWN]: 'default',
-  [PodState.FAILED_AND_FREED]: 'warning',
-  [PodState.SUCCEEDED_AND_FREED]: 'success',
-  // Deprecated state values
-  [PodState.SUCCEEDED__deprecated]: 'success',
-  [PodState.RUNNING__deprecated]: 'processing',
-  [PodState.FAILED__deprecated]: 'error',
-  [PodState.PENDING__deprecated]: 'warning',
-  [PodState.UNKNOWN__deprecated]: 'default',
-  [PodState.SUCCEEDED_AND_FREED__deprecated]: 'warning',
-  [PodState.FAILED_AND_FREED__deprecated]: 'success',
-};
-const stateText: { [key: string]: string } = {
-  [PodState.SUCCEEDED]: i18n.t('workflow.job_node_success'),
-  [PodState.RUNNING]: i18n.t('workflow.job_node_running'),
-  [PodState.FAILED]: i18n.t('workflow.job_node_failed'),
-  [PodState.PENDING]: i18n.t('workflow.job_node_waiting'),
-  [PodState.UNKNOWN]: i18n.t('workflow.pod_unknown'),
-  [PodState.FAILED_AND_FREED]: i18n.t('workflow.pod_failed_cleared'),
-  [PodState.SUCCEEDED_AND_FREED]: i18n.t('workflow.pod_success_cleared'),
-  // Deprecated state values
-  [PodState.SUCCEEDED__deprecated]: i18n.t('workflow.job_node_success'),
-  [PodState.RUNNING__deprecated]: i18n.t('workflow.job_node_running'),
-  [PodState.FAILED__deprecated]: i18n.t('workflow.job_node_failed'),
-  [PodState.PENDING__deprecated]: i18n.t('workflow.job_node_waiting'),
-  [PodState.UNKNOWN__deprecated]: i18n.t('workflow.pod_unknown'),
-  [PodState.SUCCEEDED_AND_FREED__deprecated]: i18n.t('workflow.pod_failed_cleared'),
-  [PodState.FAILED_AND_FREED__deprecated]: i18n.t('workflow.pod_success_cleared'),
-};
+import { getPodState } from '../shared';
 
 type Props = {
-  job: JobNodeRawData;
+  job?: JobExecutionDetalis;
   isPeerSide: boolean;
+  loading: boolean;
 };
 
-const JobExecutionPods: FC<Props> = ({ job, isPeerSide }) => {
+const JobExecutionPods: FC<Props> = ({ job, isPeerSide, loading }) => {
   const { t } = useTranslation();
 
-  let data = job.pods;
-
-  if (!Array.isArray(job.pods)) {
+  let data = job?.pods;
+  if (!Array.isArray(data)) {
     data = [];
   }
-
   const tablecolumns = [
     {
       title: i18n.t('workflow.col_pod_name'),
@@ -72,31 +31,35 @@ const JobExecutionPods: FC<Props> = ({ job, isPeerSide }) => {
         return <ClickToCopy text={val}>{val}</ClickToCopy>;
       },
     },
-    {
-      title: i18n.t('workflow.col_pod_ip'),
-      dataIndex: 'pod_ip',
-      key: 'pod_ip',
-    },
+    !isPeerSide &&
+      ({
+        title: i18n.t('workflow.col_pod_ip'),
+        dataIndex: 'pod_ip',
+        key: 'pod_ip',
+        sorter(a: Pod, b: Pod) {
+          return a.pod_ip.localeCompare(b.pod_ip);
+        },
+      } as any),
     {
       title: i18n.t('workflow.col_worker_status'),
       dataIndex: 'state',
       key: 'state',
+      sorter(a: Pod, b: Pod) {
+        return a.state.localeCompare(b.state);
+      },
       render: (_: PodState, record: Pod) => {
-        const val = record.state ?? record.status;
-
-        let tip: string = '';
-        if ([PodState.FAILED, PodState.PENDING].includes(record.state)) {
-          tip = record.message || '';
-        }
-        return <StateIndicator type={stateType[val]} text={stateText[val]} tip={tip} />;
+        return <StateIndicator {...getPodState(record)} />;
       },
     },
     {
       title: i18n.t('workflow.col_worker_type'),
       dataIndex: 'pod_type',
       key: 'pod_type',
+      sorter(a: Pod, b: Pod) {
+        return a.pod_type.localeCompare(b.pod_type);
+      },
     },
-  ];
+  ].filter(Boolean);
 
   if (!isPeerSide) {
     tablecolumns.push({
@@ -107,7 +70,7 @@ const JobExecutionPods: FC<Props> = ({ job, isPeerSide }) => {
       render: (_: any, record: Pod) => {
         return (
           <div style={{ marginLeft: '-13px' }}>
-            <Button type="link" size="small" onClick={() => goInspectLogs(record)}>
+            <Button type="text" size="small" onClick={() => goInspectLogs(record)}>
               {i18n.t('workflow.btn_inspect_logs')}
             </Button>
           </div>
@@ -117,14 +80,14 @@ const JobExecutionPods: FC<Props> = ({ job, isPeerSide }) => {
   }
 
   return (
-    <Container>
+    <div className={styled.container}>
       <h3>{t('workflow.label_pod_list')}</h3>
-      <Table dataSource={data || []} columns={tablecolumns} size="small" />
-    </Container>
+      <Table loading={loading} data={data || []} columns={tablecolumns} size="small" />
+    </div>
   );
 
   function goInspectLogs(pod: Pod) {
-    window.open(`/v2/logs/pod/${job.id}/${pod.name}`, '_blank noopener');
+    window.open(`/v2/logs/pod/${job?.id}/${pod.name}`, '_blank noopener');
   }
 };
 

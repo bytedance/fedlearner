@@ -1,69 +1,99 @@
 import { StateTypes } from 'components/StateIndicator';
 import i18n from 'i18n';
-import { memoize } from 'lodash';
-import { BatchState, Dataset } from 'typings/dataset';
+import {
+  DataJobBackEndType,
+  Dataset,
+  DatasetJobListItem,
+  DatasetJobState,
+  DatasetStateFront,
+  DatasetTransactionStatus,
+  IntersectionDataset,
+  DatasetJobStage,
+} from 'typings/dataset';
 
-// --------- State judgement ------------
-
-export function isImportSuccess(data: Dataset) {
-  return data.data_batches.every((item) => item.state === BatchState.SUCCESS);
+export function isFrontendPending(data: Dataset) {
+  return data.state_frontend === DatasetStateFront.PENDING;
 }
 
-export function isAvailable(data: Dataset) {
-  // TODO: how to determinte that the dataset is available?
-  return isImportSuccess(data);
+export function isFrontendProcessing(data: Dataset) {
+  return data.state_frontend === DatasetStateFront.PROCESSING;
+}
+export function isFrontendDeleting(data: Dataset) {
+  return data.state_frontend === DatasetStateFront.DELETING;
+}
+export function isFrontendSucceeded(data: Dataset) {
+  return data.state_frontend === DatasetStateFront.SUCCEEDED;
+}
+export function isFrontendFailed(data: Dataset) {
+  return data.state_frontend === DatasetStateFront.FAILED;
 }
 
-export function isImportFailed(data: Dataset) {
-  return data.data_batches.some((item) => item.state === BatchState.FAILED);
+// ------- dataset job states judgement -------
+
+export function isJobRunning(data: DatasetJobListItem | DatasetJobStage) {
+  if (!data || !data.state) {
+    return false;
+  }
+  return [DatasetJobState.PENDING, DatasetJobState.RUNNING].includes(data.state);
 }
 
-export function isImporting(data: Dataset) {
-  return data.data_batches.some((item) => item.state === BatchState.IMPORTING);
+export function isJobSucceed(data: DatasetJobListItem | DatasetJobStage) {
+  if (!data || !data.state) {
+    return false;
+  }
+  return [DatasetJobState.SUCCEEDED].includes(data.state);
 }
 
-export function hasAppendingDataBatch(data: Dataset) {
-  return false;
+export function isJobFailed(data: DatasetJobListItem | DatasetJobStage) {
+  if (!data || !data.state) {
+    return false;
+  }
+  return [DatasetJobState.FAILED].includes(data.state);
+}
+
+export function isJobStopped(data: DatasetJobListItem | DatasetJobStage) {
+  if (!data || !data.state) {
+    return false;
+  }
+  return [DatasetJobState.STOPPED].includes(data.state);
 }
 
 // --------- Helpers ------------
 
-export function getTotalDataSize(data: Dataset) {
-  return _sumUp(data, 'file_size');
+export function getTotalDataSize(data: Dataset | IntersectionDataset) {
+  return data.file_size || 0;
 }
 
-export const getImportedProportion = memoize((data: Dataset) => {
-  const total = _sumUp(data, 'num_file');
-  const imported = _sumUp(data, 'num_imported_file');
-  return {
-    total,
-    imported,
-  };
-});
-
 export function getImportStage(data: Dataset): { type: StateTypes; text: string; tip?: string } {
-  if (isImporting(data)) {
+  if (isFrontendPending(data)) {
     return {
       type: 'processing',
-      text: i18n.t('dataset.state_importing', getImportedProportion(data)),
+      text: '待处理',
     };
   }
-
-  if (isImportSuccess(data)) {
+  if (isFrontendDeleting(data)) {
+    return {
+      type: 'processing',
+      text: '删除中',
+    };
+  }
+  if (isFrontendProcessing(data)) {
+    return {
+      type: 'processing',
+      text: '处理中',
+    };
+  }
+  if (isFrontendSucceeded(data)) {
     return {
       type: 'success',
-      text: i18n.t('dataset.state_available'),
+      text: '可用',
     };
   }
-
-  if (isImportFailed(data)) {
+  if (isFrontendFailed(data)) {
     return {
       type: 'error',
-      text: i18n.t('dataset.state_error'),
-      tip:
-        data.data_batches
-          .find((item) => item.state === BatchState.FAILED)!
-          .details.files.find((item) => item.error_message)?.error_message || '',
+      text: '处理失败',
+      tip: '',
     };
   }
 
@@ -74,10 +104,91 @@ export function getImportStage(data: Dataset): { type: StateTypes; text: string;
   } as never;
 }
 
-// -------- Private helpers ------
+/* istanbul ignore next */
+export function getDatasetJobState(
+  data: DatasetJobListItem | DatasetJobStage,
+): { type: StateTypes; text: string; tip?: string } {
+  let type: StateTypes = 'default';
+  let text = i18n.t('dataset.state_unknown');
+  if (isJobRunning(data)) {
+    type = 'processing';
+    text = i18n.t('dataset.state_dataset_job_running');
+  }
+  if (isJobSucceed(data)) {
+    type = 'success';
+    text = i18n.t('dataset.state_dataset_job_succeeded');
+  }
+  if (isJobFailed(data)) {
+    type = 'error';
+    text = i18n.t('dataset.state_dataset_job_failed');
+  }
+  if (isJobStopped(data)) {
+    type = 'error';
+    text = i18n.t('dataset.state_dataset_job_stopped');
+  }
+  return {
+    type,
+    text,
+  };
+}
 
-function _sumUp(data: Dataset, key: 'num_file' | 'num_imported_file' | 'file_size') {
-  return data.data_batches.reduce((result, current) => {
-    return result + current[key];
-  }, 0);
+/* istanbul ignore next */
+export function getDatasetJobType(kind: DataJobBackEndType) {
+  switch (kind) {
+    case DataJobBackEndType.DATA_JOIN:
+    case DataJobBackEndType.RSA_PSI_DATA_JOIN:
+    case DataJobBackEndType.OT_PSI_DATA_JOIN:
+    case DataJobBackEndType.LIGHT_CLIENT_RSA_PSI_DATA_JOIN:
+    case DataJobBackEndType.LIGHT_CLIENT_OT_PSI_DATA_JOIN:
+    case DataJobBackEndType.HASH_DATA_JOIN:
+      return i18n.t('dataset.label_data_job_type_create');
+    case DataJobBackEndType.DATA_ALIGNMENT:
+      return i18n.t('dataset.label_data_job_type_alignment');
+    case DataJobBackEndType.IMPORT_SOURCE:
+      return i18n.t('dataset.label_data_job_type_import');
+    case DataJobBackEndType.EXPORT:
+      return i18n.t('dataset.label_data_job_type_export');
+    case DataJobBackEndType.ANALYZER:
+      return '探查';
+    default:
+      return 'unknown';
+  }
+}
+
+export function getIntersectionRate(data: { input: number; output: number }) {
+  let rate = 0;
+
+  if (data.input && data.output) {
+    rate = data.output / data.input;
+  }
+
+  return `${parseFloat((rate * 100).toFixed(2))}%`;
+}
+
+export function getTransactionStatus(
+  status: DatasetTransactionStatus,
+): { type: StateTypes; text: string } {
+  switch (status) {
+    case DatasetTransactionStatus.FAILED:
+      return {
+        type: 'error',
+        text: i18n.t('dataset.state_transaction_failed'),
+      };
+    case DatasetTransactionStatus.PROCESSING:
+      return {
+        type: 'processing',
+        text: i18n.t('dataset.state_transaction_processing'),
+      };
+    case DatasetTransactionStatus.SUCCEEDED:
+      return {
+        type: 'success',
+        text: i18n.t('dataset.state_transaction_success'),
+      };
+    /* istanbul ignore next */
+    default:
+      return {
+        type: 'default',
+        text: i18n.t('dataset.state_unknown'),
+      };
+  }
 }

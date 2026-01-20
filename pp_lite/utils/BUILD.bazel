@@ -1,0 +1,38 @@
+load("@rules_python//python:defs.bzl", "py_library", "py_test")
+
+py_library(
+    name = "utils",
+    srcs = [
+        "decorators.py",
+        "logging_config.py",
+        "metric_collector.py",
+        "metrics.py",
+        "tools.py",
+    ],
+    visibility = ["//pp_lite:pp_lite_package"],
+    deps = [
+        "//py_libs:metrics_lib",
+    ],
+)
+
+py_test(
+    name = "decorators_test",
+    size = "small",
+    srcs = ["decorators_test.py"],
+    visibility = ["//pp_lite:pp_lite_package"],
+    deps = [
+        ":utils",
+        "//pp_lite/testing",
+    ],
+)
+
+py_test(
+    name = "tools_test",
+    size = "small",
+    srcs = ["tools_test.py"],
+    visibility = ["//pp_lite:pp_lite_package"],
+    deps = [
+        ":utils",
+        "//pp_lite/testing",
+    ],
+)

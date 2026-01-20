@@ -24,7 +24,7 @@ export function formatTimestamp(input: number, format = 'YYYY-MM-DD HH:mm:ss') {
  * @param input a number accurate to seconds
  * @returns  HH:mm:ss
  */
-export function fomatTimeCount(input: number): string {
+export function formatTimeCount(input: number): string {
   const hours = Math.floor(input / 3600).toString();
   const minutes = Math.floor((input % 3600) / 60).toString();
   const seconds = ((input % 3600) % 60).toString();

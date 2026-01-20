@@ -1,0 +1,44 @@
+load("@rules_python//python:defs.bzl", "py_library", "py_test")
+load("@rules_proto//proto:defs.bzl", "proto_library")
+load("@com_github_grpc_grpc//bazel:python_rules.bzl", "py_proto_library")
+
+py_library(
+    name = "deploy_config",
+    srcs = [
+        "controllers.py",
+    ],
+    visibility = ["//pp_lite:pp_lite_package"],
+    deps = [
+        ":models_py_proto",
+        "@common_pyyaml//:pkg",
+    ],
+)
+
+py_library(
+    name = "logging_config",
+    srcs = [
+        "logging_config.py",
+    ],
+    visibility = ["//pp_lite:pp_lite_package"],
+)
+
+proto_library(
+    name = "models_proto",
+    srcs = ["models.proto"],
+    visibility = ["//pp_lite:pp_lite_package"],
+)
+
+py_proto_library(
+    name = "models_py_proto",
+    visibility = ["//pp_lite:pp_lite_package"],
+    deps = [":models_proto"],
+)
+
+py_test(
+    name = "controllers_test",
+    size = "small",
+    srcs = ["controllers_test.py"],
+    data = ["//pp_lite/deploy/test_data"],
+    visibility = ["//pp_lite:pp_lite_package"],
+    deps = ["//pp_lite/deploy/configs:deploy_config"],
+)

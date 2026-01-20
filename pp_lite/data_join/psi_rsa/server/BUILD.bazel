@@ -1,0 +1,49 @@
+load("@rules_python//python:defs.bzl", "py_library", "py_test")
+
+py_library(
+    name = "server",
+    srcs = [
+        "data_join_servicer.py",
+        "partition_reader.py",
+        "partition_writer.py",
+        "signer.py",
+        "utils.py",
+    ],
+    visibility = ["//pp_lite:pp_lite_package"],
+    deps = [
+        "//pp_lite/data_join/utils",
+        "//pp_lite/proto:py_grpc",
+        "//pp_lite/proto:py_proto",
+        "//pp_lite/rpc",
+        "//pp_lite/utils",
+        "@common_fsspec//:pkg",
+        "@common_gmpy2//:pkg",
+        "@common_pandas//:pkg",
+        "@common_pyarrow//:pkg",  # keep
+        "@common_rsa//:pkg",
+    ],
+)
+
+py_test(
+    name = "partition_writer_test",
+    size = "small",
+    srcs = ["partition_writer_test.py"],
+    visibility = ["//pp_lite:pp_lite_package"],
+    deps = [":server"],
+)
+
+py_test(
+    name = "partition_reader_test",
+    size = "small",
+    srcs = ["partition_reader_test.py"],
+    visibility = ["//pp_lite:pp_lite_package"],
+    deps = [":server"],
+)
+
+py_test(
+    name = "signer_test",
+    size = "small",
+    srcs = ["signer_test.py"],
+    visibility = ["//pp_lite:pp_lite_package"],
+    deps = [":server"],
+)

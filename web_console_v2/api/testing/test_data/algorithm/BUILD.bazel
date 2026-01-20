@@ -1,0 +1,6 @@
+filegroup(
+    name = "algorithm",
+    testonly = True,
+    srcs = glob(["**/*"]),
+    visibility = ["//visibility:public"],
+)

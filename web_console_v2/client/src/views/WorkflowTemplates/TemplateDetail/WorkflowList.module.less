@@ -1,0 +1,21 @@
+.list_container {
+  width: 100%;
+}
+
+.name_link {
+  display: block;
+  font-size: 16px;
+
+  &[data-invalid='true'] {
+    color: var(--textColorDisabled);
+
+    &:hover {
+      color: var(--primaryColor);
+    }
+  }
+}
+
+.uuid_container {
+  display: block;
+  color: var(--textColorSecondary);
+}

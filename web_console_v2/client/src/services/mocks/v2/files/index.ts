@@ -23,4 +23,19 @@ const get = {
   status: 200,
 };
 
+export const post = {
+  data: {
+    data: {
+      uploaded_files: [
+        {
+          display_file_name: 'mock-file.tar.gz',
+          internal_path:
+            'hdfs:///trimmed',
+        },
+      ],
+    },
+  },
+  status: 200,
+};
+
 export default get;
