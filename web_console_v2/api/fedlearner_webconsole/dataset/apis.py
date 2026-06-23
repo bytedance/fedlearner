@@ -163,7 +163,7 @@ class BatchesApi(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument('event_time', type=int)
         parser.add_argument('files',
-                            required=True,
+                            required=True, 
                             type=list,
                             location='json',
                             help=_FORMAT_ERROR_MESSAGE.format('files'))
