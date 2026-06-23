@@ -13,13 +13,28 @@
 # limitations under the License.
 
 # coding: utf-8
+import os
 import tarfile
 
 
 class TarCli:
     @staticmethod
+    def _safe_target_path(extract_path_prefix, member_name):
+        base_dir = os.path.realpath(extract_path_prefix)
+        target_path = os.path.realpath(os.path.join(base_dir, member_name))
+        if os.path.commonpath([base_dir, target_path]) != base_dir:
+            raise ValueError(f'Unsafe tar member path: {member_name}')
+        return target_path
+
+    @staticmethod
     def untar_file(tar_name, extract_path_prefix):
+        os.makedirs(extract_path_prefix, exist_ok=True)
         with tarfile.open(tar_name, 'r:*') as tar_pack:
-            tar_pack.extractall(extract_path_prefix)
+            for member in tar_pack.getmembers():
+                TarCli._safe_target_path(extract_path_prefix, member.name)
+                if member.issym() or member.islnk():
+                    TarCli._safe_target_path(extract_path_prefix, member.linkname)
+                    continue
+                tar_pack.extract(member, extract_path_prefix)
 
         return True
