@@ -1,0 +1,412 @@
+Using Number of CPU cores: 8
+Number of CPU cores: 16
+Using CPU
+using GPUs:
+[]
+start: 2022-06-17 20:03:39.884649
+worker: 8718 is running epoch: 0
+worker: 8718 is running epoch: 1
+worker: 8718 is running epoch: 2
+# clients: 10, # total samples: 458407
+# clients: 10, # total samples: 458407
+# clients: 10, # total samples: 458407
+# positives: 117317.0, # negatives: 341090.0
+# positives: 117317.0, # negatives: 341090.0
+# positives: 117317.0, # negatives: 341090.0
+worker: 8718 is running cal roc_auc
+worker: 8718 is running cal roc_auc
+worker: 8718 is running cal roc_auc
+worker: 8718 is running cal roc_auc
+worker: 8718 is running cal roc_auc
+worker: 8718 is running cal roc_auc
+worker: 8718 is running cal roc_auc
+worker: 8718 is running cal roc_auc
+worker: 8718 is running cal roc_auc
+worker: 8718 is running cal roc_auc
+worker: 8718 is running cal roc_auc
+worker: 8718 is running cal roc_auc
+worker: 8718 is running cal roc_auc
+worker: 8718 is running cal roc_auc
+worker: 8718 is running cal roc_auc
+worker: 8718 is running cal roc_auc
+worker: 8718 is running cal roc_auc
+worker: 8718 is running cal roc_auc
+worker: 8718 is running cal roc_auc
+worker: 8718 is running cal roc_auc
+worker: 8718 is running cal roc_auc
+worker: 8718 is running cal roc_auc
+worker: 8718 is running cal roc_auc
+worker: 8718 is running cal roc_auc
+worker: 8718 is running cal roc_auc
+worker: 8718 is running cal roc_auc
+worker: 8718 is running cal roc_auc
+worker: 8718 is running cal roc_auc
+worker: 8718 is running cal roc_auc
+worker: 8718 is running cal roc_auc
+worker: 8718 is running cal roc_auc
+worker: 8718 is running cal roc_auc
+worker: 8718 is running cal roc_auc
+worker: 8718 is running cal roc_auc
+worker: 8718 is running cal roc_auc
+worker: 8718 is running cal roc_auc
+worker: 8718 is running cal roc_auc
+worker: 8718 is running cal roc_auc
+worker: 8718 is running cal roc_auc
+worker: 8718 is running cal roc_auc
+worker: 8718 is running cal roc_auc
+worker: 8718 is running cal roc_auc
+worker: 8718 is running cal roc_auc
+worker: 8718 is running cal roc_auc
+worker: 8718 is running cal roc_auc
+worker: 8718 is running cal roc_auc
+worker: 8718 is running cal roc_auc
+worker: 8718 is running cal roc_auc
+final auc: 0.766416678684068
+noisy_auc:0.766416678684068 with: Laplace and eps: 2.0
+worker: 8718 is running cal roc_auc
+worker: 8718 is running cal roc_auc
+worker: 8718 is running cal roc_auc
+worker: 8718 is running cal roc_auc
+worker: 8718 is running cal roc_auc
+final auc: 0.7493205336707702
+noisy_auc:0.7493205336707702 with: Laplace and eps: 2.0
+worker: 8718 is running cal roc_auc
+final auc: 0.7493206662810875
+noisy_auc:0.7493206662810875 with: Laplace and eps: 2.0
+worker: 8718 is running cal roc_auc
+final auc: 0.7493178672367157
+noisy_auc:0.7493178672367157 with: Laplace and eps: 2.0
+worker: 8718 is running cal roc_auc
+final auc: 0.7664108963737812
+noisy_auc:0.7664108963737812 with: Laplace and eps: 2.0
+worker: 8718 is running cal roc_auc
+final auc: 0.7664184653980974
+noisy_auc:0.7664184653980974 with: Laplace and eps: 2.0
+worker: 8718 is running cal roc_auc
+final auc: 0.7701595246585627
+noisy_auc:0.7701595246585627 with: Laplace and eps: 2.0
+worker: 8718 is running cal roc_auc
+final auc: 0.7701673017408345
+noisy_auc:0.7701673017408345 with: Laplace and eps: 2.0
+worker: 8718 is running cal roc_auc
+final auc: 0.7701689668344325
+noisy_auc:0.7701689668344325 with: Laplace and eps: 2.0
+worker: 8718 is running cal roc_auc
+final auc: 0.7701708381471619
+noisy_auc:0.7701708381471619 with: Laplace and eps: 2.0
+worker: 8718 is running cal roc_auc
+final auc: 0.7664185225347551
+noisy_auc:0.7664185225347551 with: Laplace and eps: 2.0
+worker: 8718 is running cal roc_auc
+final auc: 0.7664151807124404
+noisy_auc:0.7664151807124404 with: Laplace and eps: 2.0
+worker: 8718 is running cal roc_auc
+final auc: 0.7664176519132491
+noisy_auc:0.7664176519132491 with: Laplace and eps: 2.0
+worker: 8718 is running cal roc_auc
+final auc: 0.7701679940301551
+noisy_auc:0.7701679940301551 with: Laplace and eps: 2.0
+worker: 8718 is running cal roc_auc
+final auc: 0.7701663192179566
+noisy_auc:0.7701663192179566 with: Laplace and eps: 2.0
+worker: 8718 is running cal roc_auc
+final auc: 0.7664183233602185
+noisy_auc:0.7664183233602185 with: Laplace and eps: 2.0
+worker: 8718 is running cal roc_auc
+final auc: 0.7701704399366213
+noisy_auc:0.7701704399366213 with: Laplace and eps: 2.0
+worker: 8718 is running cal roc_auc
+final auc: 0.7701667753504122
+noisy_auc:0.7701667753504122 with: Laplace and eps: 2.0
+worker: 8718 is running cal roc_auc
+final auc: 0.7701697729431267
+noisy_auc:0.7701697729431267 with: Laplace and eps: 2.0
+worker: 8718 is running cal roc_auc
+final auc: 0.7664182011328351
+noisy_auc:0.7664182011328351 with: Laplace and eps: 2.0
+worker: 8718 is running cal roc_auc
+final auc: 0.770171723234902
+noisy_auc:0.770171723234902 with: Laplace and eps: 2.0
+worker: 8718 is running cal roc_auc
+final auc: 0.7664100752808412
+noisy_auc:0.7664100752808412 with: Laplace and eps: 2.0
+worker: 8718 is running cal roc_auc
+final auc: 0.7493204372551255
+noisy_auc:0.7493204372551255 with: Laplace and eps: 2.0
+worker: 8718 is running cal roc_auc
+final auc: 0.7493252217781363
+noisy_auc:0.7493252217781363 with: Laplace and eps: 2.0
+worker: 8718 is running cal roc_auc
+final auc: 0.7664123508109301
+noisy_auc:0.7664123508109301 with: Laplace and eps: 2.0
+worker: 8718 is running cal roc_auc
+final auc: 0.7701727070059035
+noisy_auc:0.7701727070059035 with: Laplace and eps: 2.0
+worker: 8718 is running cal roc_auc
+final auc: 0.7664161536613864
+noisy_auc:0.7664161536613864 with: Laplace and eps: 2.0
+worker: 8718 is running cal roc_auc
+final auc: 0.7664138684949796
+noisy_auc:0.7664138684949796 with: Laplace and eps: 2.0
+worker: 8718 is running cal roc_auc
+final auc: 0.7701652840055758
+noisy_auc:0.7701652840055758 with: Laplace and eps: 2.0
+worker: 8718 is running cal roc_auc
+final auc: 0.7664092032044221
+noisy_auc:0.7664092032044221 with: Laplace and eps: 2.0
+worker: 8718 is running cal roc_auc
+final auc: 0.74932217831702
+noisy_auc:0.74932217831702 with: Laplace and eps: 2.0
+worker: 8718 is running cal roc_auc
+final auc: 0.7493202146986857
+noisy_auc:0.7493202146986857 with: Laplace and eps: 2.0
+worker: 8718 is running cal roc_auc
+final auc: 0.7493215431588772
+noisy_auc:0.7493215431588772 with: Laplace and eps: 2.0
+worker: 8718 is running cal roc_auc
+final auc: 0.7701748185293285
+noisy_auc:0.7701748185293285 with: Laplace and eps: 2.0
+worker: 8718 is running cal roc_auc
+final auc: 0.749322245375368
+noisy_auc:0.749322245375368 with: Laplace and eps: 2.0
+worker: 8718 is running cal roc_auc
+final auc: 0.7493163855584501
+noisy_auc:0.7493163855584501 with: Laplace and eps: 2.0
+worker: 8718 is running cal roc_auc
+final auc: 0.7493216142438607
+noisy_auc:0.7493216142438607 with: Laplace and eps: 2.0
+worker: 8718 is running cal roc_auc
+final auc: 0.7493234770075041
+noisy_auc:0.7493234770075041 with: Laplace and eps: 2.0
+worker: 8718 is running cal roc_auc
+final auc: 0.7701737969045137
+noisy_auc:0.7701737969045137 with: Laplace and eps: 2.0
+worker: 8718 is running cal roc_auc
+final auc: 0.7493209058908205
+noisy_auc:0.7493209058908205 with: Laplace and eps: 2.0
+worker: 8718 is running cal roc_auc
+final auc: 0.7701591765667449
+noisy_auc:0.7701591765667449 with: Laplace and eps: 2.0
+worker: 8718 is running cal roc_auc
+final auc: 0.7493233718442521
+noisy_auc:0.7493233718442521 with: Laplace and eps: 2.0
+worker: 8718 is running cal roc_auc
+final auc: 0.7493203666434387
+noisy_auc:0.7493203666434387 with: Laplace and eps: 2.0
+worker: 8718 is running cal roc_auc
+final auc: 0.7701693886471653
+noisy_auc:0.7701693886471653 with: Laplace and eps: 2.0
+worker: 8718 is running cal roc_auc
+worker: 8718 is running cal roc_auc
+final auc: 0.7701614512265819
+noisy_auc:0.7701614512265819 with: Laplace and eps: 2.0
+worker: 8718 is running cal roc_auc
+final auc: 0.7493220747229379
+noisy_auc:0.7493220747229379 with: Laplace and eps: 2.0
+worker: 8718 is running cal roc_auc
+final auc: 0.7493184803167648
+noisy_auc:0.7493184803167648 with: Laplace and eps: 2.0
+worker: 8718 is running cal roc_auc
+final auc: 0.7664121496626644
+noisy_auc:0.7664121496626644 with: Laplace and eps: 2.0
+worker: 8718 is running cal roc_auc
+worker: 8718 is running cal roc_auc
+final auc: 0.7664135391333604
+noisy_auc:0.7664135391333604 with: Laplace and eps: 2.0
+worker: 8718 is running cal roc_auc
+final auc: 0.7701699259757941
+noisy_auc:0.7701699259757941 with: Laplace and eps: 2.0
+worker: 8718 is running cal roc_auc
+final auc: 0.7664212966478195
+noisy_auc:0.7664212966478195 with: Laplace and eps: 2.0
+worker: 8718 is running cal roc_auc
+final auc: 0.7664186031207622
+noisy_auc:0.7664186031207622 with: Laplace and eps: 2.0
+worker: 8718 is running cal roc_auc
+final auc: 0.7664155947024921
+noisy_auc:0.7664155947024921 with: Laplace and eps: 2.0
+worker: 8718 is running cal roc_auc
+final auc: 0.7493208409484822
+noisy_auc:0.7493208409484822 with: Laplace and eps: 2.0
+worker: 8718 is running cal roc_auc
+final auc: 0.749316199114085
+noisy_auc:0.749316199114085 with: Laplace and eps: 2.0
+worker: 8718 is running cal roc_auc
+final auc: 0.7664201932680035
+noisy_auc:0.7664201932680035 with: Laplace and eps: 2.0
+worker: 8718 is running cal roc_auc
+final auc: 0.7664085131810597
+noisy_auc:0.7664085131810597 with: Laplace and eps: 2.0
+worker: 8718 is running cal roc_auc
+final auc: 0.770168250744132
+noisy_auc:0.770168250744132 with: Laplace and eps: 2.0
+worker: 8718 is running cal roc_auc
+final auc: 0.7701684208941363
+noisy_auc:0.7701684208941363 with: Laplace and eps: 2.0
+worker: 8718 is running cal roc_auc
+final auc: 0.7701709707973714
+noisy_auc:0.7701709707973714 with: Laplace and eps: 2.0
+worker: 8718 is running cal roc_auc
+final auc: 0.7664186080263874
+noisy_auc:0.7664186080263874 with: Laplace and eps: 2.0
+worker: 8718 is running cal roc_auc
+final auc: 0.7493207691350428
+noisy_auc:0.7493207691350428 with: Laplace and eps: 2.0
+worker: 8718 is running cal roc_auc
+final auc: 0.7701696871657671
+noisy_auc:0.7701696871657671 with: Laplace and eps: 2.0
+worker: 8718 is running cal roc_auc
+final auc: 0.7664156984428345
+noisy_auc:0.7664156984428345 with: Laplace and eps: 2.0
+worker: 8718 is running cal roc_auc
+final auc: 0.766415162975248
+noisy_auc:0.766415162975248 with: Laplace and eps: 2.0
+worker: 8718 is running cal roc_auc
+final auc: 0.7664150484245454
+noisy_auc:0.7664150484245454 with: Laplace and eps: 2.0
+worker: 8718 is running cal roc_auc
+final auc: 0.766417513882869
+noisy_auc:0.766417513882869 with: Laplace and eps: 2.0
+worker: 8718 is running cal roc_auc
+final auc: 0.7701687181970464
+noisy_auc:0.7701687181970464 with: Laplace and eps: 2.0
+worker: 8718 is running cal roc_auc
+final auc: 0.7493187152239795
+noisy_auc:0.7493187152239795 with: Laplace and eps: 2.0
+worker: 8718 is running cal roc_auc
+final auc: 0.7493214250813217
+noisy_auc:0.7493214250813217 with: Laplace and eps: 2.0
+worker: 8718 is running cal roc_auc
+final auc: 0.7664155052327912
+noisy_auc:0.7664155052327912 with: Laplace and eps: 2.0
+worker: 8718 is running cal roc_auc
+final auc: 0.7701675789869246
+noisy_auc:0.7701675789869246 with: Laplace and eps: 2.0
+worker: 8718 is running cal roc_auc
+final auc: 0.7493174589488903
+noisy_auc:0.7493174589488903 with: Laplace and eps: 2.0
+worker: 8718 is running cal roc_auc
+final auc: 0.770170598337739
+noisy_auc:0.770170598337739 with: Laplace and eps: 2.0
+worker: 8718 is running cal roc_auc
+final auc: 0.7701640767220325
+noisy_auc:0.7701640767220325 with: Laplace and eps: 2.0
+worker: 8718 is running cal roc_auc
+final auc: 0.749322128995026
+noisy_auc:0.749322128995026 with: Laplace and eps: 2.0
+worker: 8718 is running cal roc_auc
+final auc: 0.770174192830224
+noisy_auc:0.770174192830224 with: Laplace and eps: 2.0
+worker: 8718 is running cal roc_auc
+final auc: 0.7664044056989755
+noisy_auc:0.7664044056989755 with: Laplace and eps: 2.0
+worker: 8718 is running cal roc_auc
+final auc: 0.7701692859992609
+noisy_auc:0.7701692859992609 with: Laplace and eps: 2.0
+worker: 8718 is running cal roc_auc
+final auc: 0.7664199435285135
+noisy_auc:0.7664199435285135 with: Laplace and eps: 2.0
+worker: 8718 is running cal roc_auc
+final auc: 0.7701730074888729
+noisy_auc:0.7701730074888729 with: Laplace and eps: 2.0
+worker: 8718 is running cal roc_auc
+final auc: 0.7493239028538614
+noisy_auc:0.7493239028538614 with: Laplace and eps: 2.0
+worker: 8718 is running cal roc_auc
+final auc: 0.7493211971911796
+noisy_auc:0.7493211971911796 with: Laplace and eps: 2.0
+worker: 8718 is running cal roc_auc
+final auc: 0.749317761585202
+noisy_auc:0.749317761585202 with: Laplace and eps: 2.0
+worker: 8718 is running cal roc_auc
+final auc: 0.7701715818501392
+noisy_auc:0.7701715818501392 with: Laplace and eps: 2.0
+worker: 8718 is running cal roc_auc
+final auc: 0.7493235571163753
+noisy_auc:0.7493235571163753 with: Laplace and eps: 2.0
+worker: 8718 is running cal roc_auc
+final auc: 0.7493226213393643
+noisy_auc:0.7493226213393643 with: Laplace and eps: 2.0
+worker: 8718 is running cal roc_auc
+final auc: 0.7701709648362017
+noisy_auc:0.7701709648362017 with: Laplace and eps: 2.0
+worker: 8718 is running cal roc_auc
+final auc: 0.7493131659858931
+noisy_auc:0.7493131659858931 with: Laplace and eps: 2.0
+worker: 8718 is running cal roc_auc
+final auc: 0.7493230283824095
+noisy_auc:0.7493230283824095 with: Laplace and eps: 2.0
+worker: 8718 is running cal roc_auc
+final auc: 0.7664119761376362
+noisy_auc:0.7664119761376362 with: Laplace and eps: 2.0
+worker: 8718 is running cal roc_auc
+final auc: 0.7664162685519385
+noisy_auc:0.7664162685519385 with: Laplace and eps: 2.0
+worker: 8718 is running cal roc_auc
+final auc: 0.7701700246620723
+noisy_auc:0.7701700246620723 with: Laplace and eps: 2.0
+worker: 8718 is running cal roc_auc
+worker: 8718 is running cal roc_auc
+final auc: 0.7493191732531922
+noisy_auc:0.7493191732531922 with: Laplace and eps: 2.0
+worker: 8718 is running cal roc_auc
+final auc: 0.7701694353163981
+noisy_auc:0.7701694353163981 with: Laplace and eps: 2.0
+worker: 8718 is running cal roc_auc
+final auc: 0.7701720096023086
+noisy_auc:0.7701720096023086 with: Laplace and eps: 2.0
+final auc: 0.7664145886374409
+noisy_auc:0.7664145886374409 with: Laplace and eps: 2.0
+final auc: 0.7664077872497159
+noisy_auc:0.7664077872497159 with: Laplace and eps: 2.0
+final auc: 0.7701723084788334
+noisy_auc:0.7701723084788334 with: Laplace and eps: 2.0
+final auc: 0.7493238873705541
+noisy_auc:0.7493238873705541 with: Laplace and eps: 2.0
+final auc: 0.7701671373049346
+noisy_auc:0.7701671373049346 with: Laplace and eps: 2.0
+final auc: 0.7664167150697453
+noisy_auc:0.7664167150697453 with: Laplace and eps: 2.0
+final auc: 0.7664074978661156
+noisy_auc:0.7664074978661156 with: Laplace and eps: 2.0
+final auc: 0.7493242520524039
+noisy_auc:0.7493242520524039 with: Laplace and eps: 2.0
+final auc: 0.7664180840786482
+noisy_auc:0.7664180840786482 with: Laplace and eps: 2.0
+final auc: 0.770169328206879
+noisy_auc:0.770169328206879 with: Laplace and eps: 2.0
+final auc: 0.7493187001134305
+noisy_auc:0.7493187001134305 with: Laplace and eps: 2.0
+final auc: 0.7664190213946033
+noisy_auc:0.7664190213946033 with: Laplace and eps: 2.0
+final auc: 0.7701738653772955
+noisy_auc:0.7701738653772955 with: Laplace and eps: 2.0
+final auc: 0.7664148844676264
+noisy_auc:0.7664148844676264 with: Laplace and eps: 2.0
+final auc: 0.7493210127418047
+noisy_auc:0.7493210127418047 with: Laplace and eps: 2.0
+final auc: 0.7701706918930361
+noisy_auc:0.7701706918930361 with: Laplace and eps: 2.0
+final auc: 0.766416518036057
+noisy_auc:0.766416518036057 with: Laplace and eps: 2.0
+final auc: 0.7664122474051783
+noisy_auc:0.7664122474051783 with: Laplace and eps: 2.0
+final auc: 0.770172585288844
+noisy_auc:0.770172585288844 with: Laplace and eps: 2.0
+final auc: 0.7664097516254728
+noisy_auc:0.7664097516254728 with: Laplace and eps: 2.0
+final auc: 0.7701729603176957
+noisy_auc:0.7701729603176957 with: Laplace and eps: 2.0
+final auc: 0.749315128914787
+noisy_auc:0.749315128914787 with: Laplace and eps: 2.0
+final auc: 0.7701723982720267
+noisy_auc:0.7701723982720267 with: Laplace and eps: 2.0
+final auc: 0.7493199837125262
+noisy_auc:0.7493199837125262 with: Laplace and eps: 2.0
+final auc: 0.7664189118826534
+noisy_auc:0.7664189118826534 with: Laplace and eps: 2.0
+final auc: 0.7664190976029381
+noisy_auc:0.7664190976029381 with: Laplace and eps: 2.0
+final auc: 0.7664164138439806
+noisy_auc:0.7664164138439806 with: Laplace and eps: 2.0
+final auc: 0.7493223262351157

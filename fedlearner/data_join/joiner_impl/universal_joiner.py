@@ -477,6 +477,9 @@ class UniversalJoiner(ExampleJoiner):
                 self._max_watermark_delay):
                 join_data_finished = True
                 break
+            if leader_exhausted and follower_exhausted:
+                join_data_finished = True
+                break
 
             if self._leader_join_window.is_full() or not fill_leader_enough:
                 break

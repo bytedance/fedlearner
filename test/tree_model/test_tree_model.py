@@ -19,7 +19,7 @@ import unittest
 import numpy as np
 
 import fedlearner as fl
-from fedlearner.model.tree.tree import BoostingTreeEnsamble
+from fedlearner.model.tree.tree import BoostingTreeEnsamble, PredictType
 from fedlearner.common import tree_model_pb2 as tree_pb2
 from sklearn.datasets import load_iris
 
@@ -54,9 +54,11 @@ class TestBoostingTree(unittest.TestCase):
             num_parallel=2,
             loss_type=loss_type)
         train_pred = booster.fit(X, y, cat_features=cat_X)
-        pred = booster.batch_predict(X, cat_features=cat_X)
-        np.testing.assert_almost_equal(train_pred, pred)
-        return pred
+        pred_0 = booster.batch_predict(X, cat_features=cat_X, predict_type=PredictType('iteration'))
+        pred_1 = booster.batch_predict(X, cat_features=cat_X, predict_type=PredictType('vectorization'))
+        np.testing.assert_almost_equal(train_pred, pred_0)
+        np.testing.assert_almost_equal(train_pred, pred_1)
+        return pred_0
 
     def leader_test_boosting_tree_helper(self, X, y, cat_X):
         bridge = fl.trainer.bridge.Bridge(
@@ -66,10 +68,12 @@ class TestBoostingTree(unittest.TestCase):
             max_iters=3,
             max_depth=2)
         train_pred = booster.fit(X, y, cat_features=cat_X)
-        pred = booster.batch_predict(X, cat_features=cat_X)
+        pred_0 = booster.batch_predict(X, cat_features=cat_X, predict_type=PredictType('iteration'))
+        pred_1 = booster.batch_predict(X, cat_features=cat_X, predict_type=PredictType('vectorization'))
         bridge.terminate()
-        np.testing.assert_almost_equal(train_pred, pred)
-        return pred
+        np.testing.assert_almost_equal(train_pred, pred_0)
+        np.testing.assert_almost_equal(train_pred, pred_1)
+        return pred_0
 
     def follower_test_boosting_tree_helper(self, X, cat_X):
         bridge = fl.trainer.bridge.Bridge(
@@ -79,9 +83,14 @@ class TestBoostingTree(unittest.TestCase):
             max_iters=3,
             max_depth=2)
         booster.fit(X, None, cat_features=cat_X)
-        pred = booster.batch_predict(X, cat_features=cat_X, get_raw_score=True)
+        pred_0 = booster.batch_predict(X, cat_features=cat_X, get_raw_score=True,
+                                       predict_type=PredictType('iteration'))
+        pred_1 = booster.batch_predict(X, cat_features=cat_X, get_raw_score=True,
+                                       predict_type=PredictType('vectorization'))
         bridge.terminate()
-        np.testing.assert_almost_equal(pred, 0)
+        np.testing.assert_almost_equal(pred_0, 0)
+        np.testing.assert_almost_equal(pred_1, 0)
+        return pred_0
 
     def boosting_tree_helper(self, X, y, cat_X):
         local_pred = self.local_test_boosting_tree_helper(X, y, cat_X, 'mse')

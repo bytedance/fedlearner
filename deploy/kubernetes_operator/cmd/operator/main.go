@@ -68,6 +68,7 @@ type config struct {
 	leaderElectionRenewDeadline time.Duration
 	leaderElectionRetryPeriod   time.Duration
 	grpcClientTimeout           time.Duration
+	ingressClassName            string
 }
 
 func newConfig() *config {
@@ -86,6 +87,7 @@ func newConfig() *config {
 	config.leaderElectionRenewDeadline = 5 * time.Second
 	config.leaderElectionRetryPeriod = 4 * time.Second
 	config.grpcClientTimeout = 15 * time.Second
+	config.ingressClassName = "nginx"
 	return &config
 }
 
@@ -112,6 +114,7 @@ func initFlags() *config {
 	fl.DurationVar(&config.leaderElectionRenewDeadline, "leader-election-renew-deadline", config.leaderElectionRenewDeadline, "Leader election renew deadline.")
 	fl.DurationVar(&config.leaderElectionRetryPeriod, "leader-election-retry-period", config.leaderElectionRetryPeriod, "Leader election retry period.")
 	fl.DurationVar(&config.grpcClientTimeout, "grpc-client-timeout", config.grpcClientTimeout, "GRPC Client timetout")
+	fl.StringVar(&config.ingressClassName, "ingress-class-name", config.ingressClassName, "Name of default ingress Class Name")
 	klog.InitFlags(fl)
 	fl.Parse(os.Args[1:])
 	return config
@@ -250,6 +253,7 @@ func main() {
 		config.ingressSecretName,
 		config.ingressEnableClientAuth,
 		config.ingressClientAuthSecretName,
+		config.ingressClassName,
 		kubeClient,
 		crdClient,
 		kubeInformerFactory,

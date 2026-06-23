@@ -31,7 +31,7 @@ import tensorflow.compat.v1 as tf
 
 from fedlearner.common.argparse_util import str_as_bool
 from fedlearner.trainer.bridge import Bridge
-from fedlearner.model.tree.tree import BoostingTreeEnsamble
+from fedlearner.model.tree.tree import BoostingTreeEnsamble, PredictType
 from fedlearner.model.tree.trainer_master_client import LocalTrainerMasterClient
 from fedlearner.model.tree.trainer_master_client import DataBlockInfo
 from fedlearner.model.tree.utils import filter_files
@@ -156,7 +156,13 @@ def create_argument_parser():
                         type=str,
                         default='label',
                         help='selected label name')
-
+    parser.add_argument('--predict-type',
+                        default=PredictType.ITERATION.value,
+                        choices=[
+                            PredictType.ITERATION.value,
+                            PredictType.VECTORIZATION.value
+                            ],
+                        help='which type for tree prediction')
     return parser
 
 
@@ -193,7 +199,7 @@ def extract_field(field_names, field_name, required):
 
 def read_data(file_type, filename, require_example_ids, require_labels,
               ignore_fields, cat_fields, label_field):
-    logging.debug('Reading data file from %s', filename)
+    logging.info('Reading data file from %s', filename)
 
     if file_type == 'tfrecord':
         reader = tf.io.tf_record_iterator(filename)
@@ -407,7 +413,8 @@ def test_one_file(args, bridge, booster, data_file, output_file):
         example_ids=example_ids,
         cat_features=cat_X,
         feature_names=X_names,
-        cat_feature_names=cat_X_names)
+        cat_feature_names=cat_X_names,
+        predict_type=PredictType(args.predict_type))
 
     if y is not None:
         metrics = booster.loss.metrics(pred, y)

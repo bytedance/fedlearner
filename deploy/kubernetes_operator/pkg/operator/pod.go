@@ -259,6 +259,13 @@ func (am *appManager) createNewPod(
 			continue
 		}
 
+		// If pods use host network, overwrite all port to 0 to support autoport.
+		if podTemplate.Spec.HostNetwork {
+			for i := range container.Ports {
+				container.Ports[i].ContainerPort = 0
+			}
+		}
+
 		if needPair(app, rtype) {
 			container.VolumeMounts = ensureVolumeMounts(container.VolumeMounts, v1.VolumeMount{
 				Name:      volumeName(rtype),
