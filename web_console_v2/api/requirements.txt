@@ -5,7 +5,7 @@ flask-restful==0.3.8
 passlib==1.7.4
 flask-jwt-extended>=4.0.0
 Flask-Testing==0.8.1
-gunicorn==20.0.4
+gunicorn==22.0.0
 # grpc-related stuff has be 1.32.0 to be compatible with tensorflow
 grpcio==1.32.0
 # grpcio-tools==1.34.0 will not work on Mac
