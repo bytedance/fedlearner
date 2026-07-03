@@ -51,6 +51,25 @@ _URL_REGEX = r'(?:^((?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])(?:\.' \
              r'){1,4}|:)){2,7})+)\](?::+(\d+))?|((?:(?:[0-9a-fA-F:]){1,4}(?:(' \
              r'?::(?:[0-9a-fA-F]){1,4}|:)){2,7})+)$)'
 
+# Host header value that will be inlined into an nginx configuration-snippet /
+# server-snippet. Restrict to a conservative FQDN-only charset so any newline,
+# quote, brace, semicolon or space is rejected up-front, preventing nginx
+# directive injection. Underscore is allowed to match domain-name aliases used
+# in some deployments.
+_GRPC_SSL_SERVER_HOST_REGEX = re.compile(r'^[A-Za-z0-9._-]{1,253}$')
+
+
+def _validate_grpc_ssl_server_host(value):
+    if value is None:
+        return None
+    if not isinstance(value, str) or not _GRPC_SSL_SERVER_HOST_REGEX.match(
+            value):
+        raise InvalidArgumentException(
+            details=ErrorMessage.PARAM_FORMAT_ERROR.value.format(
+                'GRPC_SSL_SERVER_HOST',
+                'must be a hostname of [A-Za-z0-9._-] up to 253 chars'))
+    return value
+
 
 class ErrorMessage(Enum):
     PARAM_FORMAT_ERROR = 'Format of parameter {} is wrong: {}'
@@ -99,6 +118,8 @@ class ProjectsApi(Resource):
                 grpc_ssl_server_host = variable.get('value')
             if variable.get('name') == 'EGRESS_HOST':
                 egress_host = variable.get('value')
+        grpc_ssl_server_host = _validate_grpc_ssl_server_host(
+            grpc_ssl_server_host)
 
         # parse participant
         certificates = {}
@@ -224,6 +245,8 @@ class ProjectApi(Resource):
                 grpc_ssl_server_host = variable.value
             if variable.name == 'EGRESS_HOST':
                 egress_host = variable.value
+        grpc_ssl_server_host = _validate_grpc_ssl_server_host(
+            grpc_ssl_server_host)
 
         if request.json.get('participant_name'):
             config.participants[0].name = request.json.get('participant_name')

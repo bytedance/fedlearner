@@ -29,6 +29,7 @@ from fedlearner_webconsole.dataset.services import DatasetService
 from fedlearner_webconsole.exceptions import (InvalidArgumentException,
                                               NotFoundException)
 from fedlearner_webconsole.db import db_handler as db
+from fedlearner_webconsole.project.models import Project
 from fedlearner_webconsole.proto import dataset_pb2
 from fedlearner_webconsole.scheduler.scheduler import scheduler
 from fedlearner_webconsole.utils.decorators import jwt_required
@@ -82,6 +83,7 @@ class DatasetApi(Resource):
 
 
 class DatasetPreviewApi(Resource):
+    @jwt_required()
     def get(self, dataset_id: int):
         if dataset_id <= 0:
             raise NotFoundException(f'Failed to find dataset: {dataset_id}')
@@ -91,6 +93,7 @@ class DatasetPreviewApi(Resource):
 
 
 class DatasetMetricsApi(Resource):
+    @jwt_required()
     def get(self, dataset_id: int):
         if dataset_id <= 0:
             raise NotFoundException(f'Failed to find dataset: {dataset_id}')
@@ -106,14 +109,24 @@ class DatasetsApi(Resource):
     @jwt_required()
     def get(self):
         parser = reqparse.RequestParser()
+        # Require an explicit project scope to avoid cross-tenant listing.
         parser.add_argument('project',
                             type=int,
-                            required=False,
-                            help='project')
+                            required=True,
+                            help='project id is required')
         data = parser.parse_args()
+        project_id = int(data['project'] or 0)
+        if project_id <= 0:
+            raise InvalidArgumentException(
+                details='project id must be a positive integer')
         with db.session_scope() as session:
+            # Ensure the caller is scoping to an existing project, so we do not
+            # silently return datasets from unrelated projects.
+            if session.query(Project).filter_by(id=project_id).first() is None:
+                raise NotFoundException(
+                    f'Failed to find project: {project_id}')
             datasets = DatasetService(session).get_datasets(
-                project_id=int(data['project'] or 0))
+                project_id=project_id)
             return {'data': [d.to_dict() for d in datasets]}
 
     @jwt_required()
@@ -214,14 +227,49 @@ class FilesApi(Resource):
     def __init__(self):
         self._file_manager = FileManager()
 
+    @staticmethod
+    def _resolve_safe_directory(requested: str, root: str) -> str:
+        """Resolve `requested` and ensure it is contained inside `root`.
+
+        Uses realpath+commonpath to defeat traversal via `..`, symlinks and
+        absolute-path escapes. Raises InvalidArgumentException otherwise.
+        """
+        if not root:
+            raise InvalidArgumentException(
+                details='STORAGE_ROOT is not configured')
+        # Only support local filesystem paths here. Remote schemes such as
+        # hdfs:// are intentionally rejected to keep the boundary check simple
+        # and side-effect free.
+        if '://' in requested:
+            raise InvalidArgumentException(
+                details=f'unsupported directory scheme: {requested}')
+        canonical_root = os.path.realpath(root)
+        # Resolve the requested path against the root when relative, and
+        # canonicalize to defeat `..`/symlink escapes.
+        candidate = requested
+        if not os.path.isabs(candidate):
+            candidate = os.path.join(canonical_root, candidate)
+        canonical_target = os.path.realpath(candidate)
+        try:
+            common = os.path.commonpath([canonical_root, canonical_target])
+        except ValueError:
+            # Different drives / mixed absolute-relative paths.
+            raise InvalidArgumentException(
+                details=f'invalid directory: {requested}')
+        if common != canonical_root:
+            raise InvalidArgumentException(
+                details=f'directory {requested} is outside of STORAGE_ROOT')
+        return canonical_target
+
     @jwt_required()
     def get(self):
-        # TODO: consider the security factor
+        storage_root = current_app.config.get('STORAGE_ROOT')
         if 'directory' in request.args:
-            directory = request.args['directory']
+            directory = self._resolve_safe_directory(
+                request.args['directory'], storage_root)
         else:
-            directory = os.path.join(current_app.config.get('STORAGE_ROOT'),
-                                     'upload')
+            directory = self._resolve_safe_directory(
+                os.path.join(storage_root, 'upload'), storage_root)
         files = self._file_manager.ls(directory, recursive=True)
         return {'data': [dict(file._asdict()) for file in files]}
 

@@ -14,12 +14,14 @@
 
 # coding: utf-8
 import os
+import re
 import logging
 import tempfile
 
 from typing import Tuple
 
 from envs import Envs
+from fedlearner_webconsole.exceptions import InvalidArgumentException
 from fedlearner_webconsole.utils.file_manager import FileManager
 from fedlearner_webconsole.sparkapp.schema import SparkAppConfig, SparkAppInfo
 from fedlearner_webconsole.utils.k8s_client import k8s_client
@@ -27,15 +29,35 @@ from fedlearner_webconsole.utils.tars import TarCli
 
 UPLOAD_PATH = Envs.STORAGE_ROOT
 
+# SparkApp name is embedded into both a filesystem path and a Kubernetes
+# resource name, so keep it strict: DNS-label style, no path separators, no
+# traversal fragments, no whitespace, no NULs.
+_SPARKAPP_NAME_REGEX = re.compile(r'^[A-Za-z0-9][A-Za-z0-9_.-]{0,62}$')
+
+
+def _validate_sparkapp_name(name: str) -> str:
+    if not isinstance(name, str) or not _SPARKAPP_NAME_REGEX.match(name):
+        raise InvalidArgumentException(
+            details=f'invalid sparkapp name: {name!r}. '
+                    'Allowed pattern: ^[A-Za-z0-9][A-Za-z0-9_.-]{0,62}$')
+    if name in ('.', '..') or '..' in name or '\x00' in name:
+        raise InvalidArgumentException(
+            details=f'invalid sparkapp name: {name!r}')
+    return name
+
 
 class SparkAppService(object):
     def __init__(self) -> None:
         self._base_dir = os.path.join(UPLOAD_PATH, 'sparkapp')
+        self._canonical_base_dir = os.path.realpath(self._base_dir)
         self._file_client = FileManager()
 
         self._file_client.mkdir(self._base_dir)
 
     def _clear_and_make_an_empty_dir(self, dir_name: str):
+        # Defense in depth: never remove anything outside of the sparkapp base
+        # dir even if a caller managed to bypass name validation.
+        self._ensure_within_base_dir(dir_name)
         try:
             self._file_client.remove(dir_name)
         except Exception as err:  # pylint: disable=broad-except
@@ -43,6 +65,18 @@ class SparkAppService(object):
                           err)
         finally:
             self._file_client.mkdir(dir_name)
+
+    def _ensure_within_base_dir(self, path: str) -> str:
+        canonical = os.path.realpath(path)
+        try:
+            common = os.path.commonpath([self._canonical_base_dir, canonical])
+        except ValueError as err:
+            raise InvalidArgumentException(
+                details=f'invalid sparkapp path: {path}') from err
+        if common != self._canonical_base_dir:
+            raise InvalidArgumentException(
+                details=f'sparkapp path escapes base dir: {path}')
+        return canonical
 
     def _get_sparkapp_upload_path(self, name: str) -> Tuple[bool, str]:
         """get upload path for specific sparkapp
@@ -56,7 +90,11 @@ class SparkAppService(object):
                 str:  upload path for this sparkapp
 
         """
+        _validate_sparkapp_name(name)
         sparkapp_path = os.path.join(self._base_dir, name)
+        # Verify the resolved path is still inside the sparkapp base dir, so
+        # that any exotic-but-name-regex-passing input still cannot escape.
+        sparkapp_path = self._ensure_within_base_dir(sparkapp_path)
         existable = False
         try:
             self._file_client.ls(sparkapp_path)
@@ -112,6 +150,7 @@ class SparkAppService(object):
         Returns:
             SparkAppInfo: resp of sparkapp
         """
+        _validate_sparkapp_name(config.name)
         sparkapp_path = config.files_path
         if config.files_path is None:
             _, sparkapp_path = self._get_sparkapp_upload_path(config.name)
@@ -142,6 +181,7 @@ class SparkAppService(object):
         Returns:
             SparkAppInfo: resp of sparkapp
         """
+        _validate_sparkapp_name(name)
         resp = k8s_client.get_sparkapplication(name)
         return SparkAppInfo.from_k8s_resp(resp)
 
@@ -160,6 +200,7 @@ class SparkAppService(object):
         Returns:
             SparkAppInfo: resp of sparkapp
         """
+        _validate_sparkapp_name(name)
         existable, sparkapp_path = self._get_sparkapp_upload_path(name)
         if existable:
             self._file_client.remove(sparkapp_path)
