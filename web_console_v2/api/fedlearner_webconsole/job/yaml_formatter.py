@@ -45,12 +45,31 @@ def format_yaml(yaml, **kwargs):
             'Unknown placeholder: {}'.format(e.args[0])) from e
 
 
+def _escape_variable_value(value: str) -> str:
+    """Escape a user-provided variable value so it cannot break out of the
+    surrounding JSON string during template substitution.
+
+    Job yaml templates are effectively JSON with `$var` placeholders. Without
+    escaping, a value like `", "securityContext": {...}, "x": "` would
+    terminate the enclosing string and inject arbitrary PodSpec fields into
+    the FLApp yaml, enabling privileged containers or host mounts.
+    """
+    if value is None:
+        return ''
+    if not isinstance(value, str):
+        value = str(value)
+    # json.dumps escapes ", \, control chars and non-ASCII as needed. Stripping
+    # the surrounding quotes yields a fragment safe to interpolate inside an
+    # existing JSON string literal in the template.
+    return json.dumps(value)[1:-1]
+
+
 def make_variables_dict(variables):
     var_dict = {
         var.name: (
             code_dict_encode(json.loads(var.value))
             if var.value_type == common_pb2.Variable.ValueType.CODE \
-                else var.value)
+                else _escape_variable_value(var.value))
         for var in variables
     }
     return var_dict

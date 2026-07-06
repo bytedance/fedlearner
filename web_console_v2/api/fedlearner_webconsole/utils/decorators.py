@@ -36,7 +36,10 @@ def admin_required(f):
 
 def jwt_required(*jwt_args, **jwt_kwargs):
     def decorator(f):
-        if Envs.DEBUG:
+        # Only allow the DEBUG bypass in a non-production Flask environment.
+        # This prevents a single stray `DEBUG` env var (or its misparsed
+        # string value) from silently disabling JWT enforcement in prod.
+        if Envs.DEBUG and Envs.FLASK_ENV != 'production':
             @wraps(f)
             def wrapper(*args, **kwargs):
                 return f(*args, **kwargs)
