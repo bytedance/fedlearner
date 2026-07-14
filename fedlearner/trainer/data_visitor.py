@@ -203,6 +203,8 @@ class _DataVisitor(object):
         if not data:
             data = self._try_parse_v1(buff)
         if not data:
+            fl_logging.info("LeaderDataVisitor restore datablock, "
+                            "no checkpoints found")
             return
 
         with self._lock:
