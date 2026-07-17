@@ -23,6 +23,13 @@ filebeat:
   # indexTemplateLoad:
   #   - elastic-stack-elasticsearch-client:9200
 
+metricbeat:
+  enabled: true
+  daemonset:
+    enabled: true
+  deployment:
+    enabled: true
+
 fluentd:
   enabled: false
 
