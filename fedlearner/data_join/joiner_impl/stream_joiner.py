@@ -398,12 +398,17 @@ class StreamExampleJoiner(ExampleJoiner):
                                    "required_item is not satisfied"
 
     def _finish_data_block(self):
+        logging.info("===== 0: %s", self._follower_restart_index)
         meta = super(StreamExampleJoiner, self)._finish_data_block()
+        logging.info("===== 1: %s", self._follower_restart_index)
         self._follower_restart_index = self._follower_visitor.get_index()
+        logging.info("===== 2: %s", self._follower_restart_index)
         if self._follower_join_window.size() > 0:
             self._follower_restart_index = \
                     self._follower_join_window[0][0]
+        logging.info("===== 3: %s", self._follower_restart_index)
         for index, _ in self._joined_cache.values():
             if index < self._follower_restart_index:
                 self._follower_restart_index = index
+        logging.info("===== 4: %s", self._follower_restart_index)
         return meta
